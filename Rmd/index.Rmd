@@ -1,0 +1,16 @@
+---
+title: "GenoFunc"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This website documents research regarding the integration of GWAS summary statistics with functional genomic annotations.
+
+Projects:
+
+* Comparison of CMap/LINCS integration approaches
+* Drug target and drug repurposing pipeline
+

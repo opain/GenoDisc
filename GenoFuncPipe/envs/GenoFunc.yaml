@@ -1,0 +1,37 @@
+channels:
+  - conda-forge
+  - bioconda
+  - dranew
+dependencies:
+  - r-base =4.0.2
+  - r-essentials
+  - r-data.table
+  - r-optparse
+  - r-doMC
+  - r-foreach
+  - r-ggplot2
+  - r-cowplot
+  - plink
+  - plink2
+  - r-devtools
+  - r-knitr
+  - r-kableExtra
+  - r-rmarkdown
+  - r-R.utils
+  - bioconductor-biomart
+  - r-Rcpp
+  - r-RcppEigen
+  - r-RColorBrewer
+  - r-coloc
+  - r-WGCNA
+  - r-Matrix
+  - r-VGAM
+  - r-gdata
+  - r-lme4
+  - r-matrixcalc
+  - r-pbkrtest
+  - bioconductor-GWASTools
+  - bioconductor-qusage
+  - r-withr
+  - r-lme4qtl
+  - r-BiocManager

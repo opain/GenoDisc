@@ -1,0 +1,14 @@
+configfile: "config.yaml"
+
+import os
+import json
+import gzip
+import itertools
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
+HTTP = HTTPRemoteProvider()
+
+wildcard_constraints:
+    version="[\d.]+"
+    
+include: "rules/G2G.smk"

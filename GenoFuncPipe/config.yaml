@@ -1,0 +1,3 @@
+gwas_list: gwas_list_example.txt
+lincs_level5: /mnt/lustre/groups/biomarkers-brc-mh/TWAS_resource/CMAP/2020_beta_01022022/level5_beta_all_n1201944x12328.gctx
+lincs_siginfo: /mnt/lustre/groups/biomarkers-brc-mh/TWAS_resource/CMAP/2020_beta_01022022/siginfo_beta.txt
