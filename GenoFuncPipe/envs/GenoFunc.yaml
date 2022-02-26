@@ -33,5 +33,4 @@ dependencies:
   - bioconductor-GWASTools
   - bioconductor-qusage
   - r-withr
-  - r-lme4qtl
   - r-BiocManager

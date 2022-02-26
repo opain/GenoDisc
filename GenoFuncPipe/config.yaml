@@ -1,3 +1,6 @@
 gwas_list: gwas_list_example.txt
 lincs_level5: /mnt/lustre/groups/biomarkers-brc-mh/TWAS_resource/CMAP/2020_beta_01022022/level5_beta_all_n1201944x12328.gctx
 lincs_siginfo: /mnt/lustre/groups/biomarkers-brc-mh/TWAS_resource/CMAP/2020_beta_01022022/siginfo_beta.txt
+rosmap_fusion: /users/k1806347/brc_scratch/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip
+banner_fusion: /users/k1806347/brc_scratch/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip
+rosmap_smr: /users/k1806347/brc_scratch/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt

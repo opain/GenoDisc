@@ -1,0 +1,370 @@
+---
+title: "GenoFunc"
+params:
+  gwas: ""
+output:
+  html_document:
+    toc: true
+    theme: united
+    toc_depth: 3
+    toc_float: true
+    fig_caption: yes
+
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '../')
+
+library(data.table)
+library(knitr)
+library(ggplot2)
+library(cowplot)
+library(kableExtra)
+
+knit_hooks$set(optipng = hook_optipng)
+knit_hooks$set(pngquant = hook_pngquant)
+
+```
+
+***
+
+<style type="text/css">
+
+h1 { /* Header 1 */
+  font-size: 28px;
+}
+h2 { /* Header 2 */
+  font-size: 22px;
+}
+h3 { /* Header 3 */
+  font-size: 18px;
+}
+</style>
+
+```{css, echo=F}
+pre code, pre, code {
+  white-space: pre !important;
+  overflow-x: auto !important;
+  word-break: keep-all !important;
+  word-wrap: initial !important;
+}
+```
+
+<font size="4"> 
+ID: `r params$gwas`
+</font>
+
+***
+
+# GWAS QC
+
+<details><summary>Show sumstat_cleaner.R log file</summary>
+
+```{r, eval=T, echo=F, comment=''}
+sumstat_cleaner_log<-readLines(paste0('resources/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.log'))
+
+sumstat_cleaner_log
+
+```
+
+</details>
+
+<details><summary>Show FOCUS munge log file</summary>
+
+```{r, eval=T, echo=F, comment=''}
+focus_munge_log<-readLines(paste0('resources/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.munged.log'))
+
+focus_munge_log
+
+```
+
+</details>
+
+***
+
+# Molecular associations
+
+***
+
+## TWAS
+
+***
+
+### PsychENCODE DLPFC
+
+<details><summary>Show FDR significant and colocalised results</summary>
+
+```{r, eval=T, echo=F}
+twas_psychencode<-fread(paste0('results/',params$gwas,'/twas/psychencode/',params$gwas,'_twas_psychencode_GW'))
+
+twas_psychencode$TWAS.P.FDR<-p.adjust(twas_psychencode$TWAS.P, method = 'fdr')
+twas_psychencode<-twas_psychencode[,c('CHR','P0','P1','ID','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
+
+twas_psychencode<-twas_psychencode[which(twas_psychencode$TWAS.P.FDR < 0.05 & twas_psychencode$COLOC.PP4 > 0.8),]
+
+twas_psychencode<-twas_psychencode[order(twas_psychencode$CHR, twas_psychencode$P0),]
+
+twas_psychencode$TWAS.Z<-round(twas_psychencode$TWAS.Z, 3)
+twas_psychencode$TWAS.P<-format(twas_psychencode$TWAS.P, scientific = TRUE, digits = 3)
+twas_psychencode$TWAS.P.FDR<-format(twas_psychencode$TWAS.P.FDR, scientific = TRUE, digits = 3)
+
+twas_psychencode %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+***
+
+## MAGMA
+
+<details><summary>Show FDR significant results</summary>
+
+```{r, eval=T, echo=F}
+magma<-fread(paste0('results/',params$gwas,'/magma/magma_gene_level.clean.csv'))
+
+magma$P.FDR<-p.adjust(magma$P, method = 'fdr')
+
+magma<-magma[which(magma$P.FDR < 0.05),]
+
+magma<-magma[order(magma$CHR, magma$START),]
+
+magma$P<-format(magma$P, scientific = TRUE, digits = 3)
+magma$P.FDR<-format(magma$P.FDR, scientific = TRUE, digits = 3)
+
+magma %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+***
+
+# Drug-repruposing
+
+***
+
+## TWAS-CMAP: So et al. Average Ranks Method
+
+<details><summary>Show Top Drug Enrichment Results</summary>
+
+```{r, eval=T, echo=F}
+so_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_clean.csv'))
+so_cmap<-so_cmap[order(so_cmap$p),]
+  
+if(sum(so_cmap$p.fdr < 0.05) >= 10){
+  so_cmap<-so_cmap[so_cmap$p.fdr < 0.05,]
+} else {
+  so_cmap<-so_cmap[1:10,]
+}
+
+so_cmap$p<-format(so_cmap$p, scientific = TRUE, digits = 3)
+so_cmap$p.fdr<-format(so_cmap$p.fdr, scientific = TRUE, digits = 3)
+
+so_cmap<-so_cmap[,c("pert_mfc_id","cmap_name","pert_idose","pert_itime","cell_iname","avg.rank","p","p.fdr"), with=F]
+names(so_cmap)<-c('ID','Name','Dose','Time','Cell','Rank','P','P.FDR')
+
+so_cmap %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+<details><summary>Show ATC Enrichment Results</summary>
+
+```{r, eval=T, echo=F}
+so_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_atc_res.csv'))
+so_cmap_atc<-so_cmap_atc[order(so_cmap_atc$P),]
+so_cmap_atc$P.FDR<-p.adjust(so_cmap_atc$P, method = 'fdr')
+  
+if(sum(so_cmap_atc$P.FDR < 0.05) >= 10){
+  so_cmap_atc<-so_cmap_atc[so_cmap_atc$P.FDR < 0.05,]
+} else {
+  so_cmap_atc<-so_cmap_atc[1:10,]
+}
+
+so_cmap_atc$P<-format(so_cmap_atc$P, scientific = TRUE, digits = 3)
+so_cmap_atc$P.FDR<-format(so_cmap_atc$P.FDR, scientific = TRUE, digits = 3)
+
+so_cmap_atc<-so_cmap_atc[,c("ATC","N","P","P.FDR","Name"), with=F]
+names(so_cmap_atc)<-c("ATC","N Genes","P","P.FDR","Description")
+
+so_cmap_atc %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+***
+
+## TWAS-CMAP: TWAS-GSEA Method
+
+<details><summary>Show Top Drug Enrichment Results</summary>
+
+```{r, eval=T, echo=F}
+gsea_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_cmap.competitive.clean.csv'))
+gsea_cmap<-gsea_cmap[order(gsea_cmap$P),]
+  
+if(sum(gsea_cmap$P.CORR < 0.05) >= 10){
+  gsea_cmap<-gsea_cmap[gsea_cmap$P.CORR < 0.05,]
+} else {
+  gsea_cmap<-gsea_cmap[1:10,]
+}
+
+gsea_cmap$P<-format(gsea_cmap$P, scientific = TRUE, digits = 3)
+gsea_cmap$P.CORR<-format(gsea_cmap$P.CORR, scientific = TRUE, digits = 3)
+
+gsea_cmap<-gsea_cmap[,c("pert_mfc_id","cmap_name","pert_idose","pert_itime","cell_iname","Estimate","SE","P","P.CORR") , with=F]
+names(gsea_cmap)<-c('ID','Name','Dose','Time','Cell','Estimate','SE','P','P.FDR')
+
+gsea_cmap %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+<details><summary>Show ATC Enrichment Results</summary>
+
+```{r, eval=T, echo=F}
+gsea_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_res_atc_res.csv'))
+gsea_cmap_atc<-gsea_cmap_atc[order(gsea_cmap_atc$P),]
+gsea_cmap_atc$P.FDR<-p.adjust(gsea_cmap_atc$P, method = 'fdr')
+  
+if(sum(gsea_cmap_atc$P.FDR < 0.05) >= 10){
+  gsea_cmap_atc<-gsea_cmap_atc[gsea_cmap_atc$P.FDR < 0.05,]
+} else {
+  gsea_cmap_atc<-gsea_cmap_atc[1:10,]
+}
+
+gsea_cmap_atc$P<-format(gsea_cmap_atc$P, scientific = TRUE, digits = 3)
+gsea_cmap_atc$P.FDR<-format(gsea_cmap_atc$P.FDR, scientific = TRUE, digits = 3)
+
+gsea_cmap_atc<-gsea_cmap_atc[,c("ATC","N","P","P.FDR","Name"), with=F]
+names(gsea_cmap_atc)<-c("ATC","N Genes","P","P.FDR","Description")
+
+gsea_cmap_atc %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+***
+
+## MAGMA-DrugTargetor
+
+<details><summary>Show Top Drug Enrichment Results</summary>
+
+```{r, eval=T, echo=F}
+magma_gs<-fread(paste0('results/',params$gwas,'/magma/magma_drug_targetor.clean.csv'))
+magma_gs<-magma_gs[order(magma_gs$P),]
+magma_gs$P.FDR<-p.adjust(magma_gs$P, method='fdr')
+  
+if(sum(magma_gs$P.FDR < 0.05) >= 10){
+  magma_gs<-magma_gs[magma_gs$P.FDR < 0.05,]
+} else {
+  magma_gs<-magma_gs[1:10,]
+}
+
+magma_gs$P<-format(magma_gs$P, scientific = TRUE, digits = 3)
+magma_gs$P.FDR<-format(magma_gs$P.FDR, scientific = TRUE, digits = 3)
+
+magma_gs$NAME<-paste(toupper(substr(magma_gs$NAME, 1, 1)), substr(magma_gs$NAME, 2, nchar(magma_gs$NAME)), sep="")
+
+magma_gs<-magma_gs[,c("NAME","NGENES","P","P.FDR") , with=F]
+names(magma_gs)<-c('Name','N Genes','P','P.FDR')
+
+magma_gs %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+<details><summary>Show ATC Enrichment Results</summary>
+
+```{r, eval=T, echo=F}
+magma_gs_atc<-fread(paste0('results/',params$gwas,'/magma/magma_drug_targetor_atc_res.csv'))
+magma_gs_atc<-magma_gs_atc[order(magma_gs_atc$P),]
+magma_gs_atc$P.FDR<-p.adjust(magma_gs_atc$P, method = 'fdr')
+  
+if(sum(magma_gs_atc$P.FDR < 0.05) >= 10){
+  magma_gs_atc<-magma_gs_atc[magma_gs_atc$P.FDR < 0.05,]
+} else {
+  magma_gs_atc<-magma_gs_atc[1:10,]
+}
+
+magma_gs_atc$P<-format(magma_gs_atc$P, scientific = TRUE, digits = 3)
+magma_gs_atc$P.FDR<-format(magma_gs_atc$P.FDR, scientific = TRUE, digits = 3)
+
+magma_gs_atc<-magma_gs_atc[,c("ATC","N","P","P.FDR","Name"), with=F]
+names(magma_gs_atc)<-c("ATC","N Genes","P","P.FDR","Description")
+
+magma_gs_atc %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+***
+
+## TWAS-CMAP: Method Comparison
+
+<details><summary>Show Drug Enrichment Comparison</summary>
+
+```{r, eval=T, echo=F}
+so_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_clean.csv'))
+gsea_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_cmap.competitive.clean.csv'))
+
+both_cmap<-merge(so_cmap, gsea_cmap[,c('sig_id','Estimate','SE','P','P.CORR'),with=F], by='sig_id')
+
+ggplot(both_cmap, aes(x=-log10(both_cmap$p), y=-log10(both_cmap$P))) +
+  geom_point() +
+  theme_half_open() +
+  geom_abline(intercept =0 , slope = 1) +
+  coord_fixed() +
+  labs(x="-log10(P)(Average Ranks)", y='-log10(P)(TWAS-GSEA)')
+
+
+```
+
+</details>
+
+<details><summary>Show ATC Enrichment Comparison</summary>
+
+```{r, eval=T, echo=F}
+so_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_atc_res.csv'))
+gsea_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_res_atc_res.csv'))
+
+both_cmap_atc<-merge(so_cmap_atc, gsea_cmap_atc, by='ATC')
+
+ggplot(both_cmap_atc, aes(x=-log10(both_cmap_atc$P.x), y=-log10(both_cmap_atc$P.y))) +
+  geom_point() +
+  theme_half_open() +
+  geom_abline(intercept =0 , slope = 1) +
+  coord_fixed() +
+  labs(x="-log10(P)(Average Ranks)", y='-log10(P)(TWAS-GSEA)')
+
+```
+
+</details>
+
+***
+
+
