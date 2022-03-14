@@ -424,9 +424,10 @@ rule download_smr:
 
 rule format_rosmap_smr_data:
   input:
-    rules.download_smr.output
+    rules.download_smr.output,
+    rules.prep_1kg.output
   output:
-    "resources/data/rosmap_smr/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos"
+    "resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
   conda:
     "../envs/GenoFunc.yaml"
   params:
@@ -434,6 +435,87 @@ rule format_rosmap_smr_data:
   shell:
     "Rscript scripts/format_pwas_data.R \
       --rosmap {params.rosmap_smr}"
+
+####
+# Download PsychENCODE data for SMR
+####
+
+rule download_psychencode_smr:
+  output:
+    directory("resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/")
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "mkdir -p resources/data/psychencode_smr; wget --no-check-certificate -O resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz; tar -xvzf resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz -C resources/data/psychencode_smr; rm resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz"
+
+##
+# Download MetaBrain data in SMR format
+##
+
+# Basalganglia
+rule download_MetaBrain_Basalganglia:
+  output: 
+    directory("resources/data/MetaBrain/Basalganglia")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "mkdir -p resources/data/MetaBrain/Basalganglia; wget -O resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Basalganglia-EUR/2020-05-26-Basalganglia-EUR-smr.zip; unzip -d resources/data/MetaBrain/Basalganglia/ resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip; rm resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip"
+
+# Cerebellum
+rule download_MetaBrain_Cerebellum:
+  output: 
+    directory("resources/data/MetaBrain/Cerebellum")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "mkdir -p resources/data/MetaBrain/Cerebellum; wget -O resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cerebellum-EUR/2020-05-26-Cerebellum-EUR-smr.zip; unzip -d resources/data/MetaBrain/Cerebellum/ resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip; rm resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip"
+
+# Cortex
+rule download_MetaBrain_Cortex:
+  output: 
+    directory("resources/data/MetaBrain/Cortex")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "mkdir -p resources/data/MetaBrain/Cortex; wget -O resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cortex-EUR/2020-05-26-Cortex-EUR-smr.zip; unzip -d resources/data/MetaBrain/Cortex/ resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip; rm resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip"
+
+# Hippocampus
+rule download_MetaBrain_Hippocampus:
+  output: 
+    directory("resources/data/MetaBrain/Hippocampus")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "mkdir -p resources/data/MetaBrain/Hippocampus; wget -O resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Hippocampus-EUR/2020-05-26-Hippocampus-EUR-smr.zip; unzip -d resources/data/MetaBrain/Hippocampus/ resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip; rm resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip"
+
+# Spinalcord
+rule download_MetaBrain_Spinalcord:
+  output: 
+    directory("resources/data/MetaBrain/Spinalcord")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "mkdir -p resources/data/MetaBrain/Spinalcord; wget -O resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Spinalcord-EUR/2020-05-26-Spinalcord-EUR-smr.zip; unzip -d resources/data/MetaBrain/Spinalcord/ resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip; rm resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip"
+
+rule download_MetaBrain_all:
+  input: 
+    rules.download_MetaBrain_Basalganglia.output,
+    rules.download_MetaBrain_Cerebellum.output,
+    rules.download_MetaBrain_Cortex.output,
+    rules.download_MetaBrain_Hippocampus.output,
+    rules.download_MetaBrain_Spinalcord.output
+  output:
+    touch('resources/data/MetaBrain_download.out')
+
+# Update variant IDs in MetaBrain SMR files
+rule format_metabrain_esi:
+  output: 
+    touch("resources/data/MetaBrain/format_MetaBrain_esi.out")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "Rscript scripts/format_metabrain_esi.R"
+
 
 ##########
 # Analyse GWAS summary statistics
@@ -503,14 +585,14 @@ rule ldsc:
   input:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
   output:
-    "results/{gwas}/twas/ldsc"
+    "results/{gwas}/ldsc/{gwas}_ldsc_res.log"
   conda:
     "../envs/ldsc.yaml"
   shell:
-    "python resources/software/ldsc/ldsc.py \
+    "mkdir -p results/{wildcards.gwas}/ldsc/; python resources/software/ldsc/ldsc.py \
       --h2 resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
-      --ref-ld-chr resources/software/ldsc/eur_w_ld_chr/ \
-      --w-ld-chr resources/software/ldsc/eur_w_ld_chr/ \
+      --ref-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
+      --w-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
       --out results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res"
 
 ###
@@ -618,12 +700,11 @@ rule banner_pwas_all_chr:
 # Format sumstats for SMR
 ####
 
-rule focus_munge:
+rule format_sumstats_smr:
   input:
-    premunged="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
-    focus=rules.install_focus.output
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
   output:
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo"
   conda:
     "../envs/GenoFunc.yaml"
   shell:
@@ -633,9 +714,80 @@ rule focus_munge:
 # Run SMR using eQTL
 ####
 
+rule run_psychencode_smr:
+  input:
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    rules.download_psychencode_smr.output
+  output:
+    "results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "resources/software/smr/smr_Linux \
+    --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    --gwas-summary resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+    --beqtl-summary resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
+    --out results/{wildcards.gwas}/smr/psychencode/{wildcards.gwas}_smr_psychencode_chr{wildcards.chr}"
+
+rule run_psychencode_smr_chr:
+    input: 
+      lambda w: expand("results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+    output: 
+      touch("results/{gwas}/checks/psychencode_smr_all_chr.done")
+
 ####
 # Run SMR using pQTL
 ####
+
+rule run_rosmap_smr:
+  input:
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    rules.format_rosmap_smr_data.output
+  output:
+    "results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "resources/software/smr/smr_Linux \
+    --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    --gwas-summary resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+    --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
+    --out results/{wildcards.gwas}/smr/rosmap/{wildcards.gwas}_smr_rosmap_chr{wildcards.chr}"
+
+rule run_rosmap_smr_chr:
+    input: 
+      lambda w: expand("results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+    output: 
+      touch("results/{gwas}/checks/rosmap_smr_all_chr.done")
+
+###
+# Run SMR with MetaBrain
+###
+
+rule smr_analysis_MetaBrain:
+  resources:
+    mem_mb=15000 
+  input:
+    rules.prep_1kg.output,
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    rules.format_metabrain_esi.output
+  output:
+    "results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "resources/software/smr/smr_Linux \
+      --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+      --gwas-summary resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+      --beqtl-summary resources/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
+      --out results/{wildcards.gwas}/smr/metabrain/{wildcards.tissue}/{wildcards.gwas}_smr_metabrain_{wildcards.tissue}_chr{wildcards.chr} \
+      --thread-num 1"
+
+rule run_smr_analysis_MetaBrain:
+    input: 
+      lambda w: expand("results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), tissue=["Basalganglia","Cerebellum","Cortex","Hippocampus","Spinalcord"])
+    output: 
+      touch('results/{gwas}/checks/metabrain_smr_all_chr_all_tissue.done')
 
 ####
 # Run So et al. analysis
@@ -825,6 +977,7 @@ rule format_magma_results:
 
 rule create_report:
   input:
+    "results/{gwas}/ldsc/{gwas}_ldsc_res.log",
     "results/{gwas}/twas/cmap/twas_gsea_res_atc_res.csv",
     "results/{gwas}/twas/cmap/So_res_atc_res.csv",
     "results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
@@ -841,18 +994,17 @@ rule run_create_report:
   input: expand("results/{gwas}/reports/{gwas}_report.html", gwas=gwas_list_df_eur['name'])
 
 ###
-# To do:
-# LDSC SNP-h2
-# Manhattan plot
-# COJO
-# Create lead SNP/locus table
-# Include PsychENCODE SMR
-# Include MetaBrain SMR
-# Include brain PWAS and protein SMR
-# Finemapping
-# Implement CLUE.io analysis
-# Implement GCSC
-# Input latest GWAS summary statistics for brain-related disorders
-###
-
+# To do for NEUROHACK
+#
+# - Core:
+# -- Include Finemapping
+# -- Include TWAS conditional analysis
+# -- Include FOCUS finemapping
+# -- Format PWAS, TWAS and SMR results
+# -- Implement CLUE.io analysis
+# -- Improve report figures and tables
+#
+# - Reach:
+# -- Implement GCSC
+####
 

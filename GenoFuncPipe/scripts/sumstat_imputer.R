@@ -136,6 +136,7 @@ echo ${chr}
       q()
     }
     
+    
     if(sum(sacct_log$State != 'COMPLETED') == 0){
       break
     } else {
@@ -155,7 +156,7 @@ imped<-NULL
 for(i in 1:22){
   log<-readLines(paste0(opt$output,'.imped.chr',i,'.log'))
   
-  if(any(grepl('Finished summary statistic imputation', log))){
+  if(!any(grepl('ERROR', log))){
     imped<-rbind(imped, fread(paste0(opt$output,'.imped.chr',i,'.sumstat')))
   } else {
     sink(file = paste(opt$output,'.log',sep=''), append = T)

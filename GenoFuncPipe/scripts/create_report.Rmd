@@ -1,7 +1,7 @@
 ---
 title: "GenoFunc"
 params:
-  gwas: ""
+  gwas: "SCHI02"
 output:
   html_document:
     toc: true
@@ -81,6 +81,69 @@ focus_munge_log
 ```
 
 </details>
+
+***
+
+# SNP-based Heritability
+
+<details><summary>Show LDSC log file</summary>
+
+```{r, eval=T, echo=F, comment=''}
+ldsc_log<-readLines(paste0('results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
+
+ldsc_log
+
+```
+
+</details>
+
+***
+
+# SNP associations
+
+```{r, eval=T, echo=F, comment=''}
+lead_snps<-fread(paste0('results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv'))
+
+lead_snps$pJ<-NULL
+
+if(any(names))
+lead_snps<-lead_snps[lead_snps$P < 1e-5,]
+
+lead_snps<-lead_snps[order(lead_snps$CHR, lead_snps$BP),]
+lead_snps_gw<-lead_snps[lead_snps$P < 5e-8,]
+
+```
+
+GWAS contain `r nrow(lead_snps_gw)` independent genome-wide significant variants (5e-8), and `r nrow(lead_snps)` independent suggestive (1e-5) significant variants.
+
+<details><summary>Show suggestive loci</summary>
+
+```{r, eval=T, echo=F, comment=''}
+
+lead_snps$P<-format(lead_snps$P, scientific = TRUE, digits = 3)
+
+lead_snps %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+<details><summary>Show GW-significant loci</summary>
+
+```{r, eval=T, echo=F, comment=''}
+
+lead_snps_gw$P<-format(lead_snps_gw$P, scientific = TRUE, digits = 3)
+
+lead_snps_gw %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
 
 ***
 
