@@ -124,7 +124,8 @@ rule format_sumstats_smr:
   conda:
     "../envs/GenoFunc.yaml"
   shell:
-    "focus munge {input.premunged} --output resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged"
+    "Rscript format_sumstats_smr.R \
+      --gwas {wildcards.gwas}"
 
 ####
 # Run SMR using eQTL
@@ -150,6 +151,19 @@ rule run_psychencode_smr_chr:
       lambda w: expand("results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
     output: 
       touch("results/{gwas}/checks/psychencode_smr_all_chr.done")
+
+# Format SMR PsychENCODE results
+rule format_psychencode_smr:
+  input:
+    "results/{gwas}/checks/psychencode_smr_all_chr.done"
+  output:
+    "results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_GW_clean.txt.gz"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/format_psychencode_smr.R \
+    --gwas {wildcards.gwas}"
+
 
 ####
 # Run SMR using pQTL
@@ -229,3 +243,38 @@ rule run_smr_analysis_MetaBrain_Spinalcord:
     output: 
       touch('results/{gwas}/checks/metabrain_smr_spinalcord_all_chr.done')
       
+rule run_smr_analysis_MetaBrain_all_tissue:
+    input: 
+      lambda w: expand("results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), tissue=['Basalganglia','Cerebellum','Cortex','Hippocampus','Spinalcord'])
+    output: 
+      touch('results/{gwas}/checks/metabrain_smr_all_tissue_all_chr.done')
+
+# Format MetaBrain SMR results
+metabrain_output = list()
+
+if config["smr_expression_panel_metabrain_basalganglia"] == "T":
+    metabrain_output.append("results/{gwas}/checks/metabrain_smr_basalganglia_all_chr.done")
+
+if config["smr_expression_panel_metabrain_cerebellum"] == "T":
+    metabrain_output.append("results/{gwas}/checks/metabrain_smr_cerebellum_all_chr.done")
+
+if config["smr_expression_panel_metabrain_cortex"] == "T":
+    metabrain_output.append("results/{gwas}/checks/metabrain_smr_cortex_all_chr.done")
+
+if config["smr_expression_panel_metabrain_hippocampus"] == "T":
+    metabrain_output.append("results/{gwas}/checks/metabrain_smr_hippocampus_all_chr.done")
+
+if config["smr_expression_panel_metabrain_spinalcord"] == "T":
+    metabrain_output.append("results/{gwas}/checks/metabrain_smr_spinalcord_all_chr.done")
+    
+rule format_metabrain_smr:
+  input:
+    metabrain_output
+  output:
+    "results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/format_metabrain_smr.R \
+    --gwas {wildcards.gwas}"
+

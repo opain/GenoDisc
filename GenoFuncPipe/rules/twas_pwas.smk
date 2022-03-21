@@ -281,6 +281,18 @@ rule psychencode_twas_all_chr:
     output: 
       touch("results/{gwas}/checks/psychencode_twas_all_chr.done")
 
+# Format TWAS results
+rule format_psychencode_twas:
+  input:
+    "results/{gwas}/checks/psychencode_twas_all_chr.done"
+  output:
+    "results/{gwas}/twas/psychencode/{gwas}_twas_psychencode_GW_clean.txt.gz"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/format_psychencode_twas.R \
+    --twas {wildcards.gwas}"
+
 ###
 # Run PWAS
 ###

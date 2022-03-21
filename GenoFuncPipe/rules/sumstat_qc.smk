@@ -41,7 +41,6 @@ rule prep_1kg:
   shell:
     "Rscript scripts/prep_1kg.R"
 
-
 ####
 # Install FOCUS
 ####
@@ -170,6 +169,53 @@ rule ldsc:
       --ref-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
       --w-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
       --out results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res"
+
+###
+# Run LD clumping
+###
+
+rule clump:
+  input:
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
+  output:
+    "results/{gwas}/clump/{gwas}_chr{chr}.clumped"
+  conda:
+    "../envs/GenoFunc.yaml"
+  params:
+    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+  shell:
+    "mkdir -p results/{wildcards.gwas}/clump; plink \
+      --bfile resources/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
+      --chr {wildcards.chr} \
+      --maf 0.01 \
+      --clump resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz \
+      --clump-p1 1e-5 \
+      --clump-r2 0.1 \
+      --clump-kb 500 \
+      --out results/{wildcards.gwas}/clump/{wildcards.gwas}_chr{wildcards.chr}"
+
+rule clump_all_chr:
+    input: 
+      lambda w: expand("results/{gwas}/clump/{gwas}_chr{chr}.clumped", gwas=w.gwas, chr=range(1, 23))
+    output: 
+      touch("results/{gwas}/checks/clump_all_chr.done")
+
+###
+# Process clumping results
+###
+
+rule process_clump:
+  input:
+    "results/{gwas}/checks/clump_all_chr.done"
+  output:
+    "results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/process_clump.R \
+      --gwas {wildcards.gwas}"
+
+
 
 ###
 # Run COJO

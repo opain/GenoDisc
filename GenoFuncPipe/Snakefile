@@ -12,6 +12,7 @@ wildcard_constraints:
     version="[\d.]+"
     
 include: "rules/sumstat_qc.smk"
+include: "rules/finemapping.smk"
 include: "rules/magma.smk"
 include: "rules/twas_pwas.smk"
 include: "rules/smr.smk"

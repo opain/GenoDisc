@@ -6,7 +6,7 @@ option_list = list(
               help="GWAS ID [required]")
 )
 
-opt$gwas<-'SCHI02'
+opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 

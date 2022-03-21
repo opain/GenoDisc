@@ -14,6 +14,7 @@ dependencies:
   - plink
   - plink2
   - r-devtools
+  - r-susieR
   - r-knitr
   - r-kableExtra
   - r-rmarkdown

@@ -3,7 +3,7 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="Name of GWAs [required]")
+              help="Name of GWAS [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -14,19 +14,19 @@ library(data.table)
 ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
 
 # Read in COJO results
-cojo_res<-NULL
+clumped_res<-NULL
 for(i in 1:22){
-  tmp<-fread(paste0('results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))
-  cojo_res<-rbind(cojo_res, tmp) 
+  tmp<-fread(paste0('results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))
+  clumped_res<-rbind(clumped_res, tmp) 
 }
 
-# Make table with original sumstats but containing only independent associations from COJO
+# Make table with original sumstats but containing only independent associations from clumping
 # Insert the COJO p-value
-ss_subset<-merge(ss, cojo_res[,c('SNP','pJ'),], by='SNP')
+ss_subset<-ss[(ss$SNP %in% clumped_res$SNP),]
 
 # Tidy table
-ss_subset<-ss_subset[,names(ss_subset) %in% c('CHR','BP','SNP','A1','A2','OR','BETA','SE','P','pJ','INFO','FREQ','REF.FREQ','N'), with=F]
-col_order<-match(c('CHR','BP','SNP','A1','A2','OR','BETA','SE','P','pJ','INFO','FREQ','REF.FREQ','N'), names(ss_subset))
+ss_subset<-ss_subset[,names(ss_subset) %in% c('CHR','BP','SNP','A1','A2','OR','BETA','SE','P','INFO','FREQ','REF.FREQ','N'), with=F]
+col_order<-match(c('CHR','BP','SNP','A1','A2','OR','BETA','SE','P','INFO','FREQ','REF.FREQ','N'), names(ss_subset))
 col_order<-col_order[!is.na(col_order)]
 ss_subset<-ss_subset[,col_order,with=F]
 
@@ -68,7 +68,7 @@ for(i in 1:nrow(ss_subset)){
 }
 
 # Write out results
-write.csv(ss_subset, paste0('results/',opt$gwas,'/cojo/',opt$gwas,'.GW.cojo.clean.csv'), row.names=F, quote=T)
+write.csv(ss_subset, paste0('results/',opt$gwas,'/clump/',opt$gwas,'.GW.clump.clean.csv'), row.names=F, quote=T)
 
 
 

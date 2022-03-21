@@ -49,6 +49,30 @@ system(paste0('rm ',output_dir,'/1KG.Phase3.log'))
 system(paste0('rm ',output_dir,'/all_phase3.psam'))
 system(paste0('rm ',output_dir,'/EUR_samples.keep'))
 
+# For autosomes: Remove variants with 3+ alleles or multiple positions
+for(chr in 1:22){
+  system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,' --bmerge ',output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,' --merge-mode 6 --make-bed --out ',output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,'_noDup'))
+}
+
+for(chr in 1:22){
+  missnp<-fread(paste0(output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,'_noDup.missnp'), header=F)$V1
+  log_chr<-readLines(paste0(output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,'_noDup.log'))
+  log_chr<-log_chr[grepl("Warning: Multiple positions seen for variant", log_chr)]
+  log_chr<-unique(gsub("'\\.","",gsub(".*variant '","",log_chr)))
+  missnp<-c(missnp, log_chr)
+  write.table(missnp, paste0(output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,'_noDup.missnp'), col.names=F, row.names=F, quote=F)
+}
+
+for(chr in 1:22){
+  system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,' --exclude ',output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr,'_noDup.missnp --make-bed --out ',output_dir,'/1KG.Phase3.EUR.MAF_001.chr',chr))
+}
+
+system(paste0('rm ',output_dir,'/*_noDup.missnp'))
+system(paste0('rm ',output_dir,'/*_noDup.log'))
+system(paste0('rm ',output_dir,'/*.bed~'))
+system(paste0('rm ',output_dir,'/*.bim~'))
+system(paste0('rm ',output_dir,'/*.fam~'))
+
 ####################
 # Compute allele frequencies across all individuals
 ####################
