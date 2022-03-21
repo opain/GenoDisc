@@ -12,6 +12,8 @@ option_list = list(
               help="Path to FIZI binary [required]"),
   make_option("--n_cores", action="store", default=1, type='numeric',
               help="Number of cores for parallel computing [optional]"),
+  make_option("--min_prop", action="store", default=0.5, type='numeric',
+              help="Minimum proportion of SNPs in region to impute [optional]"),
   make_option("--output", action="store", default='./Output', type='character',
               help="Path for output files [optional]")
 )
@@ -80,7 +82,7 @@ rm(gwas)
 # This takes quite a while, so an option to run in parallel should be implemented.
 if(opt$n_cores == 1){
   for(i in 1:22){
-    system(paste0(opt$fizi,' impute ',opt$output,'.munged.tmp.gz ',opt$ref_plink_chr,i,' --chr ',i,' --out ', opt$output,'.imped.chr',i))
+    system(paste0(opt$fizi,' impute ',opt$output,'.munged.tmp.gz ',opt$ref_plink_chr,i,' --chr ',i,' --min-prop ',opt$min_prop,' --out ', opt$output,'.imped.chr',i))
   }
 } else {
   # Make a data.frame listing chromosome and phi combinations
@@ -95,10 +97,10 @@ if(opt$n_cores == 1){
   writeLines(paste0("#!/bin/sh
   
 #SBATCH -p shared,brc
-#SBATCH --mem 5G
+#SBATCH --mem 15G
 #SBATCH -n 1
 #SBATCH --nodes=1
-#SBATCH -t 1:00:00
+#SBATCH -t 3:00:00
 #SBATCH -J fizi
 
 export MKL_NUM_THREADS=$SLURM_CPUS_ON_NODE
@@ -110,7 +112,7 @@ chr=$(awk -v var=$SLURM_ARRAY_TASK_ID 'NR == var {print $1}' ", opt$output,".job
 
 echo ${chr}
 
-",opt$fizi,' impute ',opt$output,'.munged.tmp.gz ',opt$ref_plink_chr,'${chr} --chr ${chr} --out ', opt$output,".imped.chr${chr}
+",opt$fizi,' impute ',opt$output,'.munged.tmp.gz ',opt$ref_plink_chr,'${chr} --chr ${chr}  --min-prop ',opt$min_prop,' --out ', opt$output,".imped.chr${chr}
 
 "), paste0(opt$output,'.batch.sh'))
   
@@ -134,9 +136,13 @@ echo ${chr}
       q()
     }
     
+    
     if(sum(sacct_log$State != 'COMPLETED') == 0){
       break
     } else {
+      if(sum(sacct_log$State != 'RUNNING' & sacct_log$State != 'COMPLETED' & sacct_log$State != 'PENDING' & sacct_log$State != 'NODE_FAIL') > 0){
+        stop()
+      }
       Sys.sleep(60)
     }
   }
@@ -148,7 +154,17 @@ echo ${chr}
 
 imped<-NULL
 for(i in 1:22){
-  imped<-rbind(imped, fread(paste0(opt$output,'.imped.chr',i,'.sumstat')))
+  log<-readLines(paste0(opt$output,'.imped.chr',i,'.log'))
+  
+  if(!any(grepl('ERROR', log))){
+    imped<-rbind(imped, fread(paste0(opt$output,'.imped.chr',i,'.sumstat')))
+  } else {
+    sink(file = paste(opt$output,'.log',sep=''), append = T)
+    cat('At least one chromosome failed to complete. Check log files.\n')
+    sink()
+    
+    stop()
+  }
 }
 
 # Remove imputed variant with R2 < 0.8

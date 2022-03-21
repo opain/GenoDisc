@@ -5,8 +5,8 @@ suppressMessages(library("optparse"))
 option_list = list(
   make_option("--twas", action="store", default=NA, type='character',
               help="GWAS ID [required]"),
-  make_option("--cmap", action="store", default=NA, type='character',
-              help="CMAP data [required]")
+  make_option("--batch", action="store", default=NA, type='character',
+              help="batch number [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -16,7 +16,7 @@ library(Hmisc)
 library(data.table)
 
 # Read in the lincs data
-cmap<-readRDS('resources/data/lincs/lincs_core_subset_batch_1.rds')
+cmap<-readRDS(paste0('resources/data/lincs/lincs_core_subset_batch_',opt$batch,'.rds'))
 
 # Read in TWAS results
 twas<-NULL
@@ -45,7 +45,7 @@ rm(twas, cmap)
 #################
 
 thres.N.vector = c(50,100,250,500)
-noperm = 100 
+noperm = 100 # The true number of permuations is nodrugs*noperm
 
 nodrugs = ncol(finalres)-3  ##need to check, here we assume the first 12 columns of "finalres" are NOT drug-expression data; ie drug transcriptome data starts from 13th column
 no.thres.N = length(thres.N.vector)
@@ -62,7 +62,6 @@ extreme.cor.spearman = matrix(ncol=no.thres.N,nrow=nodrugs)
 extreme.cor.pearson = matrix(ncol=no.thres.N,nrow=nodrugs)
 connect.score = vector()
 finalres = data.frame(finalres)
-
 
 #******************************************************
 #         comparing expression in drugs vs diseases
@@ -130,53 +129,32 @@ for (i in 1:nodrugs) {
   }
 }
 
-drugmat = cbind( colnames(finalres)[4:ncol(finalres)], 
-                 cor.pearson ,cor.spearman, 
-                 ks.signed, 
-                 extreme.cor.spearman,
-                 extreme.cor.pearson)
-drugmat = data.frame(drugmat)
+res_list_list<-list()
+res_list<-list()
+res_list[['drugs']]<-colnames(finalres)[4:ncol(finalres)]
+res_list[['cor.pearson']]<-cor.pearson
+res_list[['cor.spearman']]<-cor.spearman
+res_list[['ks.signed']]<-ks.signed
+res_list[['extreme.cor.pearson']]<-extreme.cor.pearson
+res_list[['extreme.cor.spearman']]<-extreme.cor.spearman
 
-#*************************************************
-# averaging ranks over the thresholds and then averaging over all methods
-#*************************************************
-rank.ks = matrix(nrow=nodrugs, ncol=no.thres.N)
-rank.spearman = matrix(nrow=nodrugs, ncol=no.thres.N)
-rank.pearson = matrix(nrow=nodrugs, ncol=no.thres.N)
-
-for (j in 1:no.thres.N){
-  rank.ks[,j]=rank(ks.signed[,j])
-  rank.spearman[,j]=rank(extreme.cor.spearman[,j])
-  rank.pearson[,j]=rank(extreme.cor.pearson[,j])
-}
-
-mean.rank.ks = rowMeans(rank.ks)
-mean.rank.spearman = rowMeans(rank.spearman)
-mean.rank.pearson = rowMeans(rank.pearson)
-
-five.method.rank = cbind(rank(cor.pearson),
-                         rank(cor.spearman), 
-                         rank(mean.rank.ks), 
-                         rank(mean.rank.spearman), 
-                         rank(mean.rank.pearson) )
-
-res.5method.avg = data.frame( colnames(finalres)[4:ncol(finalres)], rowMeans(five.method.rank) ) 
-colnames(res.5method.avg)   <- c("Drug","AvgRank")    
+res_list_list[['obs']]<-res_list
 
 #*********************************************************************
 # permutation to determine the significance of the avg. rank obtained (repeats the above code)
 #*********************************************************************
-cor.spearman=NULL
-cor.pearson=NULL
-
-ks.signed = matrix(ncol=no.thres.N,nrow=nodrugs)
-extreme.cor.spearman = matrix(ncol=no.thres.N,nrow=nodrugs)
-extreme.cor.pearson = matrix(ncol=no.thres.N,nrow=nodrugs)
-avgrank.perm <- matrix(nrow=nodrugs, ncol=noperm)
 
 for (r in 1:noperm) {
   print(r)
   disease.zscore = sample(finalres$TWAS.Z)
+  
+  cor.spearman=NULL
+  cor.pearson=NULL
+  
+  ks.signed = matrix(ncol=no.thres.N,nrow=nodrugs)
+  extreme.cor.spearman = matrix(ncol=no.thres.N,nrow=nodrugs)
+  extreme.cor.pearson = matrix(ncol=no.thres.N,nrow=nodrugs)
+  avgrank.perm <- matrix(nrow=nodrugs, ncol=noperm)
   
   for (i in 1:nodrugs) {
     spearman.obj = cor.test(finalres[,i+3],disease.zscore, method="spearman",use="na.or.complete")
@@ -236,68 +214,19 @@ for (r in 1:noperm) {
     
   } #end of looping over all drugs
   
-  drugmat = cbind( colnames(finalres)[4:ncol(finalres)], 
-                   cor.pearson ,cor.spearman, 
-                   ks.signed, 
-                   extreme.cor.spearman,
-                   extreme.cor.pearson)
+  perm_res_list<-list()
+  perm_res_list[['drugs']]<-colnames(finalres)[4:ncol(finalres)]
+  perm_res_list[['cor.pearson']]<-cor.pearson
+  perm_res_list[['cor.spearman']]<-cor.spearman
+  perm_res_list[['ks.signed']]<-ks.signed
+  perm_res_list[['extreme.cor.pearson']]<-extreme.cor.pearson
+  perm_res_list[['extreme.cor.spearman']]<-extreme.cor.spearman
   
-  
-  drugmat = data.frame(drugmat)
-  
-  #*************************************************
-  # averaging ranks over the thresholds and then averaging over all methods
-  #*************************************************
-  rank.ks = matrix(nrow=nodrugs, ncol=no.thres.N)
-  rank.spearman = matrix(nrow=nodrugs, ncol=no.thres.N)
-  rank.pearson = matrix(nrow=nodrugs, ncol=no.thres.N)
-  
-  for (j in 1:no.thres.N){
-    rank.ks[,j]=rank(ks.signed[,j])
-    rank.spearman[,j]=rank(extreme.cor.spearman[,j])
-    rank.pearson[,j]=rank(extreme.cor.pearson[,j])
-  }
-  
-  mean.rank.ks = rowMeans(rank.ks)
-  mean.rank.spearman = rowMeans(rank.spearman)
-  mean.rank.pearson = rowMeans(rank.pearson)
-  
-  five.method.rank = cbind(rank(cor.pearson),
-                           rank(cor.spearman), 
-                           rank(mean.rank.ks), 
-                           rank(mean.rank.spearman), 
-                           rank(mean.rank.pearson) )
-  
-  avgrank.perm[,r] <- rowMeans(five.method.rank) 
-  
-  
+  res_list_list[[paste0('perm_',r)]]<-perm_res_list
+
 }  # end of permutation loop
 
-perm.finalres = cbind( as.numeric(res.5method.avg$AvgRank), avgrank.perm)
-#*************************************************
-# calculate permutation p-values (pooling over all drugs to obtain the permutation null distribution)
-#*************************************************
-perm.p =NULL
-allPermRank = c(avgrank.perm)
-realnoperm = length(allPermRank)
-for (s in 1:nodrugs){
-  perm.p[s] = sum( allPermRank <= perm.finalres[s,1], na.rm=T)/ (realnoperm)
-}
-
-perm.finalres = cbind(colnames(finalres)[4:ncol(finalres)], 
-                      as.numeric(res.5method.avg$AvgRank), 
-                      perm.p, 
-                      perm.finalres[,-1])
-colnames(perm.finalres)[c(1,2)]<- c("Drug","AvgRank")
-#********************************************************
-# ranking the table by the original (un-permuted) ranking 
-#*********************************************************
-perm.finalres = data.frame(perm.finalres)
-perm.finalres$AvgRank <- as.numeric(as.character(perm.finalres$AvgRank))
-perm.finalres.arr = arrange(perm.finalres, AvgRank)
-
-##writing the results
 dir.create(paste0('results/',opt$twas,'/twas/cmap'))
-write.csv(perm.finalres.arr,  paste0('results/',opt$twas,'/twas/cmap/So_average_ranks.csv'), row.names=F)
+saveRDS(res_list_list, paste0('results/',opt$twas,'/twas/cmap/res_batch_',opt$batch,'.RDS'))
 
 
