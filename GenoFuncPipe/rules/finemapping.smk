@@ -4,7 +4,8 @@
 
 rule finemap:
   input:
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
+    "results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   output:
     "results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
   conda:

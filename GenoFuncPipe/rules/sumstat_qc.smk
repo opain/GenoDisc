@@ -178,7 +178,7 @@ rule clump:
   input:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
   output:
-    "results/{gwas}/clump/{gwas}_chr{chr}.clumped"
+    touch("results/{gwas}/checks/{gwas}_chr{chr}.clumped.done")
   conda:
     "../envs/GenoFunc.yaml"
   params:
@@ -196,7 +196,7 @@ rule clump:
 
 rule clump_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/clump/{gwas}_chr{chr}.clumped", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("results/{gwas}/checks/{gwas}_chr{chr}.clumped.done", gwas=w.gwas, chr=range(1, 23))
     output: 
       touch("results/{gwas}/checks/clump_all_chr.done")
 
@@ -230,7 +230,7 @@ rule cojo:
     rules.download_gcta.output,
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo"
   output:
-    "results/{gwas}/cojo/{gwas}_chr{chr}.cma.cojo"
+    touch("results/{gwas}/checks/{gwas}_cojo_chr{chr}.done")
   conda:
     "../envs/ldsc.yaml"
   params:
@@ -247,7 +247,7 @@ rule cojo:
 
 rule cojo_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/cojo/{gwas}_chr{chr}.cma.cojo", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("results/{gwas}/checks/{gwas}_cojo_chr{chr}.done", gwas=w.gwas, chr=range(1, 23))
     output: 
       touch("results/{gwas}/checks/cojo_all_chr.done")
 

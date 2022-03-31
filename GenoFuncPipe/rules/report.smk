@@ -57,7 +57,7 @@ if config["smr_expression_panel_metabrain_spinalcord"] == "T":
     myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
 if config["smr_protein_panel_rosmap"] == "T":
-    myoutput.append("results/{gwas}/checks/rosmap_smr_all_chr.done")
+    myoutput.append("results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz")
 
 rule create_report:
   input:

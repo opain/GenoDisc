@@ -16,7 +16,9 @@ ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.
 # Read in COJO results
 clumped_res<-NULL
 for(i in 1:22){
-  tmp<-fread(paste0('results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))
+  if(file.exists(paste0('results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))){
+    tmp<-fread(paste0('results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))
+  }
   clumped_res<-rbind(clumped_res, tmp) 
 }
 

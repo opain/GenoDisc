@@ -16,8 +16,10 @@ ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.
 # Read in COJO results
 cojo_res<-NULL
 for(i in 1:22){
-  tmp<-fread(paste0('results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))
-  cojo_res<-rbind(cojo_res, tmp) 
+  if(file.exists(paste0('results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))){
+    tmp<-fread(paste0('results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))
+    cojo_res<-rbind(cojo_res, tmp) 
+  }
 }
 
 # Make table with original sumstats but containing only independent associations from COJO

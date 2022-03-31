@@ -8,8 +8,6 @@ option_list = list(
 
 opt = parse_args(OptionParser(option_list=option_list))
 
-opt$gwas<-'SCHI02'
-
 library(data.table)
 library(susieR)
 library(stringr)

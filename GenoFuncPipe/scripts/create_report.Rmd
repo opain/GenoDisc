@@ -1,7 +1,7 @@
 ---
 title: "GenoFunc"
 params:
-  gwas: ""
+  gwas: "ALS2021"
 output:
   html_document:
     toc: true
@@ -139,6 +139,8 @@ drug_logical<-any(magma_drugtargetor_logical,
 
 # GWAS QC
 
+This section provides some information from the sumstat quality control process and some descriptive statistics.
+
 <details><summary>Show sumstat_cleaner.R log file</summary>
 
 ```{r, eval=T, echo=F, comment=''}
@@ -164,6 +166,7 @@ focus_munge_log
 
 cat("*** \n")
 cat("# SNP-based Heritability \n")
+cat("This section shows the output from [LD-score regression](https://github.com/bulik/ldsc), including an estimate of SNP-based heritability on the observed scale, and the LD-score regression intercept. The intercept can be used to determine whether there is genome-wide inflation that is not explained by high polygenicity.  \n\n")
 cat("<details><summary>Show LDSC log file</summary>")
 
 ```
@@ -185,6 +188,7 @@ cat("</details>")
 
 cat("*** \n")
 cat("# SNP associations \n")
+cat("This section list independent SNP associations achieving either genome-wide or suggestive significance. Independence is determined using [LD-based clumping](https://www.cog-genomics.org/plink/1.9/postproc#clump) and/or conditional-joint ([COJO](https://yanglab.westlake.edu.cn/software/gcta/#COJO](https://yanglab.westlake.edu.cn/software/gcta/#COJO)) analysis. Note, LD is estimated using a reference sample and may not accurately reflect the LD structure in the GWAS sample. COJO analysis is particularly sensitive to LD mispecification. \n")
 
 ```
 
@@ -313,6 +317,8 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("## SNP Finemapping \n")
+cat("This section summarises the results SNP-based statistical finemapping, using the software [SuSiE](https://stephenslab.github.io/susie-paper/). Note, LD is estimated using a reference sample and may not accurately reflect the LD structure in the GWAS sample. Finemapping analysis is particularly sensitive to LD mispecification. \n\n")
+
 cat("<details><summary>Finemapping: All loci</summary> \n")
 
 ```
@@ -341,6 +347,7 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("# Molecular associations \n")
+cat("This section summarises analyses that infer molecular changes associated with the GWAS phenotype, either altered gene expression or protein levels. We integrate a range of datasets indicating the effect of genetic variants on expression and protein levels in different tissues. Depending on the availability of data, we run the analysis using [FUSION](http://gusevlab.org/projects/fusion/) or [SMR](https://yanglab.westlake.edu.cn/software/smr/#Overview) \n\n")
 
 ```
 
@@ -382,7 +389,6 @@ twas_psychencode_clean<-twas_psychencode_clean[order(twas_psychencode_clean$CHR,
 twas_psychencode_clean$TWAS.Z<-round(twas_psychencode_clean$TWAS.Z, 3)
 twas_psychencode_clean$TWAS.P<-format(twas_psychencode_clean$TWAS.P, scientific = TRUE, digits = 3)
 twas_psychencode_clean$TWAS.P.FDR<-format(twas_psychencode_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
-
 
 twas_psychencode_clean %>% 
   kable(booktabs = T) %>%
@@ -702,15 +708,17 @@ pwas_rosmap$`Gene Symbol`<-gsub('.*\\.','',pwas_rosmap$ID)
 
 pwas_rosmap<-pwas_rosmap[,c('CHR','P0','P1','Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
 
-pwas_rosmap<-pwas_rosmap[which(pwas_rosmap$TWAS.P.FDR < 0.05 & pwas_rosmap$COLOC.PP4 > 0.8),]
+pwas_rosmap_clean<-pwas_rosmap
 
-pwas_rosmap<-pwas_rosmap[order(pwas_rosmap$CHR, pwas_rosmap$P0),]
+pwas_rosmap_clean<-pwas_rosmap_clean[which(pwas_rosmap_clean$TWAS.P.FDR < 0.05 & (pwas_rosmap_clean$COLOC.PP4-pwas_rosmap_clean$COLOC.PP3)/pwas_rosmap_clean$COLOC.PP4 > 0.8),]
 
-pwas_rosmap$TWAS.Z<-round(pwas_rosmap$TWAS.Z, 3)
-pwas_rosmap$TWAS.P<-format(pwas_rosmap$TWAS.P, scientific = TRUE, digits = 3)
-pwas_rosmap$TWAS.P.FDR<-format(pwas_rosmap$TWAS.P.FDR, scientific = TRUE, digits = 3)
+pwas_rosmap_clean<-pwas_rosmap_clean[order(pwas_rosmap_clean$CHR, pwas_rosmap_clean$P0),]
 
-pwas_rosmap %>% 
+pwas_rosmap_clean$TWAS.Z<-round(pwas_rosmap_clean$TWAS.Z, 3)
+pwas_rosmap_clean$TWAS.P<-format(pwas_rosmap_clean$TWAS.P, scientific = TRUE, digits = 3)
+pwas_rosmap_clean$TWAS.P.FDR<-format(pwas_rosmap_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
+
+pwas_rosmap_clean %>% 
   kable(booktabs = T) %>%
   kable_styling()
 
@@ -725,6 +733,30 @@ cat("</details> \n")
 ```{r, results='asis', echo=FALSE, eval=smr_protein_panel_rosmap_logical}
 
 cat("<details><summary>SMR: ROSMAP - FDR significant and colocalised results</summary> \n")
+
+```
+
+```{r, echo=F, eval=smr_protein_panel_rosmap_logical}
+
+smr_rosmap<-fread(paste0('results/',params$gwas,'/smr/rosmap/',params$gwas,'_smr_rosmap_GW.txt.gz'))
+
+smr_rosmap$p_SMR.FDR<-p.adjust(smr_rosmap$p_SMR, method = 'fdr')
+smr_rosmap<-smr_rosmap[,c('ProbeChr','Probe_bp','ensembl_gene_id','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
+
+names(smr_rosmap)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
+
+smr_rosmap<-smr_rosmap[which(smr_rosmap$p_SMR.FDR < 0.05 & smr_rosmap$p_HEIDI > 0.05),]
+
+smr_rosmap<-smr_rosmap[order(smr_rosmap$CHR, smr_rosmap$BP),]
+
+smr_rosmap$b_SMR<-round(smr_rosmap$b_SMR, 3)
+smr_rosmap$p_SMR<-format(smr_rosmap$p_SMR, scientific = TRUE, digits = 3)
+smr_rosmap$p_SMR.FDR<-format(smr_rosmap$p_SMR.FDR, scientific = TRUE, digits = 3)
+smr_rosmap$p_HEIDI<-format(smr_rosmap$p_HEIDI, scientific = TRUE, digits = 3)
+
+smr_rosmap %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
 
 ```
 
@@ -756,15 +788,17 @@ pwas_banner$`Gene Symbol`<-gsub('.*\\.','',pwas_banner$ID)
 
 pwas_banner<-pwas_banner[,c('CHR','P0','P1','Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
 
-pwas_banner<-pwas_banner[which(pwas_banner$TWAS.P.FDR < 0.05 & pwas_banner$COLOC.PP4 > 0.8),]
+pwas_banner_clean<-pwas_banner
 
-pwas_banner<-pwas_banner[order(pwas_banner$CHR, pwas_banner$P0),]
+pwas_banner_clean<-pwas_banner_clean[which(pwas_banner_clean$TWAS < 0.05 & (pwas_banner_clean$COLOC.PP4-pwas_banner_clean$COLOC.PP3)/pwas_banner_clean$COLOC.PP4 > 0.8),]
 
-pwas_banner$TWAS.Z<-round(pwas_banner$TWAS.Z, 3)
-pwas_banner$TWAS.P<-format(pwas_banner$TWAS.P, scientific = TRUE, digits = 3)
-pwas_banner$TWAS.P.FDR<-format(pwas_banner$TWAS.P.FDR, scientific = TRUE, digits = 3)
+pwas_banner_clean<-pwas_banner_clean[order(pwas_banner_clean$CHR, pwas_banner_clean$P0),]
 
-pwas_banner %>% 
+pwas_banner_clean$TWAS.Z<-round(pwas_banner_clean$TWAS.Z, 3)
+pwas_banner_clean$TWAS.P<-format(pwas_banner_clean$TWAS.P, scientific = TRUE, digits = 3)
+pwas_banner_clean$TWAS.P.FDR<-format(pwas_banner_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
+
+pwas_banner_clean %>% 
   kable(booktabs = T) %>%
   kable_styling()
 
@@ -782,6 +816,40 @@ cat("<details><summary>PWAS: ROSMAP-Banner et al. comparison</summary> \n")
 
 ```
 
+```{r, echo=FALSE, warning=F, eval=all(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+pwas_rosmap_banner<-merge(pwas_rosmap[,c('Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'),with=F], pwas_banner[,c('Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'),with=F], by='Ensembl ID', all=T)
+
+pwas_rosmap_banner$`Gene Symbol.x`[is.na(pwas_rosmap_banner$`Gene Symbol.x`)]<-pwas_rosmap_banner$`Gene Symbol.y`[is.na(pwas_rosmap_banner$`Gene Symbol.x`)]
+
+names(pwas_rosmap_banner)[names(pwas_rosmap_banner) == "Gene Symbol.x"]<-"Gene Symbol"
+pwas_rosmap_banner$`Gene Symbol.y`<-NULL
+
+pwas_rosmap_banner<-pwas_rosmap_banner[which((pwas_rosmap_banner$COLOC.PP4.x & (pwas_rosmap_banner$COLOC.PP4.x-pwas_rosmap_banner$COLOC.PP3.x)/pwas_rosmap_banner$COLOC.PP4.x > 0.8) | (pwas_rosmap_banner$COLOC.PP4.y & (pwas_rosmap_banner$COLOC.PP4.y-pwas_rosmap_banner$COLOC.PP3.y)/pwas_rosmap_banner$COLOC.PP4.y > 0.8)),]
+
+color.me <- which(  pwas_rosmap_banner$TWAS.P.FDR.x < 0.05 & 
+                    (pwas_rosmap_banner$COLOC.PP4.x-pwas_rosmap_banner$COLOC.PP3.x)/pwas_rosmap_banner$COLOC.PP4.x > 0.8 & 
+                    pwas_rosmap_banner$TWAS.P.FDR.y < 0.05 & 
+                    (pwas_rosmap_banner$COLOC.PP4.y-pwas_rosmap_banner$COLOC.PP3.y)/pwas_rosmap_banner$COLOC.PP4.y > 0.8 &
+                    sign(pwas_rosmap_banner$TWAS.Z.x) == sign(pwas_rosmap_banner$TWAS.Z.y))
+
+pwas_rosmap_banner$TWAS.P.FDR.x<-format(pwas_banner_clean$TWAS.P.FDR.x, scientific = TRUE, digits = 3)
+pwas_rosmap_banner$TWAS.P.FDR.y<-format(pwas_banner_clean$TWAS.P.FDR.y, scientific = TRUE, digits = 3)
+pwas_rosmap_banner$TWAS.P.x<-format(pwas_banner_clean$TWAS.P.x, scientific = TRUE, digits = 3)
+pwas_rosmap_banner$TWAS.P.y<-format(pwas_banner_clean$TWAS.P.y, scientific = TRUE, digits = 3)
+pwas_rosmap_banner$TWAS.Z.x<-round(pwas_rosmap_banner$TWAS.Z.x)
+pwas_rosmap_banner$TWAS.Z.y<-round(pwas_rosmap_banner$TWAS.Z.y)
+
+names(pwas_rosmap_banner)<-gsub('\\.x', " (ROSMAP)", names(pwas_rosmap_banner))
+names(pwas_rosmap_banner)<-gsub('\\.y'," (Banner)", names(pwas_rosmap_banner))
+
+pwas_rosmap_banner %>% 
+  kable(booktabs = T) %>%
+  kable_styling() %>%
+  row_spec(color.me, bold = T, color = "green")
+
+```
+
 ```{r,  results='asis', echo=FALSE, eval=smr_protein_panel_rosmap_logical}
 
 cat("</details> \n")
@@ -792,6 +860,8 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("## MAGMA \n")
+cat("This section summarises gene-level associations calculated using [MAGMA](https://ctg.cncr.nl/software/magma), which estimates the mean chi-squard of variants within gene regions (10kb window around start and stop positions), accounting for LD. \n\n")
+
 cat("<details><summary>Show FDR significant results</summary> \n")
 
 ```
@@ -826,12 +896,12 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("## Summary of Molecular Associations \n")
+cat("This section summarises gene-level association results from MAGMA, TWAS, PWAS, and SMR. This simply shows the whether genes showed a statistically significant association with the GWAS phenotype, and for TWAS/PWAS/SMR whether the association for gene expression/protein levels and the GWAS phenotype colocalised (same causal variant) and are consistent with a causal model. \n\n")
 
 ```
 
 ```{r, echo=F, eval=T, message=F}
 # Make a heatmap showing significant and colocalised associations from TWAS, PWAS and SMR
-
 # smr_protein_panel_rosmap_logical
 
 all_mol_assoc<-NULL
@@ -925,6 +995,19 @@ if(pwas_panel_banner_logical){
   all_mol_assoc<-rbind(all_mol_assoc, pwas_banner[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
 }
 
+if(smr_protein_panel_rosmap_logical){
+  smr_rosmap$Direction<-'Negative'
+  smr_rosmap$Direction[smr_rosmap$b_SMR > 0]<-'Positive'
+  smr_rosmap$Panel<-'ROSMAP DLPFC'
+  smr_rosmap$Method<-'SMR'
+  smr_rosmap$Type<-'Protein'
+  
+  all_mol_assoc<-rbind(all_mol_assoc, smr_rosmap[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
+}
+
+# Show only genes that were significant in multiple analyses
+all_mol_assoc<-all_mol_assoc[all_mol_assoc$`Ensembl ID` %in% all_mol_assoc$`Ensembl ID`[duplicated(all_mol_assoc$`Ensembl ID`)],]
+
 # Create a plot
 library(ggplot2)
 
@@ -952,7 +1035,7 @@ for(chunk_i in 1:length(chunks)){
   all_mol_assoc_chunk_i<-all_mol_assoc[all_mol_assoc$ID %in% chunks[[chunk_i]],]
   all_mol_assoc_chunk_i$ID<-factor(all_mol_assoc_chunk_i$ID, levels=rev(unique(as.character(all_mol_assoc_chunk_i$ID))))
   
-  png(paste0('results/',params$gwas,'/reports/',params$gwas,'.method_comp.chunk_',chunk_i,'.png'), height=length(unique(all_mol_assoc_chunk_i$ID))*40, width=100+(400*length(unique(paste0(all_mol_assoc$Panel, all_mol_assoc$Method, all_mol_assoc$Type)))), res=300, units='px')
+  png(paste0('results/',params$gwas,'/reports/',params$gwas,'.method_comp.chunk_',chunk_i,'.png'), height=(length(unique(all_mol_assoc_chunk_i$ID))*35)+200, width=100+(400*length(unique(paste0(all_mol_assoc$Panel, all_mol_assoc$Method, all_mol_assoc$Type)))), res=300, units='px')
     print(ggplot(data = all_mol_assoc_chunk_i, aes(x = Cat, y = ID)) +
     	theme_bw()	+
     	geom_tile(aes(fill = Direction), colour = 'black') +
@@ -966,7 +1049,7 @@ for(chunk_i in 1:length(chunks)){
 
 ```{r, results='asis', echo=FALSE, eval=T}
 
-cat("<details><summary>Comparison of Methods</summary>")
+cat("<details><summary>Comparison of Methods</summary> \n")
 
   for(chunk_i in 1:length(chunks)){
 
@@ -974,7 +1057,15 @@ cat(paste0("![](../results/",params$gwas,'/reports/',params$gwas,'.method_comp.c
 
   }
 
-cat("</details>")
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
+
+cat("*** \n")
+cat("# Drug repurposing \n")
+cat("This section shows results drug repurposing analyses. Several analysis approaches are available. The inferred differential expression results from TWAS can be compared to the drug-induced expression profiles from the [Connectivity Map](https://clue.io/), AKA LINCS, to identify drugs that induce expression profiles opposite expression profiles associated with the GWAS phenotype. Two methods are used to compare TWAS and CMAP profiles, including the [average rank based method from So et al.](https://pubmed.ncbi.nlm.nih.gov/28805813/) and [TWAS-GSEA from Pain et al](https://github.com/opain/TWAS-GSEA). An alternative approach is to use MAGMA to identify drugs that are enriched for connections to genes associated with the GWAS phenotype. We use the collection of bipartite gene-drug interactions collated by [DrugTargetor](https://drugtargetor.com/). Unlike the TWAS-CMAP approaches, the MAGMA based approach does not consider the direction of effect of the gene on the GWAS phenotype or the drug on the genes expression/function, so may highlight drugs that might increase risk of the GWAS phenotype. However, the MAGMA approach can use a broader and perhaps more reliable sources of drug-gene interaction databases. To help validate the approaches used for identifying drug repurposing oppurtunities, we test for enrichment of drugs within ATC classifications. \n\n")
 
 ```
 
@@ -982,6 +1073,8 @@ cat("</details>")
 
 cat("*** \n")
 cat("## TWAS-CMAP: So et al. Average Ranks Method \n")
+cat("This section shows results drug repurposing analyses. \n\n")
+
 cat("<details><summary>Show Top Drug Enrichment Results</summary>")
 
 ```
@@ -1189,6 +1282,8 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("## TWAS-CMAP: Method Comparison \n")
+cat("This section shows a comparison of the TWAS-CMAP based analyses, either the So et al. average rank based method or Pain et al. TWAS-GSEA method. \n\n")
+
 cat("<details><summary>Show Drug Enrichment Comparison</summary> \n")
 
 ```
@@ -1241,4 +1336,106 @@ cat("</details> \n")
 
 ***
 
+# References
 
+Please be sure to cite the software and datasets used by this pipeline. Relevent citations are shown below:
+
+<details><summary>Show reference table</summary>
+
+```{r, eval=T, echo=F}
+
+ref_table<-NULL
+
+ref_table<-rbind(ref_table, data.frame(Name = "[LD Score Regression](https://github.com/bulik/ldsc)",
+                                       PMID = 25642630,
+                                       URL = 'https://github.com/bulik/ldsc',
+                                       Type = 'Software',
+                                       Use = 'Estimate SNP-h2 and LD-score intercept'))
+
+ref_table<-rbind(ref_table, data.frame(Name = 'SuSiE',
+                                       PMID = NA,
+                                       URL = 'https://stephenslab.github.io/susie-paper/',
+                                       Type = 'Software',
+                                       Use = 'Variant-level finemapping'))
+
+ref_table<-rbind(ref_table, data.frame(Name = 'FUSION',
+                                       PMID = 26854917,
+                                       URL = 'http://gusevlab.org/projects/fusion/',
+                                       Type = 'Software',
+                                       Use = 'Perform TWAS/PWAS'))
+
+ref_table<-rbind(ref_table, data.frame(Name = 'COLOC',
+                                       PMID = 24830394,
+                                       URL = 'https://chr1swallace.github.io/coloc/',
+                                       Type = 'Software',
+                                       Use = 'Used for colocalisation within FUSION TWAS/PWAS analysis'))
+
+ref_table<-rbind(ref_table, data.frame(Name = 'SMR',
+                                       PMID = 29763751,
+                                       URL = 'https://yanglab.westlake.edu.cn/software/smr/#Overview',
+                                       Type = 'Software',
+                                       Use = 'Infer differential expression or protein levels'))
+
+ref_table<-rbind(ref_table, data.frame(Name = 'MAGMA',
+                                       PMID = 25885710,
+                                       URL = 'https://ctg.cncr.nl/software/magma',
+                                       Type = 'Software',
+                                       Use = 'Estimate gene associations and drug enrichment using DrugTargetor database'))
+
+ref_table<-rbind(ref_table, data.frame(Name = 'TWAS-GSEA',
+                                       PMID = 31230729,
+                                       URL = 'https://github.com/opain/TWAS-GSEA',
+                                       Type = 'Software',
+                                       Use = 'Estimate drug enrichment using TWAS and CMAP'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "Average ranks (So et al.)",
+                                       PMID = 28805813,
+                                       URL = 'https://sites.google.com/site/honcheongso/software/drug-repositioning-based-on-gwas-and-cmap?authuser=0',
+                                       Type = 'Software',
+                                       Use = 'Estimate drug enrichment using TWAS and CMAP'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "PsychENCODE DLPFC TWAS SNP-weights",
+                                       PMID = 30545856,
+                                       URL = 'http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz',
+                                       Type = 'Dataset',
+                                       Use = 'TWAS'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "PsychENCODE DLPFC eQTL data for SMR",
+                                       PMID = 30545857, 
+                                       URL = 'http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz',
+                                       Type = 'Dataset',
+                                       Use = 'SMR'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "MetaBrain eQTL data for SMR",
+                                       PMID = NA, 
+                                       URL = 'https://www.metabrain.nl/cis-eqtls.html',
+                                       Type = 'Dataset',
+                                       Use = 'SMR'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "ROSMAP/Banner DLPFC PWAS SNP-weights and eQTL in SMR results",
+                                       PMID = 33510477, 
+                                       URL = 'https://www.synapse.org/#!Synapse:syn23627957',
+                                       Type = 'Dataset',
+                                       Use = 'PWAS and SMR'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "CMAP/LINCS",
+                                       PMID = 29195078, 
+                                       URL = 'https://clue.io/about',
+                                       Type = 'Dataset',
+                                       Use = 'Drug repurposing'))
+
+ref_table<-rbind(ref_table, data.frame(Name = "DrugTargetor",
+                                       PMID = 30517594, 
+                                       URL = 'https://drugtargetor.com/',
+                                       Type = 'Dataset',
+                                       Use = 'Drug repurposing'))
+
+ref_table %>% 
+  kable(booktabs = T) %>%
+  kable_styling()
+
+```
+
+</details>
+
+***

@@ -107,7 +107,7 @@ rule magma_gene_level:
   conda: 
     "../envs/GenoFunc.yaml"
   shell:
-    "gzip -f -d resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
+    "gzip -f -d -c resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
       --bfile resources/data/magma_ref/g1000_eur \
       --pval resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
       --gene-annot resources/data/magma/NCBI37.3.genes.annot \
