@@ -113,6 +113,8 @@ Note. Please be patient when running the pipeline for the first time. Expect the
 
 You must specify a file listing GWAS summary statistics (gwas_list) for the pipeline to use. The location of these files should be specified in the config.yaml file.
 
+In addition, some external datasets cannot be downloaded automatically due to data restrictions. If you would like to infer altered protein levels associated with the GWAS phenotype using ROSMAP or Banner datasets, these must be downloaded in advance from [here](https://www.synapse.org/#!Synapse:syn23627957), and the location of those files must be specified in the config.yaml files. 
+
 ***
 
 ##### gwas_list file format
@@ -155,7 +157,7 @@ By default, analyses using all methods and external datasets will be run. This b
 
 ### Output
 
-All the results for a given GWAS will be stored within the folder 'results/<GWAS ID>'. An .html file summarising the results can be found in 'results/<GWAS ID>/reports/<GWAS ID>_report.html'.
+All the results for a given GWAS will be stored within the folder 'results/\<GWAS ID>'. An .html file summarising the results can be found in 'results/\<GWAS ID>/reports/\<GWAS ID>_report.html'.
 
 ***
 
