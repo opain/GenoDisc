@@ -12,7 +12,7 @@ library(data.table)
 
 ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
 
-if(any(names(ss) != 'BETA')){
+if(all(names(ss) != 'BETA')){
   ss$BETA<-log(ss$OR)
 }
 

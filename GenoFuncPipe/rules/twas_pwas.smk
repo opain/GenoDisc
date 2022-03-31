@@ -319,7 +319,7 @@ rule run_rosmap_pwas:
     --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
-    --coloc_P 1e-3 \
+    --coloc_P 5e-2 \
     --GWASN ${{N}}"
 
 rule rosmap_pwas_all_chr:
@@ -350,7 +350,7 @@ rule run_banner_pwas:
     --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
-    --coloc_P 1e-3 \
+    --coloc_P 5e-2 \
     --GWASN ${{N}}"
 
 rule banner_pwas_all_chr:
@@ -422,7 +422,8 @@ rule format_so_results:
 # Concatenate twas results
 rule format_twas_for_twas_gsea:
   input:
-    rules.subset_lincs.output
+    rules.subset_lincs.output,
+    "results/{gwas}/checks/psychencode_twas_all_chr.done"
   output:
     "results/{gwas}/twas/psychencode/{gwas}_twas_psychencode_GW"
   conda: 

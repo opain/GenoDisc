@@ -9,8 +9,6 @@ option_list = list(
 
 opt = parse_args(OptionParser(option_list=option_list))
 
-opt$rosmap<-'/users/k1806347/brc_scratch/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt'
-
 library(data.table)
 
 pQTL<-fread(opt$rosmap)

@@ -124,7 +124,7 @@ rule format_sumstats_smr:
   conda:
     "../envs/GenoFunc.yaml"
   shell:
-    "Rscript format_sumstats_smr.R \
+    "Rscript scripts/format_sumstats_smr.R \
       --gwas {wildcards.gwas}"
 
 ####
@@ -189,6 +189,19 @@ rule run_rosmap_smr_chr:
       lambda w: expand("results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
     output: 
       touch("results/{gwas}/checks/rosmap_smr_all_chr.done")
+
+# Format rosmap smr results
+rule process_rosmap_smr:
+  input:
+    "results/{gwas}/checks/rosmap_smr_all_chr.done"
+  output:
+    "results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/process_rosmap_smr.R \
+    --gwas {wildcards.gwas}"
+
 
 ###
 # Run SMR with MetaBrain
