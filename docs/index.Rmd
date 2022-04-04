@@ -1,0 +1,23 @@
+---
+title: "GenoFunc: Genomic Analysis of Functional Annotations"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+***
+
+Welcome! This website documents research regarding the integration of GWAS summary statistics with functional genomic annotations.
+
+***
+
+### Projects:
+
+* [GenoFuncPipe: A drug target and drug repurposing pipeline](https://github.com/opain/GenoFunc/tree/main/GenoFuncPipe)
+
+***
+
+Please contact Oliver Pain (oliver.pain@kcl.ac.uk) for any questions or comments.
+
