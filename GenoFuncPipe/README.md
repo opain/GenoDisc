@@ -1,24 +1,26 @@
 # GenoFunc: Genomic Analysis of Functional Annotations Pipeline
 
-
 This is a snakemake pipeline for running a range of genome-wide association study (GWAS) summary statistic-based analyses. Analyses can be split into three parts:
 
 Part 1: Descriptive analyses
+
   * GWAS summary statistic quality control
   * Confounding and SNP-heritability estimation
   * Identification of indpendent associations
 
 Part 2: Gene finding analyses
+
   * SNP-based finemapping
   * Positional mapping of associated variants
   * Inference of gene expression/protein levels associated with the GWAS phenotype
 
 Part 3: Drug finding analyses
+
   * Identify enriched bipartite drug-gene sets
   * Identify drugs that reverse diseases gene expression
   * Identify enriched ATC classifications
 
-The results of all analyses are summarised in an [.html report](example_report.html).
+The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoFunc/example_report.html).
 
 ### Using the pipeline
 
