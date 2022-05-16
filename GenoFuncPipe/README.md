@@ -113,7 +113,9 @@ The location of those files must be specified in the [config.yaml](config.yaml) 
 
 The following column names are expected in the GWAS summary statistics files:
 
-- SNP: RSID for variant (required)
+- SNP: RSID for variant (either SNP or CHR and BP required)
+- CHR: Chromosome number (either SNP or CHR and BP required)
+- ORIGBP: Base pair position (either SNP or CHR and BP required)
 - A1: Allele 1 (effect allele) (required)
 - A2: Allele 2 (required)
 - P: P-value of association (required)

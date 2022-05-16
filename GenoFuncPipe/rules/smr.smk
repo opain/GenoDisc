@@ -25,7 +25,7 @@ rule format_rosmap_smr_data:
   params:
     rosmap_smr= config["rosmap_smr"],
   shell:
-    "Rscript scripts/format_pwas_data.R \
+    "Rscript scripts/format_rosmap_smr_data.R \
       --rosmap {params.rosmap_smr}"
 
 ####

@@ -1,7 +1,7 @@
 ---
 title: "GenoFunc"
 params:
-  gwas: "ALS2021"
+  gwas: ""
 output:
   html_document:
     toc: true
@@ -1069,6 +1069,16 @@ cat("This section shows results drug repurposing analyses. Several analysis appr
 
 ```
 
+```{r, echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
+
+atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+names(atc)<-c('Code','Name')
+atc$Name<-tolower(atc$Name)
+
+atc_labels<-atc[nchar(atc$Code) == 4,]
+
+```
+
 ```{r, results='asis', echo=FALSE, eval=twas_so_lincs_logical}
 
 cat("*** \n")
@@ -1232,8 +1242,24 @@ magma_gs$P.FDR<-format(magma_gs$P.FDR, scientific = TRUE, digits = 3)
 
 magma_gs$NAME<-paste(toupper(substr(magma_gs$NAME, 1, 1)), substr(magma_gs$NAME, 2, nchar(magma_gs$NAME)), sep="")
 
-magma_gs<-magma_gs[,c("NAME","NGENES","P","P.FDR") , with=F]
-names(magma_gs)<-c('Name','N Genes','P','P.FDR')
+for(i in 1:nrow(magma_gs)){
+  tmp<-unlist(strsplit(magma_gs$ATC[i], ','))
+  tmp<-substr(tmp, 1, 4)
+  tmp2<-atc_labels[atc_labels$Code %in% tmp]$Name
+  if(length(tmp) > 1){
+    magma_gs$ATC_code[i]<-paste0(tmp, collapse=';')
+    magma_gs$ATC_desc[i]<-paste0(tmp2, collapse=';')
+  } else {
+    magma_gs$ATC_code[i]<-tmp
+    magma_gs$ATC_desc[i]<-tmp2
+
+  }
+}
+
+magma_gs<-magma_gs[,c("NAME","NGENES","P","P.FDR",'ATC_code','ATC_desc') , with=F]
+names(magma_gs)<-c('Name','N Genes','P','P.FDR','ATC Code','ATC Description')
+
+magma_gs$Name<-paste0("[",magma_gs$Name,"](https://www.ebi.ac.uk/chembl/g/#search_results/all/query=",magma_gs$Name,")")
 
 magma_gs %>% 
   kable(booktabs = T) %>%
@@ -1347,86 +1373,72 @@ Please be sure to cite the software and datasets used by this pipeline. Relevent
 ref_table<-NULL
 
 ref_table<-rbind(ref_table, data.frame(Name = "[LD Score Regression](https://github.com/bulik/ldsc)",
-                                       PMID = 25642630,
-                                       URL = 'https://github.com/bulik/ldsc',
+                                       PMID = "[25642630](https://pubmed.ncbi.nlm.nih.gov/25642630)",
                                        Type = 'Software',
                                        Use = 'Estimate SNP-h2 and LD-score intercept'))
 
-ref_table<-rbind(ref_table, data.frame(Name = 'SuSiE',
+ref_table<-rbind(ref_table, data.frame(Name = "[SuSiE](https://stephenslab.github.io/susie-paper/)",
                                        PMID = NA,
-                                       URL = 'https://stephenslab.github.io/susie-paper/',
                                        Type = 'Software',
                                        Use = 'Variant-level finemapping'))
 
-ref_table<-rbind(ref_table, data.frame(Name = 'FUSION',
-                                       PMID = 26854917,
-                                       URL = 'http://gusevlab.org/projects/fusion/',
+ref_table<-rbind(ref_table, data.frame(Name = "[FUSION](http://gusevlab.org/projects/fusion/)",
+                                       PMID = "[26854917](https://pubmed.ncbi.nlm.nih.gov/26854917)",
                                        Type = 'Software',
                                        Use = 'Perform TWAS/PWAS'))
 
-ref_table<-rbind(ref_table, data.frame(Name = 'COLOC',
-                                       PMID = 24830394,
-                                       URL = 'https://chr1swallace.github.io/coloc/',
+ref_table<-rbind(ref_table, data.frame(Name = "[COLOC](https://chr1swallace.github.io/coloc/)",
+                                       PMID = "[24830394](https://pubmed.ncbi.nlm.nih.gov/24830394)",
                                        Type = 'Software',
                                        Use = 'Used for colocalisation within FUSION TWAS/PWAS analysis'))
 
-ref_table<-rbind(ref_table, data.frame(Name = 'SMR',
-                                       PMID = 29763751,
-                                       URL = 'https://yanglab.westlake.edu.cn/software/smr/#Overview',
+ref_table<-rbind(ref_table, data.frame(Name = "[SMR](https://yanglab.westlake.edu.cn/software/smr/#Overview)",
+                                       PMID = "[29763751](https://pubmed.ncbi.nlm.nih.gov/29763751)",
                                        Type = 'Software',
                                        Use = 'Infer differential expression or protein levels'))
 
-ref_table<-rbind(ref_table, data.frame(Name = 'MAGMA',
-                                       PMID = 25885710,
-                                       URL = 'https://ctg.cncr.nl/software/magma',
+ref_table<-rbind(ref_table, data.frame(Name = "[MAGMA](https://ctg.cncr.nl/software/magma)",
+                                       PMID = "[25885710](https://pubmed.ncbi.nlm.nih.gov/25885710)",
                                        Type = 'Software',
                                        Use = 'Estimate gene associations and drug enrichment using DrugTargetor database'))
 
-ref_table<-rbind(ref_table, data.frame(Name = 'TWAS-GSEA',
-                                       PMID = 31230729,
-                                       URL = 'https://github.com/opain/TWAS-GSEA',
+ref_table<-rbind(ref_table, data.frame(Name = "[TWAS-GSEA](https://github.com/opain/TWAS-GSEA)",
+                                       PMID = "[31230729](https://pubmed.ncbi.nlm.nih.gov/31230729)",
                                        Type = 'Software',
                                        Use = 'Estimate drug enrichment using TWAS and CMAP'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "Average ranks (So et al.)",
-                                       PMID = 28805813,
-                                       URL = 'https://sites.google.com/site/honcheongso/software/drug-repositioning-based-on-gwas-and-cmap?authuser=0',
+ref_table<-rbind(ref_table, data.frame(Name = "[Average ranks (So et al.)](https://sites.google.com/site/honcheongso/software/drug-repositioning-based-on-gwas-and-cmap?authuser=0)",
+                                       PMID = "[28805813](https://pubmed.ncbi.nlm.nih.gov/28805813)",
                                        Type = 'Software',
                                        Use = 'Estimate drug enrichment using TWAS and CMAP'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "PsychENCODE DLPFC TWAS SNP-weights",
-                                       PMID = 30545856,
-                                       URL = 'http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz',
+ref_table<-rbind(ref_table, data.frame(Name = "[PsychENCODE DLPFC TWAS SNP-weights](http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz)",
+                                       PMID = "[30545856](https://pubmed.ncbi.nlm.nih.gov/30545856)",
                                        Type = 'Dataset',
                                        Use = 'TWAS'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "PsychENCODE DLPFC eQTL data for SMR",
-                                       PMID = 30545857, 
-                                       URL = 'http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz',
+ref_table<-rbind(ref_table, data.frame(Name = "[PsychENCODE DLPFC eQTL data for SMR](http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz)",
+                                       PMID = "[30545857](https://pubmed.ncbi.nlm.nih.gov/30545857)", 
                                        Type = 'Dataset',
                                        Use = 'SMR'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "MetaBrain eQTL data for SMR",
+ref_table<-rbind(ref_table, data.frame(Name = "[MetaBrain eQTL data for SMR](https://www.metabrain.nl/cis-eqtls.html)",
                                        PMID = NA, 
-                                       URL = 'https://www.metabrain.nl/cis-eqtls.html',
                                        Type = 'Dataset',
                                        Use = 'SMR'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "ROSMAP/Banner DLPFC PWAS SNP-weights and eQTL in SMR results",
-                                       PMID = 33510477, 
-                                       URL = 'https://www.synapse.org/#!Synapse:syn23627957',
+ref_table<-rbind(ref_table, data.frame(Name = "[ROSMAP/Banner DLPFC PWAS SNP-weights and eQTL in SMR results](https://www.synapse.org/#!Synapse:syn23627957)",
+                                       PMID = "[33510477](https://pubmed.ncbi.nlm.nih.gov/33510477)", 
                                        Type = 'Dataset',
                                        Use = 'PWAS and SMR'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "CMAP/LINCS",
-                                       PMID = 29195078, 
-                                       URL = 'https://clue.io/about',
+ref_table<-rbind(ref_table, data.frame(Name = "[CMAP/LINCS](https://clue.io/about)",
+                                       PMID = "[29195078](https://pubmed.ncbi.nlm.nih.gov/29195078)", 
                                        Type = 'Dataset',
                                        Use = 'Drug repurposing'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "DrugTargetor",
-                                       PMID = 30517594, 
-                                       URL = 'https://drugtargetor.com/',
+ref_table<-rbind(ref_table, data.frame(Name = "[DrugTargetor](https://drugtargetor.com/)",
+                                       PMID = "[30517594](https://pubmed.ncbi.nlm.nih.gov/30517594)", 
                                        Type = 'Dataset',
                                        Use = 'Drug repurposing'))
 
