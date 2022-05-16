@@ -209,7 +209,17 @@ cat("<details><summary>Clumped: GW-significant loci</summary> \n")
 
 ```
 
-GWAS contain `r nrow(clump_lead_snps_gw)` independent (r2 < 0.1, 500kb) genome-wide significant variants (p < 5e-8).
+```{r, echo=FALSE, eval=any(clump_logical)}
+
+txt<-paste0("GWAS contain ",nrow(clump_lead_snps_gw)," independent (r2 < 0.1, 500kb) genome-wide significant variants (p < 5e-8).\n")
+
+```
+
+```{r,  results='asis', echo=FALSE, eval=any(clump_logical)}
+
+cat(txt)
+
+```
 
 ```{r, echo=F, comment='', eval=clump_logical}
 
@@ -225,15 +235,21 @@ clump_lead_snps_gw %>%
 
 cat("</details> \n")
 
-```
-
-```{r,  results='asis', echo=FALSE, eval=any(clump_logical)}
-
 cat("<details><summary>Clumped: Suggestive loci</summary> \n")
 
 ```
 
-Clumping finds `r nrow(clump_lead_snps)` independent (r2 < 0.1, 500kb) suggestive significant variants (p < 1e-5).
+```{r, echo=FALSE, eval=any(clump_logical)}
+
+txt<-paste0("Clumping finds ",nrow(clump_lead_snps)," independent (r2 < 0.1, 500kb) suggestive significant variants (p < 1e-5).\n")
+
+```
+            
+```{r,  results='asis', echo=FALSE, eval=any(clump_logical)}
+
+cat(txt)
+
+```
 
 ```{r, echo=F, comment='', eval=clump_logical}
 
@@ -264,13 +280,23 @@ cojo_lead_snps_gw<-cojo_lead_snps[cojo_lead_snps$P < 5e-8,]
 
 ```
 
-```{r,  results='asis', echo=FALSE, eval=any(cojo_logical)}
+```{r,  results='asis', echo=FALSE, eval=cojo_logical}
 
 cat("<details><summary>COJO: GW-significant loci</summary> \n")
 
 ```
 
-COJO finds `r nrow(cojo_lead_snps_gw)` independent genome-wide significant variants (p < 5e-8).
+```{r, echo=FALSE, eval=cojo_logical}
+
+txt<-paste0("COJO finds ",nrow(cojo_lead_snps_gw)," independent genome-wide significant variants (p < 5e-8).\n")
+
+```
+
+```{r,  results='asis', echo=FALSE, eval=cojo_logical}
+
+cat(txt)
+
+```
 
 ```{r, echo=F, comment='', eval=cojo_logical}
 
@@ -282,19 +308,29 @@ cojo_lead_snps_gw %>%
 
 ```
 
-```{r,  results='asis', echo=FALSE, eval=any(cojo_logical)}
+```{r,  results='asis', echo=FALSE, eval=cojo_logical}
 
 cat("</details> \n")
 
 ```
 
-```{r,  results='asis', echo=FALSE, eval=any(cojo_logical)}
+```{r,  results='asis', echo=FALSE, eval=cojo_logical}
 
 cat("<details><summary>COJO: Suggestive loci</summary> \n")
 
 ```
 
-COJO finds `r nrow(cojo_lead_snps)` independent suggestive significant variants (p < 1e-5).
+```{r, echo=FALSE, eval=cojo_logical}
+
+txt<-paste0("COJO finds ", nrow(cojo_lead_snps), " independent suggestive significant variants (p < 1e-5).\n")
+
+```
+
+```{r,  results='asis', echo=FALSE, eval=cojo_logical}
+
+cat(txt)
+
+```
 
 ```{r, echo=F, comment='', eval=cojo_logical}
 
@@ -306,7 +342,7 @@ cojo_lead_snps %>%
 
 ```
 
-```{r,  results='asis', echo=FALSE, eval=any(cojo_logical)}
+```{r,  results='asis', echo=FALSE, eval=cojo_logical}
 
 cat("</details> \n")
 
@@ -1187,7 +1223,7 @@ cat("<details><summary>Show ATC Enrichment Results</summary> \n")
 
 ```
 
-```{r, eval=T, echo=F}
+```{r, echo=F, eval=twas_gsea_lincs_logical}
 
 gsea_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_res_atc_res.csv'))
 gsea_cmap_atc<-gsea_cmap_atc[order(gsea_cmap_atc$P),]

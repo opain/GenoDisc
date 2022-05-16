@@ -18,7 +18,7 @@ if config["ldsc"] == "T":
     myoutput.append("results/{gwas}/ldsc/{gwas}_ldsc_res.log")
     
 if config["magma_gene"] == "T":
-    myoutput.append("results/{gwas}/magma/magma_gene_level.genes.raw")
+    myoutput.append("results/{gwas}/magma/magma_gene_level.clean.csv")
     
 if config["magma_drugtargetor"] == "T":
     myoutput.append("results/{gwas}/magma/magma_drug_targetor_atc_res.csv")
