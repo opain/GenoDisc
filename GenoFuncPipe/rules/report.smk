@@ -23,8 +23,11 @@ if config["magma_gene"] == "T":
 if config["magma_drugtargetor"] == "T":
     myoutput.append("results/{gwas}/magma/magma_drug_targetor_atc_res.csv")
 
-if config["twas_panel_psychencode"] == "T":
-    myoutput.append("results/{gwas}/twas/psychencode/{gwas}_twas_psychencode_GW_clean.txt.gz")
+if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
+    myoutput.append("results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz")
+
+if config["twas_conditional"] == "T" and (config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T"):
+    myoutput.append("results/{gwas}/twas/{gwas}_twas_novelty.csv")
 
 if config["twas_gsea_lincs"] == "T":
     myoutput.append("results/{gwas}/twas/cmap/twas_gsea_res_atc_res.csv")

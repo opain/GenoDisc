@@ -79,6 +79,75 @@ rule format_psychencode:
   shell:
     "Rscript scripts/format_psychENCODE.R"
 
+# Create list of FUSION panels
+gtex_weights=config["gtex_weights"]
+non_gtex_weights=config["non_gtex_weights"]
+fusion_weights=gtex_weights+non_gtex_weights
+
+# Download FUSION GTEx v8 EUR SNP-weights
+# I am using EUR instead of full sample to avoid LD mismatch
+rule download_gtex_weights:
+  output:
+    "resources/data/fusion_data/{weight}/{weight}.hsq"
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "mkdir -p resources/data/fusion_data/{wildcards.weight}; wget -O resources/data/fusion_data/GTExv8.EUR.{wildcards.weight}.tar.gz https://s3.us-west-1.amazonaws.com/gtex.v8.fusion/EUR/GTExv8.EUR.{wildcards.weight}.tar.gz; tar xf resources/data/fusion_data/GTExv8.EUR.{wildcards.weight}.tar.gz -C resources/data/fusion_data/{wildcards.weight}; rm resources/data/fusion_data/GTExv8.EUR.{wildcards.weight}.tar.gz; mv resources/data/fusion_data/{wildcards.weight}/GTExv8.EUR.{wildcards.weight}.pos resources/data/fusion_data/{wildcards.weight}/{wildcards.weight}.pos"
+    
+rule gtex_weights:
+    input: expand("resources/data/fusion_data/{weight}/{weight}.hsq", weight=gtex_weights)
+
+# Update GTEx v8 P0 and P1 to build GRCh 37
+rule update_gtex_coord:
+  input:
+    rules.gtex_weights.input
+  output:
+    touch("resources/data/update_gtex_coord_{weight}.done")
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/update_gtex_coord.R \
+      --panel {wildcards.weight}"
+
+rule update_gtex_coord_all_panel:
+    input: expand("resources/data/update_gtex_coord_{weight}.done", weight=gtex_weights)
+
+# Download FUSION non-GTEx SNP-weights
+rule download_non_gtex_weights:
+  output:
+    "resources/data/fusion_data/{weight}/{weight}.profile"
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "wget --no-check-certificate -O resources/data/fusion_data/{wildcards.weight}.tar.bz2 https://data.broadinstitute.org/alkesgroup/FUSION/WGT/{wildcards.weight}.tar.bz2; tar xvjf resources/data/fusion_data/{wildcards.weight}.tar.bz2 -C resources/data/fusion_data/{wildcards.weight}; rm resources/data/fusion_data/{wildcards.weight}.tar.bz2"
+
+rule non_gtex_weights:
+  input: expand("resources/data/fusion_data/{weight}/{weight}.profile", weight=non_gtex_weights)
+
+# Insert N into non-GTEX SNP-weights
+rule insert_n_nongtex:
+  input:
+    rules.non_gtex_weights.input
+  output:
+    touch("resources/data/insert_n_nongtex_{weight}.done")
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/insert_n_nongtex.R \
+      --panel {wildcards.weight}"
+
+rule insert_n_nongtex_all_panel:
+    input: expand("resources/data/insert_n_nongtex_{weight}.done", weight=non_gtex_weights)
+
+# Download glist file
+rule download_glist:
+  output:
+    "resources/data/glist-hg19"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "wget -P resources/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19"
+
 ####
 # Download LINCS 1000 data
 ####
@@ -250,23 +319,62 @@ rule format_pwas_data:
 # Run TWAS
 ###
 
+# run twas
+rule run_fusion_twas:
+  resources:
+    mem_mb=20000
+  input:
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    rules.install_fusion.output,
+    rules.install_plink2R.output,
+    rules.prep_1kg.output,
+    "resources/data/update_gtex_coord_{weights}.done",
+    rules.insert_n_nongtex_all_panel.input
+  output:
+    "results/{gwas}/twas/fusion_{weights}/{gwas}_twas_{weights}_chr{chr}"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
+    --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+    --weights resources/data/fusion_data/{wildcards.weights}/{wildcards.weights}.pos \
+    --weights_dir resources/data/fusion_data/{wildcards.weights} \
+    --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    --out {output} \
+    --chr {wildcards.chr} \
+    --coloc_P 1e-3 \
+    --GWASN ${{N}}"
+
+rule fusion_twas_all_chr:
+    input: 
+      lambda w: expand("results/{gwas}/twas/fusion_{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23))
+    output: 
+      touch("results/{gwas}/checks/fusion_twas_{weight}_all_chr.done")
+
+rule fusion_twas_all_panel:
+    input: 
+      lambda w: expand("results/{gwas}/checks/fusion_twas_{weight}_all_chr.done", gwas=w.gwas, weight=fusion_weights)
+    output: 
+      touch("results/{gwas}/checks/fusion_twas_all_panel.done")
+
 # Run twas using psychENCODE SNP-weights
 rule run_psychencode_twas:
   resources: mem_mb=20000 
   input:
-    sumstats="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    neff_txt="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
-    fusion=rules.install_fusion.output,
-    plink2R=rules.install_plink2R.output,
-    format_psychencode=rules.format_psychencode.output,
-    prep_1kg=rules.prep_1kg.output
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    rules.install_fusion.output,
+    rules.install_plink2R.output,
+    rules.format_psychencode.output,
+    rules.prep_1kg.output
   output:
     "results/{gwas}/twas/psychencode/{gwas}_twas_psychencode_chr{chr}"
   conda: 
     "../envs/GenoFunc.yaml"
   shell:
     "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
-    --sumstats {input.sumstats} \
+    --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights resources/data/psychencode_data/PEC_TWAS_weights/PEC_TWAS_weights.pos \
     --weights_dir resources/data/psychencode_data/PEC_TWAS_weights \
     --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
@@ -281,17 +389,67 @@ rule psychencode_twas_all_chr:
     output: 
       touch("results/{gwas}/checks/psychencode_twas_all_chr.done")
 
-# Format TWAS results
-rule format_psychencode_twas:
+# Combine TWAS results
+checkpoint combine_twas_res:
   input:
+    "results/{gwas}/checks/fusion_twas_all_panel.done",
     "results/{gwas}/checks/psychencode_twas_all_chr.done"
   output:
-    "results/{gwas}/twas/psychencode/{gwas}_twas_psychencode_GW_clean.txt.gz"
+    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   conda: 
     "../envs/GenoFunc.yaml"
   shell:
-    "Rscript scripts/format_psychencode_twas.R \
-    --twas {wildcards.gwas}"
+    "Rscript scripts/combine_twas.R \
+      --gwas {wildcards.gwas}"
+
+# Identify chromosomes with significant associations
+from pathlib import Path
+
+def sig_chr_munge(x):
+    checkpoint_output = checkpoints.combine_twas_res.get(gwas=x).output[0]
+    checkpoint_output = "results/" + x + "/twas/" + x + "_twas_sig_chr.txt"
+    sig_chr_df = pd.read_table(checkpoint_output, sep=' ')
+    return sig_chr_df['x'].tolist()
+
+# Run conditional analysis
+rule run_conditional:
+  resources: mem_mb=50000 
+  input:
+    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
+    rules.download_glist.output
+  output:
+    "results/{gwas}/twas/conditional/{gwas}_twas_conditional_chr{chr}.joint_dropped.dat"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript resources/software/fusion/FUSION.post_process.R \
+      --input results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
+      --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+      --report \
+      --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+      --out results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
+      --chr {wildcards.chr} \
+      --save_loci \
+      --ldsc F \
+      --locus_win 500000"
+
+rule conditional:
+    input: 
+      lambda w: expand("results/{gwas}/twas/conditional/{gwas}_twas_conditional_chr{chr}.joint_dropped.dat", gwas=w.gwas, chr=sig_chr_munge("{}".format(w.gwas)))
+    output: 
+      touch("results/{gwas}/checks/twas_conditional_all_chr.done")
+
+# Process conditional results
+rule process_conditional:
+  input: 
+    "results/{gwas}/checks/twas_conditional_all_chr.done"
+  output:
+    "results/{gwas}/twas/{gwas}_twas_novelty.csv"
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/process_conditional.R \
+      --gwas {wildcards.gwas}"
 
 ###
 # Run PWAS

@@ -1,7 +1,7 @@
 ---
 title: "GenoFunc"
 params:
-  gwas: ""
+  gwas: "ALS2021"
 output:
   html_document:
     toc: true
@@ -22,6 +22,7 @@ library(knitr)
 library(ggplot2)
 library(cowplot)
 library(kableExtra)
+library(DT)
 
 knit_hooks$set(optipng = hook_optipng)
 knit_hooks$set(pngquant = hook_pngquant)
@@ -79,6 +80,11 @@ ldsc_logical<-config[grepl('ldsc:',config)] == "ldsc: T"
 magma_gene_logical<-config[grepl('magma_gene:',config)] == "magma_gene: T"
 
 twas_panel_psychencode_logical<-config[grepl('twas_panel_psychencode:',config)] == "twas_panel_psychencode: T"
+twas_panel_fusion_logical<-config[grepl('twas_panel_fusion:',config)] == "twas_panel_fusion: T"
+
+twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical)
+
+twas_conditional_logical<-config[grepl('twas_conditional:',config)] == "twas_conditional: T" & twas_logical == T
 
 smr_expression_panel_psychencode_logical<-config[grepl('smr_expression_panel_psychencode:',config)] == "smr_expression_panel_psychencode: T"
 
@@ -99,7 +105,7 @@ twas_so_lincs_logical<-config[grepl('twas_so_lincs:',config)] == "twas_so_lincs:
 
 # Summarise this information
 mol_assoc_logical<-any(magma_gene_logical,
-                       twas_panel_psychencode_logical,
+                       twas_logical,
                        smr_expression_panel_psychencode_logical,
                        smr_expression_panel_metabrain_basalganglia_logical,
                        smr_expression_panel_metabrain_cerebellum_logical,
@@ -110,7 +116,7 @@ mol_assoc_logical<-any(magma_gene_logical,
                        pwas_panel_banner_logical,
                        smr_protein_panel_rosmap_logical)
 
-expression_logical<-any( twas_panel_psychencode_logical,
+expression_logical<-any( twas_logical,
                          smr_expression_panel_psychencode_logical,
                          smr_expression_panel_metabrain_basalganglia_logical,
                          smr_expression_panel_metabrain_cerebellum_logical,
@@ -160,6 +166,12 @@ focus_munge_log
 
 ```
 
+```{r, echo=FALSE, eval=ldsc_logical, results='asis'}
+
+cat(paste0('Full results file: resources/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.munged.log'))
+
+```
+
 </details>
 
 ```{r,  results='asis', echo=FALSE, eval=ldsc_logical}
@@ -175,6 +187,12 @@ cat("<details><summary>Show LDSC log file</summary>")
 
 ldsc_log<-readLines(paste0('results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
 ldsc_log
+
+```
+
+```{r, echo=FALSE, eval=ldsc_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
 
 ```
 
@@ -225,9 +243,14 @@ cat(txt)
 
 clump_lead_snps_gw$P<-format(clump_lead_snps_gw$P, scientific = TRUE, digits = 3)
 
-clump_lead_snps_gw %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(clump_lead_snps_gw, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=clump_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
 
 ```
 
@@ -255,9 +278,14 @@ cat(txt)
 
 clump_lead_snps$P<-format(clump_lead_snps$P, scientific = TRUE, digits = 3)
 
-clump_lead_snps %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(clump_lead_snps, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=clump_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
 
 ```
 
@@ -302,9 +330,15 @@ cat(txt)
 
 cojo_lead_snps_gw$P<-format(cojo_lead_snps_gw$P, scientific = TRUE, digits = 3)
 
-cojo_lead_snps_gw %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(cojo_lead_snps_gw, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=cojo_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
+
 
 ```
 
@@ -336,9 +370,15 @@ cat(txt)
 
 cojo_lead_snps$P<-format(cojo_lead_snps$P, scientific = TRUE, digits = 3)
 
-cojo_lead_snps %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(cojo_lead_snps, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=cojo_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
+
 
 ```
 
@@ -367,9 +407,23 @@ finemap$Gene[is.na(finemap$Gene)]<-'None'
 
 finemap<-finemap[order(finemap$CHR, finemap$BP),]
 
-finemap %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+#finemap$cs_log10bf<-round(finemap$cs_log10bf,2)
+#finemap$cs_avg_r2<-round(finemap$cs_avg_r2,2)
+#finemap$cs_min_r2<-round(finemap$cs_min_r2,2)
+finemap$cs_log10bf<-NULL
+finemap$cs_avg_r2<-NULL
+finemap$cs_min_r2<-NULL
+finemap$TopPIP<-round(finemap$TopPIP,2)
+
+datatable(finemap, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=finemap_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; cs = Credible set number; NSNP = Number of SNPs in 95% credible set; TopPIP = Highest posterior inclusion probability of variants within 95% credible set; Gene = Genes boundaries (+/- 10kb) all variants within 95% credible set."))
+
 
 ```
 
@@ -394,6 +448,149 @@ cat("## Expression \n")
 
 ```
 
+```{r,  results='asis', echo=FALSE, eval=twas_logical}
+
+cat("*** \n")
+cat("### All TWAS panels \n")
+
+```
+
+```{r,  results='asis', echo=FALSE, eval=twas_logical}
+
+cat("<details><summary>TWAS: FDR significant and colocalised results</summary> \n")
+
+```
+
+```{r, echo=F, eval=twas_logical}
+
+twas_all<-fread(paste0('results/',params$gwas,'/twas/',params$gwas,'_twas_GW_clean.txt.gz'))
+twas_all$FILE<-NULL
+twas_all$MODEL<-NULL
+
+twas_all_clean<-twas_all
+
+# Calculate P accounting for multiple testing
+twas_all_clean$TWAS.P.FDR<-p.adjust(twas_all_clean$TWAS.P, method='BY')
+twas_all_clean<-twas_all_clean[,c('CHR','P0','P1','ensembl_gene_id','external_gene_name','PANEL','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
+names(twas_all_clean)[names(twas_all_clean) == 'ensembl_gene_id']<-'Ensembl ID'
+names(twas_all_clean)[names(twas_all_clean) == 'external_gene_name']<-'Gene Symbol'
+twas_all_clean<-twas_all_clean[which(twas_all_clean$TWAS.P.FDR < 0.05 & (twas_all_clean$COLOC.PP4-twas_all_clean$COLOC.PP3)/twas_all_clean$COLOC.PP4 > 0.8),]
+
+twas_all_clean<-twas_all_clean[order(twas_all_clean$CHR, twas_all_clean$P0),]
+
+twas_all_clean$TWAS.Z<-round(twas_all_clean$TWAS.Z, 3)
+twas_all_clean$TWAS.P<-format(twas_all_clean$TWAS.P, scientific = TRUE, digits = 3)
+twas_all_clean$TWAS.P.FDR<-format(twas_all_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
+
+datatable(twas_all_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=twas_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/',params$gwas,'_twas_GW_clean.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Gene expression panel; TWAS.Z = TWAS Z-score; TWAS.P = TWAS p-value; TWAS.P.FDR = BY FDR corrected TWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_logical}
+
+cat("</details> \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=twas_conditional_logical}
+
+cat("<details><summary>TWAS: Full conditional analysis results</summary> \n")
+
+```
+
+```{r, echo=F, eval=twas_conditional_logical}
+
+twas_cond_full<-fread(paste0('results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_full.csv'))
+twas_cond_full$BEST.TWAS.P<-format(twas_cond_full$BEST.TWAS.P, scientific = TRUE, digits = 3)
+twas_cond_full$BEST.SNP.P<-format(twas_cond_full$BEST.SNP.P, scientific = TRUE, digits = 3)
+
+datatable(twas_cond_full, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=twas_conditional_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_full.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position range of locus; JOINT.ID = Features remaining significiant in joint model of significant features in locus; MARGIN.ID = Features not significiant in joint model of significant features in locus; BEST.TWAS.P = P-value of most significant feature within locus; BEST.SNP.P = P-value of most significant variant within locus; VAR.EXP = Variance in SNP-phenotype associations explained by jointly significant TWAS features."))
+
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_conditional_logical}
+
+cat("</details> \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=twas_conditional_logical}
+
+cat("<details><summary>TWAS: Brief conditional analysis results</summary> \n")
+
+```
+
+```{r, echo=F, eval=twas_conditional_logical}
+
+twas_cond_brief<-fread(paste0('results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv'))
+twas_cond_brief$BEST.TWAS.P<-format(twas_cond_brief$BEST.TWAS.P, scientific = TRUE, digits = 3)
+twas_cond_brief$BEST.SNP.P<-format(twas_cond_brief$BEST.SNP.P, scientific = TRUE, digits = 3)
+
+datatable(twas_cond_brief, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=twas_conditional_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position range of locus; JOINT.ID = Features remaining significiant in joint model of significant features in locus; MARGIN.N =  Number of features not significiant in joint model of significant features in locus; BEST.TWAS.P = P-value of most significant feature within locus; BEST.SNP.P = P-value of most significant variant within locus; VAR.EXP = Variance in SNP-phenotype associations explained by jointly significant TWAS features."))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_conditional_logical}
+
+cat("</details> \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=twas_conditional_logical}
+
+cat("<details><summary>TWAS: Detailed results</summary> \n")
+
+```
+
+```{r, echo=F, eval=twas_conditional_logical}
+
+twas_novel<-fread(paste0('results/',params$gwas,'/twas/',params$gwas,'_twas_novelty.csv'))
+twas_novel$TWAS.P<-format(twas_novel$TWAS.P, scientific = TRUE, digits = 3)
+twas_novel$BEST.GWAS.P<-format(twas_novel$BEST.GWAS.P, scientific = TRUE, digits = 3)
+
+datatable(twas_novel, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=twas_conditional_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Gene expression panel; TWAS.Z = TWAS Z-score; TWAS.P = TWAS p-value; BEST.GWAS.P = P-value of most significant variant within 500kb of feature; TOP.SNP.COR = Correlation between most significant variant and gene's predicted expression; Type = Indicates whether gene was (Joint) or was not (Marginal) significant in the joint model of significant features; Novel = Indicates whether TWAS association is independent of a genome-wide significant variant; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy); Colocalised = Indicates whether COLOC.PP4 was greater than 0.8."))
+
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_conditional_logical}
+
+cat("</details> \n")
+
+```
+
 ```{r,  results='asis', echo=FALSE, eval=psychencode_logical}
 
 cat("*** \n")
@@ -409,15 +606,14 @@ cat("<details><summary>TWAS: FDR significant and colocalised results</summary> \
 
 ```{r, echo=F, eval=twas_panel_psychencode_logical}
 
-twas_psychencode<-fread(paste0('results/',params$gwas,'/twas/psychencode/',params$gwas,'_twas_psychencode_GW_clean.txt.gz'))
-
-twas_psychencode$TWAS.P.FDR<-p.adjust(twas_psychencode$TWAS.P, method = 'fdr')
-twas_psychencode<-twas_psychencode[,c('CHR','P0','P1','ensembl_gene_id','external_gene_name','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
-
-names(twas_psychencode)[names(twas_psychencode) == 'ensembl_gene_id']<-'Ensembl ID'
-names(twas_psychencode)[names(twas_psychencode) == 'external_gene_name']<-'Gene Symbol'
+twas_psychencode<-twas_all[twas_all$PANEL == 'PsychENCODE',]
 
 twas_psychencode_clean<-twas_psychencode
+twas_psychencode_clean$TWAS.P.FDR<-p.adjust(twas_psychencode_clean$TWAS.P, method = 'BY')
+twas_psychencode_clean<-twas_psychencode_clean[,c('CHR','P0','P1','ensembl_gene_id','external_gene_name','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
+
+names(twas_psychencode_clean)[names(twas_psychencode_clean) == 'ensembl_gene_id']<-'Ensembl ID'
+names(twas_psychencode_clean)[names(twas_psychencode_clean) == 'external_gene_name']<-'Gene Symbol'
 twas_psychencode_clean<-twas_psychencode_clean[which(twas_psychencode_clean$TWAS.P.FDR < 0.05 & (twas_psychencode_clean$COLOC.PP4-twas_psychencode_clean$COLOC.PP3)/twas_psychencode_clean$COLOC.PP4 > 0.8),]
 
 twas_psychencode_clean<-twas_psychencode_clean[order(twas_psychencode_clean$CHR, twas_psychencode_clean$P0),]
@@ -426,9 +622,14 @@ twas_psychencode_clean$TWAS.Z<-round(twas_psychencode_clean$TWAS.Z, 3)
 twas_psychencode_clean$TWAS.P<-format(twas_psychencode_clean$TWAS.P, scientific = TRUE, digits = 3)
 twas_psychencode_clean$TWAS.P.FDR<-format(twas_psychencode_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
 
-twas_psychencode_clean %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(twas_psychencode_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=twas_panel_psychencode_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/psychencode/',params$gwas,'_twas_psychencode_GW_clean.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Gene expression panel; TWAS.Z = TWAS Z-score; TWAS.P = TWAS p-value; TWAS.P.FDR = BY FDR corrected TWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
 
@@ -444,7 +645,7 @@ cat("<details><summary>SMR: FDR significant and colocalised results</summary> \n
 
 ```
 
-```{r, echo=F, eval=twas_panel_psychencode_logical}
+```{r, echo=F, eval=smr_expression_panel_psychencode_logical}
 
 smr_psychencode_files<-list.files(path=paste0('results/',params$gwas,'/smr/psychencode/'), pattern=paste0(params$gwas,'_smr_psychencode_chr'))
 smr_psychencode_files<-smr_psychencode_files[grepl('.smr$', smr_psychencode_files)]
@@ -454,12 +655,13 @@ for(i in smr_psychencode_files){
   smr_psychencode<-rbind(smr_psychencode, fread(paste0('results/',params$gwas,'/smr/psychencode/',i)))
 }
 
-smr_psychencode$p_SMR.FDR<-p.adjust(smr_psychencode$p_SMR, method = 'fdr')
-smr_psychencode<-smr_psychencode[,c('ProbeChr','Probe_bp','probeID','Gene','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
-
-names(smr_psychencode)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
-
 smr_psychencode_clean<-smr_psychencode
+
+smr_psychencode_clean$p_SMR.FDR<-p.adjust(smr_psychencode_clean$p_SMR, method = 'fdr')
+smr_psychencode_clean<-smr_psychencode_clean[,c('ProbeChr','Probe_bp','probeID','Gene','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
+
+names(smr_psychencode_clean)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
+
 smr_psychencode_clean<-smr_psychencode_clean[which(smr_psychencode_clean$p_SMR.FDR < 0.05 & smr_psychencode_clean$p_HEIDI > 0.05),]
 smr_psychencode_clean<-smr_psychencode_clean[order(smr_psychencode_clean$CHR, smr_psychencode_clean$BP),]
 smr_psychencode_clean$b_SMR<-round(smr_psychencode_clean$b_SMR, 3)
@@ -467,13 +669,18 @@ smr_psychencode_clean$p_SMR<-format(smr_psychencode_clean$p_SMR, scientific = TR
 smr_psychencode_clean$p_SMR.FDR<-format(smr_psychencode_clean$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_psychencode_clean$p_HEIDI<-format(smr_psychencode_clean$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_psychencode_clean %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_psychencode_clean, rownames= FALSE)
 
 ```
 
-```{r, results='asis', echo=FALSE, eval=twas_panel_psychencode_logical}
+```{r, echo=FALSE, eval=smr_expression_panel_psychencode_logical, results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/psychencode/',params$gwas,'_smr_psychencode_chr* \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_expression_panel_psychencode_logical}
 
 cat("</details> \n")
 
@@ -487,13 +694,15 @@ cat("<details><summary>Compare TWAS/SMR significant and colocalised PsychENCODE 
 
 ```{r, echo=F, eval=twas_panel_psychencode_logical & smr_expression_panel_psychencode_logical}
 psychencode_smr_twas<-merge(
-    twas_psychencode[,c('Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=F],
-    smr_psychencode[,c('Ensembl ID', 'Gene Symbol', 'b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'),with=F], 
-    by='Ensembl ID', all=T)
+    twas_psychencode[,c('ensembl_gene_id','external_gene_name','TWAS.Z','TWAS.P','COLOC.PP3','COLOC.PP4'), with=F],
+    smr_psychencode[,c('probeID', 'b_SMR','p_SMR','p_HEIDI'),with=F], 
+    by.x='ensembl_gene_id', by.y='probeID', all=T)
 
-psychencode_smr_twas$`Gene Symbol.x`[is.na(psychencode_smr_twas$`Gene Symbol.x`)]<-psychencode_smr_twas$`Gene Symbol.y`[is.na(psychencode_smr_twas$`Gene Symbol.x`)]
-psychencode_smr_twas$`Gene Symbol.y`<-NULL
-names(psychencode_smr_twas)[names(psychencode_smr_twas) == 'Gene Symbol.x']<-'Gene Symbol'
+psychencode_smr_twas$TWAS.P.FDR<-p.adjust(psychencode_smr_twas$TWAS.P, method='BY')
+psychencode_smr_twas$p_SMR.FDR<-p.adjust(psychencode_smr_twas$p_SMR, method='BY')
+  
+psychencode_smr_twas<-psychencode_smr_twas[,c('ensembl_gene_id','external_gene_name','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=F]
+names(psychencode_smr_twas)[1:2]<-c('Ensembl ID','Gene Symbol')
 
 psychencode_smr_twas<-psychencode_smr_twas[(psychencode_smr_twas$TWAS.P.FDR < 0.05 & (psychencode_smr_twas$COLOC.PP4-psychencode_smr_twas$COLOC.PP3)/psychencode_smr_twas$COLOC.PP4 > 0.8) | (psychencode_smr_twas$p_SMR.FDR < 0.05 & psychencode_smr_twas$p_HEIDI > 0.05),]
 
@@ -502,6 +711,14 @@ color.me <- which(  psychencode_smr_twas$TWAS.P.FDR < 0.05 &
                     psychencode_smr_twas$p_SMR.FDR < 0.05 & 
                     psychencode_smr_twas$p_HEIDI > 0.05 &
                     sign(psychencode_smr_twas$TWAS.Z) == sign(psychencode_smr_twas$b_SMR))
+
+psychencode_smr_twas$TWAS.Z<-round(psychencode_smr_twas$TWAS.Z, 3)
+psychencode_smr_twas$b_SMR<-round(psychencode_smr_twas$b_SMR, 3)
+psychencode_smr_twas$TWAS.P<-format(psychencode_smr_twas$TWAS.P, scientific = TRUE, digits = 3)
+psychencode_smr_twas$TWAS.P.FDR<-format(psychencode_smr_twas$TWAS.P.FDR, scientific = TRUE, digits = 3)
+psychencode_smr_twas$p_SMR<-format(psychencode_smr_twas$p_SMR, scientific = TRUE, digits = 3)
+psychencode_smr_twas$p_SMR.FDR<-format(psychencode_smr_twas$p_SMR.FDR, scientific = TRUE, digits = 3)
+psychencode_smr_twas$p_HEIDI<-format(psychencode_smr_twas$p_HEIDI, scientific = TRUE, digits = 3)
 
 psychencode_smr_twas %>% 
   kable(booktabs = T) %>%
@@ -552,9 +769,14 @@ smr_metabrain_Basalganglia$p_SMR<-format(smr_metabrain_Basalganglia$p_SMR, scien
 smr_metabrain_Basalganglia$p_SMR.FDR<-format(smr_metabrain_Basalganglia$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_metabrain_Basalganglia$p_HEIDI<-format(smr_metabrain_Basalganglia$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_metabrain_Basalganglia %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_metabrain_Basalganglia, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_basalganglia_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
 
@@ -589,9 +811,14 @@ smr_metabrain_Cerebellum$p_SMR<-format(smr_metabrain_Cerebellum$p_SMR, scientifi
 smr_metabrain_Cerebellum$p_SMR.FDR<-format(smr_metabrain_Cerebellum$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_metabrain_Cerebellum$p_HEIDI<-format(smr_metabrain_Cerebellum$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_metabrain_Cerebellum %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_metabrain_Cerebellum, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_cerebellum_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
 
@@ -626,9 +853,14 @@ smr_metabrain_Cortex$p_SMR<-format(smr_metabrain_Cortex$p_SMR, scientific = TRUE
 smr_metabrain_Cortex$p_SMR.FDR<-format(smr_metabrain_Cortex$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_metabrain_Cortex$p_HEIDI<-format(smr_metabrain_Cortex$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_metabrain_Cortex %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_metabrain_Cortex, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_cortex_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
 
@@ -663,9 +895,14 @@ smr_metabrain_Hippocampus$p_SMR<-format(smr_metabrain_Hippocampus$p_SMR, scienti
 smr_metabrain_Hippocampus$p_SMR.FDR<-format(smr_metabrain_Hippocampus$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_metabrain_Hippocampus$p_HEIDI<-format(smr_metabrain_Hippocampus$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_metabrain_Hippocampus %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_metabrain_Hippocampus, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_hippocampus_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
 
@@ -700,9 +937,14 @@ smr_metabrain_Spinalcord$p_SMR<-format(smr_metabrain_Spinalcord$p_SMR, scientifi
 smr_metabrain_Spinalcord$p_SMR.FDR<-format(smr_metabrain_Spinalcord$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_metabrain_Spinalcord$p_HEIDI<-format(smr_metabrain_Spinalcord$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_metabrain_Spinalcord %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_metabrain_Spinalcord, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_spinalcord_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
 
@@ -754,9 +996,18 @@ pwas_rosmap_clean$TWAS.Z<-round(pwas_rosmap_clean$TWAS.Z, 3)
 pwas_rosmap_clean$TWAS.P<-format(pwas_rosmap_clean$TWAS.P, scientific = TRUE, digits = 3)
 pwas_rosmap_clean$TWAS.P.FDR<-format(pwas_rosmap_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
 
-pwas_rosmap_clean %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+names(pwas_rosmap_clean)[names(pwas_rosmap_clean) == 'TWAS.Z']<-'PWAS.Z'
+names(pwas_rosmap_clean)[names(pwas_rosmap_clean) == 'TWAS.P']<-'PWAS.P'
+names(pwas_rosmap_clean)[names(pwas_rosmap_clean) == 'TWAS.P.FDR']<-'PWAS.P.FDR'
+
+datatable(pwas_rosmap_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(pwas_panel_rosmap_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/pwas/rosmap/',params$gwas,'_pwas_rosmap_chr \n\n'))
+cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Protein expression panel; PWAS.Z = PWAS Z-score; TWAS.P = TWAS p-value; PWAS.P.FDR = BY FDR corrected PWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
 
@@ -790,9 +1041,14 @@ smr_rosmap$p_SMR<-format(smr_rosmap$p_SMR, scientific = TRUE, digits = 3)
 smr_rosmap$p_SMR.FDR<-format(smr_rosmap$p_SMR.FDR, scientific = TRUE, digits = 3)
 smr_rosmap$p_HEIDI<-format(smr_rosmap$p_HEIDI, scientific = TRUE, digits = 3)
 
-smr_rosmap %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(smr_rosmap, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_protein_panel_rosmap_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/rosmap/',params$gwas,'_smr_rosmap_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
 
@@ -834,9 +1090,14 @@ pwas_banner_clean$TWAS.Z<-round(pwas_banner_clean$TWAS.Z, 3)
 pwas_banner_clean$TWAS.P<-format(pwas_banner_clean$TWAS.P, scientific = TRUE, digits = 3)
 pwas_banner_clean$TWAS.P.FDR<-format(pwas_banner_clean$TWAS.P.FDR, scientific = TRUE, digits = 3)
 
-pwas_banner_clean %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(pwas_banner_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(pwas_panel_banner_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/pwas/banner/',params$gwas,'_pwas_banner_chr* \n\n'))
+cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Protein expression panel; PWAS.Z = PWAS Z-score; TWAS.P = TWAS p-value; PWAS.P.FDR = BY FDR corrected PWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
 
@@ -915,9 +1176,14 @@ magma<-magma[order(magma$CHR, magma$START),]
 magma$P<-format(magma$P, scientific = TRUE, digits = 3)
 magma$P.FDR<-format(magma$P.FDR, scientific = TRUE, digits = 3)
 
-magma %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(magma, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(magma_gene_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/magma/magma_gene_level.clean.csv \n\n'))
+cat(paste0("Note. CHR = Chromsome; START = Gene start; STOP = Gene stop; P = P-value; P.FDR = BY FDR-corrected p-value."))
 
 ```
 
@@ -1097,6 +1363,207 @@ cat("</details>  \n")
 
 ```
 
+```{r, eval=any(expression_logical,protein_logical), echo=F}
+
+smr_expression_panel_psychencode_logical<-config[grepl('smr_expression_panel_psychencode:',config)] == "smr_expression_panel_psychencode: T"
+
+smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
+smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
+smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"
+smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
+smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
+
+pwas_panel_rosmap_logical<-config[grepl('pwas_panel_rosmap:',config)] == "pwas_panel_rosmap: T"
+pwas_panel_banner_logical<-config[grepl('pwas_panel_banner:',config)] == "pwas_panel_banner: T"
+
+smr_protein_panel_rosmap_logical<-config[grepl('smr_protein_panel_rosmap:',config)] == "smr_protein_panel_rosmap: T"
+
+all_func_res<-NULL
+
+if(twas_logical){
+  
+  # TWAS
+  twas_tmp<-twas_all[,c('PANEL','external_gene_name','TWAS.Z'), with=F]
+  twas_tmp$Sig<-p.adjust(twas_all$TWAS.P, method='BY') < 0.05
+  twas_tmp$Coloc<-(twas_all$COLOC.PP4-twas_all$COLOC.PP3)/twas_all$COLOC.PP4 > 0.8
+  names(twas_tmp)<-c('Panel','ID','Z','Sig','Coloc')
+  twas_tmp$Method<-'FUSION'
+  twas_tmp$Type<-'Expr.'
+  twas_tmp$Type[grepl('SPLIC',twas_tmp$Panel)]<-'Splice'
+  # Retain only the most significant assoc for each gene within PANEL (only relevent for splice panel)
+  twas_tmp<-twas_tmp[order(-abs(twas_tmp$Z)),]
+  twas_tmp<-twas_tmp[!duplicated(paste0(twas_tmp$Panel, twas_tmp$ID)),]
+  
+  all_func_res<-rbind(all_func_res, twas_tmp)
+
+}
+
+if(smr_expression_panel_psychencode_logical){
+  # SMR expression
+  smr_psychencode_2<-smr_psychencode
+  smr_psychencode_2$PANEL<-'PsychENCODE DLPFC'
+  smr_psychencode_2$Z<-smr_psychencode_2$b_SMR/smr_psychencode_2$se_SMR
+  smr_psychencode_2<-smr_psychencode_2[,c('PANEL','Gene','Z','p_SMR','p_HEIDI'), with =T]
+}
+
+if(metabrain_logical){
+  
+  smr_metabrain_all_2<-smr_metabrain_all
+  smr_metabrain_all_2$PANEL<-paste0('MetaBrain ',smr_metabrain_all_2$PANEL)
+  smr_metabrain_all_2$Z<-smr_metabrain_all_2$b_SMR/smr_metabrain_all_2$se_SMR
+  smr_metabrain_all_2<-smr_metabrain_all_2[,c('PANEL','external_gene_name','Z','p_SMR','p_HEIDI'), with =T]
+  names(smr_metabrain_all_2)<-c('PANEL','Gene','Z','p_SMR','p_HEIDI')
+
+}
+
+if(all(smr_expression_panel_psychencode_logical, metabrain_logical)){
+  
+  smr_res_dat<-rbind(smr_psychencode_2,smr_metabrain_all_2)
+  
+}
+
+if(smr_expression_panel_psychencode_logical == T & metabrain_logical == F){
+  smr_res_dat<-smr_psychencode_2
+}
+
+if(smr_expression_panel_psychencode_logical == F & metabrain_logical == T){
+  smr_res_dat<-smr_metabrain_all_2
+}
+
+if(any(smr_expression_panel_psychencode_logical, metabrain_logical)){
+
+  smr_res_dat$Sig<-p.adjust(smr_res_dat$p_SMR, method = 'BY') < 0.05
+  smr_res_dat$Coloc<-smr_res_dat$p_HEIDI > 0.05
+  smr_tmp<-smr_res_dat[,c('PANEL','Gene','Z','Sig','Coloc'), with=F]
+  names(smr_tmp)<-c('Panel','ID','Z','Sig','Coloc')
+  smr_tmp$Method<-'SMR'
+  smr_tmp$Type<-'Expr.'
+  
+  all_func_res<-rbind(all_func_res, smr_tmp)
+
+}
+
+# PWAS
+if(pwas_panel_rosmap_logical){
+  
+  pwas_rosmap_tmp<-pwas_rosmap
+  pwas_rosmap_tmp<-pwas_rosmap_tmp[,c('Gene Symbol','TWAS.Z'), with=F]
+  pwas_rosmap_tmp$Sig<-pwas_rosmap$TWAS.P.FDR < 0.05
+  pwas_rosmap_tmp$Coloc<-(pwas_rosmap$COLOC.PP4-pwas_rosmap$COLOC.PP3)/pwas_rosmap$COLOC.PP4 > 0.8
+  pwas_rosmap_tmp$PANEL<-'ROSMAP DLPFC'
+  pwas_rosmap_tmp<-pwas_rosmap_tmp[,c('PANEL','Gene Symbol','TWAS.Z','Sig','Coloc'), with=F]
+  names(pwas_rosmap_tmp)<-c('Panel','ID','Z','Sig','Coloc')
+  pwas_rosmap_tmp<-pwas_rosmap_tmp[order(-abs(pwas_rosmap_tmp$Z)),]
+  pwas_rosmap_tmp<-pwas_rosmap_tmp[!duplicated(paste0(pwas_rosmap_tmp$Panel, pwas_rosmap_tmp$ID)),]
+  pwas_rosmap_tmp$Method<-'FUSION'
+  pwas_rosmap_tmp$Type<-'Protein'
+  
+  all_func_res<-rbind(all_func_res, pwas_rosmap_tmp)
+
+}
+
+if(pwas_panel_banner_logical){
+  
+  pwas_banner_tmp<-pwas_banner
+  pwas_banner_tmp<-pwas_banner_tmp[,c('Gene Symbol','TWAS.Z'), with=F]
+  pwas_banner_tmp$Sig<-pwas_banner$TWAS.P.FDR < 0.05
+  pwas_banner_tmp$Coloc<-(pwas_banner$COLOC.PP4-pwas_banner$COLOC.PP3)/pwas_banner$COLOC.PP4 > 0.8
+  pwas_banner_tmp$PANEL<-'Banner DLPFC'
+  pwas_banner_tmp<-pwas_banner_tmp[,c('PANEL','Gene Symbol','TWAS.Z','Sig','Coloc'), with=F]
+  names(pwas_banner_tmp)<-c('Panel','ID','Z','Sig','Coloc')
+  pwas_banner_tmp<-pwas_banner_tmp[order(-abs(pwas_banner_tmp$Z)),]
+  pwas_banner_tmp<-pwas_banner_tmp[!duplicated(paste0(pwas_banner_tmp$Panel, pwas_banner_tmp$ID)),]
+  pwas_banner_tmp$Method<-'FUSION'
+  pwas_banner_tmp$Type<-'Protein'
+  
+  all_func_res<-rbind(all_func_res, pwas_banner_tmp)
+}
+
+if(smr_protein_panel_rosmap_logical){
+  
+  # SMR protein
+  smr_rosmap_tmp<-smr_rosmap
+  smr_rosmap_tmp$z_SMR<-abs(qnorm(as.numeric(smr_rosmap_tmp$p_SMR)/2))
+  smr_rosmap_tmp$z_SMR<-sign(smr_rosmap_tmp$b_SMR)*smr_rosmap_tmp$z_SMR
+  
+  smr_rosmap_tmp<-smr_rosmap_tmp[,c('Gene Symbol','z_SMR'), with=F]
+  smr_rosmap_tmp$Sig<-as.numeric(smr_rosmap$p_SMR.FDR < 0.05)
+  smr_rosmap_tmp$Coloc<-as.numeric(smr_rosmap$p_HEIDI > 0.05)
+  smr_rosmap_tmp$PANEL<-'ROSMAP DLPFC'
+  smr_rosmap_tmp<-smr_rosmap_tmp[,c('PANEL','Gene Symbol','z_SMR','Sig','Coloc'), with=F]
+  names(smr_rosmap_tmp)<-c('Panel','ID','Z','Sig','Coloc')
+  smr_rosmap_tmp<-smr_rosmap_tmp[order(-abs(smr_rosmap_tmp$Z)),]
+  smr_rosmap_tmp<-smr_rosmap_tmp[!duplicated(paste0(smr_rosmap_tmp$Panel, smr_rosmap_tmp$ID)),]
+  smr_rosmap_tmp$Method<-'SMR'
+  smr_rosmap_tmp$Type<-'Protein'
+  
+  all_func_res<-rbind(all_func_res, smr_rosmap_tmp)
+
+}
+
+# Subset to high confidence genes
+all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[all_func_res$Sig == T & all_func_res$Coloc == T],]
+
+# Remove missing values
+all_func_res<-all_func_res[complete.cases(all_func_res),]
+
+all_func_res$Group<-paste0(all_func_res$Method,'\n',all_func_res$Type )
+all_func_res$Group<-factor(all_func_res$Group, levels=c("FUSION\nExpr.","SMR\nExpr.","FUSION\nSplice","FUSION\nProtein","SMR\nProtein"))
+
+all_func_res$ID<-factor(all_func_res$ID, levels=rev(levels(factor(all_func_res$ID))))
+
+# Create heatmap
+library(ggplot2)
+
+heatmap<-ggplot(data = all_func_res, aes(x = Panel, y = ID)) +
+	theme_bw()	+
+	geom_tile(aes(fill = Z), width=0.95, height=0.95) +
+  geom_tile(data=all_func_res[all_func_res$Sig == T,], aes(x = Panel, y = ID), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
+  geom_tile(data=all_func_res[all_func_res$Coloc ==T & all_func_res$Sig == T,], aes(x = Panel, y = ID), colour='green2', fill=NA, size=0.3, width=0.95, height=0.95) +
+	scale_fill_gradientn(colours=c("dodgerblue2","white","red"), na.value = 'white',name = "Z-score") +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+	geom_text(aes(label=round(Z,1)), color="black", size=3) +
+  facet_wrap(~ Group , nrow=1, scales = "free_x")
+
+group_siz<-NULL
+for(i in c("FUSION\nExpr.","SMR\nExpr.","FUSION\nSplice","FUSION\nProtein","SMR\nProtein")){
+  group_siz<-rbind(group_siz, data.frame(Group=i,
+                           Size=length(unique(all_func_res$Panel[all_func_res$Group==i]))))
+}
+
+# Set minimum size to 3 to allow space for labels
+group_siz$Size[group_siz$Size < 2]<-2
+group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+group_siz$Width<-4*group_siz$Prop
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap.png'), units = 'px', res=300, height=70*length(unique(all_func_res$ID))+200, width=2750)
+
+grid.draw(gt)
+
+a<-dev.off()
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(expression_logical,protein_logical)}
+
+cat("<details><summary>Comparison of Methods</summary> \n")
+
+cat(paste0("![](../results/",params$gwas,"/reports/gene_con_func_heatmap.png)\n\n"))
+
+cat("</details>  \n")
+
+```
+
+
 ```{r, results='asis', echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
 
 cat("*** \n")
@@ -1130,10 +1597,10 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary>")
 so_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_clean.csv'))
 so_cmap<-so_cmap[order(so_cmap$p),]
   
-if(sum(so_cmap$p.fdr < 0.05) >= 10){
+if(sum(so_cmap$p.fdr < 0.05) >= 250){
   so_cmap<-so_cmap[so_cmap$p.fdr < 0.05,]
 } else {
-  so_cmap<-so_cmap[1:10,]
+  so_cmap<-so_cmap[1:250,]
 }
 
 so_cmap$p<-format(so_cmap$p, scientific = TRUE, digits = 3)
@@ -1142,9 +1609,13 @@ so_cmap$p.fdr<-format(so_cmap$p.fdr, scientific = TRUE, digits = 3)
 so_cmap<-so_cmap[,c("pert_mfc_id","cmap_name","pert_idose","pert_itime","cell_iname","avg.rank","p","p.fdr"), with=F]
 names(so_cmap)<-c('ID','Name','Dose','Time','Cell','Rank','P','P.FDR')
 
-so_cmap %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(so_cmap, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(twas_so_lincs_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/So_res_clean.csv'))
 
 ```
 
@@ -1161,21 +1632,19 @@ so_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_atc_res.csv'
 so_cmap_atc<-so_cmap_atc[order(so_cmap_atc$P),]
 so_cmap_atc$P.FDR<-p.adjust(so_cmap_atc$P, method = 'fdr')
   
-if(sum(so_cmap_atc$P.FDR < 0.05) >= 10){
-  so_cmap_atc<-so_cmap_atc[so_cmap_atc$P.FDR < 0.05,]
-} else {
-  so_cmap_atc<-so_cmap_atc[1:10,]
-}
-
 so_cmap_atc$P<-format(so_cmap_atc$P, scientific = TRUE, digits = 3)
 so_cmap_atc$P.FDR<-format(so_cmap_atc$P.FDR, scientific = TRUE, digits = 3)
 
-so_cmap_atc<-so_cmap_atc[,c("ATC","N","P","P.FDR","Name"), with=F]
-names(so_cmap_atc)<-c("ATC","N Genes","P","P.FDR","Description")
+so_cmap_atc<-so_cmap_atc[,c("ATC","Estimate","N","P","P.FDR","Name"), with=F]
+names(so_cmap_atc)<-c("ATC","N Genes","Estimate","P","P.FDR","Description")
 
-so_cmap_atc %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(so_cmap_atc, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(twas_so_lincs_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/So_res_atc_res.csv'))
 
 ```
 
@@ -1197,22 +1666,28 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary> \n")
 
 gsea_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_cmap.competitive.clean.csv'))
 gsea_cmap<-gsea_cmap[order(gsea_cmap$P),]
-  
-if(sum(gsea_cmap$P.CORR < 0.05) >= 10){
+
+if(sum(gsea_cmap$P.CORR < 0.05) >= 250){
   gsea_cmap<-gsea_cmap[gsea_cmap$P.CORR < 0.05,]
 } else {
-  gsea_cmap<-gsea_cmap[1:10,]
+  gsea_cmap<-gsea_cmap[1:250,]
 }
 
 gsea_cmap$P<-format(gsea_cmap$P, scientific = TRUE, digits = 3)
 gsea_cmap$P.CORR<-format(gsea_cmap$P.CORR, scientific = TRUE, digits = 3)
+gsea_cmap$Estimate<-round(gsea_cmap$Estimate,2)
+gsea_cmap$SE<-round(gsea_cmap$SE,2)
 
 gsea_cmap<-gsea_cmap[,c("pert_mfc_id","cmap_name","pert_idose","pert_itime","cell_iname","Estimate","SE","P","P.CORR") , with=F]
 names(gsea_cmap)<-c('ID','Name','Dose','Time','Cell','Estimate','SE','P','P.FDR')
 
-gsea_cmap %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(gsea_cmap, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(twas_gsea_lincs_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/twas_gsea_cmap.competitive.clean.csv'))
 
 ```
 
@@ -1229,21 +1704,19 @@ gsea_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_res_atc
 gsea_cmap_atc<-gsea_cmap_atc[order(gsea_cmap_atc$P),]
 gsea_cmap_atc$P.FDR<-p.adjust(gsea_cmap_atc$P, method = 'fdr')
   
-if(sum(gsea_cmap_atc$P.FDR < 0.05) >= 10){
-  gsea_cmap_atc<-gsea_cmap_atc[gsea_cmap_atc$P.FDR < 0.05,]
-} else {
-  gsea_cmap_atc<-gsea_cmap_atc[1:10,]
-}
-
 gsea_cmap_atc$P<-format(gsea_cmap_atc$P, scientific = TRUE, digits = 3)
 gsea_cmap_atc$P.FDR<-format(gsea_cmap_atc$P.FDR, scientific = TRUE, digits = 3)
 
-gsea_cmap_atc<-gsea_cmap_atc[,c("ATC","N","P","P.FDR","Name"), with=F]
-names(gsea_cmap_atc)<-c("ATC","N Genes","P","P.FDR","Description")
+gsea_cmap_atc<-gsea_cmap_atc[,c("ATC","N","Estimate","P","P.FDR","Name"), with=F]
+names(gsea_cmap_atc)<-c("ATC","N Genes","Estimate","P","P.FDR","Description")
 
-gsea_cmap_atc %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(gsea_cmap_atc, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(twas_gsea_lincs_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/twas_gsea_res_atc_res.csv'))
 
 ```
 
@@ -1266,13 +1739,13 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary> \n")
 magma_gs<-fread(paste0('results/',params$gwas,'/magma/magma_drug_targetor.clean.csv'))
 magma_gs<-magma_gs[order(magma_gs$P),]
 magma_gs$P.FDR<-p.adjust(magma_gs$P, method='fdr')
-  
-if(sum(magma_gs$P.FDR < 0.05) >= 10){
+
+if(sum(magma_gs$P.FDR < 0.05) >= 250){
   magma_gs<-magma_gs[magma_gs$P.FDR < 0.05,]
 } else {
-  magma_gs<-magma_gs[1:10,]
+  magma_gs<-magma_gs[1:250,]
 }
-
+  
 magma_gs$P<-format(magma_gs$P, scientific = TRUE, digits = 3)
 magma_gs$P.FDR<-format(magma_gs$P.FDR, scientific = TRUE, digits = 3)
 
@@ -1292,14 +1765,18 @@ for(i in 1:nrow(magma_gs)){
   }
 }
 
-magma_gs<-magma_gs[,c("NAME","NGENES","P","P.FDR",'ATC_code','ATC_desc') , with=F]
-names(magma_gs)<-c('Name','N Genes','P','P.FDR','ATC Code','ATC Description')
+magma_gs<-magma_gs[,c("NAME","NGENES","BETA","SE","P","P.FDR",'ATC_code','ATC_desc') , with=F]
+names(magma_gs)<-c('Name','N Genes',"BETA","SE",'P','P.FDR','ATC Code','ATC Description')
 
-magma_gs$Name<-paste0("[",magma_gs$Name,"](https://www.ebi.ac.uk/chembl/g/#search_results/all/query=",magma_gs$Name,")")
+magma_gs$Name<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',magma_gs$Name,'">',magma_gs$Name,'</a>')
 
-magma_gs %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(magma_gs, rownames= FALSE, escape = -1)
+
+```
+
+```{r, echo=FALSE, eval=any(magma_drugtargetor_logical), results='asis'}
+
+cat(paste0("Full results file: results/",params$gwas,"/magma/magma_drug_targetor.clean.csv"))
 
 ```
 
@@ -1315,22 +1792,20 @@ cat("<details><summary>Show ATC Enrichment Results</summary> \n")
 magma_gs_atc<-fread(paste0('results/',params$gwas,'/magma/magma_drug_targetor_atc_res.csv'))
 magma_gs_atc<-magma_gs_atc[order(magma_gs_atc$P),]
 magma_gs_atc$P.FDR<-p.adjust(magma_gs_atc$P, method = 'fdr')
-  
-if(sum(magma_gs_atc$P.FDR < 0.05) >= 10){
-  magma_gs_atc<-magma_gs_atc[magma_gs_atc$P.FDR < 0.05,]
-} else {
-  magma_gs_atc<-magma_gs_atc[1:10,]
-}
 
 magma_gs_atc$P<-format(magma_gs_atc$P, scientific = TRUE, digits = 3)
 magma_gs_atc$P.FDR<-format(magma_gs_atc$P.FDR, scientific = TRUE, digits = 3)
 
-magma_gs_atc<-magma_gs_atc[,c("ATC","N","P","P.FDR","Name"), with=F]
-names(magma_gs_atc)<-c("ATC","N Genes","P","P.FDR","Description")
+magma_gs_atc<-magma_gs_atc[,c("ATC","N","Estimate","P","P.FDR","Name"), with=F]
+names(magma_gs_atc)<-c("ATC","N Genes","Estimate","P","P.FDR","Description")
 
-magma_gs_atc %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(magma_gs_atc, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(magma_drugtargetor_logical), results='asis'}
+
+cat(paste0("Full results file: results/",params$gwas,"/magma/magma_drug_targetor_atc_res.csv"))
 
 ```
 
@@ -1408,79 +1883,77 @@ Please be sure to cite the software and datasets used by this pipeline. Relevent
 
 ref_table<-NULL
 
-ref_table<-rbind(ref_table, data.frame(Name = "[LD Score Regression](https://github.com/bulik/ldsc)",
-                                       PMID = "[25642630](https://pubmed.ncbi.nlm.nih.gov/25642630)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://github.com/bulik/ldsc">LD Score Regression</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/25642630">25642630</a>', 
                                        Type = 'Software',
                                        Use = 'Estimate SNP-h2 and LD-score intercept'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[SuSiE](https://stephenslab.github.io/susie-paper/)",
-                                       PMID = NA,
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://stephenslab.github.io/susie-paper/">SuSiE</a>',
+                                       PMID = 'NA', 
                                        Type = 'Software',
                                        Use = 'Variant-level finemapping'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[FUSION](http://gusevlab.org/projects/fusion/)",
-                                       PMID = "[26854917](https://pubmed.ncbi.nlm.nih.gov/26854917)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="http://gusevlab.org/projects/fusion/">FUSION</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/26854917">26854917</a>', 
                                        Type = 'Software',
                                        Use = 'Perform TWAS/PWAS'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[COLOC](https://chr1swallace.github.io/coloc/)",
-                                       PMID = "[24830394](https://pubmed.ncbi.nlm.nih.gov/24830394)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://chr1swallace.github.io/coloc/">COLOC</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/24830394">24830394</a>', 
                                        Type = 'Software',
                                        Use = 'Used for colocalisation within FUSION TWAS/PWAS analysis'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[SMR](https://yanglab.westlake.edu.cn/software/smr/#Overview)",
-                                       PMID = "[29763751](https://pubmed.ncbi.nlm.nih.gov/29763751)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://yanglab.westlake.edu.cn/software/smr/#Overview">SMR</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/29763751">29763751</a>', 
                                        Type = 'Software',
                                        Use = 'Infer differential expression or protein levels'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[MAGMA](https://ctg.cncr.nl/software/magma)",
-                                       PMID = "[25885710](https://pubmed.ncbi.nlm.nih.gov/25885710)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://ctg.cncr.nl/software/magma">MAGMA</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/25885710">25885710</a>', 
                                        Type = 'Software',
                                        Use = 'Estimate gene associations and drug enrichment using DrugTargetor database'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[TWAS-GSEA](https://github.com/opain/TWAS-GSEA)",
-                                       PMID = "[31230729](https://pubmed.ncbi.nlm.nih.gov/31230729)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://github.com/opain/TWAS-GSEA">TWAS-GSEA</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/31230729">31230729</a>', 
                                        Type = 'Software',
                                        Use = 'Estimate drug enrichment using TWAS and CMAP'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[Average ranks (So et al.)](https://sites.google.com/site/honcheongso/software/drug-repositioning-based-on-gwas-and-cmap?authuser=0)",
-                                       PMID = "[28805813](https://pubmed.ncbi.nlm.nih.gov/28805813)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://sites.google.com/site/honcheongso/software/drug-repositioning-based-on-gwas-and-cmap?authuser=0">Average ranks (So et al.)</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/28805813">28805813</a>', 
                                        Type = 'Software',
                                        Use = 'Estimate drug enrichment using TWAS and CMAP'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[PsychENCODE DLPFC TWAS SNP-weights](http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz)",
-                                       PMID = "[30545856](https://pubmed.ncbi.nlm.nih.gov/30545856)",
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz">PsychENCODE DLPFC TWAS SNP-weights</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/30545856">30545856</a>', 
                                        Type = 'Dataset',
                                        Use = 'TWAS'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[PsychENCODE DLPFC eQTL data for SMR](http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz)",
-                                       PMID = "[30545857](https://pubmed.ncbi.nlm.nih.gov/30545857)", 
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz">PsychENCODE DLPFC eQTL data for SMR</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/30545857">30545857</a>', 
                                        Type = 'Dataset',
                                        Use = 'SMR'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[MetaBrain eQTL data for SMR](https://www.metabrain.nl/cis-eqtls.html)",
-                                       PMID = NA, 
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://www.metabrain.nl/cis-eqtls.html">MetaBrain eQTL data for SMR</a>',
+                                       PMID = 'NA', 
                                        Type = 'Dataset',
                                        Use = 'SMR'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[ROSMAP/Banner DLPFC PWAS SNP-weights and eQTL in SMR results](https://www.synapse.org/#!Synapse:syn23627957)",
-                                       PMID = "[33510477](https://pubmed.ncbi.nlm.nih.gov/33510477)", 
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://www.synapse.org/#!Synapse:syn23627957">ROSMAP/Banner DLPFC PWAS SNP-weights and eQTL in SMR results</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/33510477">33510477</a>', 
                                        Type = 'Dataset',
                                        Use = 'PWAS and SMR'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[CMAP/LINCS](https://clue.io/about)",
-                                       PMID = "[29195078](https://pubmed.ncbi.nlm.nih.gov/29195078)", 
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://clue.io/about">CMAP/LINCS</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/29195078">29195078</a>', 
                                        Type = 'Dataset',
                                        Use = 'Drug repurposing'))
 
-ref_table<-rbind(ref_table, data.frame(Name = "[DrugTargetor](https://drugtargetor.com/)",
-                                       PMID = "[30517594](https://pubmed.ncbi.nlm.nih.gov/30517594)", 
+ref_table<-rbind(ref_table, data.frame(Name = '<a href="https://drugtargetor.com/">DrugTargetor</a>',
+                                       PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/30517594">30517594</a>', 
                                        Type = 'Dataset',
                                        Use = 'Drug repurposing'))
 
-ref_table %>% 
-  kable(booktabs = T) %>%
-  kable_styling()
+datatable(ref_table, rownames= FALSE, escape = -1:-2)
 
 ```
 
