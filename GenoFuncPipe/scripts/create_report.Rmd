@@ -1194,7 +1194,7 @@ cat("</details> \n")
 ```
 
 
-```{r, results='asis', echo=FALSE, eval=T}
+```{r, results='asis', echo=FALSE, eval=any(expression_logical,protein_logical), echo=F}
 
 cat("*** \n")
 cat("## Summary of Molecular Associations \n")
@@ -1202,183 +1202,26 @@ cat("This section summarises gene-level association results from MAGMA, TWAS, PW
 
 ```
 
-```{r, echo=F, eval=T, message=F}
-# Make a heatmap showing significant and colocalised associations from TWAS, PWAS and SMR
-# smr_protein_panel_rosmap_logical
-
-all_mol_assoc<-NULL
-if(twas_panel_psychencode_logical){
-  twas_psychencode_clean$Direction<-'Negative'
-  twas_psychencode_clean$Direction[twas_psychencode_clean$TWAS.Z > 0]<-'Positive'
-  twas_psychencode_clean$Panel<-'PsychENCODE DLPFC'
-  twas_psychencode_clean$Method<-'TWAS'
-  twas_psychencode_clean$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, twas_psychencode_clean[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_expression_panel_psychencode_logical){
-  smr_psychencode_clean$Direction<-'Negative'
-  smr_psychencode_clean$Direction[smr_psychencode_clean$b_SMR > 0]<-'Positive'
-  smr_psychencode_clean$Panel<-'PsychENCODE DLPFC'
-  smr_psychencode_clean$Method<-'SMR'
-  smr_psychencode_clean$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_psychencode_clean[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_expression_panel_metabrain_basalganglia_logical){
-  smr_metabrain_Basalganglia$Direction<-'Negative'
-  smr_metabrain_Basalganglia$Direction[smr_metabrain_Basalganglia$b_SMR > 0]<-'Positive'
-  smr_metabrain_Basalganglia$Panel<-'MetaBrain Basalganglia'
-  smr_metabrain_Basalganglia$Method<-'SMR'
-  smr_metabrain_Basalganglia$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_metabrain_Basalganglia[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_expression_panel_metabrain_cerebellum_logical){
-  smr_metabrain_Cerebellum$Direction<-'Negative'
-  smr_metabrain_Cerebellum$Direction[smr_metabrain_Cerebellum$b_SMR > 0]<-'Positive'
-  smr_metabrain_Cerebellum$Panel<-'MetaBrain Cerebellum'
-  smr_metabrain_Cerebellum$Method<-'SMR'
-  smr_metabrain_Cerebellum$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_metabrain_Cerebellum[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_expression_panel_metabrain_cortex_logical){
-  smr_metabrain_Cortex$Direction<-'Negative'
-  smr_metabrain_Cortex$Direction[smr_metabrain_Cortex$b_SMR > 0]<-'Positive'
-  smr_metabrain_Cortex$Panel<-'MetaBrain Cortex'
-  smr_metabrain_Cortex$Method<-'SMR'
-  smr_metabrain_Cortex$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_metabrain_Cortex[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_expression_panel_metabrain_hippocampus_logical){
-  smr_metabrain_Hippocampus$Direction<-'Negative'
-  smr_metabrain_Hippocampus$Direction[smr_metabrain_Hippocampus$b_SMR > 0]<-'Positive'
-  smr_metabrain_Hippocampus$Panel<-'MetaBrain Hippocampus'
-  smr_metabrain_Hippocampus$Method<-'SMR'
-  smr_metabrain_Hippocampus$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_metabrain_Hippocampus[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_expression_panel_metabrain_spinalcord_logical){
-  smr_metabrain_Spinalcord$Direction<-'Negative'
-  smr_metabrain_Spinalcord$Direction[smr_metabrain_Spinalcord$b_SMR > 0]<-'Positive'
-  smr_metabrain_Spinalcord$Panel<-'MetaBrain Spinalcord'
-  smr_metabrain_Spinalcord$Method<-'SMR'
-  smr_metabrain_Spinalcord$Type<-'Expression'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_metabrain_Spinalcord[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(pwas_panel_rosmap_logical){
-  pwas_rosmap$Direction<-'Negative'
-  pwas_rosmap$Direction[pwas_rosmap$TWAS.Z > 0]<-'Positive'
-  pwas_rosmap$Panel<-'ROSMAP DLPFC'
-  pwas_rosmap$Method<-'PWAS'
-  pwas_rosmap$Type<-'Protein'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, pwas_rosmap[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(pwas_panel_banner_logical){
-  pwas_banner$Direction<-'Negative'
-  pwas_banner$Direction[pwas_banner$TWAS.Z > 0]<-'Positive'
-  pwas_banner$Panel<-'Banner et al. DLPFC'
-  pwas_banner$Method<-'PWAS'
-  pwas_banner$Type<-'Protein'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, pwas_banner[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-if(smr_protein_panel_rosmap_logical){
-  smr_rosmap$Direction<-'Negative'
-  smr_rosmap$Direction[smr_rosmap$b_SMR > 0]<-'Positive'
-  smr_rosmap$Panel<-'ROSMAP DLPFC'
-  smr_rosmap$Method<-'SMR'
-  smr_rosmap$Type<-'Protein'
-  
-  all_mol_assoc<-rbind(all_mol_assoc, smr_rosmap[,c('Ensembl ID','Gene Symbol','Direction','Panel','Method','Type'), with=F])
-}
-
-# Show only genes that were significant in multiple analyses
-all_mol_assoc<-all_mol_assoc[all_mol_assoc$`Ensembl ID` %in% all_mol_assoc$`Ensembl ID`[duplicated(all_mol_assoc$`Ensembl ID`)],]
-
-# Create a plot
-library(ggplot2)
-
-names(all_mol_assoc)<-c('Ensembl_ID','Gene_Symbol','Direction','Panel','Method','Type')
-all_mol_assoc$Direction<-factor(all_mol_assoc$Direction, levels=c('Positive','Negative'))
-all_mol_assoc$Ensembl_ID<-gsub('\\..*','',all_mol_assoc$Ensembl_ID)
-
-all_mol_assoc$ID<-paste(all_mol_assoc$Ensembl_ID,all_mol_assoc$Gene_Symbol,sep=':')
-gene_present<-NULL
-for(i in unique(all_mol_assoc$ID)){
-  gene_present<-rbind(gene_present, data.frame(Gene=i,
-                                               N=sum(all_mol_assoc$ID == i)))
-}
-
-gene_present<-gene_present[rev(order(gene_present$N)),]
-all_mol_assoc$ID<-factor(all_mol_assoc$ID, levels=unique(gene_present$Gene))
-all_mol_assoc<-all_mol_assoc[order(all_mol_assoc$ID),]
-
-all_mol_assoc$Cat<-paste(all_mol_assoc$Panel,all_mol_assoc$Method,all_mol_assoc$Type,sep='\n')
-all_mol_assoc$Cat<-factor(all_mol_assoc$Cat)
-  
-chunks<-split(unique(all_mol_assoc$ID), ceiling(seq_along(unique(all_mol_assoc$ID))/100))
-
-for(chunk_i in 1:length(chunks)){
-  all_mol_assoc_chunk_i<-all_mol_assoc[all_mol_assoc$ID %in% chunks[[chunk_i]],]
-  all_mol_assoc_chunk_i$ID<-factor(all_mol_assoc_chunk_i$ID, levels=rev(unique(as.character(all_mol_assoc_chunk_i$ID))))
-  
-  png(paste0('results/',params$gwas,'/reports/',params$gwas,'.method_comp.chunk_',chunk_i,'.png'), height=(length(unique(all_mol_assoc_chunk_i$ID))*35)+200, width=100+(400*length(unique(paste0(all_mol_assoc$Panel, all_mol_assoc$Method, all_mol_assoc$Type)))), res=300, units='px')
-    print(ggplot(data = all_mol_assoc_chunk_i, aes(x = Cat, y = ID)) +
-    	theme_bw()	+
-    	geom_tile(aes(fill = Direction), colour = 'black') +
-    	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
-    	scale_x_discrete(drop=FALSE) +
-    	labs(x ="Gene Symbol", y = ""))
-  dev.off()
-}
-
-```
-
-```{r, results='asis', echo=FALSE, eval=T}
-
-cat("<details><summary>Comparison of Methods</summary> \n")
-
-  for(chunk_i in 1:length(chunks)){
-
-cat(paste0("![](../results/",params$gwas,'/reports/',params$gwas,'.method_comp.chunk_',chunk_i,".png)\n\n"))
-
-  }
-
-cat("</details>  \n")
-
-```
-
 ```{r, eval=any(expression_logical,protein_logical), echo=F}
 
-smr_expression_panel_psychencode_logical<-config[grepl('smr_expression_panel_psychencode:',config)] == "smr_expression_panel_psychencode: T"
-
-smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
-smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
-smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"
-smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
-smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
-
-pwas_panel_rosmap_logical<-config[grepl('pwas_panel_rosmap:',config)] == "pwas_panel_rosmap: T"
-pwas_panel_banner_logical<-config[grepl('pwas_panel_banner:',config)] == "pwas_panel_banner: T"
-
-smr_protein_panel_rosmap_logical<-config[grepl('smr_protein_panel_rosmap:',config)] == "smr_protein_panel_rosmap: T"
-
 all_func_res<-NULL
+types<-NULL
+
+if(finemap_logical){
+  finemap_tmp<-data.frame(Panel = 'SuSie',
+                          ID=unlist(strsplit(finemap$Gene, ', ')),
+                          Z=1,
+                          Sig=F,
+                          Coloc=F,
+                          Method='SNP\nFine-mapping',
+                          Type='')
+  
+  finemap_tmp<-finemap_tmp[finemap_tmp$ID != 'None',]
+  
+    all_func_res<-rbind(all_func_res, finemap_tmp)
+
+    types<-c(types, "SuSiE")
+}
 
 if(twas_logical){
   
@@ -1396,6 +1239,10 @@ if(twas_logical){
   
   all_func_res<-rbind(all_func_res, twas_tmp)
 
+  types<-c(types, "FUSION\nExpr.")
+  if(any(twas_tmp$Type == 'Splice')){
+    types<-c(types, "FUSION\nSplice")
+  }
 }
 
 if(smr_expression_panel_psychencode_logical){
@@ -1441,6 +1288,7 @@ if(any(smr_expression_panel_psychencode_logical, metabrain_logical)){
   
   all_func_res<-rbind(all_func_res, smr_tmp)
 
+  types<-c(types, "SMR\nExpr.")
 }
 
 # PWAS
@@ -1460,6 +1308,7 @@ if(pwas_panel_rosmap_logical){
   
   all_func_res<-rbind(all_func_res, pwas_rosmap_tmp)
 
+  types<-c(types, "FUSION\nProtein")
 }
 
 if(pwas_panel_banner_logical){
@@ -1477,6 +1326,7 @@ if(pwas_panel_banner_logical){
   pwas_banner_tmp$Type<-'Protein'
   
   all_func_res<-rbind(all_func_res, pwas_banner_tmp)
+  types<-c(types, "FUSION\nProtein")
 }
 
 if(smr_protein_panel_rosmap_logical){
@@ -1499,16 +1349,50 @@ if(smr_protein_panel_rosmap_logical){
   
   all_func_res<-rbind(all_func_res, smr_rosmap_tmp)
 
+  types<-c(types, "SMR\nProtein")
+}
+
+types<-unique(types)
+
+if(magma_gene_logical){
+  magma_tmp<-data.frame(Panel = 'MAGMA',
+                          ID=magma$ID,
+                          Z=abs(qnorm(as.numeric(magma$P))),
+                          Sig=as.numeric(magma$P.FDR) < 0.05,
+                          Coloc=F,
+                          Method='MAGMA',
+                          Type='')
+  
+    all_func_res<-rbind(all_func_res, magma_tmp)
+
+    types<-c(types, "MAGMA")
+}
+
+if(clump_logical){
+  nearest_tmp<-data.frame(Panel = 'NearestGene',
+                          ID=gsub(' .*','',gsub(',.*','',clump_lead_snps_gw$NearestGene)),
+                          Z=1,
+                          Sig=F,
+                          Coloc=F,
+                          Method='Nearest\nGene',
+                          Type='')
+  
+    all_func_res<-rbind(all_func_res, nearest_tmp)
+
+    types<-c(types, "Nearest\nGene")
 }
 
 # Subset to high confidence genes
-all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[all_func_res$Sig == T & all_func_res$Coloc == T],]
+all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[(all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Method == 'SNP\nFine-mapping'],]
 
 # Remove missing values
 all_func_res<-all_func_res[complete.cases(all_func_res),]
 
 all_func_res$Group<-paste0(all_func_res$Method,'\n',all_func_res$Type )
-all_func_res$Group<-factor(all_func_res$Group, levels=c("FUSION\nExpr.","SMR\nExpr.","FUSION\nSplice","FUSION\nProtein","SMR\nProtein"))
+all_func_res$Group[all_func_res$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
+all_func_res$Group[all_func_res$Group == 'MAGMA\n']<-'MAGMA'
+all_func_res$Group[all_func_res$Group == 'Nearest\nGene\n']<-'Nearest\nGene'
+all_func_res$Group<-factor(all_func_res$Group, levels=types)
 
 all_func_res$ID<-factor(all_func_res$ID, levels=rev(levels(factor(all_func_res$ID))))
 
@@ -1517,17 +1401,18 @@ library(ggplot2)
 
 heatmap<-ggplot(data = all_func_res, aes(x = Panel, y = ID)) +
 	theme_bw()	+
-	geom_tile(aes(fill = Z), width=0.95, height=0.95) +
+	geom_tile(data=all_func_res[all_func_res$Method != 'SNP\nFine-mapping' & all_func_res$Method != 'Nearest\nGene',], aes(fill = Z), width=0.95, height=0.95) +
   geom_tile(data=all_func_res[all_func_res$Sig == T,], aes(x = Panel, y = ID), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
   geom_tile(data=all_func_res[all_func_res$Coloc ==T & all_func_res$Sig == T,], aes(x = Panel, y = ID), colour='green2', fill=NA, size=0.3, width=0.95, height=0.95) +
 	scale_fill_gradientn(colours=c("dodgerblue2","white","red"), na.value = 'white',name = "Z-score") +
 	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
   labs(x='', y='') +
-	geom_text(aes(label=round(Z,1)), color="black", size=3) +
+	geom_text(data=all_func_res[all_func_res$Method != 'SNP\nFine-mapping' & all_func_res$Method != 'Nearest\nGene',], aes(label=round(Z,1)), color="black", size=3) +
+  geom_tile(data=all_func_res[all_func_res$Method == 'SNP\nFine-mapping' | all_func_res$Method == 'Nearest\nGene',], aes(x = Panel, y = ID), fill='springgreen3', width=0.5, height=0.85) +
   facet_wrap(~ Group , nrow=1, scales = "free_x")
 
 group_siz<-NULL
-for(i in c("FUSION\nExpr.","SMR\nExpr.","FUSION\nSplice","FUSION\nProtein","SMR\nProtein")){
+for(i in types){
   group_siz<-rbind(group_siz, data.frame(Group=i,
                            Size=length(unique(all_func_res$Panel[all_func_res$Group==i]))))
 }
@@ -1545,7 +1430,7 @@ for(i in 1:nrow(group_siz)){
 
 }
 
-png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap.png'), units = 'px', res=300, height=70*length(unique(all_func_res$ID))+200, width=2750)
+png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap.png'), units = 'px', res=300, height=65*length(unique(all_func_res$ID))+300, width=3250)
 
 grid.draw(gt)
 
