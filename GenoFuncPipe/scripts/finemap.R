@@ -64,9 +64,20 @@ for(loc in 1:nrow(lead)){
   skip_to_next<-F
   tryCatch(fitted_rss <- susie_rss(ss_subset$Z, ld, L = 10), error = function(e){skip_to_next <<- TRUE})
   
+  print(skip_to_next)
+  
   if(skip_to_next == F){
     saveRDS(fitted_rss, file = paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.rds'))
   }
+  
+  # Run finemapping with L=1 (single causal variant), thereby being robust to LD misspecification.
+  skip_to_next<-F
+  tryCatch(fitted_rss_L1 <- susie_rss(ss_subset$Z, ld, L = 1), error = function(e){skip_to_next <<- TRUE})
+  
+  if(skip_to_next == F){
+    saveRDS(fitted_rss_L1, file = paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.L1.rds'))
+  }
+  
   system(paste0('rm results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.ld'))
   system(paste0('rm results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.log'))
   system(paste0('rm results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt'))

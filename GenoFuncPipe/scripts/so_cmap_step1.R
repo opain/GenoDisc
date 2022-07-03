@@ -5,6 +5,8 @@ suppressMessages(library("optparse"))
 option_list = list(
   make_option("--twas", action="store", default=NA, type='character',
               help="GWAS ID [required]"),
+  make_option("--panel", action="store", default=NA, type='character',
+              help="Panel [required]"),
   make_option("--batch", action="store", default=NA, type='character',
               help="batch number [required]")
 )
@@ -19,21 +21,14 @@ library(data.table)
 cmap<-readRDS(paste0('resources/data/lincs/lincs_core_subset_batch_',opt$batch,'.rds'))
 
 # Read in TWAS results
-twas<-NULL
-for(i in 1:22){
-  if(i != 6){
-    twas<-rbind(twas, fread(paste0('results/',opt$twas,'/twas/psychencode/',opt$twas,'_twas_psychencode_chr',i)))
-  } else {
-    twas<-rbind(twas, fread(paste0('results/',opt$twas,'/twas/psychencode/',opt$twas,'_twas_psychencode_chr',i,'.MHC')))
-  }
-}
+twas<-fread(paste0('results/',opt$twas,'/twas/',opt$twas,'_twas_',opt$panel,'_GW_clean.txt.gz'))
 
 # Subset relevent data from TWAS
-twas<-twas[,c('ID','TWAS.Z','TWAS.P'),with=T]
+twas<-twas[,c('ensembl_gene_id','TWAS.Z','TWAS.P'),with=T]
+names(twas)[names(twas) == 'ensembl_gene_id']<-'ID'
 twas<-twas[complete.cases(twas),]
 twas<-twas[abs(twas$TWAS.Z) != Inf,]
 twas<-twas[order(twas$TWAS.P),]
-twas<-twas[!duplicated(twas$ID),]
 
 # Combine the lincs data and twas results
 finalres<-merge(twas, cmap, by.x='ID', by.y='ensembl_gene_id')
@@ -47,7 +42,7 @@ rm(twas, cmap)
 thres.N.vector = c(50,100,250,500)
 noperm = 100 # The true number of permuations is nodrugs*noperm
 
-nodrugs = ncol(finalres)-3  ##need to check, here we assume the first 12 columns of "finalres" are NOT drug-expression data; ie drug transcriptome data starts from 13th column
+nodrugs = ncol(finalres)-3
 no.thres.N = length(thres.N.vector)
 
 cor.spearman=NULL
@@ -227,6 +222,7 @@ for (r in 1:noperm) {
 }  # end of permutation loop
 
 dir.create(paste0('results/',opt$twas,'/twas/cmap'))
-saveRDS(res_list_list, paste0('results/',opt$twas,'/twas/cmap/res_batch_',opt$batch,'.RDS'))
+
+saveRDS(res_list_list, paste0('results/',opt$twas,'/twas/cmap/res_',opt$panel,'_batch_',opt$batch,'.RDS'))
 
 

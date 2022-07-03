@@ -30,10 +30,10 @@ if config["twas_conditional"] == "T" and (config["twas_panel_fusion"] == "T" or 
     myoutput.append("results/{gwas}/twas/{gwas}_twas_novelty.csv")
 
 if config["twas_gsea_lincs"] == "T":
-    myoutput.append("results/{gwas}/twas/cmap/twas_gsea_res_atc_res.csv")
+    myoutput.append("results/{gwas}/checks/format_twas_gsea_results_all_panel.done")
 
 if config["twas_so_lincs"] == "T":
-    myoutput.append("results/{gwas}/twas/cmap/So_res_atc_res.csv")
+    myoutput.append("results/{gwas}/checks/format_so_results_all_panel.done")
 
 if config["pwas_panel_rosmap"] == "T":
     myoutput.append("results/{gwas}/checks/rosmap_pwas_all_chr.done")

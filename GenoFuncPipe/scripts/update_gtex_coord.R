@@ -15,10 +15,24 @@ Genes<-getBM(attributes=c('ensembl_gene_id','chromosome_name','start_position','
 
 library(data.table)
 
-pos<-fread(paste0('resources/data/fusion_data/',opt$panel,'/',opt$panel,'.pos'))
+pos<-fread(paste0('resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'.pos'))
+pos$PANEL<-opt$panel
+pos$WGT<-gsub('.*/',paste0(opt$panel,'/'), pos$WGT)
 pos$ensembl_gene_id<-gsub('\\..*','',pos$ID)
 pos<-merge(pos, Genes, by='ensembl_gene_id')
 pos<-pos[!duplicated(pos$ID),]
 pos<-pos[,c('PANEL','WGT','ID','CHR','start_position','end_position','N'), with=F]
 names(pos)<-c('PANEL','WGT','ID','CHR','P0','P1','N')
-fwrite(pos, paste0('resources/data/fusion_data/',opt$panel,'/',opt$panel,'.pos'), quote=F, sep=' ', na='NA')
+pos$ID<-gsub('\\..*','',pos$ID)
+fwrite(pos, paste0('resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'.pos'), quote=F, sep=' ', na='NA')
+
+# Delete WGT files and hsq files for WGTs not in pos, i.e with non-sig h2
+dir.create(paste0('resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'_new'))
+for(i in 1:nrow(pos)){
+  system(paste0('mv resources/data/fusion_snp_weights/',opt$panel,'/',pos$WGT[i],' resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'_new/'))
+}
+
+system(paste0('rm -r resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel))
+system(paste0('mv resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'_new resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel))
+
+

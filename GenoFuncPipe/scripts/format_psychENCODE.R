@@ -1,7 +1,7 @@
 #!/usr/bin/Rscript
 
 # Create a list of ensemble IDs
-IDs<-list.files('resources/data/psychencode_data/SNP-weights/PEC_TWAS_weights')
+IDs<-list.files('resources/data/fusion_snp_weights/psychencode/psychencode')
 IDs<-IDs[grepl('.wgt.RDat', IDs)]
 IDs<-gsub('.wgt.RDat','',IDs)
 
@@ -13,16 +13,22 @@ Genes$chromosome_name<-as.numeric(Genes$chromosome_name)
 Genes<-Genes[,c("chromosome_name","start_position","end_position","ensembl_gene_id")]
 Genes<-Genes[order(Genes$chromosome_name, Genes$start_position),]
 
-write.table(Genes, 'resources/data/psychencode_data/PEC_TWAS_weights.coord', col.names=T, row.names=F, quote=F)
+write.table(Genes, 'resources/data/fusion_snp_weights/psychencode.coord', col.names=T, row.names=F, quote=F)
 
-system('Rscript resources/software/Calculating-FUSION-TWAS-weights-pipeline/OP_packaging_fusion_weights.R --RDat_dir resources/data/psychencode_data/SNP-weights/PEC_TWAS_weights --coordinate_file resources/data/psychencode_data/PEC_TWAS_weights.coord --output_name PEC_TWAS_weights --output_dir resources/data/psychencode_data/PEC_TWAS_weights')
+system('Rscript resources/software/Calculating-FUSION-TWAS-weights-pipeline/OP_packaging_fusion_weights.R --RDat_dir resources/data/fusion_snp_weights/psychencode/psychencode --coordinate_file resources/data/fusion_snp_weights/psychencode.coord --output_name psychencode --output_dir resources/data/fusion_snp_weights/psychencode/psychencode_new')
 
-pos<-read.table('resources/data/psychencode_data/PEC_TWAS_weights/PEC_TWAS_weights.pos', header=T)
-pos$PANEL<-'PsychENCODE'
+# Delete original SNP-weights and rename new folder
+system('rm -r resources/data/fusion_snp_weights/psychencode/psychencode')
+system('rm resources/data/fusion_snp_weights/psychencode.coord')
+system('mv resources/data/fusion_snp_weights/psychencode/psychencode_new/* resources/data/fusion_snp_weights/psychencode/')
+system('rm -r resources/data/fusion_snp_weights/psychencode/psychencode_new')
+
+pos<-read.table('resources/data/fusion_snp_weights/psychencode/psychencode.pos', header=T)
+pos$PANEL<-'psychencode'
 pos$N<-1321
 pos<-pos[,c('PANEL', 'WGT', 'ID', 'CHR', 'P0', 'P1', 'N')]
 
-write.table(pos, 'resources/data/psychencode_data/PEC_TWAS_weights/PEC_TWAS_weights.pos', col.names=T, row.names=F, quote=F)
+write.table(pos, 'resources/data/fusion_snp_weights/psychencode/psychencode.pos', col.names=T, row.names=F, quote=F)
 
 # Update SNP IDs to be RSIDs
 library(data.table)
@@ -38,7 +44,7 @@ for(i in 1:22){
   
   for(k in 1:dim(pos_i)[1]){
     print(k)
-    load(paste0('resources/data/psychencode_data/PEC_TWAS_weights/',pos_i$WGT[k]))
+    load(paste0('resources/data/fusion_snp_weights/psychencode/',pos_i$WGT[k]))
     
     ref_i_k<-ref_i[ref_i$V4 > (pos_i$P0[k] - 5e6) & ref_i$V4 < (pos_i$P1[k] + 5e6),]
     
@@ -63,7 +69,8 @@ for(i in 1:22){
     wgt.matrix<-wgt.matrix_2
     rm(wgt.matrix_2)
     
-    save(wgt.matrix, snps, cv.performance, hsq, hsq.pv, N.tot, file = paste0('resources/data/psychencode_data/PEC_TWAS_weights/',pos_i$WGT[k]))
+    save(wgt.matrix, snps, cv.performance, hsq, hsq.pv, N.tot, file = paste0('resources/data/fusion_snp_weights/psychencode/',pos_i$WGT[k]))
   }
 }
 
+file.create('resources/data/format_psychencode.done')

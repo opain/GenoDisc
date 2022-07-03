@@ -31,7 +31,7 @@ rule process_finemap:
   input:
     "results/{gwas}/checks/finemap_all_chr.done"
   output:
-    "results/{gwas}/finemap/{gwas}.GW.finemap.csv"
+    "results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:
     "../envs/GenoFunc.yaml"
   shell:
