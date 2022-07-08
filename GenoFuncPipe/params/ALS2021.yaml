@@ -1,0 +1,61 @@
+#############
+# params yaml for ALS2021
+#############
+
+# Identify independent significant SNPs using clumping
+clump: T
+
+# Perform COJO analysis
+cojo: T
+
+# Perform SNP finemapping analysis
+finemap: T
+
+# Estimate SNP-heritability and intercept using LD score regression
+ldsc: T
+
+# MAGMA gene associations analysis
+magma_gene: T
+
+# MAGMA gene set enrichment analysis using DrugTargetor sets
+magma_drugtargetor: T
+
+# TWAS using FUSION and PsychENCODE panel
+twas_panel_psychencode: T
+
+# TWAS using FUSION panels
+twas_panel_fusion: T
+
+# Specify TWAS FUSION GTEx panels
+gtex_weights: ["Brain_Amygdala","Brain_Anterior_cingulate_cortex_BA24","Brain_Caudate_basal_ganglia","Brain_Cerebellar_Hemisphere","Brain_Cerebellum","Brain_Cortex","Brain_Frontal_Cortex_BA9","Brain_Hippocampus","Brain_Hypothalamus","Brain_Nucleus_accumbens_basal_ganglia","Brain_Putamen_basal_ganglia","Brain_Substantia_nigra","Brain_Spinal_cord_cervical_c-1"]
+
+# Specify TWAS FUSION non-GTEx panels
+non_gtex_weights: ["CMC.BRAIN.RNASEQ","CMC.BRAIN.RNASEQ_SPLICING","NTR.BLOOD.RNAARR","YFS.BLOOD.RNAARR"]
+
+# Conditional analyss of TWAS results
+twas_conditional: T
+
+# Compare TWAS results to LINCS drug induced expression signitures
+# Using TWAS-GSEA
+twas_gsea_lincs: T
+# Using So et al average ranks method
+twas_so_lincs: T
+
+# Run SMR using below panels
+smr_expression_panel_psychencode: T
+smr_expression_panel_metabrain_basalganglia: T
+smr_expression_panel_metabrain_cerebellum: T
+smr_expression_panel_metabrain_cortex: T
+smr_expression_panel_metabrain_hippocampus: T
+smr_expression_panel_metabrain_spinalcord: T
+smr_expression_panel_eqtlgen: T
+
+# Run PWAS using FUSION using below panels
+pwas_panel_rosmap: T
+pwas_panel_banner: T
+
+# Run SMR using pQTL data from ROSMAP
+smr_protein_panel_rosmap: T
+
+# Compare lead genes from TWAS/PWAS/SMR to DGIdb
+dgi_db_comp: T

@@ -54,7 +54,7 @@ for(i in 1:22){
     snps_2<-snps_2[,c('V1','RSID','V3','V4','V5','V6')]
     names(snps_2)[2]<-'V2'
     
-    snps<-snps_2
+    snps<-data.frame(snps_2)
     rm(snps_2)
     
     wgt.matrix<-data.frame(wgt.matrix)

@@ -380,9 +380,13 @@ def sig_chr_munge(x):
     sig_chr_df = pd.read_table(checkpoint_output, sep=' ')
     return sig_chr_df['x'].tolist()
 
+def get_mem_mb_cond(wildcards, attempt):
+    return attempt * 50000
+
 # Run conditional analysis
 rule run_conditional:
-  resources: mem_mb=50000 
+  resources: 
+    mem_mb=get_mem_mb_cond 
   input:
     "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
     rules.download_glist.output
@@ -608,3 +612,70 @@ rule format_twas_gsea_results_all_panel:
       lambda w: expand("results/{gwas}/twas/cmap/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
     output: 
       touch("results/{gwas}/checks/format_twas_gsea_results_all_panel.done")
+      
+#######
+# Run TWAS-GSEA using DrugTargetor sets
+#######
+
+# Format drugtargetor database
+rule format_drug_targetor_for_twas_gsea:
+  input:
+    rules.download_drug_targetor.output,
+    rules.download_magma_gene_loc.output
+  output:
+    "resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/format_drug_targetor_for_twas_gsea.R"
+
+# Run TWAS-GSEA
+rule run_twas_gsea_drug_targetor:
+  resources: 
+    mem_mb=50000,
+    cpus=5
+  input:
+    rules.install_twas_gsea.output,
+    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
+    rules.format_drug_targetor_for_twas_gsea.output,
+    "resources/data/predicted_expression/format_pred_{weight}.done",
+    rules.install_lme4qtl.output
+  output:
+    touch("results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript resources/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
+      --twas_results results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
+      --pos resources/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+    	--prop_file resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop \
+    	--expression_ref resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
+    	--n_cores 5 \
+    	--covar GeneLength,NSNP \
+    	--use_alt_id ID \
+    	--linear_p_thresh 1 \
+    	--save_CorMat F \
+    	--min_r2 0.01 \
+    	--qqplot F \
+    	--output results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight}"
+    	
+# Format the output
+rule format_twas_gsea_drugtargetor_results:
+  input:
+    "results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done",
+    rules.download_atc.output
+  output:
+    "results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/format_twas_gsea_drugtargetor_results.R \
+    --twas {wildcards.gwas} \
+    --panel {wildcards.weight}"
+    
+rule format_twas_gsea_drugtargetor_results_all_panel:
+    input: 
+      lambda w: expand("results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
+    output: 
+      touch("results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
+

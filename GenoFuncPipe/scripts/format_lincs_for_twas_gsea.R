@@ -14,8 +14,5 @@ for(i in 1:10){
 
 names(cmap)[1]<-'ID'
 
-# For testing
-cmap<-cmap[1:100,1:10]
-
 fwrite(cmap, 'resources/data/lincs/lincs_core_subset.txt.gz', na='NA', sep=' ')
 

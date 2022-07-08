@@ -50,6 +50,7 @@ dir.create(paste0('results/',opt$gwas,'/finemap'), recursive = T)
 for(loc in 1:nrow(lead)){
   # Identify variants within 500kb of lead variants
   ss_subset<-ss[ss$BP > lead$BP[loc] - 5e5 & ss$BP < lead$BP[loc] + 5e5,]
+  ss_subset<-ss_subset[order(ss_subset$CHR, ss_subset$BP),]
   write.table(ss_subset$SNP, paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt'), col.names=F, row.names=F, quote=F)
   
   # Calculate LD matrix for variants surrounding lead variants
@@ -74,6 +75,8 @@ for(loc in 1:nrow(lead)){
   skip_to_next<-F
   tryCatch(fitted_rss_L1 <- susie_rss(ss_subset$Z, ld, L = 1), error = function(e){skip_to_next <<- TRUE})
   
+  print(skip_to_next)
+
   if(skip_to_next == F){
     saveRDS(fitted_rss_L1, file = paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.L1.rds'))
   }

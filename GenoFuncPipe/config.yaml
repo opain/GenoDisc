@@ -16,7 +16,7 @@ banner_fusion: /users/k1806347/brc_scratch/Data/Banner-PWAS/Banner.n152.fusion.W
 rosmap_smr: /users/k1806347/brc_scratch/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt
 
 ############
-# Select analyses
+# Specify desired output
 ############
 
 # Identify independent significant SNPs using clumping
@@ -58,6 +58,9 @@ twas_gsea_lincs: T
 # Using So et al average ranks method
 twas_so_lincs: T
 
+# Using TWAS-GSEA to analyse drug targetor data
+twas_gsea_drugtargetor: T
+
 # Run SMR using below panels
 smr_expression_panel_psychencode: T
 smr_expression_panel_metabrain_basalganglia: T
@@ -65,6 +68,7 @@ smr_expression_panel_metabrain_cerebellum: T
 smr_expression_panel_metabrain_cortex: T
 smr_expression_panel_metabrain_hippocampus: T
 smr_expression_panel_metabrain_spinalcord: T
+smr_expression_panel_eqtlgen: T
 
 # Run PWAS using FUSION using below panels
 pwas_panel_rosmap: T
@@ -73,3 +77,5 @@ pwas_panel_banner: T
 # Run SMR using pQTL data from ROSMAP
 smr_protein_panel_rosmap: T
 
+# Compare lead genes from TWAS/PWAS/SMR to DGIdb
+dgi_db_comp: T

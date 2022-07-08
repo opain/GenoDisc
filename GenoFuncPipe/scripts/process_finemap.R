@@ -34,49 +34,51 @@ finemap_files_L1<-finemap_files[grepl('L1.rds',finemap_files)]
 
 # Summarise unrestricted L analysis
 finemap_summary<-NULL
-for(i in 1:length(finemap_files_L10)){
-  lead<-gsub('.*\\.','',gsub('.rds','',finemap_files_L10[i]))
-  tmp<-readRDS(finemap_files_L10[i])
-
-  plot_file<-gsub('.rds','.png',finemap_files_L10[i])
-  png(plot_file, units='px', res=300, height=1500, width=1500)
-  susie_plot(tmp, y="PIP", add_legend=T)
-  dev.off()
+if(length(finemap_files_L10) > 0){
+  for(i in 1:length(finemap_files_L10)){
+    lead<-gsub('.*\\.','',gsub('.rds','',finemap_files_L10[i]))
+    tmp<-readRDS(finemap_files_L10[i])
   
-  if(!is.null(summary(tmp)$cs)){
+    plot_file<-gsub('.rds','.png',finemap_files_L10[i])
+    png(plot_file, units='px', res=300, height=1500, width=1500)
+    susie_plot(tmp, y="PIP", add_legend=T)
+    dev.off()
     
-    tmp_sum<-data.frame(CHR = ss$CHR[ss$SNP == lead],
-                        BP = ss$BP[ss$SNP == lead],
-                        SNP = lead,
-                        summary(tmp)$cs,
-                        NSNP=NA,
-                        TopPIP=NA,
-                        Gene=NA)
-    
-    for(j in 1:nrow(summary(tmp)$cs)){
-      snp_index<-as.numeric(unlist(str_split(tmp_sum$variable[j], ',')))
+    if(!is.null(summary(tmp)$cs)){
       
-      tmp_sum$NSNP[j]<-length(snp_index)
-      tmp_sum$TopPIP[j]<-max(tmp$pip[snp_index])
-      tmp_sum$variable[j]<-paste(names(tmp$pip)[snp_index], collapse=', ')
+      tmp_sum<-data.frame(CHR = ss$CHR[ss$SNP == lead],
+                          BP = ss$BP[ss$SNP == lead],
+                          SNP = lead,
+                          summary(tmp)$cs,
+                          NSNP=NA,
+                          TopPIP=NA,
+                          Gene=NA)
       
-      ss_subset<-ss[ss$SNP %in% names(tmp$pip)[snp_index],]
-      min_bp<-min(ss_subset$BP)
-      max_bp<-max(ss_subset$BP)
-      chr<-ss_subset$CHR[1]
-      
-      Genes_subset<-Genes[Genes$start_position < min_bp & Genes$end_position > max_bp & Genes$chromosome_name == chr,]
-      if(nrow(Genes_subset) > 0){
-        tmp_sum$Gene[j]<-paste(Genes_subset$external_gene_name, collapse=', ')
+      for(j in 1:nrow(summary(tmp)$cs)){
+        snp_index<-as.numeric(unlist(str_split(tmp_sum$variable[j], ',')))
+        
+        tmp_sum$NSNP[j]<-length(snp_index)
+        tmp_sum$TopPIP[j]<-max(tmp$pip[snp_index])
+        tmp_sum$variable[j]<-paste(names(tmp$pip)[snp_index], collapse=', ')
+        
+        ss_subset<-ss[ss$SNP %in% names(tmp$pip)[snp_index],]
+        min_bp<-min(ss_subset$BP)
+        max_bp<-max(ss_subset$BP)
+        chr<-ss_subset$CHR[1]
+        
+        Genes_subset<-Genes[Genes$start_position < min_bp & Genes$end_position > max_bp & Genes$chromosome_name == chr,]
+        if(nrow(Genes_subset) > 0){
+          tmp_sum$Gene[j]<-paste(Genes_subset$external_gene_name, collapse=', ')
+        }
       }
+      
+      finemap_summary<-rbind(finemap_summary, tmp_sum)
     }
-    
-    finemap_summary<-rbind(finemap_summary, tmp_sum)
   }
+  
+  # Write out results
+  write.csv(finemap_summary, paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.csv'), row.names=F, quote=T)
 }
-
-# Write out results
-write.csv(finemap_summary, paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.csv'), row.names=F, quote=T)
 
 # Summarise L=1 restricted analyses
 finemap_summary<-NULL

@@ -1,0 +1,9 @@
+name path population sampling prevalence mean sd label
+SCZ /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ/SCZ.reformat.gz EUR 0.5 0.01 NA NA SCZ
+MDD /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MDD/MDD.reformat.gz EUR 0.5 0.15 NA NA MDD
+BIP /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/BIP/BIP.reformat.gz EUR 0.5 0.01 NA NA BIP
+ASD /scratch/groups/ukbiobank/sumstats/cleaned/AUTI07.gz EUR 0.5 0.012 NA NA ASD
+ADHD /scratch/groups/ukbiobank/sumstats/cleaned/ADHD05.gz EUR 0.5 0.05 NA NA ADHD
+ALS /users/k1806347/brc_scratch/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_only_reformat.txt.gz EUR 0.5 0.0033 NA NA ALS
+ALZ /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/ALZ/ALZ.reformat.gz EUR 0.5 0.05 NA NA ALZ
+PRK /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/PRK.reformat.gz EUR 0.5 0.005 NA NA PRK

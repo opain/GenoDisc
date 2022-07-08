@@ -1,7 +1,7 @@
 ---
 title: "GenoFunc"
 params:
-  gwas: "COAD01"
+  gwas: "MDD"
 output:
   html_document:
     toc: true
@@ -23,6 +23,7 @@ library(ggplot2)
 library(cowplot)
 library(kableExtra)
 library(DT)
+library(poolr)
 
 knit_hooks$set(optipng = hook_optipng)
 knit_hooks$set(pngquant = hook_pngquant)
@@ -94,6 +95,8 @@ smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_pane
 smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
 smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
 
+smr_expression_panel_eqtlgen_logical<-config[grepl('smr_expression_panel_eqtlgen:',config)] == "smr_expression_panel_eqtlgen: T"
+
 pwas_panel_rosmap_logical<-config[grepl('pwas_panel_rosmap:',config)] == "pwas_panel_rosmap: T"
 pwas_panel_banner_logical<-config[grepl('pwas_panel_banner:',config)] == "pwas_panel_banner: T"
 
@@ -102,6 +105,10 @@ smr_protein_panel_rosmap_logical<-config[grepl('smr_protein_panel_rosmap:',confi
 magma_drugtargetor_logical<-config[grepl('magma_drugtargetor:',config)] == "magma_drugtargetor: T"
 twas_gsea_lincs_logical<-config[grepl('twas_gsea_lincs:',config)] == "twas_gsea_lincs: T"
 twas_so_lincs_logical<-config[grepl('twas_so_lincs:',config)] == "twas_so_lincs: T"
+
+dgi_db_comp_logical<-config[grepl('dgi_db_comp:',config)] == "dgi_db_comp: T"
+
+twas_gsea_drugtargetor_logical<-config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"
 
 # Summarise this information
 mol_assoc_logical<-any(magma_gene_logical,
@@ -112,6 +119,7 @@ mol_assoc_logical<-any(magma_gene_logical,
                        smr_expression_panel_metabrain_cortex_logical,
                        smr_expression_panel_metabrain_hippocampus_logical,
                        smr_expression_panel_metabrain_spinalcord_logical,
+                       smr_expression_panel_eqtlgen_logical,
                        pwas_panel_rosmap_logical,
                        pwas_panel_banner_logical,
                        smr_protein_panel_rosmap_logical)
@@ -122,7 +130,8 @@ expression_logical<-any( twas_logical,
                          smr_expression_panel_metabrain_cerebellum_logical,
                          smr_expression_panel_metabrain_cortex_logical,
                          smr_expression_panel_metabrain_hippocampus_logical,
-                         smr_expression_panel_metabrain_spinalcord_logical)
+                         smr_expression_panel_metabrain_spinalcord_logical,
+                         smr_expression_panel_eqtlgen_logical)
 
 psychencode_logical<-any(twas_panel_psychencode_logical,
                          smr_expression_panel_psychencode_logical)
@@ -137,9 +146,11 @@ protein_logical<-any( pwas_panel_rosmap_logical,
                       pwas_panel_banner_logical,
                       smr_protein_panel_rosmap_logical)
 
-drug_logical<-any(magma_drugtargetor_logical,
+drug_logical<-any(dgi_db_comp_logical, 
+                  magma_drugtargetor_logical,
                   twas_gsea_lincs_logical,
-                  twas_so_lincs_logical)
+                  twas_so_lincs_logical,
+                  twas_gsea_drugtargetor_logical)
 
 ```
 
@@ -772,6 +783,57 @@ cat("</details> \n")
 
 ```
 
+```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_eqtlgen_logical}
+
+cat("*** \n")
+cat("### eQTLGen \n")
+
+```
+
+```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_eqtlgen_logical}
+
+cat("<details><summary>SMR: eQTLGen - FDR significant and colocalised results</summary> \n")
+
+```
+
+```{r, echo=F, eval=smr_expression_panel_eqtlgen_logical}
+
+smr_eqtlgen<-fread(paste0('results/',params$gwas,'/smr/eqtlgen/',params$gwas,'_smr_eqtlgen_GW.txt.gz'))
+
+smr_eqtlgen_clean<-smr_eqtlgen
+
+smr_eqtlgen_clean$p_SMR.FDR<-p.adjust(smr_eqtlgen_clean$p_SMR, method = 'fdr')
+smr_eqtlgen_clean<-smr_eqtlgen_clean[,c('ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
+
+names(smr_eqtlgen_clean)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
+
+
+smr_eqtlgen_clean<-smr_eqtlgen_clean[which(smr_eqtlgen_clean$p_SMR.FDR < 0.05 & smr_eqtlgen_clean$p_HEIDI > 0.05),]
+
+smr_eqtlgen_clean<-smr_eqtlgen_clean[order(smr_eqtlgen_clean$CHR, smr_eqtlgen_clean$BP),]
+
+smr_eqtlgen_clean$b_SMR<-round(smr_eqtlgen_clean$b_SMR, 3)
+smr_eqtlgen_clean$p_SMR<-format(smr_eqtlgen_clean$p_SMR, scientific = TRUE, digits = 3)
+smr_eqtlgen_clean$p_SMR.FDR<-format(smr_eqtlgen_clean$p_SMR.FDR, scientific = TRUE, digits = 3)
+smr_eqtlgen_clean$p_HEIDI<-format(smr_eqtlgen_clean$p_HEIDI, scientific = TRUE, digits = 3)
+
+datatable(smr_eqtlgen_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(smr_expression_panel_eqtlgen_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/smr/eqtlgen/',params$gwas,'_smr_eqtlgen_GW.txt.gz \n\n'))
+cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_expression_panel_eqtlgen_logical}
+
+cat("</details> \n")
+
+```
+
 ```{r,  results='asis', echo=FALSE, eval=metabrain_logical}
 
 cat("*** \n")
@@ -783,36 +845,34 @@ cat("### MetaBrain \n")
 smr_metabrain_all<-fread(paste0('results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz'))
 ```
 
-```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_basalganglia_logical}
+```{r,  results='asis', echo=FALSE, eval=metabrain_logical}
 
-cat("<details><summary>SMR: Basalganglia - FDR significant and colocalised results</summary> \n")
-
-```
-
-```{r, echo=F, eval=smr_expression_panel_metabrain_basalganglia_logical}
-
-smr_metabrain_Basalganglia<-smr_metabrain_all[smr_metabrain_all$PANEL == 'Basalganglia',]
-smr_metabrain_Basalganglia$PANEL<-NULL
-
-smr_metabrain_Basalganglia$p_SMR.FDR<-p.adjust(smr_metabrain_Basalganglia$p_SMR, method = 'fdr')
-smr_metabrain_Basalganglia<-smr_metabrain_Basalganglia[,c('ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
-
-names(smr_metabrain_Basalganglia)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
-
-smr_metabrain_Basalganglia<-smr_metabrain_Basalganglia[which(smr_metabrain_Basalganglia$p_SMR.FDR < 0.05 & smr_metabrain_Basalganglia$p_HEIDI > 0.05),]
-
-smr_metabrain_Basalganglia<-smr_metabrain_Basalganglia[order(smr_metabrain_Basalganglia$CHR, smr_metabrain_Basalganglia$BP),]
-
-smr_metabrain_Basalganglia$b_SMR<-round(smr_metabrain_Basalganglia$b_SMR, 3)
-smr_metabrain_Basalganglia$p_SMR<-format(smr_metabrain_Basalganglia$p_SMR, scientific = TRUE, digits = 3)
-smr_metabrain_Basalganglia$p_SMR.FDR<-format(smr_metabrain_Basalganglia$p_SMR.FDR, scientific = TRUE, digits = 3)
-smr_metabrain_Basalganglia$p_HEIDI<-format(smr_metabrain_Basalganglia$p_HEIDI, scientific = TRUE, digits = 3)
-
-datatable(smr_metabrain_Basalganglia, rownames= FALSE)
+cat("<details><summary>SMR: MetaBrain - FDR significant and colocalised results</summary> \n")
 
 ```
 
-```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_basalganglia_logical), results='asis'}
+```{r, echo=F, eval=metabrain_logical}
+
+smr_metabrain_all_clean<-smr_metabrain_all
+smr_metabrain_all_clean$p_SMR.FDR<-p.adjust(smr_metabrain_all_clean$p_SMR, method = 'fdr')
+smr_metabrain_all_clean<-smr_metabrain_all_clean[,c('ProbeChr','Probe_bp','probeID','external_gene_name','PANEL','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
+
+names(smr_metabrain_all_clean)<-c('CHR','BP','Ensembl ID','Gene Symbol','PANEL','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
+
+smr_metabrain_all_clean<-smr_metabrain_all_clean[which(smr_metabrain_all_clean$p_SMR.FDR < 0.05 & smr_metabrain_all_clean$p_HEIDI > 0.05),]
+
+smr_metabrain_all_clean<-smr_metabrain_all_clean[order(smr_metabrain_all_clean$CHR, smr_metabrain_all_clean$BP),]
+
+smr_metabrain_all_clean$b_SMR<-round(smr_metabrain_all_clean$b_SMR, 3)
+smr_metabrain_all_clean$p_SMR<-format(smr_metabrain_all_clean$p_SMR, scientific = TRUE, digits = 3)
+smr_metabrain_all_clean$p_SMR.FDR<-format(smr_metabrain_all_clean$p_SMR.FDR, scientific = TRUE, digits = 3)
+smr_metabrain_all_clean$p_HEIDI<-format(smr_metabrain_all_clean$p_HEIDI, scientific = TRUE, digits = 3)
+
+datatable(smr_metabrain_all_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(metabrain_logical), results='asis'}
 
 cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
@@ -820,174 +880,6 @@ cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect si
 ```
 
 ```{r, results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_basalganglia_logical}
-
-cat("</details> \n")
-
-```
-
-```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_cerebellum_logical}
-
-cat("<details><summary>SMR: Cerebellum - FDR significant and colocalised results</summary> \n")
-
-```
-
-```{r, echo=F, eval=smr_expression_panel_metabrain_cerebellum_logical}
-
-smr_metabrain_Cerebellum<-smr_metabrain_all[smr_metabrain_all$PANEL == 'Cerebellum',]
-smr_metabrain_Cerebellum$PANEL<-NULL
-
-smr_metabrain_Cerebellum$p_SMR.FDR<-p.adjust(smr_metabrain_Cerebellum$p_SMR, method = 'fdr')
-smr_metabrain_Cerebellum<-smr_metabrain_Cerebellum[,c('ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
-
-names(smr_metabrain_Cerebellum)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
-
-smr_metabrain_Cerebellum<-smr_metabrain_Cerebellum[which(smr_metabrain_Cerebellum$p_SMR.FDR < 0.05 & smr_metabrain_Cerebellum$p_HEIDI > 0.05),]
-
-smr_metabrain_Cerebellum<-smr_metabrain_Cerebellum[order(smr_metabrain_Cerebellum$CHR, smr_metabrain_Cerebellum$BP),]
-
-smr_metabrain_Cerebellum$b_SMR<-round(smr_metabrain_Cerebellum$b_SMR, 3)
-smr_metabrain_Cerebellum$p_SMR<-format(smr_metabrain_Cerebellum$p_SMR, scientific = TRUE, digits = 3)
-smr_metabrain_Cerebellum$p_SMR.FDR<-format(smr_metabrain_Cerebellum$p_SMR.FDR, scientific = TRUE, digits = 3)
-smr_metabrain_Cerebellum$p_HEIDI<-format(smr_metabrain_Cerebellum$p_HEIDI, scientific = TRUE, digits = 3)
-
-datatable(smr_metabrain_Cerebellum, rownames= FALSE)
-
-```
-
-```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_cerebellum_logical), results='asis'}
-
-cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
-cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
-
-```
-
-```{r, results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_cerebellum_logical}
-
-cat("</details> \n")
-
-```
-
-```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_cortex_logical}
-
-cat("<details><summary>SMR: Cortex - FDR significant and colocalised results</summary> \n")
-
-```
-
-```{r, echo=F, eval=smr_expression_panel_metabrain_cortex_logical}
-
-smr_metabrain_Cortex<-smr_metabrain_all[smr_metabrain_all$PANEL == 'Cortex',]
-smr_metabrain_Cortex$PANEL<-NULL
-
-smr_metabrain_Cortex$p_SMR.FDR<-p.adjust(smr_metabrain_Cortex$p_SMR, method = 'fdr')
-smr_metabrain_Cortex<-smr_metabrain_Cortex[,c('ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
-
-names(smr_metabrain_Cortex)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
-
-smr_metabrain_Cortex<-smr_metabrain_Cortex[which(smr_metabrain_Cortex$p_SMR.FDR < 0.05 & smr_metabrain_Cortex$p_HEIDI > 0.05),]
-
-smr_metabrain_Cortex<-smr_metabrain_Cortex[order(smr_metabrain_Cortex$CHR, smr_metabrain_Cortex$BP),]
-
-smr_metabrain_Cortex$b_SMR<-round(smr_metabrain_Cortex$b_SMR, 3)
-smr_metabrain_Cortex$p_SMR<-format(smr_metabrain_Cortex$p_SMR, scientific = TRUE, digits = 3)
-smr_metabrain_Cortex$p_SMR.FDR<-format(smr_metabrain_Cortex$p_SMR.FDR, scientific = TRUE, digits = 3)
-smr_metabrain_Cortex$p_HEIDI<-format(smr_metabrain_Cortex$p_HEIDI, scientific = TRUE, digits = 3)
-
-datatable(smr_metabrain_Cortex, rownames= FALSE)
-
-```
-
-```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_cortex_logical), results='asis'}
-
-cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
-cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
-
-```
-
-```{r, results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_cortex_logical}
-
-cat("</details> \n")
-
-```
-
-```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_hippocampus_logical}
-
-cat("<details><summary>SMR: Hippocampus - FDR significant and colocalised results</summary> \n")
-
-```
-
-```{r, echo=F, eval=smr_expression_panel_metabrain_hippocampus_logical}
-
-smr_metabrain_Hippocampus<-smr_metabrain_all[smr_metabrain_all$PANEL == 'Hippocampus',]
-smr_metabrain_Hippocampus$PANEL<-NULL
-
-smr_metabrain_Hippocampus$p_SMR.FDR<-p.adjust(smr_metabrain_Hippocampus$p_SMR, method = 'fdr')
-smr_metabrain_Hippocampus<-smr_metabrain_Hippocampus[,c('ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
-
-names(smr_metabrain_Hippocampus)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
-
-smr_metabrain_Hippocampus<-smr_metabrain_Hippocampus[which(smr_metabrain_Hippocampus$p_SMR.FDR < 0.05 & smr_metabrain_Hippocampus$p_HEIDI > 0.05),]
-
-smr_metabrain_Hippocampus<-smr_metabrain_Hippocampus[order(smr_metabrain_Hippocampus$CHR, smr_metabrain_Hippocampus$BP),]
-
-smr_metabrain_Hippocampus$b_SMR<-round(smr_metabrain_Hippocampus$b_SMR, 3)
-smr_metabrain_Hippocampus$p_SMR<-format(smr_metabrain_Hippocampus$p_SMR, scientific = TRUE, digits = 3)
-smr_metabrain_Hippocampus$p_SMR.FDR<-format(smr_metabrain_Hippocampus$p_SMR.FDR, scientific = TRUE, digits = 3)
-smr_metabrain_Hippocampus$p_HEIDI<-format(smr_metabrain_Hippocampus$p_HEIDI, scientific = TRUE, digits = 3)
-
-datatable(smr_metabrain_Hippocampus, rownames= FALSE)
-
-```
-
-```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_hippocampus_logical), results='asis'}
-
-cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
-cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
-
-```
-
-```{r, results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_hippocampus_logical}
-
-cat("</details> \n")
-
-```
-
-```{r,  results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_spinalcord_logical}
-
-cat("<details><summary>SMR: Spinalcord - FDR significant and colocalised results</summary> \n")
-
-```
-
-```{r, echo=F, eval=smr_expression_panel_metabrain_spinalcord_logical}
-
-smr_metabrain_Spinalcord<-smr_metabrain_all[smr_metabrain_all$PANEL == 'Spinalcord',]
-smr_metabrain_Spinalcord$PANEL<-NULL
-
-smr_metabrain_Spinalcord$p_SMR.FDR<-p.adjust(smr_metabrain_Spinalcord$p_SMR, method = 'fdr')
-smr_metabrain_Spinalcord<-smr_metabrain_Spinalcord[,c('ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
-
-names(smr_metabrain_Spinalcord)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
-
-smr_metabrain_Spinalcord<-smr_metabrain_Spinalcord[which(smr_metabrain_Spinalcord$p_SMR.FDR < 0.05 & smr_metabrain_Spinalcord$p_HEIDI > 0.05),]
-
-smr_metabrain_Spinalcord<-smr_metabrain_Spinalcord[order(smr_metabrain_Spinalcord$CHR, smr_metabrain_Spinalcord$BP),]
-
-smr_metabrain_Spinalcord$b_SMR<-round(smr_metabrain_Spinalcord$b_SMR, 3)
-smr_metabrain_Spinalcord$p_SMR<-format(smr_metabrain_Spinalcord$p_SMR, scientific = TRUE, digits = 3)
-smr_metabrain_Spinalcord$p_SMR.FDR<-format(smr_metabrain_Spinalcord$p_SMR.FDR, scientific = TRUE, digits = 3)
-smr_metabrain_Spinalcord$p_HEIDI<-format(smr_metabrain_Spinalcord$p_HEIDI, scientific = TRUE, digits = 3)
-
-datatable(smr_metabrain_Spinalcord, rownames= FALSE)
-
-```
-
-```{r, echo=FALSE, eval=any(smr_expression_panel_metabrain_spinalcord_logical), results='asis'}
-
-cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
-cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
-
-```
-
-```{r, results='asis', echo=FALSE, eval=smr_expression_panel_metabrain_spinalcord_logical}
 
 cat("</details> \n")
 
@@ -1241,7 +1133,7 @@ cat("This section summarises gene-level association results from MAGMA, TWAS, PW
 
 ```
 
-```{r, eval=any(expression_logical,protein_logical), echo=F}
+```{r, eval=any(expression_logical,protein_logical), echo=F, message=F, warning=F, comment=F}
 
 all_func_res<-NULL
 types<-NULL
@@ -1300,24 +1192,31 @@ if(metabrain_logical){
   smr_metabrain_all_2$Z<-smr_metabrain_all_2$b_SMR/smr_metabrain_all_2$se_SMR
   smr_metabrain_all_2<-smr_metabrain_all_2[,c('PANEL','external_gene_name','Z','p_SMR','p_HEIDI'), with =T]
   names(smr_metabrain_all_2)<-c('PANEL','Gene','Z','p_SMR','p_HEIDI')
-
+  smr_metabrain_all_2<-smr_metabrain_all_2[complete.cases(smr_metabrain_all_2),]
 }
 
-if(all(smr_expression_panel_psychencode_logical, metabrain_logical)){
+if(smr_expression_panel_eqtlgen_logical){
   
-  smr_res_dat<-rbind(smr_psychencode_2,smr_metabrain_all_2)
-  
+  smr_eqtlgen_2<-smr_eqtlgen
+  smr_eqtlgen_2$PANEL<-paste0('eQTLGen ',smr_eqtlgen_2$PANEL)
+  smr_eqtlgen_2$Z<-smr_eqtlgen_2$b_SMR/smr_eqtlgen_2$se_SMR
+  smr_eqtlgen_2<-smr_eqtlgen_2[,c('PANEL','external_gene_name','Z','p_SMR','p_HEIDI'), with =T]
+  names(smr_eqtlgen_2)<-c('PANEL','Gene','Z','p_SMR','p_HEIDI')
+  smr_eqtlgen_2<-smr_eqtlgen_2[complete.cases(smr_eqtlgen_2),]
 }
 
-if(smr_expression_panel_psychencode_logical == T & metabrain_logical == F){
-  smr_res_dat<-smr_psychencode_2
+smr_res_dat<-NULL
+if(all(smr_expression_panel_psychencode_logical)){
+  smr_res_dat<-rbind(smr_res_dat, smr_psychencode_2)
+}
+if(all(metabrain_logical)){
+  smr_res_dat<-rbind(smr_res_dat, smr_metabrain_all_2)
+}
+if(all(smr_expression_panel_eqtlgen_logical)){
+  smr_res_dat<-rbind(smr_res_dat, smr_eqtlgen_2)
 }
 
-if(smr_expression_panel_psychencode_logical == F & metabrain_logical == T){
-  smr_res_dat<-smr_metabrain_all_2
-}
-
-if(any(smr_expression_panel_psychencode_logical, metabrain_logical)){
+if(any(smr_expression_panel_psychencode_logical, metabrain_logical,smr_expression_panel_eqtlgen_logical)){
 
   smr_res_dat$Sig<-p.adjust(smr_res_dat$p_SMR, method = 'fdr') < 0.05
   smr_res_dat$Coloc<-smr_res_dat$p_HEIDI > 0.05
@@ -1434,36 +1333,44 @@ if(clump_logical){
 # Subset to high confidence genes
 all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[(all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)"],]
 
-# Remove missing values
-all_func_res<-all_func_res[complete.cases(all_func_res),]
+# Insert missing data
+all_func_res_all<-NULL
+for(i in unique(all_func_res$Panel)){
+  all_func_res_panel<-all_func_res[all_func_res$Panel == i,]
+  all_func_res_other<-all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel),]
+  all_func_res_other<-all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID),]
+  all_func_res_other<-unique(all_func_res_other$ID)
+  all_func_res_panel_missing<-data.frame(ID=all_func_res_other)
 
-all_func_res$Group<-paste0(all_func_res$Method,'\n',all_func_res$Type )
-all_func_res$Group[all_func_res$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
-all_func_res$Group[all_func_res$Group == 'MAGMA\n']<-'MAGMA'
-all_func_res$Group[all_func_res$Group == 'Nearest\nGene\n']<-'Nearest\nGene'
-all_func_res$Group<-factor(all_func_res$Group, levels=types)
+  all_func_res_panel_missing$Panel=i
+  all_func_res_panel_missing$ID=all_func_res_other
+  all_func_res_panel_missing$Z=NA
+  all_func_res_panel_missing$Sig=0
+  all_func_res_panel_missing$Coloc=0
+  all_func_res_panel_missing$Method=all_func_res_panel$Method[1]
+  all_func_res_panel_missing$Type=all_func_res_panel$Type[1]
+  all_func_res_panel_missing$Group=all_func_res_panel$Group[1]
+  
+  all_func_res_panel_missing<-all_func_res_panel_missing[,names(all_func_res_panel)]
+  
+  all_func_res_all<-rbind(all_func_res_all,all_func_res_panel)
+  all_func_res_all<-rbind(all_func_res_all,all_func_res_panel_missing)
+}
 
-all_func_res$ID<-factor(all_func_res$ID, levels=rev(levels(factor(all_func_res$ID))))
+all_func_res_all$Group<-paste0(all_func_res_all$Method,'\n',all_func_res_all$Type )
+all_func_res_all$Group[all_func_res_all$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
+all_func_res_all$Group[all_func_res_all$Group == 'MAGMA\n']<-'MAGMA'
+all_func_res_all$Group[all_func_res_all$Group == 'Nearest\nGene\n']<-'Nearest\nGene'
+all_func_res_all$Group<-factor(all_func_res_all$Group, levels=types)
 
-# Create heatmap
-library(ggplot2)
+all_func_res_all<-all_func_res_all[order(as.character(all_func_res_all$ID)),]
 
-heatmap<-ggplot(data = all_func_res[all_func_res$ID %in% unique(all_func_res$ID)[1:200],], aes(x = Panel, y = ID)) +
-	theme_bw()	+
-	geom_tile(data=all_func_res[all_func_res$Method != 'SNP\nFine-mapping' & all_func_res$Method != 'Nearest\nGene',], aes(fill = Z), width=0.95, height=0.95) +
-  geom_tile(data=all_func_res[all_func_res$Sig == T,], aes(x = Panel, y = ID), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
-  geom_tile(data=all_func_res[all_func_res$Coloc ==T & all_func_res$Sig == T,], aes(x = Panel, y = ID), colour='green2', fill=NA, size=0.3, width=0.95, height=0.95) +
-	scale_fill_gradientn(colours=c("dodgerblue2","white","red"), na.value = 'white',name = "Z-score") +
-	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
-  labs(x='', y='') +
-	geom_text(data=all_func_res[all_func_res$Method != 'SNP\nFine-mapping' & all_func_res$Method != 'Nearest\nGene',], aes(label=round(Z,1)), color="black", size=3) +
-  geom_tile(data=all_func_res[all_func_res$Method == 'SNP\nFine-mapping' | all_func_res$Method == 'Nearest\nGene',], aes(x = Panel, y = ID), fill='springgreen3', width=0.5, height=0.85) +
-  facet_wrap(~ Group , nrow=1, scales = "free_x")
+all_func_res_all$ID<-factor(all_func_res_all$ID, levels=unique(all_func_res_all$ID))
 
 group_siz<-NULL
-for(i in types){
+for(i in types[types %in% all_func_res_all$Group]){
   group_siz<-rbind(group_siz, data.frame(Group=i,
-                           Size=length(unique(all_func_res$Panel[all_func_res$Group==i]))))
+                           Size=length(unique(all_func_res_all$Panel[all_func_res_all$Group==i]))))
 }
 
 # Set minimum size to 3 to allow space for labels
@@ -1471,19 +1378,45 @@ group_siz$Size[group_siz$Size < 2]<-2
 group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
 group_siz$Width<-4*group_siz$Prop
 
-library(grid)
-gt = ggplot_gtable(ggplot_build(heatmap))
-
-for(i in 1:nrow(group_siz)){
-  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+# Plot in chunks to make the plot exportable
+chunks<-split(unique(all_func_res_all$ID), ceiling(seq_along(unique(all_func_res_all$ID))/80))
+for(chunk_i in 1:length(chunks)){
+  all_func_res_all_chunk_i<-all_func_res_all[all_func_res_all$ID %in% chunks[[chunk_i]],]
+  all_func_res_all_chunk_i$ID<-factor(all_func_res_all_chunk_i$ID, levels=rev(unique(as.character(all_func_res_all_chunk_i$ID))))
+    
+  # Create heatmap
+  library(ggplot2)
+  
+  x<-c(min(all_func_res_all$Z, na.rm=T),0,max(all_func_res_all$Z, na.rm=T))
+  x<-(x-min(x))/(max(x)-min(x))
+  
+  heatmap<-ggplot(data = all_func_res_all_chunk_i[all_func_res_all_chunk_i$ID %in% unique(all_func_res_all_chunk_i$ID),], aes(x = Panel, y = ID)) +
+  	theme_bw()	+
+  	geom_tile(data=all_func_res_all_chunk_i[all_func_res_all_chunk_i$Method != 'SNP\nFine-mapping' & all_func_res_all_chunk_i$Method != 'Nearest\nGene',], aes(fill = Z), width=0.95, height=0.95) +
+    geom_tile(data=all_func_res_all_chunk_i[all_func_res_all_chunk_i$Sig == T,], aes(x = Panel, y = ID), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
+    geom_tile(data=all_func_res_all_chunk_i[all_func_res_all_chunk_i$Coloc ==T & all_func_res_all_chunk_i$Sig == T,], aes(x = Panel, y = ID), colour='green2', fill=NA, size=0.3, width=0.95, height=0.95) +
+  	scale_fill_gradientn(colours=c("dodgerblue2","white","red"), na.value = NA,name = "Z-score", limits = c(min(all_func_res_all$Z, na.rm=T), max(all_func_res_all$Z, na.rm=T)), values=x) +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+    labs(x='', y='') +
+  	geom_text(data=all_func_res_all_chunk_i[all_func_res_all_chunk_i$Method != 'SNP\nFine-mapping' & all_func_res_all_chunk_i$Method != 'Nearest\nGene',], aes(label=round(Z,1)), color="black", size=3) +
+    geom_tile(data=all_func_res_all_chunk_i[(all_func_res_all_chunk_i$Method == 'SNP\nFine-mapping' | all_func_res_all_chunk_i$Method == 'Nearest\nGene') & !(is.na(all_func_res_all_chunk_i$Z)),], aes(x = Panel, y = ID), fill='springgreen3', width=0.5, height=0.85) +
+    facet_wrap(~ Group , nrow=1, scales = "free_x")
+  
+  library(grid)
+  gt = ggplot_gtable(ggplot_build(heatmap))
+  
+  for(i in 1:nrow(group_siz)){
+    gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+  
+  }
+  
+  png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=40*length(unique(all_func_res_all_chunk_i$ID))+1000, width=3250)
+  
+  grid.draw(gt)
+  
+  a<-dev.off()
 
 }
-
-png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap.png'), units = 'px', res=300, height=30*length(unique(all_func_res$ID))+300, width=3250)
-
-grid.draw(gt)
-
-a<-dev.off()
 
 ```
 
@@ -1491,12 +1424,14 @@ a<-dev.off()
 
 cat("<details><summary>Comparison of Methods</summary> \n")
 
-cat(paste0("![](../results/",params$gwas,"/reports/gene_con_func_heatmap.png)\n\n"))
+  for(chunk_i in 1:length(chunks)){
+    cat(paste0("![](../results/",params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,".png)\n\n"))
+
+  }
 
 cat("</details>  \n")
 
 ```
-
 
 ```{r, results='asis', echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
 
@@ -1513,6 +1448,45 @@ names(atc)<-c('Code','Name')
 atc$Name<-tolower(atc$Name)
 
 atc_labels<-atc[nchar(atc$Code) == 4,]
+
+```
+
+```{r, results='asis', echo=FALSE, eval=dgi_db_comp_logical}
+
+cat("*** \n")
+cat("## DGIdb: Drugs interacting with key risk genes\n")
+cat("Using the directional associations from TWAS/PWAS and SMR, and drug-gene interaction data from the DGIdb, we have identified drugs that could decrease risk of the GWAS phenotype. I.e. if the GWAS phenotype was associated with an increased expression of a gene, we highlight drugs known to decrease the expression of that risk gene. We only list drug gene interactions for genes that showed a statistically significant and colocalised association with the GWAS phenotype. \n\n")
+
+cat("<details><summary>Show Drugs </summary>")
+
+```
+
+```{r, echo=F, eval=dgi_db_comp_logical}
+
+gene_assoc_drug<-fread(paste0('results/',params$gwas,'/DGIdb/DGIdb_opposing_clean.csv'))
+gene_assoc_drug$Score<-NULL
+gene_assoc_drug$Ref<-paste0('<a href="https://www.dgidb.org/interactions/',gene_assoc_drug$IntID,'#_summary">link</a>')
+gene_assoc_drug$IntID<-NULL
+
+gene_assoc_drug$Drug<-tolower(gene_assoc_drug$Drug)
+gene_assoc_drug$Drug<-paste(toupper(substr(gene_assoc_drug$Drug, 1, 1)), substr(gene_assoc_drug$Drug, 2, nchar(gene_assoc_drug$Drug)), sep="")
+
+gene_assoc_drug<-gene_assoc_drug[!is.na(gene_assoc_drug$ID),]
+
+datatable(gene_assoc_drug, rownames= FALSE, escape = -5)
+
+```
+
+```{r, echo=FALSE, eval=any(dgi_db_comp_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/So_res_clean.csv \n\n'))
+cat(paste0("Note. ID = Gene ID; GenoPhenoAssoc = Whether the GWAS phenotype is associated with an up or downregulation of the gene; Drug = Drug name; DrugGeneInt = Whether the drug inhibits or activates the gene"))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=dgi_db_comp_logical}
+
+cat("</details> \n")
 
 ```
 
@@ -1592,7 +1566,6 @@ so_cmap_all_mat<-dcast(so_cmap_all[,c('sig_id','cell_iname','avg.rank','Panel'),
 # Create correlation marix across panels
 panel_cor<-cor(so_cmap_all_mat[,-1])
 
-library(poolr)
 so_cmap_atc_brown<-NULL
 for(i in unique(so_cmap_atc_all$ATC)){
   tmp<-so_cmap_atc_all[so_cmap_atc_all$ATC == i,]
@@ -1611,6 +1584,7 @@ for(i in unique(so_cmap_atc_all$ATC)){
 so_cmap_atc_brown$P.FDR<-p.adjust(so_cmap_atc_brown$P, method = 'fdr')
 
 so_cmap_atc_all$Z<--qnorm(so_cmap_atc_all$P)
+so_cmap_atc_all$Z[so_cmap_atc_all$Z == -Inf]<-min(so_cmap_atc_all$Z[so_cmap_atc_all$Z != -Inf])
 
 so_cmap_atc_all_brief<-so_cmap_atc_all[,c('Panel','ATC','Name','Z','P','P.FDR'),with=T]
 so_cmap_atc_all_brief_brown<-rbind(so_cmap_atc_all_brief, so_cmap_atc_brown)
@@ -1618,7 +1592,7 @@ so_cmap_atc_all_brief_brown_sig<-so_cmap_atc_all_brief_brown[(so_cmap_atc_all_br
 so_cmap_atc_all_brief_brown_sig$Label<-paste0(so_cmap_atc_all_brief_brown_sig$ATC,': ', so_cmap_atc_all_brief_brown_sig$Name)
 so_cmap_atc_all_brief_brown_sig$Label<-factor(so_cmap_atc_all_brief_brown_sig$Label, levels=so_cmap_atc_all_brief_brown_sig$Label[so_cmap_atc_all_brief_brown_sig$Panel == 'All'][order(so_cmap_atc_all_brief_brown_sig$P[so_cmap_atc_all_brief_brown_sig$Panel == 'All'])])
 
-png(paste0('results/',params$gwas,'/reports/so_atc.png'), units = 'px', res=300, height=50*length(unique(so_cmap_atc_all_brief_brown_sig$ATC))+300, width=2750)
+png(paste0('results/',params$gwas,'/reports/so_atc.png'), units = 'px', res=300, height=40*length(unique(so_cmap_atc_all_brief_brown_sig$ATC))+1000, width=2750)
 
 ggplot(so_cmap_atc_all_brief_brown_sig, aes(x=Panel, y=Label)) +
 	theme_bw()	+
@@ -1745,6 +1719,7 @@ for(i in unique(gsea_cmap_atc_all$ATC)){
 gsea_cmap_atc_brown$P.FDR<-p.adjust(gsea_cmap_atc_brown$P, method = 'fdr')
 
 gsea_cmap_atc_all$Z<--qnorm(gsea_cmap_atc_all$P)
+gsea_cmap_atc_all$Z[gsea_cmap_atc_all$Z == -Inf]<-min(gsea_cmap_atc_all$Z[gsea_cmap_atc_all$Z != -Inf])
 
 gsea_cmap_atc_all_brief<-gsea_cmap_atc_all[,c('Panel','ATC','Name','Z','P','P.FDR'),with=T]
 gsea_cmap_atc_all_brief_brown<-rbind(gsea_cmap_atc_all_brief, gsea_cmap_atc_brown)
@@ -1752,7 +1727,7 @@ gsea_cmap_atc_all_brief_brown_sig<-gsea_cmap_atc_all_brief_brown[(gsea_cmap_atc_
 gsea_cmap_atc_all_brief_brown_sig$Label<-paste0(gsea_cmap_atc_all_brief_brown_sig$ATC,': ', gsea_cmap_atc_all_brief_brown_sig$Name)
 gsea_cmap_atc_all_brief_brown_sig$Label<-factor(gsea_cmap_atc_all_brief_brown_sig$Label, levels=gsea_cmap_atc_all_brief_brown_sig$Label[gsea_cmap_atc_all_brief_brown_sig$Panel == 'All'][order(gsea_cmap_atc_all_brief_brown_sig$P[gsea_cmap_atc_all_brief_brown_sig$Panel == 'All'])])
 
-png(paste0('results/',params$gwas,'/reports/gsea_atc.png'), units = 'px', res=300, height=50*length(unique(gsea_cmap_atc_all_brief_brown_sig$ATC))+300, width=2750)
+png(paste0('results/',params$gwas,'/reports/gsea_atc.png'), units = 'px', res=300, height=40*length(unique(gsea_cmap_atc_all_brief_brown_sig$ATC))+1000, width=2750)
 
 ggplot(gsea_cmap_atc_all_brief_brown_sig, aes(x=Panel, y=Label)) +
 	theme_bw()	+
@@ -1779,6 +1754,165 @@ cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/twas_gsea_*_res
 ```
 
 ```{r, results='asis', echo=FALSE, eval=twas_gsea_lincs_logical}
+
+cat("</details> \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_gsea_drugtargetor_logical}
+
+cat("*** \n")
+cat("## TWAS-DrugTargetor: TWAS-GSEA Method \n")
+cat("<details><summary>Show Top Drug Enrichment Results</summary> \n")
+
+```
+
+```{r, echo=F, eval=twas_gsea_drugtargetor_logical}
+
+weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-weights[!grepl('SPLIC',weights)]
+
+gsea_drugtargetor_all<-NULL
+for(i in weights){
+  gsea_drugtargetor<-fread(paste0('results/',params$gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_',i,'.competitive.clean.csv'))
+  gsea_drugtargetor$Panel<-i
+  gsea_drugtargetor_all<-rbind(gsea_drugtargetor_all, gsea_drugtargetor)
+}
+
+gsea_drugtargetor_all$P.FDR<-p.adjust(gsea_drugtargetor_all$P, method='fdr')
+
+gsea_drugtargetor_all_clean<-gsea_drugtargetor_all
+
+gsea_drugtargetor_all_clean$NAME<-paste(toupper(substr(gsea_drugtargetor_all_clean$NAME, 1, 1)), substr(gsea_drugtargetor_all_clean$NAME, 2, nchar(gsea_drugtargetor_all_clean$NAME)), sep="")
+gsea_drugtargetor_all_clean$NAME<-gsub('\\.',' ',gsea_drugtargetor_all_clean$NAME)
+
+for(i in 1:nrow(gsea_drugtargetor_all_clean)){
+  tmp<-unlist(strsplit(gsea_drugtargetor_all_clean$ATC[i], ','))
+  tmp<-substr(tmp, 1, 4)
+  tmp2<-atc_labels[atc_labels$Code %in% tmp]$Name
+  if(length(tmp) > 1){
+    gsea_drugtargetor_all_clean$ATC_code[i]<-paste0(tmp, collapse=';')
+    gsea_drugtargetor_all_clean$ATC_desc[i]<-paste0(tmp2, collapse=';')
+  } else {
+    gsea_drugtargetor_all_clean$ATC_code[i]<-tmp
+    gsea_drugtargetor_all_clean$ATC_desc[i]<-tmp2
+
+  }
+}
+
+gsea_drugtargetor_all_clean<-gsea_drugtargetor_all_clean[order(gsea_drugtargetor_all_clean$P),]
+
+if(sum(gsea_drugtargetor_all_clean$P.FDR < 0.05) >= 250){
+  gsea_drugtargetor_all_clean<-gsea_drugtargetor_all_clean[gsea_drugtargetor_all_clean$P.FDR < 0.05,]
+} else {
+  gsea_drugtargetor_all_clean<-gsea_drugtargetor_all_clean[1:250,]
+}
+
+gsea_drugtargetor_all_clean$P<-format(gsea_drugtargetor_all_clean$P, scientific = TRUE, digits = 3)
+gsea_drugtargetor_all_clean$P.FDR<-format(gsea_drugtargetor_all_clean$P.FDR, scientific = TRUE, digits = 3)
+gsea_drugtargetor_all_clean$Estimate<-round(gsea_drugtargetor_all_clean$Estimate,2)
+gsea_drugtargetor_all_clean$SE<-round(gsea_drugtargetor_all_clean$SE,2)
+
+gsea_drugtargetor_all_clean<-gsea_drugtargetor_all_clean[,c("NAME","Panel","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
+names(gsea_drugtargetor_all_clean)<-c('Drug','Panel','Estimate','SE','P','P.FDR','ATC','Description')
+
+datatable(gsea_drugtargetor_all_clean, rownames= FALSE)
+
+```
+
+```{r, echo=FALSE, eval=any(twas_gsea_drugtargetor_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/drugtargetor/twas_gsea_drugtargetor.competitive.clean.csv'))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_gsea_drugtargetor_logical}
+
+cat("</details> \n")
+cat("<details><summary>Show ATC Enrichment Results</summary> \n")
+
+```
+
+```{r, echo=F, eval=twas_gsea_drugtargetor_logical}
+weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-weights[!grepl('SPLIC',weights)]
+
+gsea_drugtargetor_atc_all<-NULL
+for(i in weights){
+  gsea_drugtargetor_atc<-fread(paste0('results/',params$gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
+  gsea_drugtargetor_atc$Panel<-i
+  gsea_drugtargetor_atc$P.FDR<-p.adjust(gsea_drugtargetor_atc$P, method = 'fdr')
+  gsea_drugtargetor_atc_all<-rbind(gsea_drugtargetor_atc_all, gsea_drugtargetor_atc)
+}
+
+# Calculate combined ATC enrichment results
+# Make matrix of drug enrichment results, averaging across cell lines
+gsea_drugtargetor_all_mat<-dcast(gsea_drugtargetor_all[,c('NAME','Panel','Estimate'),with=F], formula = NAME ~ Panel, value.var = 'Estimate', fun.aggregate = mean) 
+
+# Create correlation marix across panels
+panel_cor<-cor(gsea_drugtargetor_all_mat[,-1], use='p')
+
+library(poolr)
+gsea_drugtargetor_atc_brown<-NULL
+for(i in unique(gsea_drugtargetor_atc_all$ATC)){
+  tmp<-gsea_drugtargetor_atc_all[gsea_drugtargetor_atc_all$ATC == i,]
+  if(nrow(tmp) == 1){
+      gsea_drugtargetor_atc_brown<-rbind(gsea_drugtargetor_atc_brown, data.frame(Panel='All',
+                                                             ATC=i,
+                                                             Name=gsea_drugtargetor_atc_all$Name[gsea_drugtargetor_atc_all$ATC == i][1],
+                                                             Z=-qnorm(tmp$P/2),
+                                                             P=tmp$P))
+  } else {
+    
+    # Combine p-values using Brown's method
+    brown_p<-fisher(tmp$P, adjust='generalized', R=panel_cor[tmp$Panel, tmp$Panel])$p
+    
+    gsea_drugtargetor_atc_brown<-rbind(gsea_drugtargetor_atc_brown, data.frame(Panel='All',
+                                                               ATC=i,
+                                                               Name=gsea_drugtargetor_atc_all$Name[gsea_drugtargetor_atc_all$ATC == i][1],
+                                                               Z=-qnorm(brown_p/2),
+                                                               P=brown_p))
+  }
+}
+
+gsea_drugtargetor_atc_brown$P.FDR<-p.adjust(gsea_drugtargetor_atc_brown$P, method = 'fdr')
+
+gsea_drugtargetor_atc_all$Z<--qnorm(gsea_drugtargetor_atc_all$P)
+gsea_drugtargetor_atc_all$Z[gsea_drugtargetor_atc_all$Z == -Inf]<-min(gsea_drugtargetor_atc_all$Z[gsea_drugtargetor_atc_all$Z != -Inf])
+
+gsea_drugtargetor_atc_all_brief<-gsea_drugtargetor_atc_all[,c('Panel','ATC','Name','Z','P','P.FDR'),with=T]
+gsea_drugtargetor_atc_all_brief_brown<-rbind(gsea_drugtargetor_atc_all_brief, gsea_drugtargetor_atc_brown)
+gsea_drugtargetor_atc_all_brief_brown_sig<-gsea_drugtargetor_atc_all_brief_brown[(gsea_drugtargetor_atc_all_brief_brown$ATC %in% gsea_drugtargetor_atc_all_brief_brown$ATC[gsea_drugtargetor_atc_all_brief_brown$Panel == 'All' & gsea_drugtargetor_atc_all_brief_brown$P.FDR < 0.05]),]
+gsea_drugtargetor_atc_all_brief_brown_sig$Label<-paste0(gsea_drugtargetor_atc_all_brief_brown_sig$ATC,': ', gsea_drugtargetor_atc_all_brief_brown_sig$Name)
+gsea_drugtargetor_atc_all_brief_brown_sig$Label<-factor(gsea_drugtargetor_atc_all_brief_brown_sig$Label, levels=gsea_drugtargetor_atc_all_brief_brown_sig$Label[gsea_drugtargetor_atc_all_brief_brown_sig$Panel == 'All'][order(gsea_drugtargetor_atc_all_brief_brown_sig$P[gsea_drugtargetor_atc_all_brief_brown_sig$Panel == 'All'])])
+
+png(paste0('results/',params$gwas,'/reports/gsea_drugtargetor_atc.png'), units = 'px', res=300, height=40*length(unique(gsea_drugtargetor_atc_all_brief_brown_sig$ATC))+1000, width=2750)
+
+ggplot(gsea_drugtargetor_atc_all_brief_brown_sig, aes(x=Panel, y=Label)) +
+	theme_bw()	+
+	geom_tile(data=gsea_drugtargetor_atc_all_brief_brown_sig, aes(fill = Z), width=0.95, height=0.95) +
+	geom_tile(data=gsea_drugtargetor_atc_all_brief_brown_sig[gsea_drugtargetor_atc_all_brief_brown_sig$P.FDR < 0.05,], aes(x = Panel, y = Label), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
+scale_fill_gradientn(colours=c("blue","white","red"), na.value = 'white',name = "Z-score", limits=c(-max(abs(gsea_drugtargetor_atc_all_brief_brown_sig$Z)),max(abs(gsea_drugtargetor_atc_all_brief_brown_sig$Z)))) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5),legend.position="none") +
+  labs(x='', y='')
+
+a<-dev.off()
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(twas_gsea_drugtargetor_logical)}
+
+cat(paste0("![](../results/",params$gwas,"/reports/gsea_drugtargetor_atc.png)\n\n"))
+
+```
+
+```{r, echo=FALSE, eval=any(twas_gsea_drugtargetor_logical), results='asis'}
+
+cat(paste0('Full results file: results/',params$gwas,'/twas/drugtargetor/twas_gsea_*_res_atc_res.csv'))
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_gsea_drugtargetor_logical}
 
 cat("</details> \n")
 
@@ -1872,7 +2006,7 @@ ggplot(all_gsea, aes(x=Panel, y=Name)) +
 	geom_tile(data=all_gsea[all_gsea$P.FDR < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
 scale_fill_gradientn(colours=c("blue","white","red"), na.value = 'white',name = "Z-score", limits=c(-max(abs(all_gsea$Z)),max(abs(all_gsea$Z)))) +
 	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5),legend.position="none") +
-  labs(x='', y='')
+  labs(x='', y='', title='MAGMA DrugTargetor vs TWAS-GSEA CMAP')
 
 a<-dev.off()
 
@@ -1921,7 +2055,7 @@ ggplot(all_so, aes(x=Panel, y=Name)) +
 	geom_tile(data=all_so[all_so$P.FDR < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
 scale_fill_gradientn(colours=c("blue","white","red"), na.value = 'white',name = "Z-score", limits=c(-max(abs(all_so$Z)),max(abs(all_so$Z)))) +
 	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5),legend.position="none") +
-  labs(x='', y='')
+  labs(x='', y='', title='MAGMA DrugTargetor vs So et al CMAP')
 
 a<-dev.off()
 
@@ -1936,6 +2070,52 @@ cat(paste0("![](../results/",params$gwas,"/reports/magma_drug_twas_so.png)\n\n")
 ```{r, echo=FALSE, eval=any(magma_drugtargetor_logical), results='asis'}
 
 cat(paste0("Full results file: results/",params$gwas,"/magma/magma_drug_targetor.clean.csv"))
+
+```
+
+```{r, echo=F, eval=all(magma_drugtargetor_logical,twas_gsea_lincs_logical)}
+
+magma_gs$Z<--qnorm(magma_gs$P/2)
+gsea_drugtargetor_all$Z<--qnorm(gsea_drugtargetor_all$P)
+
+# Take average of Z across cell lines
+gsea_drugtargetor_all_avg<-aggregate(gsea_drugtargetor_all$Z, list(gsea_drugtargetor_all$GeneSet,gsea_drugtargetor_all$NAME, gsea_drugtargetor_all$Panel), FUN=mean)
+names(gsea_drugtargetor_all_avg)<-c('GeneSet','Name','Panel','Z')
+
+gsea_drugtargetor_all_avg$P<-pnorm(-abs(gsea_drugtargetor_all_avg$Z))
+gsea_drugtargetor_all_avg$P.FDR<-p.adjust(gsea_drugtargetor_all_avg$P, method = 'fdr')
+gsea_drugtargetor_all_avg$Name<-paste(toupper(substr(gsea_drugtargetor_all_avg$Name, 1, 1)), substr(gsea_drugtargetor_all_avg$Name, 2, nchar(gsea_drugtargetor_all_avg$Name)), sep="")
+gsea_drugtargetor_all_avg<-gsea_drugtargetor_all_avg[order(gsea_drugtargetor_all_avg$Panel),]
+
+magma_gs$Panel<-'MAGMA'
+all_gsea<-rbind(magma_gs[,c('Name','Z','P.FDR','Panel'),with=F], gsea_drugtargetor_all_avg[,c('Name','Z','P.FDR','Panel')])
+
+if(sum(magma_gs$P.FDR < 0.05) > 50){
+  all_gsea<-all_gsea[all_gsea$Name %in% magma_gs$Name[magma_gs$P.FDR < 0.1],]
+} else {
+  all_gsea<-all_gsea[all_gsea$Name %in% magma_gs$Name[order(magma_gs$P)][1:50],]
+}
+
+all_gsea$Panel<-factor(all_gsea$Panel, levels=c('MAGMA',unique(all_gsea$Panel)[unique(all_gsea$Panel) != 'MAGMA']))
+all_gsea$Name<-factor(all_gsea$Name, levels=unique(magma_gs$Name[order(magma_gs$P)]))
+
+png(paste0('results/',params$gwas,'/reports/magma_drug_twas_gsea_drugtargetor.png'), units = 'px', res=300, height=50*length(unique(all_gsea$Name))+1000, width=2500)
+
+ggplot(all_gsea, aes(x=Panel, y=Name)) +
+	theme_bw()	+
+	geom_tile(data=all_gsea, aes(fill = Z), width=0.95, height=0.95) +
+	geom_tile(data=all_gsea[all_gsea$P.FDR < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
+scale_fill_gradientn(colours=c("blue","white","red"), na.value = 'white',name = "Z-score", limits=c(-max(abs(all_gsea$Z)),max(abs(all_gsea$Z)))) +
+	theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5),legend.position="none") +
+  labs(x='', y='', title='MAGMA DrugTargetor vs TWAS-GSEA DrugTargetor')
+
+a<-dev.off()
+
+```
+
+```{r, results='asis', echo=FALSE, eval=all(magma_drugtargetor_logical,twas_gsea_lincs_logical)}
+
+cat(paste0("![](../results/",params$gwas,"/reports/magma_drug_twas_gsea_drugtargetor.png)\n\n"))
 
 ```
 
@@ -1972,6 +2152,15 @@ if(twas_so_lincs_logical){
 
 }
 
+if(twas_gsea_drugtargetor_logical){
+  
+  magma_gs_atc<-merge(magma_gs_atc, gsea_drugtargetor_atc_all_brief_brown[gsea_drugtargetor_atc_all_brief_brown$Panel == 'All',c('ATC','P.FDR'),with=F], by='ATC')
+  names(magma_gs_atc)[names(magma_gs_atc) == 'P.FDR.x']<-'P.FDR'
+  names(magma_gs_atc)[names(magma_gs_atc) == 'P.FDR.y']<-'TWAS-GSEA.DrugTargetor.P.FDR'
+  magma_gs_atc$`TWAS-GSEA.DrugTargetor.P.FDR`<-format(magma_gs_atc$`TWAS-GSEA.DrugTargetor.P.FDR`, scientific = TRUE, digits = 3)
+
+}
+
 magma_gs_atc<-magma_gs_atc[order(magma_gs_atc$P),]
 
 magma_gs_atc$P<-format(magma_gs_atc$P, scientific = TRUE, digits = 3)
@@ -1993,7 +2182,8 @@ cat("</details> \n")
 
 ```
 
-```{r, results='asis', echo=FALSE, eval=all(twas_gsea_lincs_logical, twas_so_lincs_logical)}
+```{r, results='asis', echo=FALSE, eval=F}
+#all(twas_gsea_lincs_logical, twas_so_lincs_logical)
 
 cat("*** \n")
 cat("## TWAS-CMAP: Method Comparison \n")
@@ -2003,7 +2193,8 @@ cat("<details><summary>Show Drug Enrichment Comparison</summary> \n")
 
 ```
 
-```{r, echo=F, eval=all(twas_gsea_lincs_logical, twas_so_lincs_logical)}
+```{r, echo=F, eval=F}
+#all(twas_gsea_lincs_logical, twas_so_lincs_logical)
 
 both_cmap<-merge(so_cmap_all, gsea_cmap_all[,c('Panel','sig_id','Estimate','SE','P','P.CORR'),with=F], by=c('Panel','sig_id'))
 
@@ -2017,14 +2208,16 @@ ggplot(both_cmap, aes(x=-log10(both_cmap$p), y=-log10(both_cmap$P))) +
 
 ```
 
-```{r, results='asis', echo=FALSE, eval=all(twas_gsea_lincs_logical, twas_so_lincs_logical)}
+```{r, results='asis', echo=FALSE, eval=F}
+#all(twas_gsea_lincs_logical, twas_so_lincs_logical)
 
 cat("</details> \n")
 cat("<details><summary>Show ATC Enrichment Comparison</summary> \n")
 
 ```
 
-```{r, echo=F, eval=all(twas_gsea_lincs_logical, twas_so_lincs_logical)}
+```{r, echo=F, eval=F}
+#all(twas_gsea_lincs_logical, twas_so_lincs_logical)
 
 both_cmap_atc<-merge(so_cmap_atc_all, gsea_cmap_atc_all, by=c('Panel','ATC'))
 
@@ -2037,7 +2230,8 @@ ggplot(both_cmap_atc, aes(x=-log10(both_cmap_atc$P.x), y=-log10(both_cmap_atc$P.
 
 ```
 
-```{r, results='asis', echo=FALSE, eval=all(twas_gsea_lincs_logical, twas_so_lincs_logical)}
+```{r, results='asis', echo=FALSE, eval=F}
+#all(twas_gsea_lincs_logical, twas_so_lincs_logical)
 
 cat("</details> \n")
 

@@ -35,3 +35,4 @@ dependencies:
   - bioconductor-qusage
   - r-withr
   - r-BiocManager
+  - r-rjson

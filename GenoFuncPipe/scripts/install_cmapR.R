@@ -6,11 +6,11 @@
 # Download proto RProtoBufLib
 # We have to download source code as BioConductor is installing old version for some reason
 dir.create('resources/software/RProtoBufLib')
-download.file(url='https://bioconductor.org/packages/release/bioc/src/contrib/RProtoBufLib_2.6.0.tar.gz',
-              destfile='resources/software/RProtoBufLib/RProtoBufLib_2.6.0.tar.gz')
+download.file(url='https://www.bioconductor.org/packages/release/bioc/src/contrib/RProtoBufLib_2.8.0.tar.gz',
+              destfile='resources/software/RProtoBufLib/RProtoBufLib_2.8.0.tar.gz')
 
 # Install RProtoBufLib from source
-install.packages('resources/software/RProtoBufLib/RProtoBufLib_2.6.0.tar.gz', repos = NULL, type="source")
+install.packages('resources/software/RProtoBufLib/RProtoBufLib_2.8.0.tar.gz', repos = NULL, type="source")
 
 # Install cytolib from github
 devtools::install_github("RGLab/cytolib")

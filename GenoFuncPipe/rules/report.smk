@@ -3,6 +3,14 @@
 ####
 # Create a report for each GWAS
 
+rule install_poolr:
+  output:
+    touch("resources/software/install_poolr.done")
+  conda:
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript -e 'install.packages(\"poolr\", repos = \"http://cran.us.r-project.org\")'"
+    
 myoutput = list()
 
 if config["clump"] == "T":
@@ -12,7 +20,7 @@ if config["cojo"] == "T":
     myoutput.append("results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv")
 
 if config["finemap"] == "T":
-    myoutput.append("results/{gwas}/finemap/{gwas}.GW.finemap.csv")
+    myoutput.append("results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv")
 
 if config["ldsc"] == "T":
     myoutput.append("results/{gwas}/ldsc/{gwas}_ldsc_res.log")
@@ -59,12 +67,23 @@ if config["smr_expression_panel_metabrain_hippocampus"] == "T":
 if config["smr_expression_panel_metabrain_spinalcord"] == "T":
     myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
+if config["smr_expression_panel_eqtlgen"] == "T":
+    myoutput.append("results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz")
+
 if config["smr_protein_panel_rosmap"] == "T":
     myoutput.append("results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz")
 
+if config["dgi_db_comp"] == "T":
+    myoutput.append("results/{gwas}/DGIdb/DGIdb_opposing_clean.csv")
+
+if config["twas_gsea_drugtargetor"] == "T":
+    myoutput.append("results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
+    
+
 rule create_report:
   input:
-    myoutput
+    myoutput,
+    "resources/software/install_poolr.done"
   output:
     "results/{gwas}/reports/{gwas}_report.html"
   conda:
