@@ -18,6 +18,7 @@ ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.
 # Read in gene locations
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+biomartCacheClear()
 Genes<-getBM(attributes=c('external_gene_name','chromosome_name','start_position','end_position'), mart = ensembl)
 
 # Use 10kb window to define gene window
@@ -76,6 +77,16 @@ if(length(finemap_files_L10) > 0){
     }
   }
   
+  if(is.null(finemap_summary)){
+    finemap_summary<-data.frame(CHR = NA,
+                                BP = NA,
+                                SNP = NA,
+                                cs=NA,
+                                NSNP=NA,
+                                TopPIP=NA,
+                                Gene=NA)
+  }
+  
   # Write out results
   write.csv(finemap_summary, paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.csv'), row.names=F, quote=T)
 }
@@ -119,8 +130,20 @@ for(i in 1:length(finemap_files_L1)){
       }
     }
     
+    
     finemap_summary<-rbind(finemap_summary, tmp_sum)
   }
+  
+  if(is.null(finemap_summary)){
+    finemap_summary<-data.frame(CHR = NA,
+                                BP = NA,
+                                SNP = NA,
+                                cs=NA,
+                                NSNP=NA,
+                                TopPIP=NA,
+                                Gene=NA)
+  }
+  
 }
 
 # Write out results

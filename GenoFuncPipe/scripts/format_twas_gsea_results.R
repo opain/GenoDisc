@@ -19,7 +19,7 @@ library(data.table)
 res<-fread(paste0('results/',opt$twas,'/twas/cmap/twas_gsea_cmap_',opt$panel,'.competitive.txt'))
 
 # Flip one-sided hypothesis to be testing for a negative correlation
-res$P<-pnorm(res$T)
+res$P<-2*pnorm(-abs(res$T))
 res$P.CORR<-p.adjust(res$P, method='fdr')
 
 # Read in LINCS sig info file

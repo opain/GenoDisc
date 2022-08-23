@@ -79,7 +79,6 @@ if config["dgi_db_comp"] == "T":
 if config["twas_gsea_drugtargetor"] == "T":
     myoutput.append("results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
     
-
 rule create_report:
   input:
     myoutput,
@@ -88,10 +87,12 @@ rule create_report:
     "results/{gwas}/reports/{gwas}_report.html"
   conda:
     "../envs/GenoFunc.yaml"
+  params:
+    config_file= config["config_file"],
   shell:
     "mkdir -p results/{wildcards.gwas}/reports; Rscript -e \"rmarkdown::render(\'scripts/create_report.Rmd\', \
      output_file = \'../results/{wildcards.gwas}/reports/{wildcards.gwas}_report.html\', \
-     params = list(gwas = \'{wildcards.gwas}\'))\""
+     params = list(gwas = \'{wildcards.gwas}\', config_file = \'{params.config_file}\'))\""
 
 rule run_create_report:
   input: expand("results/{gwas}/reports/{gwas}_report.html", gwas=gwas_list_df_eur['name'])

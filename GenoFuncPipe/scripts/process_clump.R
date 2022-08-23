@@ -35,6 +35,7 @@ ss_subset<-ss_subset[,col_order,with=F]
 # Insert nearest gene information
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+biomartCacheClear()
 Genes<-getBM(attributes=c('external_gene_name','chromosome_name','start_position','end_position'), mart = ensembl)
 
 window<-50000

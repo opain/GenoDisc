@@ -17,7 +17,7 @@ library(data.table)
 res<-fread(paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.txt'))
 
 # Flip one-sided hypothesis to be testing for a negative correlation
-res$P<-pnorm(res$T)
+res$P<-2*pnorm(-abs(res$T))
 res$P.CORR<-p.adjust(res$P, method='fdr')
 
 res$ATC<-gsub('ATC.','',gsub('\\.NAME.*','',res$GeneSet))
@@ -44,6 +44,7 @@ for(cat in unique(res_atc$atc_cat)){
   
   if(sum(class_bin == 1) > 5){
     
+    # Use wilcoxon test
     wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T, alternative='greater')
     
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,

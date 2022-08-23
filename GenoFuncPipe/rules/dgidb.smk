@@ -41,9 +41,12 @@ rule query_dgidb:
     "results/{gwas}/DGIdb/DGIdb_opposing_clean.csv"
   conda:
     "../envs/GenoFunc.yaml"
+  params:
+    config_file=config["config_file"]
   shell:
     "Rscript scripts/DGIdb_query.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 

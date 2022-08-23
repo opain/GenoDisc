@@ -49,7 +49,7 @@ rule magma_annot:
     "../envs/GenoFunc.yaml"
   shell:
     "resources/software/magma/magma \
-      --annotate window=10 \
+      --annotate window=35,10 \
     	--snp-loc resources/data/magma_ref/g1000_eur.bim \
     	--gene-loc resources/data/magma/NCBI37.3.gene.loc \
     	--out resources/data/magma/NCBI37.3"

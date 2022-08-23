@@ -7,6 +7,7 @@ IDs<-gsub('.wgt.RDat','',IDs)
 
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+biomartCacheClear()
 Genes<-getBM(attributes=c('ensembl_gene_id','chromosome_name','start_position','end_position'), mart = ensembl)
 Genes<-Genes[(Genes$ensembl_gene_id %in% IDs),]
 Genes$chromosome_name<-as.numeric(Genes$chromosome_name)

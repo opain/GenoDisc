@@ -11,34 +11,8 @@ opt = parse_args(OptionParser(option_list=option_list))
 library(data.table)
 library(biomaRt)
 
-# Read in snakefile to find cofgi file
-snakefile<-readLines('Snakefile')
-
-# Read in config file
-configfile<-snakefile[grepl('config', snakefile)]
-configfile<-gsub('\"','',gsub('.* \\"','',configfile))
-config<-readLines(configfile)
-
-# Determine which panels were requested
-non_gtex_weights<-gsub('non_gtex_weights: ','',config[grepl('^non_gtex_weights:',config)])
-non_gtex_weights<-gsub('\\[','', non_gtex_weights)
-non_gtex_weights<-gsub('\\]','', non_gtex_weights)
-non_gtex_weights<-gsub("'",'', non_gtex_weights)
-non_gtex_weights<-gsub('"','', non_gtex_weights)
-non_gtex_weights<-unlist(strsplit(non_gtex_weights, ','))
-
-gtex_weights<-gsub('gtex_weights: ','',config[grepl('^gtex_weights:',config)])
-gtex_weights<-gsub('\\[','', gtex_weights)
-gtex_weights<-gsub('\\]','', gtex_weights)
-gtex_weights<-gsub("'",'', gtex_weights)
-gtex_weights<-gsub('"','', gtex_weights)
-gtex_weights<-unlist(strsplit(gtex_weights, ','))
-
-weights<-c(non_gtex_weights, gtex_weights)
-
-if(config[grepl('^twas_panel_psychencode:',config)] == "twas_panel_psychencode: T"){
-  weights<-c(weights, 'psychencode')
-}
+weights<-basename(list.dirs(paste0('results/',opt$gwas,'/twas/')))[-1]
+weights<-weights[!(weights %in% c('conditional','cmap','drugtargetor'))]
 
 # Write out this list of SNP-weights as this might be useful elsewhere
 write.table(weights, paste0('results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
@@ -46,6 +20,7 @@ write.table(weights, paste0('results/',opt$gwas,'/twas/list_of_weights.txt'), co
 # Read in gene names from biomart
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+biomartCacheClear()
 Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
 
 # Read in TWAS resukts and insert external_gene_name
@@ -80,7 +55,7 @@ for(weight_i in weights){
 fwrite(all, paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
 
 # Write file listing chromosomes with transcriptome-wide significant results
-all$TWAS.P.FDR<-p.adjust(all$TWAS.P, method='BY')
+all$TWAS.P.FDR<-p.adjust(all$TWAS.P, method='fdr')
 write.table(unique(all$CHR[which(all$TWAS.P.FDR < 0.05)]), paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_sig_chr.txt'), row.names=F, col.names=T, quote=F)
 
 # Write out transcriptome-wide significant results

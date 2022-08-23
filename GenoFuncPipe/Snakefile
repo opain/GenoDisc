@@ -1,4 +1,4 @@
-configfile: "config_brain.yaml"
+configfile: "config.yaml"
 
 import os
 import json

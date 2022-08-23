@@ -81,9 +81,13 @@ write.csv(report[,c('CHR','BP','JOINT.ID','MARGIN.N','BEST.TWAS.P','BEST.SNP.P',
 
 # Combine gene results for marginal and joint genes
 joint_res$Type<-'Joint'
-margin_res$Type<-'Marginal'
 
-gene_res<-rbind(joint_res, margin_res)
+if(!is.null(margin_res)){
+  margin_res$Type<-'Marginal'
+  gene_res<-rbind(joint_res, margin_res)
+} else {
+  gene_res<-joint_res
+}
 
 gene_res$Novel<-'No'
 gene_res$Novel[(2*pnorm(-abs(gene_res$BEST.GWAS.Z)) < 5e-8 & gene_res$TOP.SNP.COR^2 < 0.1) | 2*pnorm(-abs(gene_res$BEST.GWAS.Z)) > 5e-8]<-'Yes'

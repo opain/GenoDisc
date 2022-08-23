@@ -14,6 +14,9 @@ library(data.table)
 # Read in MAGMA gene set results
 res_gs<-fread(cmd=paste0("grep -v '^#' results/",opt$gwas,'/magma/magma_drug_targetor.gsa.out'))
 
+# Remove gene sets with <5 genes present
+#res_gs<-res_gs[res_gs$NGENES >= 5,]
+
 res_gs$ATC<-gsub('ATC:','',gsub('\\|.*','',res_gs$FULL_NAME))
 res_gs$NAME<-tolower(gsub('\\|.*','',gsub('.*NAME:','',res_gs$FULL_NAME)))
 
@@ -30,7 +33,7 @@ for(i in 1:nrow(res_gs)){
 
 res_gs_enrich$atc_cat<-substr(res_gs_enrich$ATC, 1, 4) 
 
-# Test for enrichment for each ATC catagory
+# Test for enrichment for each ATC category
 atc_enrich<-NULL
 for(cat in unique(res_gs_enrich$atc_cat)){
   class_bin<-rep(0, nrow(res_gs_enrich))

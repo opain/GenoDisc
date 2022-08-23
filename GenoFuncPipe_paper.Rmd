@@ -122,6 +122,28 @@ Already available on Rosalind: /users/k1806347/brc_scratch/Data/GWAS_sumstats/AL
 
 ***
 
+### Amyotrophic Lateral Sclerosis (ALS)
+
+PMID: 34873335
+European and East Asian only.
+
+```{r, eval=F, echo=T}
+library(data.table)
+
+ss<-fread('/scratch/prj/oliverpainfel/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_ASIA.txt.gz')
+
+# Update column names.
+names(ss)<-c('SNP','CHR','BP','A1','A2','BETA','SE','P','N')
+
+ss$A1<-toupper(ss$A1)
+ss$A2<-toupper(ss$A2)
+
+fwrite(ss, '/scratch/prj/oliverpainfel/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_ASIA_reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
 ### Alzheimer's Disease (ALZ)
 
 PMID: 34493870
@@ -179,6 +201,20 @@ fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PR
 PMID: 35115687
 Excl. 23andMe
 Requested from Dale Nyholt.
+
+```{r, eval=F, echo=T}
+
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MIG', recursive = T)
+
+ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/Migraine_Hautakangas_excl23andMe/migraine_IHGC2021_no23andMe_gwama_v2.txt.gz')
+
+ss<-ss[,c('chromosome','position','reference_allele','other_allele','eaf','beta','se','p.value','Neff'), with=F]
+names(ss)<-c('CHR','ORIGBP','A1','A2','FREQ','BETA','SE','P','N')
+
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MIG/MIG.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
 
 ***
 

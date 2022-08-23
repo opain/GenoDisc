@@ -226,6 +226,23 @@ rule install_pigz:
     "wget -O resources/software/pigz.tar.gz https://zlib.net/pigz/pigz.tar.gz; mkdir -p resources/software/pigz; tar xvzf resources/software/pigz.tar.gz -C resources/software/pigz; rm resources/software/pigz.tar.gz; cd resources/software/pigz/pigz; make"
 
 ####
+# Format the external SNP-weights for TWAS
+####
+
+if config["external_weights"] == "T":
+  external_weights_list=config["external_weights_pos_path"]
+  import os.path
+  external_weights_path_list=[os.path.dirname(x) for x in external_weights_list]
+  external_weights_id_list=[os.path.basename(x) for x in external_weights_list]
+  external_weights_id_list=[re.sub(".pos", "", x) for x in external_weights_id_list]
+  
+  import os
+  for x in list(range(0, len(external_weights_path_list))):
+    if not os.path.isdir("".join(["resources/data/fusion_snp_weights/",external_weights_id_list[x]])):
+      os.system("".join(["mkdir resources/data/fusion_snp_weights/",external_weights_id_list[x]]))
+      os.system("".join(["cp -r ",external_weights_path_list[x],"/* resources/data/fusion_snp_weights/", external_weights_id_list[x],"/"]))
+
+####
 # Predict features into 1kg sample
 ####
 
@@ -233,7 +250,10 @@ rule install_pigz:
 weights=gtex_weights + non_gtex_weights
 if config["twas_panel_psychencode"] == "T":
   weights.append("psychencode")
-  
+
+if config["external_weights"] == "T":
+  weights=weights + external_weights_id_list
+
 import copy  
 weights_nosplice=copy.copy(weights)
 if "CMC.BRAIN.RNASEQ_SPLICING" in weights_nosplice:
@@ -585,9 +605,11 @@ rule run_twas_gsea:
     	--covar GeneLength,NSNP \
     	--use_alt_id ensembl_gene_id \
     	--linear_p_thresh 1 \
+    	--min_Ngenes 2 \
     	--save_CorMat F \
     	--min_r2 0.01 \
     	--qqplot F \
+    	--directional T \
     	--output results/{wildcards.gwas}/twas/cmap/twas_gsea_cmap_{wildcards.weight}"
 
 # Format TWAS-GSEA results
@@ -654,9 +676,11 @@ rule run_twas_gsea_drug_targetor:
     	--covar GeneLength,NSNP \
     	--use_alt_id ID \
     	--linear_p_thresh 1 \
+    	--min_Ngenes 2 \
     	--save_CorMat F \
     	--min_r2 0.01 \
     	--qqplot F \
+    	--directional T \
     	--output results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight}"
     	
 # Format the output

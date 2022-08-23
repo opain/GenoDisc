@@ -3,11 +3,11 @@ channels:
 - bioconda
 dependencies:
 - python=2.7
-- bitarray=0.8
-- nose=1.3
-- pybedtools=0.7
+- bitarray
+- nose
+- pybedtools
 - pip
 - pip:
-  - scipy==0.18
-  - pandas==0.20
-  - numpy==1.16
+  - scipy
+  - pandas
+  - numpy

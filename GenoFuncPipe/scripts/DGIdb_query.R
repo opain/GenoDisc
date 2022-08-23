@@ -3,7 +3,9 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="config_file location [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -11,13 +13,8 @@ opt = parse_args(OptionParser(option_list=option_list))
 library(data.table)
 library(rjson)
 
-# Read in snakefile to find cofgi file
-snakefile<-readLines('Snakefile')
-
 # Read in config file
-configfile<-snakefile[grepl('config', snakefile)]
-configfile<-gsub('\"','',gsub('.* \\"','',configfile))
-config<-readLines(configfile)
+config<-readLines(opt$config_file)
 
 # Determine which analyses were requested
 twas_panel_psychencode_logical<-config[grepl('twas_panel_psychencode:',config)] == "twas_panel_psychencode: T"

@@ -53,6 +53,7 @@ lincs<-lincs[!duplicated(lincs$entrez_id),]
 
 # Insert entrez IDs into twas results
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+biomartCacheClear()
 Genes<-getBM(attributes=c('ensembl_gene_id','entrezgene_id'), mart = ensembl)
 
 Genes<-Genes[!duplicated(Genes$entrezgene_id),]

@@ -3,7 +3,7 @@
 ############
 
 # Specify location of gwas_list file
-gwas_list: gwas_list_example.txt
+gwas_list: private/gwas_list_brain.txt
 
 # Specify location of lincs data
 lincs_level5: /scratch/prj/oliverpainfel/biomarkers-brc-mh/TWAS_resource/CMAP/2020_beta_01022022/level5_beta_all_n1201944x12328.gctx
@@ -48,6 +48,9 @@ gtex_weights: ["Brain_Amygdala","Brain_Anterior_cingulate_cortex_BA24","Brain_Ca
 
 # Specify TWAS FUSION non-GTEx panels
 non_gtex_weights: ["CMC.BRAIN.RNASEQ","CMC.BRAIN.RNASEQ_SPLICING","NTR.BLOOD.RNAARR","YFS.BLOOD.RNAARR"]
+
+# Specify external TWAS panels in FUSION format
+external_weights: F
 
 # Conditional analyss of TWAS results
 twas_conditional: T
