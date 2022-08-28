@@ -55,7 +55,7 @@ for(cat in unique(res_atc$atc_cat)){
   
   if(sum(class_bin == 1) > 5){
     
-    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T, alternative='greater')
+    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T)
     
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),

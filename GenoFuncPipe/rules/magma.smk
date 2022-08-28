@@ -157,3 +157,19 @@ rule format_magma_results:
     "Rscript scripts/format_magma_gsea_results.R \
     --gwas {wildcards.gwas}"
 
+# Compare TWAS signiture compared to enriched drugs in MAGMA
+rule comp_magma_gsea_twas_results:
+  input:
+    "results/{gwas}/magma/magma_drug_targetor_atc_res.csv",
+    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
+  output:
+    "results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/comp_magma_gsea_twas_results.R \
+    --gwas {wildcards.gwas}"
+
+
+
+

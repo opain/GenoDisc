@@ -45,7 +45,7 @@ for(cat in unique(res_atc$atc_cat)){
   if(sum(class_bin == 1) > 5){
     
     # Use wilcoxon test
-    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T, alternative='greater')
+    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T)
     
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
@@ -61,4 +61,31 @@ atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
 write.csv(atc_enrich, paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_',opt$panel,'_res_atc_res.csv'), row.names=F)
+
+# Test for enrichment for each level 4 ATC category
+res_atc$atc_cat_2<-substr(res_atc$Code, 1, 5) 
+atc_enrich_2<-NULL
+for(cat in unique(res_atc$atc_cat_2)){
+  class_bin<-rep(0, nrow(res_atc))
+  class_bin[res_atc$atc_cat_2 == cat]<-1
+  
+  if(sum(class_bin == 1) > 2){
+    
+    # Use wilcoxon test
+    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T)
+    
+    atc_enrich_2<-rbind(atc_enrich_2, data.frame(ATC=cat,
+                                             Estimate=as.numeric(wil_cox_res$estimate),
+                                             Class_Median=median(res_atc$Estimate[class_bin == 1]),
+                                             Non_Class_Median=median(res_atc$Estimate[class_bin == 0]),
+                                             P=wil_cox_res$p.value,
+                                             N=sum(class_bin)))
+  }
+}
+
+atc_labels<-atc[nchar(atc$Code) == 5,]
+atc_enrich_2<-merge(atc_enrich_2, atc_labels, by.x='ATC', by.y='Code')
+atc_enrich_2<-atc_enrich_2[order(atc_enrich_2$P),]
+
+write.csv(atc_enrich_2, paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_',opt$panel,'_res_atc_res_level4.csv'), row.names=F)
 

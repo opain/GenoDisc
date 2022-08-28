@@ -13,7 +13,7 @@ drugs<-unique(pathways$atc)
 for(i in 1:length(drugs)){
   drug_tmp<-pathways[pathways$atc == drugs[i],]
   
-  gene_id[[drugs[i]]]<-ifelse(gene_id$ID %in% drug_tmp$gene[drug_tmp$activity_type == 'DECREASED_EXPRESSION'], -1, ifelse(gene_id$ID %in% drug_tmp$gene[drug_tmp$activity_type == 'INCREASED_EXPRESSION'], 1, 0))
+  gene_id[[drugs[i]]]<-ifelse(gene_id$ID %in% drug_tmp$gene[drug_tmp$activity_type %in% c('DECREASED_EXPRESSION','NEGATIVE_RESPONSE','OPPOSITE_RESPONSE')], -1, ifelse(gene_id$ID %in% drug_tmp$gene[drug_tmp$activity_type %in% c('INCREASED_EXPRESSION','POSITIVE_RESPONSE')], 1, 0))
 }
 
 fwrite(gene_id, 'resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop', sep=',', quote=T, na='NA')

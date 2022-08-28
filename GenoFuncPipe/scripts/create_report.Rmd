@@ -234,7 +234,7 @@ cat("<details><summary>Clumped: GW-significant loci</summary> \n")
 
 ```{r, echo=FALSE, eval=any(clump_logical)}
 
-txt<-paste0("GWAS contain ",nrow(clump_lead_snps_gw)," independent (r2 < 0.1, 500kb) genome-wide significant variants (p < 5e-8).\n")
+txt<-paste0("GWAS contain ",nrow(clump_lead_snps_gw)," independent (r2 < 0.1, 500kb) genome-wide significant variants (p < 5e-8).\n\n")
 
 ```
 
@@ -269,7 +269,7 @@ cat("<details><summary>Clumped: Suggestive loci</summary> \n")
 
 ```{r, echo=FALSE, eval=any(clump_logical)}
 
-txt<-paste0("Clumping finds ",nrow(clump_lead_snps)," independent (r2 < 0.1, 500kb) suggestive significant variants (p < 1e-5).\n")
+txt<-paste0("Clumping finds ",nrow(clump_lead_snps)," independent (r2 < 0.1, 500kb) suggestive significant variants (p < 1e-5).\n\n")
 
 ```
             
@@ -321,7 +321,7 @@ cat("<details><summary>COJO: GW-significant loci</summary> \n")
 
 ```{r, echo=FALSE, eval=cojo_logical}
 
-txt<-paste0("COJO finds ",nrow(cojo_lead_snps_gw)," independent genome-wide significant variants (p < 5e-8).\n")
+txt<-paste0("COJO finds ",nrow(cojo_lead_snps_gw)," independent genome-wide significant variants (p < 5e-8).\n\n")
 
 ```
 
@@ -361,7 +361,7 @@ cat("<details><summary>COJO: Suggestive loci</summary> \n")
 
 ```{r, echo=FALSE, eval=cojo_logical}
 
-txt<-paste0("COJO finds ", nrow(cojo_lead_snps), " independent suggestive significant variants (p < 1e-5).\n")
+txt<-paste0("COJO finds ", nrow(cojo_lead_snps), " independent suggestive significant variants (p < 1e-5).\n\n")
 
 ```
 
@@ -534,7 +534,7 @@ datatable(twas_all_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=twas_logical}
 
-txt<-paste0("TWAS contain ",nrow(twas_all_clean)," transcriptome-wide significant and colocalised associations, including ",length(unique(twas_all_clean$`Gene Symbol`))," unique genes.\n")
+txt<-paste0("TWAS contain ",nrow(twas_all_clean)," transcriptome-wide significant and colocalised associations, including ",length(unique(twas_all_clean$`Gene Symbol`))," unique genes.\n\n")
 
 ```
 
@@ -738,19 +738,21 @@ datatable(smr_expression_res_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=smr_expression_logical}
 
-txt<-paste0("SMR contain ",nrow(smr_expression_res_clean)," transcriptome-wide significant and colocalised associations, including ",length(unique(smr_expression_res_clean$`Gene Symbol`))," unique genes.\n")
+txt<-paste0("SMR contain ",nrow(smr_expression_res_clean)," transcriptome-wide significant and colocalised associations, including ",length(unique(smr_expression_res_clean$`Gene Symbol`))," unique genes.\n\n")
 
 ```
 
 ```{r, echo=FALSE, eval=all(twas_logical, smr_expression_logical)}
 
-txt2<-paste0("TWAS and SMR together identified ",length(unique(c(twas_all_clean$`Gene Symbol`, smr_expression_res_clean$`Gene Symbol`))), " unique genes as transcriptome-wide significant and colocalised, of which ", length(unique(intersect(twas_all_clean$`Gene Symbol`, smr_expression_res_clean$`Gene Symbol`)))," were transcriptome-wide significant and colocalised in both TWAS and SMR.\n")
+txt2<-paste0("TWAS and SMR together identified ",length(unique(c(twas_all_clean$`Gene Symbol`, smr_expression_res_clean$`Gene Symbol`))), " unique genes as transcriptome-wide significant and colocalised, of which ", length(unique(intersect(twas_all_clean$`Gene Symbol`, smr_expression_res_clean$`Gene Symbol`)))," were transcriptome-wide significant and colocalised in both TWAS and SMR.\n\n")
 
 ```
 
 ```{r, results='asis', echo=FALSE, eval=smr_expression_logical}
 
 cat(txt)
+
+cat(txt2)
 
 cat("</details> \n")
 
@@ -1199,8 +1201,8 @@ cat("<details><summary>PWAS: ROSMAP-Banner et al. combined</summary> \n")
 ```{r, echo=FALSE, warning=F, eval=all(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
 
 # Combined the PWAS results across ROSMAP and Banner
-pwas_rosmap$PANEL<-'ROSMAP'
-pwas_banner$PANEL<-'Banner et al.'
+pwas_rosmap$PANEL<-'Brain - DLPFC (ROSMAP)'
+pwas_banner$PANEL<-'Brain - DLPFC (Banner et al.)'
 pwas_rosmap_banner_rbind<-rbind(
   pwas_rosmap[,c('PANEL','CHR','P0','P1','Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'),with=F],
   pwas_banner[,c('PANEL','CHR','P0','P1','Ensembl ID','Gene Symbol','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'),with=F])
@@ -1252,14 +1254,15 @@ magma<-fread(paste0('results/',params$gwas,'/magma/magma_gene_level.clean.csv'))
 
 magma$P.FDR<-p.adjust(magma$P, method = 'fdr')
 
-magma<-magma[which(magma$P.FDR < 0.05),]
 
 magma<-magma[order(magma$CHR, magma$START),]
 
-magma$P<-format(magma$P, scientific = TRUE, digits = 3)
-magma$P.FDR<-format(magma$P.FDR, scientific = TRUE, digits = 3)
+magma_clean<-magma
+magma_clean<-magma_clean[which(magma_clean$P.FDR < 0.05),]
+magma_clean$P<-format(magma_clean$P, scientific = TRUE, digits = 3)
+magma_clean$P.FDR<-format(magma_clean$P.FDR, scientific = TRUE, digits = 3)
 
-datatable(magma, rownames= FALSE)
+datatable(magma_clean, rownames= FALSE)
 
 ```
 
@@ -1373,7 +1376,7 @@ if(smr_expression_logical){
 }
 
 # PWAS
-if(pwas_panel_rosmap_logical){
+if(pwas_panel_rosmap_logical & !(pwas_panel_rosmap_logical & pwas_panel_banner_logical)){
   
   pwas_rosmap_tmp<-pwas_rosmap
   pwas_rosmap_tmp<-pwas_rosmap_tmp[,c('Gene Symbol','TWAS.Z'), with=F]
@@ -1392,7 +1395,7 @@ if(pwas_panel_rosmap_logical){
   types<-c(types, "FUSION\nProtein")
 }
 
-if(pwas_panel_banner_logical){
+if(pwas_panel_banner_logical & !(pwas_panel_rosmap_logical & pwas_panel_banner_logical)){
   
   pwas_banner_tmp<-pwas_banner
   pwas_banner_tmp<-pwas_banner_tmp[,c('Gene Symbol','TWAS.Z'), with=F]
@@ -1408,6 +1411,24 @@ if(pwas_panel_banner_logical){
   
   all_func_res<-rbind(all_func_res, pwas_banner_tmp)
   types<-c(types, "FUSION\nProtein")
+}
+
+if(pwas_panel_rosmap_logical & pwas_panel_banner_logical){
+
+  pwas_rosmap_banner_rbind_tmp<-pwas_rosmap_banner_rbind
+  pwas_rosmap_banner_rbind_tmp<-pwas_rosmap_banner_rbind_tmp[,c('PANEL','Gene Symbol','TWAS.Z'), with=F]
+  pwas_rosmap_banner_rbind_tmp$Sig<-pwas_rosmap_banner_rbind$TWAS.P.FDR < 0.05
+  pwas_rosmap_banner_rbind_tmp$Coloc<-(pwas_rosmap_banner_rbind$COLOC.PP4-pwas_rosmap_banner_rbind$COLOC.PP3)/pwas_rosmap_banner_rbind$COLOC.PP4 > 0.8
+  pwas_rosmap_banner_rbind_tmp<-pwas_rosmap_banner_rbind_tmp[,c('PANEL','Gene Symbol','TWAS.Z','Sig','Coloc'), with=F]
+  names(pwas_rosmap_banner_rbind_tmp)<-c('Panel','ID','Z','Sig','Coloc')
+  pwas_rosmap_banner_rbind_tmp<-pwas_rosmap_banner_rbind_tmp[order(-abs(pwas_rosmap_banner_rbind_tmp$Z)),]
+  pwas_rosmap_banner_rbind_tmp<-pwas_rosmap_banner_rbind_tmp[!duplicated(paste0(pwas_rosmap_banner_rbind_tmp$Panel, pwas_rosmap_banner_rbind_tmp$ID)),]
+  pwas_rosmap_banner_rbind_tmp$Method<-'FUSION'
+  pwas_rosmap_banner_rbind_tmp$Type<-'Protein'
+  
+  all_func_res<-rbind(all_func_res, pwas_rosmap_banner_rbind_tmp)
+  types<-c(types, "FUSION\nProtein")
+  
 }
 
 if(smr_protein_panel_rosmap_logical){
@@ -1553,13 +1574,15 @@ for(chunk_i in 1:length(chunks)){
   
   }
   
-  png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=40*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
+  png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=40*length(unique(all_func_res_all_chunk_i$ID))+800, width=3750)
   
   grid.draw(gt)
   
   a<-dev.off()
 
 }
+
+txt<-paste0("In total, ",length(unique(all_func_res_all$ID))," unique genes have been identified as high confidence.\n\n")
 
 ```
 
@@ -1571,6 +1594,8 @@ cat("<details><summary>Comparison of Methods</summary> \n")
     cat(paste0("![](../results/",params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,".png)\n\n"))
 
   }
+
+cat(txt)
 
 cat("</details>  \n")
 
@@ -1832,13 +1857,18 @@ gsea_cmap_atc_all<-NULL
 for(i in weights){
   gsea_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_',i,'_res_atc_res.csv'))
   gsea_cmap_atc$Panel<-i
+  # Calc one-sided p
+  gsea_cmap_atc$P.oneside<-gsea_cmap_atc$P/2
+  gsea_cmap_atc$P.oneside[gsea_cmap_atc$Estimate < 0] <- 1-gsea_cmap_atc$P.oneside[gsea_cmap_atc$Estimate < 0]
   gsea_cmap_atc$P.FDR<-p.adjust(gsea_cmap_atc$P, method = 'fdr')
   gsea_cmap_atc_all<-rbind(gsea_cmap_atc_all, gsea_cmap_atc)
 }
 
+gsea_cmap_atc_all$P.FDR_all<-p.adjust(gsea_cmap_atc_all$P, method = 'fdr')
+
 # Calculate combined ATC enrichment results
 # Make matrix of drug enrichment results, averaging across cell lines
-gsea_cmap_all_mat<-dcast(gsea_cmap_all[,c('sig_id','cell_iname','Estimate','Panel'),with=F], formula = sig_id ~ Panel, value.var = 'Estimate', fun.aggregate = mean) 
+gsea_cmap_all_mat<-dcast(gsea_cmap_all[,c('cmap_name','cell_iname','Estimate','Panel'),with=F], formula = cmap_name ~ Panel, value.var = 'Estimate', fun.aggregate = mean) 
 
 # Create correlation marix across panels
 panel_cor<-cor(gsea_cmap_all_mat[,-1], use='p')
@@ -1849,7 +1879,7 @@ for(i in unique(gsea_cmap_atc_all$ATC)){
   tmp<-gsea_cmap_atc_all[gsea_cmap_atc_all$ATC == i,]
   
   # Combine p-values using Brown's method
-  brown_p<-fisher(tmp$P, adjust='generalized', R=panel_cor[tmp$Panel, tmp$Panel])$p
+  brown_p<-fisher(tmp$P.oneside, adjust='generalized', R=mvnconv(panel_cor[tmp$Panel, tmp$Panel], side=1))$p
   
   gsea_cmap_atc_brown<-rbind(gsea_cmap_atc_brown, data.frame(Panel='All',
                                                              ATC=i,
@@ -1984,12 +2014,19 @@ gsea_drugtargetor_atc_all<-NULL
 for(i in weights){
   gsea_drugtargetor_atc<-fread(paste0('results/',params$gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
   gsea_drugtargetor_atc$Panel<-i
+  # Calc. one-sided p
+  gsea_drugtargetor_atc$P.oneside<-gsea_drugtargetor_atc$P/2
+  gsea_drugtargetor_atc$P.oneside[gsea_drugtargetor_atc$Estimate < 0] <- 1-gsea_drugtargetor_atc$P.oneside[gsea_drugtargetor_atc$Estimate < 0]
   gsea_drugtargetor_atc$P.FDR<-p.adjust(gsea_drugtargetor_atc$P, method = 'fdr')
+  gsea_drugtargetor_atc$P.FDR.onside<-p.adjust(gsea_drugtargetor_atc$P.onside, method = 'fdr')
   gsea_drugtargetor_atc_all<-rbind(gsea_drugtargetor_atc_all, gsea_drugtargetor_atc)
 }
 
+gsea_drugtargetor_atc_all$P.FDR_all<-p.adjust(gsea_drugtargetor_atc_all$P, method = 'fdr')
+gsea_drugtargetor_atc_all$P.FDR.onside_all<-p.adjust(gsea_drugtargetor_atc_all$P.oneside, method = 'fdr')
+
 # Calculate combined ATC enrichment results
-# Make matrix of drug enrichment results, averaging across cell lines
+# Make matrix of drug enrichment results
 gsea_drugtargetor_all_mat<-dcast(gsea_drugtargetor_all[,c('NAME','Panel','Estimate'),with=F], formula = NAME ~ Panel, value.var = 'Estimate', fun.aggregate = mean) 
 
 # Create correlation marix across panels
@@ -2004,11 +2041,11 @@ for(i in unique(gsea_drugtargetor_atc_all$ATC)){
                                                              ATC=i,
                                                              Name=gsea_drugtargetor_atc_all$Name[gsea_drugtargetor_atc_all$ATC == i][1],
                                                              Z=-qnorm(tmp$P/2),
-                                                             P=tmp$P))
+                                                             P=tmp$P.oneside))
   } else {
     
     # Combine p-values using Brown's method
-    brown_p<-fisher(tmp$P, adjust='generalized', R=panel_cor[tmp$Panel, tmp$Panel])$p
+    brown_p<-fisher(tmp$P.oneside, adjust='generalized', R=mvnconv(panel_cor[tmp$Panel, tmp$Panel], side=2))$p
     
     gsea_drugtargetor_atc_brown<-rbind(gsea_drugtargetor_atc_brown, data.frame(Panel='All',
                                                                ATC=i,
