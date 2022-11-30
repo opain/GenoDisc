@@ -88,7 +88,7 @@ rule create_report:
   conda:
     "../envs/GenoFunc.yaml"
   params:
-    config_file= config["config_file"],
+    config_file= config["config_file"]
   shell:
     "mkdir -p results/{wildcards.gwas}/reports; Rscript -e \"rmarkdown::render(\'scripts/create_report.Rmd\', \
      output_file = \'../results/{wildcards.gwas}/reports/{wildcards.gwas}_report.html\', \

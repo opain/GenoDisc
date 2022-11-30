@@ -12,6 +12,7 @@ library(data.table)
 
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+biomartCacheClear()
 Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
 
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]

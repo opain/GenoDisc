@@ -387,9 +387,12 @@ checkpoint combine_twas_res:
     "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   conda: 
     "../envs/GenoFunc.yaml"
+  params:
+    config_file= config["config_file"]
   shell:
     "Rscript scripts/combine_twas.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config {params.config_file}"
 
 # Identify chromosomes with significant associations
 from pathlib import Path

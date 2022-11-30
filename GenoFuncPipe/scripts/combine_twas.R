@@ -3,7 +3,9 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),
+  make_option("--config", action="store", default=NA, type='character',
+              help="config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -11,8 +13,27 @@ opt = parse_args(OptionParser(option_list=option_list))
 library(data.table)
 library(biomaRt)
 
-weights<-basename(list.dirs(paste0('results/',opt$gwas,'/twas/')))[-1]
-weights<-weights[!(weights %in% c('conditional','cmap','drugtargetor'))]
+config<-readLines(opt$config)
+
+gtex_weights<-config[grepl('^gtex_weights', config)]
+gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',gtex_weights))),','))
+
+non_gtex_weights<-config[grepl('^non_gtex_weights', config)]
+non_gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',non_gtex_weights))),','))
+
+weights<-c(gtex_weights, non_gtex_weights)
+
+psychencode_weights_log<-config[grepl('^twas_panel_psychencode:', config)]
+if(psychencode_weights_log == "twas_panel_psychencode: T"){
+  weights<-c(weights, 'psychencode')
+}
+
+external_weights_log<-config[grepl('^external_weights:', config)]
+if(external_weights_log == "external_weights: T"){
+  external_weights<-config[grepl('^external_weights_pos_path', config)]
+  external_weights<-gsub('.pos','',basename(unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',external_weights))),','))))
+  weights<-c(weights, external_weights)
+}
 
 # Write out this list of SNP-weights as this might be useful elsewhere
 write.table(weights, paste0('results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
