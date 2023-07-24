@@ -157,7 +157,7 @@ rule run_psychencode_smr:
 
 rule run_psychencode_smr_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/psychencode_smr_all_chr.done")
 
@@ -182,7 +182,7 @@ rule run_eqtlgen_smr:
 
 rule run_eqtlgen_smr_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/eqtlgen_smr_all_chr.done")
       
@@ -219,7 +219,7 @@ rule run_rosmap_smr:
 
 rule run_rosmap_smr_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/rosmap_smr_all_chr.done")
 
@@ -273,7 +273,7 @@ rule run_smr_analysis_MetaBrain_Cerebellum:
 
 rule run_smr_analysis_MetaBrain_Cortex:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Cortex/{gwas}_smr_metabrain_Cortex_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Cortex/{gwas}_smr_metabrain_Cortex_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_cortex_all_chr.done')
 

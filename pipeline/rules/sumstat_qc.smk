@@ -125,7 +125,7 @@ rule sumstat_prep:
       --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
     
 rule run_sumstat_prep:
-  input: expand("{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz", gwas=gwas_list_df_eur['name'])
+  input: expand("{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz", gwas=gwas_list_df_eur['name'], outdir={outdir})
 
 ###
 # Munge sumstats
@@ -199,7 +199,7 @@ rule clump:
 
 rule clump_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/clump_all_chr.done")
 
@@ -250,7 +250,7 @@ rule cojo:
 
 rule cojo_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/cojo_all_chr.done")
 

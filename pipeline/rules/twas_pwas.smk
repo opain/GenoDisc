@@ -312,13 +312,13 @@ rule run_twas:
 
 rule twas_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done")
 
 rule twas_all_panel:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done", gwas=w.gwas, weight=weights)
+      lambda w: expand("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done", gwas=w.gwas, weight=weights, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/twas_all_panel.done")
 
@@ -341,8 +341,8 @@ checkpoint combine_twas_res:
 from pathlib import Path
 
 def sig_chr_munge(x):
-    checkpoint_output = checkpoints.combine_twas_res.get(gwas=x).output[0]
-    checkpoint_output = "results/" + x + "/twas/" + x + "_twas_sig_chr.txt"
+    checkpoint_output = checkpoints.combine_twas_res.get(gwas=x, outdir=outdir).output[0]
+    checkpoint_output = outdir + "/results/" + x + "/twas/" + x + "_twas_sig_chr.txt"
     sig_chr_df = pd.read_table(checkpoint_output, sep=' ')
     return sig_chr_df['x'].tolist()
 
@@ -374,7 +374,7 @@ rule run_conditional:
 
 rule conditional:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done", gwas=w.gwas, chr=sig_chr_munge("{}".format(w.gwas)))
+      lambda w: expand("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done", gwas=w.gwas, chr=sig_chr_munge("{}".format(w.gwas)), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/conditional_all_chr.done")
 
@@ -421,7 +421,7 @@ rule run_rosmap_pwas:
 
 rule rosmap_pwas_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done")
 
@@ -520,7 +520,7 @@ rule format_twas_gsea_drugtargetor_results:
     
 rule format_twas_gsea_drugtargetor_results_all_panel:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
 

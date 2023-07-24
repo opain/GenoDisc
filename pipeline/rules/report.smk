@@ -86,5 +86,5 @@ rule create_report:
      params = list(gwas = \'{wildcards.gwas}\', config_file = \'{params.config_file}\'))\""
 
 rule run_create_report:
-  input: expand("{outdir}/results/{gwas}/reports/{gwas}_report.html", gwas=gwas_list_df_eur['name'])
+  input: expand("{outdir}/results/{gwas}/reports/{gwas}_report.html", gwas=gwas_list_df_eur['name'], outdir={outdir})
 
