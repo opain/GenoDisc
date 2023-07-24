@@ -43,18 +43,6 @@ rule install_snp_weight_pipe:
     "git clone git@github.com:opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}"
 
 ####
-# Install cmapR R package
-####
-
-rule install_cmapR:
-  output:
-    "resources/software/install_cmapR.done"
-  conda: 
-    "../envs/main.yaml"
-  shell:
-    "Rscript scripts/install_cmapR.R"
-
-####
 # Dowload data for TWAS related analysis
 ####
 
@@ -145,37 +133,6 @@ rule download_glist:
     "wget -P resources/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19"
 
 ####
-# Download LINCS 1000 data
-####
-
-# This should be done in advance as the file is very large.
-# The location of the file should be specific in the config.yaml file.
-# I have downloaded the the following files: 
-# - https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/level5/level5_beta_all_n1201944x12328.gctx
-# - https://s3.amazonaws.com/macchiato.clue.io/builds/LINCS2020/siginfo_beta.txt
-
-####
-# Format LINCS data
-####
-# Subset LINCS data to compounds with dose=10uM and time=24 hour 
-# Convert Entrez IDs to ENSEMBL IDs
-
-rule subset_lincs:
-  input:
-    rules.install_cmapR.output
-  output:
-    "resources/data/lincs/subset_lincs.done"
-  conda: 
-    "../envs/main.yaml"
-  params:
-    lincs_level5= config["lincs_level5"],
-    lincs_siginfo= config["lincs_siginfo"]
-  shell:
-    "Rscript scripts/subset_lincs.R \
-      --lincs_level5_path {params.lincs_level5} \
-      --lincs_siginfo_path {params.lincs_siginfo}"
-
-####
 # Download TWAS-GSEA
 ####
 
@@ -186,20 +143,6 @@ rule install_twas_gsea:
     "../envs/main.yaml"
   shell:
     "git clone git@github.com:opain/TWAS-GSEA.git {output}"
-
-####
-# Format the CMAP data for TWAS-GSEA
-####
-
-rule format_lincs_for_twas_gsea:
-  input:
-    rules.subset_lincs.output
-  output:
-    "resources/data/lincs/lincs_core_subset.txt.gz"
-  conda: 
-    "../envs/main.yaml"
-  shell:
-    "Rscript scripts/format_lincs_for_twas_gsea.R"
 
 ####
 # Download FeaturePred
@@ -290,7 +233,7 @@ rule feature_pred:
       --n_cores 5 \
     	--output resources/data/predicted_expression/{wildcards.weight}"
 
-# Format expression data for TWAs-GSEA (i.e. remove PANEL from column names)
+# Format expression data for TWAS-GSEA (i.e. remove PANEL from column names)
 rule format_pred:
   input:
     "resources/data/predicted_expression/{weight}/Reference_Expression/Reference_Expression_{weight}.txt.gz"
@@ -513,131 +456,6 @@ rule banner_pwas_all_chr:
     output: 
       touch("results/{gwas}/checks/banner_pwas_all_chr.done")
 
-####
-# Run So et al. analysis
-####
-
-# To enable the analysis to be run in parallel for each GWAS, I have split the So et al code into two parts.
-# The LINCS data has been slit into 10 batches.
-# Step 1 runs the pearson, spearman and KS tests on each batch of pertubagens seperately.
-# Step 2 combines the results across all batches, estimates the average ranks, and calculates the p-value.
-
-rule so_cmap_step1:
-  input:
-    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
-    rules.install_cmapR.output,
-    rules.subset_lincs.output
-  output:
-    "results/{gwas}/twas/cmap/res_{weight}_batch_{batch}.RDS"
-  conda: 
-    "../envs/main.yaml"
-  shell:
-    "Rscript scripts/so_cmap_step1.R \
-    --twas {wildcards.gwas} \
-    --panel {wildcards.weight} \
-    --batch {wildcards.batch}"
-
-rule so_cmap_step1_all_batch:
-    input: 
-      lambda w: expand("results/{gwas}/twas/cmap/res_{weight}_batch_{batch}.RDS", gwas=w.gwas, batch=range(1, 11), weight=w.weight)
-    output: 
-      touch("results/{gwas}/checks/so_cmap_step1_{weight}_all_batch.done")
-
-rule so_cmap_step2:
-  input:
-    "results/{gwas}/checks/so_cmap_step1_{weight}_all_batch.done"
-  output:
-    "results/{gwas}/twas/cmap/So_res_{weight}.csv"
-  conda: 
-    "../envs/main.yaml"
-  shell:
-    "Rscript scripts/so_cmap_step2.R \
-    --twas {wildcards.gwas} \
-    --panel {wildcards.weight}"
-
-# Format the so et al results 
-rule format_so_results:
-  input:
-    "results/{gwas}/twas/cmap/So_res_{weight}.csv",
-    rules.download_atc.output
-  output:
-    "results/{gwas}/twas/cmap/atc_res_{weight}.csv"
-  conda: 
-    "../envs/main.yaml"
-  params:
-    lincs_siginfo= config["lincs_siginfo"]
-  shell:
-    "Rscript scripts/format_so_results.R \
-    --twas {wildcards.gwas} \
-    --panel {wildcards.weight} \
-    --lincs_siginfo_path {params.lincs_siginfo}"
-
-rule format_so_results_all_panel:
-    input: 
-      lambda w: expand("results/{gwas}/twas/cmap/atc_res_{weight}.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
-    output: 
-      touch("results/{gwas}/checks/format_so_results_all_panel.done")
-
-
-###
-# TWAS-GSEA
-###
-
-# Run TWAS-GSEA
-rule run_twas_gsea:
-  resources: 
-    mem_mb=50000,
-    cpus=5
-  input:
-    rules.install_twas_gsea.output,
-    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
-    rules.format_lincs_for_twas_gsea.output,
-    "resources/data/predicted_expression/format_pred_{weight}.done",
-    rules.install_lme4qtl.output
-  output:
-    touch("results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done")
-  conda:
-    "../envs/main.yaml"
-  shell:
-    "Rscript resources/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
-      --twas_results results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
-      --pos resources/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
-    	--prop_file resources/data/lincs/lincs_core_subset.txt.gz \
-    	--expression_ref resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
-    	--n_cores 5 \
-    	--covar GeneLength,NSNP \
-    	--use_alt_id ensembl_gene_id \
-    	--linear_p_thresh 1 \
-    	--min_Ngenes 2 \
-    	--save_CorMat F \
-    	--min_r2 0.01 \
-    	--qqplot F \
-    	--directional T \
-    	--output results/{wildcards.gwas}/twas/cmap/twas_gsea_cmap_{wildcards.weight}"
-
-# Format TWAS-GSEA results
-rule format_twas_gsea_results:
-  input:
-    "results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done",
-    rules.download_atc.output
-  output:
-    "results/{gwas}/twas/cmap/twas_gsea_{weight}_res_atc_res.csv"
-  conda: 
-    "../envs/main.yaml"
-  params:
-    lincs_siginfo= config["lincs_siginfo"]
-  shell:
-    "Rscript scripts/format_twas_gsea_results.R \
-    --twas {wildcards.gwas} \
-    --panel {wildcards.weight} \
-    --lincs_siginfo_path {params.lincs_siginfo}"
-    
-rule format_twas_gsea_results_all_panel:
-    input: 
-      lambda w: expand("results/{gwas}/twas/cmap/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
-    output: 
-      touch("results/{gwas}/checks/format_twas_gsea_results_all_panel.done")
-      
 #######
 # Run TWAS-GSEA using DrugTargetor sets
 #######
