@@ -25,7 +25,7 @@ dir.create('resources/data/rosmap_smr/')
 fwrite(pQTL_mat, 'resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt', sep=' ', quote=F, na='NA')
 
 # Convert to BESD format for SMR
-system(paste0('resources/software/smr/smr_Linux --eqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt --matrix-eqtl-format --make-besd --out resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd'))
+system(paste0('resources/software/smr/smr_linux_x86_64 --eqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt --matrix-eqtl-format --make-besd --out resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd'))
 
 # Update the .esi files
 pQTL<-fread(opt$rosmap)
@@ -75,9 +75,9 @@ epi_new<-epi_new[,c('Protein_Chr','V2','POS','Protein_BP_Start','Protein_GeneSym
 fwrite(epi_new, 'resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi_update', sep=' ', quote=F, na='NA')
 
 # Update the esi
-system(paste0('resources/software/smr/smr_Linux --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd --update-esi resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.esi_update'))
+system(paste0('resources/software/smr/smr_linux_x86_64 --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd --update-esi resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.esi_update'))
 
 # Update the epi
-system(paste0('resources/software/smr/smr_Linux --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd --update-epi resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi_update'))
+system(paste0('resources/software/smr/smr_linux_x86_64 --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd --update-epi resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi_update'))
 
 
