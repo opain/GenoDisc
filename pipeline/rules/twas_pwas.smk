@@ -287,8 +287,8 @@ rule run_twas:
   resources:
     mem_mb=20000
   input:
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
     rules.install_fusion.output,
     rules.install_plink2R.output,
     rules.prep_1kg.output,
@@ -296,12 +296,12 @@ rule run_twas:
     rules.update_gtex_coord_all_panel.input,
     rules.insert_n_nongtex_all_panel.input,
   output:
-    "results/{gwas}/twas/{weights}/{gwas}_twas_{weights}_chr{chr}"
+    "{outdir}/results/{gwas}/twas/{weights}/{gwas}_twas_{weights}_chr{chr}"
   conda: 
     "../envs/main.yaml"
   shell:
-    "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
-    --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+    "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
+    --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights resources/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir resources/data/fusion_snp_weights/{wildcards.weights} \
     --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
@@ -312,22 +312,22 @@ rule run_twas:
 
 rule twas_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23))
     output: 
-      touch("results/{gwas}/checks/twas_{weight}_all_chr.done")
+      touch("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done")
 
 rule twas_all_panel:
     input: 
-      lambda w: expand("results/{gwas}/checks/twas_{weight}_all_chr.done", gwas=w.gwas, weight=weights)
+      lambda w: expand("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done", gwas=w.gwas, weight=weights)
     output: 
-      touch("results/{gwas}/checks/twas_all_panel.done")
+      touch("{outdir}/results/{gwas}/checks/twas_all_panel.done")
 
 # Combine TWAS results
 checkpoint combine_twas_res:
   input:
-    "results/{gwas}/checks/twas_all_panel.done"
+    "{outdir}/results/{gwas}/checks/twas_all_panel.done"
   output:
-    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   conda: 
     "../envs/main.yaml"
   params:
@@ -354,19 +354,19 @@ rule run_conditional:
   resources: 
     mem_mb=get_mem_mb_cond 
   input:
-    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
     rules.download_glist.output
   output:
-    touch("results/{gwas}/checks/run_conditional_{gwas}_{chr}.done")
+    touch("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done")
   conda: 
     "../envs/main.yaml"
   shell:
-    "mkdir -p results/{wildcards.gwas}/twas/conditional; Rscript resources/software/fusion/FUSION.post_process.R \
-      --input results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
-      --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+    "mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript resources/software/fusion/FUSION.post_process.R \
+      --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
+      --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
       --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
-      --out results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
+      --out {outdir}/results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --save_loci \
       --ldsc F \
@@ -374,16 +374,16 @@ rule run_conditional:
 
 rule conditional:
     input: 
-      lambda w: expand("results/{gwas}/checks/run_conditional_{gwas}_{chr}.done", gwas=w.gwas, chr=sig_chr_munge("{}".format(w.gwas)))
+      lambda w: expand("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done", gwas=w.gwas, chr=sig_chr_munge("{}".format(w.gwas)))
     output: 
-      touch("results/{gwas}/checks/conditional_all_chr.done")
+      touch("{outdir}/results/{gwas}/checks/conditional_all_chr.done")
 
 # Process conditional results
 rule process_conditional:
   input: 
-    "results/{gwas}/checks/conditional_all_chr.done"
+    "{outdir}/results/{gwas}/checks/conditional_all_chr.done"
   output:
-    "results/{gwas}/twas/{gwas}_twas_novelty.csv"
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv"
   conda:
     "../envs/main.yaml"
   shell:
@@ -398,18 +398,18 @@ rule process_conditional:
 rule run_rosmap_pwas:
   resources: mem_mb=20000 
   input:
-    sumstats="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    neff_txt="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    sumstats="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    neff_txt="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
     fusion=rules.install_fusion.output,
     plink2R=rules.install_plink2R.output,
     format_psychencode=rules.format_pwas_data.output,
     prep_1kg=rules.prep_1kg.output
   output:
-    "results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}"
+    "{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}"
   conda: 
     "../envs/main.yaml"
   shell:
-    "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
+    "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights resources/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir resources/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
@@ -421,26 +421,26 @@ rule run_rosmap_pwas:
 
 rule rosmap_pwas_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=range(1, 23))
     output: 
-      touch("results/{gwas}/checks/rosmap_pwas_all_chr.done")
+      touch("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done")
 
 # Run twas using Banner SNP-weights
 rule run_banner_pwas:
   resources: mem_mb=20000 
   input:
-    sumstats="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    neff_txt="resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    sumstats="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    neff_txt="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
     fusion=rules.install_fusion.output,
     plink2R=rules.install_plink2R.output,
     format_psychencode=rules.format_pwas_data.output,
     prep_1kg=rules.prep_1kg.output
   output:
-    "results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}"
+    "{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}"
   conda: 
     "../envs/main.yaml"
   shell:
-    "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
+    "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights resources/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir resources/data/banner_twas/Banner.n152.fusion.WEIGHTS \
@@ -452,9 +452,9 @@ rule run_banner_pwas:
 
 rule banner_pwas_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23))
     output: 
-      touch("results/{gwas}/checks/banner_pwas_all_chr.done")
+      touch("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done")
 
 #######
 # Run TWAS-GSEA using DrugTargetor sets
@@ -479,17 +479,17 @@ rule run_twas_gsea_drug_targetor:
     cpus=5
   input:
     rules.install_twas_gsea.output,
-    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
     rules.format_drug_targetor_for_twas_gsea.output,
     "resources/data/predicted_expression/format_pred_{weight}.done",
     rules.install_lme4qtl.output
   output:
-    touch("results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
+    touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
   conda:
     "../envs/main.yaml"
   shell:
     "Rscript resources/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
-      --twas_results results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
+      --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
       --pos resources/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
     	--prop_file resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop \
     	--expression_ref resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
@@ -502,15 +502,15 @@ rule run_twas_gsea_drug_targetor:
     	--min_r2 0.01 \
     	--qqplot F \
     	--directional T \
-    	--output results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight}"
+    	--output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight}"
     	
 # Format the output
 rule format_twas_gsea_drugtargetor_results:
   input:
-    "results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done",
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done",
     rules.download_atc.output
   output:
-    "results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
   conda: 
     "../envs/main.yaml"
   shell:
@@ -520,7 +520,7 @@ rule format_twas_gsea_drugtargetor_results:
     
 rule format_twas_gsea_drugtargetor_results_all_panel:
     input: 
-      lambda w: expand("results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice)
     output: 
-      touch("results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
+      touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
 

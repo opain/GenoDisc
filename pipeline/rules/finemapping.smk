@@ -9,10 +9,10 @@ rule finemap:
   resources: 
     mem_mb=get_mem_mb_fine 
   input:
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
-    "results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
+    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
+    "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   output:
-    "results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
+    "{outdir}/results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
   conda:
     "../envs/main.yaml"
   params:
@@ -24,9 +24,9 @@ rule finemap:
 
 rule finemap_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/checks/{gwas}.chr{chr}.finemap.done", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}.chr{chr}.finemap.done", gwas=w.gwas, chr=range(1, 23))
     output: 
-      touch("results/{gwas}/checks/finemap_all_chr.done")
+      touch("{outdir}/results/{gwas}/checks/finemap_all_chr.done")
 
 #################
 # Process SuSiE results
@@ -34,9 +34,9 @@ rule finemap_all_chr:
 
 rule process_finemap:
   input:
-    "results/{gwas}/checks/finemap_all_chr.done"
+    "{outdir}/results/{gwas}/checks/finemap_all_chr.done"
   output:
-    "results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:
     "../envs/main.yaml"
   shell:
