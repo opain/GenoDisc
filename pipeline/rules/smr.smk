@@ -6,7 +6,7 @@ rule download_smr:
   output:
     "resources/software/smr/smr_Linux"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/software/smr; wget -O resources/software/smr/smr_Linux.zip https://yanglab.westlake.edu.cn/software/smr/download/smr_Linux.zip; unzip resources/software/smr/smr_Linux.zip -d resources/software/smr; rm resources/software/smr/smr_Linux.zip"
 
@@ -21,7 +21,7 @@ rule format_rosmap_smr_data:
   output:
     "resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     rosmap_smr= config["rosmap_smr"],
   shell:
@@ -36,7 +36,7 @@ rule download_psychencode_smr:
   output:
     directory("resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/psychencode_smr; wget --no-check-certificate -O resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz; tar -xvzf resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz -C resources/data/psychencode_smr; rm resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz"
 
@@ -49,7 +49,7 @@ rule download_MetaBrain_Basalganglia:
   output: 
     directory("resources/data/MetaBrain/Basalganglia")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "mkdir -p resources/data/MetaBrain/Basalganglia; wget -O resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Basalganglia-EUR/2020-05-26-Basalganglia-EUR-smr.zip; unzip -d resources/data/MetaBrain/Basalganglia/ resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip; rm resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip"
 
@@ -58,7 +58,7 @@ rule download_MetaBrain_Cerebellum:
   output: 
     directory("resources/data/MetaBrain/Cerebellum")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "mkdir -p resources/data/MetaBrain/Cerebellum; wget -O resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cerebellum-EUR/2020-05-26-Cerebellum-EUR-smr.zip; unzip -d resources/data/MetaBrain/Cerebellum/ resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip; rm resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip"
 
@@ -67,7 +67,7 @@ rule download_MetaBrain_Cortex:
   output: 
     directory("resources/data/MetaBrain/Cortex")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "mkdir -p resources/data/MetaBrain/Cortex; wget -O resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cortex-EUR/2020-05-26-Cortex-EUR-smr.zip; unzip -d resources/data/MetaBrain/Cortex/ resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip; rm resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip"
 
@@ -76,7 +76,7 @@ rule download_MetaBrain_Hippocampus:
   output: 
     directory("resources/data/MetaBrain/Hippocampus")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "mkdir -p resources/data/MetaBrain/Hippocampus; wget -O resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Hippocampus-EUR/2020-05-26-Hippocampus-EUR-smr.zip; unzip -d resources/data/MetaBrain/Hippocampus/ resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip; rm resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip"
 
@@ -85,7 +85,7 @@ rule download_MetaBrain_Spinalcord:
   output: 
     directory("resources/data/MetaBrain/Spinalcord")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "mkdir -p resources/data/MetaBrain/Spinalcord; wget -O resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip https://download.metabrain.nl/2020-05-26-CisEQTLSummaryStats/2020-05-26-Spinalcord-EUR/2020-05-26-Spinalcord-EUR-smr.zip; unzip -d resources/data/MetaBrain/Spinalcord/ resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip; rm resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip"
 
@@ -104,7 +104,7 @@ rule format_metabrain_esi:
   output: 
     touch("resources/data/MetaBrain/format_MetaBrain_esi.out")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "Rscript scripts/format_metabrain_esi.R"
 
@@ -113,7 +113,7 @@ rule download_eqtlgen:
   output: 
     touch("resources/data/eqtlgen.done")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell: 
     "mkdir resources/data/eqtlgen; wget -O resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz https://molgenis26.gcc.rug.nl/downloads/eqtlgen/cis-eqtl/SMR_formatted/cis-eQTL-SMR_20191212.tar.gz; tar -xvzf resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz -C resources/data/eqtlgen/; rm resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz; gunzip resources/data/eqtlgen/*"
 
@@ -131,7 +131,7 @@ rule format_sumstats_smr:
   output:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_sumstats_smr.R \
       --gwas {wildcards.gwas}"
@@ -147,7 +147,7 @@ rule run_psychencode_smr:
   output:
     "results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "resources/software/smr/smr_Linux \
     --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
@@ -172,7 +172,7 @@ rule run_eqtlgen_smr:
   output:
     "results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "resources/software/smr/smr_Linux \
     --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
@@ -193,7 +193,7 @@ rule format_eqtlgen_smr:
   output:
     "results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_eqtlgen_smr.R \
     --gwas {wildcards.gwas}"
@@ -209,7 +209,7 @@ rule run_rosmap_smr:
   output:
     "results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "resources/software/smr/smr_Linux \
     --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
@@ -230,7 +230,7 @@ rule process_rosmap_smr:
   output:
     "results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/process_rosmap_smr.R \
     --gwas {wildcards.gwas}"
@@ -250,7 +250,7 @@ rule smr_analysis_MetaBrain:
   output:
     "results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "resources/software/smr/smr_Linux \
       --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
@@ -319,7 +319,7 @@ rule format_metabrain_smr:
   output:
     "results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_metabrain_smr.R \
     --gwas {wildcards.gwas}"
