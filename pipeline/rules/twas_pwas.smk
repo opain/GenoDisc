@@ -40,7 +40,7 @@ rule install_snp_weight_pipe:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone git@github.com:opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}"
+    "git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}"
 
 ####
 # Dowload data for TWAS related analysis
