@@ -1,0 +1,10 @@
+name path population sampling prevalence mean sd label
+SCZ /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ/SCZ.reformat.gz EUR 0.5 0.01 NA NA SCZ
+MDD /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/MDD/MDD.reformat.gz EUR 0.5 0.15 NA NA MDD
+BIP /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/BIP/BIP.reformat.gz EUR 0.5 0.01 NA NA BIP
+ASD /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/ASD/AUTI07.gz EUR 0.5 0.012 NA NA ASD
+ADHD /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/ADHD/ADHD05.gz EUR 0.5 0.05 NA NA ADHD
+ALS /scratch/prj/oliverpainfel/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_only_reformat.txt.gz EUR 0.5 0.0033 NA NA ALS
+ALZ /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/ALZ/ALZ.reformat.gz EUR 0.5 0.05 NA NA ALZ
+PRK /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/PRK.reformat.gz EUR 0.5 0.005 NA NA PRK
+MIG /scratch/prj/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/MIG/MIG.reformat.gz EUR 0.5 0.16 NA NA MIG

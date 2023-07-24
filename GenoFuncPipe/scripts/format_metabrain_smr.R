@@ -11,7 +11,8 @@ opt = parse_args(OptionParser(option_list=option_list))
 library(data.table)
 
 library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
+ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
+biomartCacheClear()
 Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
 
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]
@@ -59,6 +60,7 @@ for(tissues in metabrain_tissues[c(smr_expression_panel_metabrain_basalganglia_l
 }
 
 smr_metabrain_all<-do.call(rbind, smr_metabrain)
+smr_metabrain_all$external_gene_name[smr_metabrain_all$external_gene_name == '']<-NA
 
 fwrite(smr_metabrain_all, paste0('results/',opt$gwas,'/smr/metabrain/',opt$gwas,'_smr_metabrain_GW.txt.gz'), quote=F, sep=' ', na='NA')
 

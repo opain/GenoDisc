@@ -1,0 +1,3 @@
+name path population sampling prevalence mean sd label
+ALS_only /scratch/prj/oliverpainfel/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_only_reformat.txt.gz EUR 0.5 0.0033 NA NA ALS_only
+ALS_AA /scratch/prj/oliverpainfel/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_ASIA_reformat.gz EUR 0.5 0.0033 NA NA ALS_only

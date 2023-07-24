@@ -25,7 +25,7 @@ rule format_rosmap_smr_data:
   params:
     rosmap_smr= config["rosmap_smr"],
   shell:
-    "Rscript scripts/format_pwas_data.R \
+    "Rscript scripts/format_rosmap_smr_data.R \
       --rosmap {params.rosmap_smr}"
 
 ####
@@ -108,6 +108,15 @@ rule format_metabrain_esi:
   shell: 
     "Rscript scripts/format_metabrain_esi.R"
 
+# Download eQTLGen data in SMR format
+rule download_eqtlgen:
+  output: 
+    touch("resources/data/eqtlgen.done")
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell: 
+    "mkdir resources/data/eqtlgen; wget -O resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz https://molgenis26.gcc.rug.nl/downloads/eqtlgen/cis-eqtl/SMR_formatted/cis-eQTL-SMR_20191212.tar.gz; tar -xvzf resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz -C resources/data/eqtlgen/; rm resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz; gunzip resources/data/eqtlgen/*"
+
 ##########
 # Analyse GWAS summary statistics
 ##########
@@ -152,18 +161,42 @@ rule run_psychencode_smr_chr:
     output: 
       touch("results/{gwas}/checks/psychencode_smr_all_chr.done")
 
-# Format SMR PsychENCODE results
-rule format_psychencode_smr:
+########
+# Run SMR with eQTLGen
+########
+
+rule run_eqtlgen_smr:
   input:
-    "results/{gwas}/checks/psychencode_smr_all_chr.done"
+    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    rules.download_eqtlgen.output
   output:
-    "results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_GW_clean.txt.gz"
+    "results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr"
   conda: 
     "../envs/GenoFunc.yaml"
   shell:
-    "Rscript scripts/format_psychencode_smr.R \
-    --gwas {wildcards.gwas}"
+    "resources/software/smr/smr_Linux \
+    --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    --gwas-summary resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+    --beqtl-summary resources/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
+    --out results/{wildcards.gwas}/smr/eqtlgen/{wildcards.gwas}_smr_eqtlgen_chr{wildcards.chr}"
 
+rule run_eqtlgen_smr_chr:
+    input: 
+      lambda w: expand("results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23))
+    output: 
+      touch("results/{gwas}/checks/eqtlgen_smr_all_chr.done")
+      
+# Format SMR eQTLGen results
+rule format_eqtlgen_smr:
+  input:
+    "results/{gwas}/checks/eqtlgen_smr_all_chr.done"
+  output:
+    "results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/format_eqtlgen_smr.R \
+    --gwas {wildcards.gwas}"
 
 ####
 # Run SMR using pQTL

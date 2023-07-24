@@ -5,6 +5,8 @@ suppressMessages(library("optparse"))
 option_list = list(
   make_option("--twas", action="store", default=NA, type='character',
               help="Name of GWAs/TWAS [required]"),
+  make_option("--panel", action="store", default=NA, type='character',
+              help="Panel [required]"),
   make_option("--lincs_siginfo_path", action="store", default=NA, type='character',
               help="Path to LINCS signiture information data [required]")
 )
@@ -13,8 +15,7 @@ opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
-# Read in the results
-res<-fread(paste0('results/',opt$twas,'/twas/cmap/So_res.csv'))
+res<-fread(paste0('results/',opt$twas,'/twas/cmap/So_res_',opt$panel,'.csv'))
 
 # Subset set ID, rank and p
 res<-res[,!grepl('perm',names(res)), with=F]
@@ -38,7 +39,7 @@ res<-res[order(res$p),]
 # FDR correct
 res$p.fdr<-p.adjust(res$p, method='fdr')
 
-write.csv(res, paste0('results/',opt$twas,'/twas/cmap/So_res_clean.csv'), row.names=F)
+write.csv(res, paste0('results/',opt$twas,'/twas/cmap/So_res_',opt$panel,'_clean.csv'), row.names=F)
 
 # Insert ATC codes
 atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
@@ -72,5 +73,4 @@ atc_labels<-atc[nchar(atc$Code) == 4,]
 atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
-write.csv(atc_enrich, paste0('results/',opt$twas,'/twas/cmap/So_res_atc_res.csv'), row.names=F)
-
+write.csv(atc_enrich, paste0('results/',opt$twas,'/twas/cmap/atc_res_',opt$panel,'.csv'), row.names=F)

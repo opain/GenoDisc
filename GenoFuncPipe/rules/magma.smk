@@ -49,7 +49,7 @@ rule magma_annot:
     "../envs/GenoFunc.yaml"
   shell:
     "resources/software/magma/magma \
-      --annotate window=10 \
+      --annotate window=35,10 \
     	--snp-loc resources/data/magma_ref/g1000_eur.bim \
     	--gene-loc resources/data/magma/NCBI37.3.gene.loc \
     	--out resources/data/magma/NCBI37.3"
@@ -113,6 +113,20 @@ rule magma_gene_level:
       --gene-annot resources/data/magma/NCBI37.3.genes.annot \
       --out results/{wildcards.gwas}/magma/magma_gene_level; rm resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
 
+# Format the MAGMA gene results 
+rule format_magma_gene_results:
+  input:
+    "results/{gwas}/magma/magma_gene_level.genes.raw"
+  output:
+    "results/{gwas}/magma/magma_gene_level.clean.csv"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  params:
+    lincs_siginfo= config["lincs_siginfo"]
+  shell:
+    "Rscript scripts/format_magma_gene_results.R \
+    --gwas {wildcards.gwas}"
+
 # Run Drug Targetor enrichment analysis
 rule magma_drug_targetor:
   input:
@@ -128,7 +142,7 @@ rule magma_drug_targetor:
       --set-annot resources/data/drug_targetor/wholedatabase_for_targetor.gmt \
       --out results/{wildcards.gwas}/magma/magma_drug_targetor"
 
-# Format the MAGMA results 
+# Format the MAGMA GSEA results 
 rule format_magma_results:
   input:
     "results/{gwas}/magma/magma_drug_targetor.gsa.out",
@@ -140,6 +154,22 @@ rule format_magma_results:
   params:
     lincs_siginfo= config["lincs_siginfo"]
   shell:
-    "Rscript scripts/format_magma_results.R \
+    "Rscript scripts/format_magma_gsea_results.R \
     --gwas {wildcards.gwas}"
+
+# Compare TWAS signiture compared to enriched drugs in MAGMA
+rule comp_magma_gsea_twas_results:
+  input:
+    "results/{gwas}/magma/magma_drug_targetor_atc_res.csv",
+    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
+  output:
+    "results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
+  conda: 
+    "../envs/GenoFunc.yaml"
+  shell:
+    "Rscript scripts/comp_magma_gsea_twas_results.R \
+    --gwas {wildcards.gwas}"
+
+
+
 

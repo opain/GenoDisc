@@ -4,7 +4,9 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--twas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),
+  make_option("--panel", action="store", default=NA, type='character',
+              help="Panel [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -16,13 +18,12 @@ library(data.table)
 # Read in the results of step1 for all batches
 batches<-list()
 for(i in 1:10){
-  batches[[paste0('batch_',i)]]<-readRDS(paste0('results/',opt$twas,'/twas/cmap/res_batch_',i,'.RDS'))
+  batches[[paste0('batch_',i)]]<-readRDS(paste0('results/',opt$twas,'/twas/cmap/res_',opt$panel,'_batch_',i,'.RDS'))
 }
 
 # Combine batches for each the real data (obs) and each permutation, and calculate average ranks
 average_ranks<-list()
 for(i in c('obs',paste0('perm_',1:100))){
-  
   drugs<-NULL
   cor.pearson<-NULL
   cor.spearman<-NULL
@@ -78,6 +79,4 @@ for(i in 1:nrow(average_ranks_tab)){
   average_ranks_tab$p[i]<-  sum(average_ranks_tab$obs[i] > all_perm_ranks) / length(all_perm_ranks)
 }
 
-write.csv(average_ranks_tab,  paste0('results/',opt$twas,'/twas/cmap/So_res.csv'), row.names=F)
-
-
+write.csv(average_ranks_tab,  paste0('results/',opt$twas,'/twas/cmap/So_res_',opt$panel,'.csv'), row.names=F)

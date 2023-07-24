@@ -47,11 +47,11 @@ rule prep_1kg:
 
 rule install_focus:
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/focus.yaml"
   output: 
     touch("resources/software/pyfocus")
   shell:
-    "pip install pyfocus==0.6.10 --user"
+    "python3.8 -m pip install pyfocus==0.6.10 --user"
 
 ####
 # Download LDSC
@@ -136,7 +136,7 @@ rule focus_munge:
   output:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/focus.yaml"
   shell:
     "focus munge {input.premunged} --output resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged"
 
@@ -164,7 +164,7 @@ rule ldsc:
   conda:
     "../envs/ldsc.yaml"
   shell:
-    "mkdir -p results/{wildcards.gwas}/ldsc/; python resources/software/ldsc/ldsc.py \
+    "mkdir -p results/{wildcards.gwas}/ldsc/; python2.7 resources/software/ldsc/ldsc.py \
       --h2 resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --ref-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
       --w-ld-chr resources/data/ldsc/eur_w_ld_chr/ \

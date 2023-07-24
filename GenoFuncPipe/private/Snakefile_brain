@@ -1,0 +1,20 @@
+configfile: "private/config_brain.yaml"
+
+import os
+import json
+import gzip
+import itertools
+from snakemake.remote.HTTP import RemoteProvider as HTTPRemoteProvider
+
+HTTP = HTTPRemoteProvider()
+
+wildcard_constraints:
+    version="[\d.]+"
+    
+include: "../rules/sumstat_qc.smk"
+include: "../rules/finemapping.smk"
+include: "../rules/magma.smk"
+include: "../rules/twas_pwas.smk"
+include: "../rules/smr.smk"
+include: "../rules/dgidb.smk"
+include: "../rules/report.smk"

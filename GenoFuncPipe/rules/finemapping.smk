@@ -2,7 +2,12 @@
 # Run SuSiE
 ##################
 
+def get_mem_mb_fine(wildcards, attempt):
+    return attempt * 20000
+    
 rule finemap:
+  resources: 
+    mem_mb=get_mem_mb_fine 
   input:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
     "results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
@@ -31,7 +36,7 @@ rule process_finemap:
   input:
     "results/{gwas}/checks/finemap_all_chr.done"
   output:
-    "results/{gwas}/finemap/{gwas}.GW.finemap.csv"
+    "results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:
     "../envs/GenoFunc.yaml"
   shell:
