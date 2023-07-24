@@ -9,7 +9,7 @@ rule install_fusion:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone git@github.com:gusevlab/fusion_twas.git {output}"
+    "git clone https://github.com/gusevlab/fusion_twas.git {output}"
 
 # Download plink2R
 rule download_plink2R:
@@ -142,7 +142,7 @@ rule install_twas_gsea:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone git@github.com:opain/TWAS-GSEA.git {output}"
+    "git clone https://github.com/opain/TWAS-GSEA.git {output}"
 
 ####
 # Download FeaturePred
@@ -154,7 +154,7 @@ rule install_feature_pred:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone git@github.com:opain/Predicting-TWAS-features.git {output}"
+    "git clone https://github.com/opain/Predicting-TWAS-features.git {output}"
 
 ####
 # Download pigz

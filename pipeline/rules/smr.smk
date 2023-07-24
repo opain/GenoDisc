@@ -4,7 +4,7 @@
 
 rule download_smr:
   output:
-    "resources/software/smr/smr_Linux"
+    "resources/software/smr/smr_linux_x86_64"
   conda:
     "../envs/main.yaml"
   shell:
@@ -101,6 +101,8 @@ rule download_MetaBrain_all:
 
 # Update variant IDs in MetaBrain SMR files
 rule format_metabrain_esi:
+  input:
+    "resources/data/MetaBrain_download.out"
   output: 
     touch("resources/data/MetaBrain/format_MetaBrain_esi.out")
   conda: 
@@ -149,7 +151,7 @@ rule run_psychencode_smr:
   conda: 
     "../envs/main.yaml"
   shell:
-    "resources/software/smr/smr_Linux \
+    "resources/software/smr/smr_linux_x86_64 \
     --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
@@ -174,7 +176,7 @@ rule run_eqtlgen_smr:
   conda: 
     "../envs/main.yaml"
   shell:
-    "resources/software/smr/smr_Linux \
+    "resources/software/smr/smr_linux_x86_64 \
     --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary resources/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
@@ -211,7 +213,7 @@ rule run_rosmap_smr:
   conda: 
     "../envs/main.yaml"
   shell:
-    "resources/software/smr/smr_Linux \
+    "resources/software/smr/smr_linux_x86_64 \
     --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
@@ -252,7 +254,7 @@ rule smr_analysis_MetaBrain:
   conda: 
     "../envs/main.yaml"
   shell:
-    "resources/software/smr/smr_Linux \
+    "resources/software/smr/smr_linux_x86_64 \
       --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
       --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
       --beqtl-summary resources/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
