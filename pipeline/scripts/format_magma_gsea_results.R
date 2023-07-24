@@ -4,15 +4,23 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in MAGMA gene set results
-res_gs<-fread(cmd=paste0("grep -v '^#' results/",opt$gwas,'/magma/magma_drug_targetor.gsa.out'))
+res_gs<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",opt$gwas,'/magma/magma_drug_targetor.gsa.out'))
 
 # Remove gene sets with <5 genes present
 #res_gs<-res_gs[res_gs$NGENES >= 5,]
@@ -22,7 +30,7 @@ res_gs$NAME<-tolower(gsub('\\|.*','',gsub('.*NAME:','',res_gs$FULL_NAME)))
 
 res_gs<-res_gs[,c('NAME','NGENES','BETA','SE','P','ATC'), with=F]
  
-write.csv(res_gs, paste0('results/',opt$gwas,'/magma/magma_drug_targetor.clean.csv'), row.names=F, quote=T)
+write.csv(res_gs, paste0(outdir,'/results/',opt$gwas,'/magma/magma_drug_targetor.clean.csv'), row.names=F, quote=T)
 
 # Perform enrichment analysis of ATC codes
 res_gs_enrich<-NULL
@@ -60,7 +68,7 @@ atc_labels<-atc[nchar(atc$Code) == 4,]
 atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
-write.csv(atc_enrich, paste0('results/',opt$gwas,'/magma/magma_drug_targetor_atc_res.csv'), row.names=F)
+write.csv(atc_enrich, paste0(outdir,'/results/',opt$gwas,'/magma/magma_drug_targetor_atc_res.csv'), row.names=F)
 
 # Test for enrichment for each level 4 ATC category
 res_gs_enrich$atc_cat_2<-substr(res_gs_enrich$ATC, 1, 5) 
@@ -89,6 +97,6 @@ atc_labels<-atc[nchar(atc$Code) == 5,]
 atc_enrich_2<-merge(atc_enrich_2, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich_2<-atc_enrich_2[order(atc_enrich_2$P),]
 
-write.csv(atc_enrich_2, paste0('results/',opt$gwas,'/magma/magma_drug_targetor_atc_res_level4.csv'), row.names=F)
+write.csv(atc_enrich_2, paste0(outdir,'/results/',opt$gwas,'/magma/magma_drug_targetor_atc_res_level4.csv'), row.names=F)
 
 

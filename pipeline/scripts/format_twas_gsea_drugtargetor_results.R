@@ -6,15 +6,23 @@ option_list = list(
   make_option("--twas", action="store", default=NA, type='character',
               help="GWAS ID [required]"),
   make_option("--panel", action="store", default=NA, type='character',
-              help="PANEL [required]")
+              help="PANEL [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in TWAS-GSEA results
-res<-fread(paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.txt'))
+res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.txt'))
 
 # Flip one-sided hypothesis to be testing for a negative correlation
 res$P<-2*pnorm(-abs(res$T))
@@ -26,7 +34,7 @@ res$NAME<-tolower(gsub('\\.CID\\..*','',gsub('.*NAME\\.','',res$GeneSet)))
 # Sort by p-value
 res<-res[order(res$P),]
 
-write.csv(res, paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.clean.csv'), row.names=F)
+write.csv(res, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.clean.csv'), row.names=F)
 
 # Insert ATC codes
 atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
@@ -60,7 +68,7 @@ atc_labels<-atc[nchar(atc$Code) == 4,]
 atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
-write.csv(atc_enrich, paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_',opt$panel,'_res_atc_res.csv'), row.names=F)
+write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_',opt$panel,'_res_atc_res.csv'), row.names=F)
 
 # Test for enrichment for each level 4 ATC category
 res_atc$atc_cat_2<-substr(res_atc$Code, 1, 5) 
@@ -87,5 +95,5 @@ atc_labels<-atc[nchar(atc$Code) == 5,]
 atc_enrich_2<-merge(atc_enrich_2, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich_2<-atc_enrich_2[order(atc_enrich_2$P),]
 
-write.csv(atc_enrich_2, paste0('results/',opt$twas,'/twas/drugtargetor/twas_gsea_',opt$panel,'_res_atc_res_level4.csv'), row.names=F)
+write.csv(atc_enrich_2, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_',opt$panel,'_res_atc_res_level4.csv'), row.names=F)
 

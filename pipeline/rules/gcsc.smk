@@ -156,6 +156,7 @@ rule combine_gcsc:
     config_file= config["config_file"]
   shell:
     "Rscript scripts/combine_gcsc.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 

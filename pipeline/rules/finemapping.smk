@@ -39,9 +39,12 @@ rule process_finemap:
     "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/process_finemap.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 

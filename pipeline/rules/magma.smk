@@ -121,9 +121,12 @@ rule format_magma_gene_results:
     "{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_magma_gene_results.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 # Run Drug Targetor enrichment analysis
 rule magma_drug_targetor:
@@ -149,9 +152,12 @@ rule format_magma_results:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_magma_gsea_results.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 # Compare TWAS signiture compared to enriched drugs in MAGMA
 rule comp_magma_gsea_twas_results:
@@ -162,9 +168,12 @@ rule comp_magma_gsea_twas_results:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/comp_magma_gsea_twas_results.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 

@@ -4,15 +4,23 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in MAGMA gene results
-res<-fread(paste0('results/',opt$gwas,'/magma/magma_gene_level.genes.out'))
+res<-fread(paste0(outdir,'/results/',opt$gwas,'/magma/magma_gene_level.genes.out'))
 
 # Insert gene ID
 loc<-fread('resources/data/magma/NCBI37.3.gene.loc')
@@ -23,5 +31,5 @@ res<-merge(res, loc, by='GENE')
 
 res<-res[,c('CHR','START','STOP','ID','P'),with=F]
 
-write.csv(res, paste0('results/',opt$gwas,'/magma/magma_gene_level.clean.csv'), row.names=F, quote=F)
+write.csv(res, paste0(outdir,'/results/',opt$gwas,'/magma/magma_gene_level.clean.csv'), row.names=F, quote=F)
 

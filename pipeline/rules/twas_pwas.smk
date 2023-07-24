@@ -386,9 +386,12 @@ rule process_conditional:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv"
   conda:
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/process_conditional.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 ###
 # Run PWAS
@@ -513,10 +516,13 @@ rule format_twas_gsea_drugtargetor_results:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_twas_gsea_drugtargetor_results.R \
     --twas {wildcards.gwas} \
-    --panel {wildcards.weight}"
+    --panel {wildcards.weight} \
+    --config_file {params.config_file}"
     
 rule format_twas_gsea_drugtargetor_results_all_panel:
     input: 

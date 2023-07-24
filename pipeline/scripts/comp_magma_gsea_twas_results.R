@@ -4,15 +4,23 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in MAGMA gene set results
-res_gs<-fread(cmd=paste0("grep -v '^#' results/",opt$gwas,'/magma/magma_drug_targetor.gsa.out'))
+res_gs<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",opt$gwas,'/magma/magma_drug_targetor.gsa.out'))
 
 # Subset sets with FDR < 0.05 or top 10 sets
 res_gs$P.FDR<-p.adjust(res_gs$P, method='fdr')
@@ -30,7 +38,7 @@ drugtargetor$activity_score[drugtargetor$activity_type %in% c('INCREASED_EXPRESS
 drugtargetor<-drugtargetor[!is.na(drugtargetor$activity_score),]
 
 # Read in the TWAS results
-twas<-fread(paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'))
+twas<-fread(paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'))
 twas<-twas[!grepl('SPLICE', twas$PANEL),]
 twas$TWAS.P.FDR<-p.adjust(twas$TWAS.P, method='fdr')
 
@@ -106,7 +114,7 @@ for(i in 1:nrow(res_gs_subset)){
 
 }
 
-bitmap(paste0('results/',opt$gwas,'/magma/magma_drug_targetor_twas_comp.png'), units='px',res=300, height=5000, width=4000)
+bitmap(paste0(outdir,'/results/',opt$gwas,'/magma/magma_drug_targetor_twas_comp.png'), units='px',res=300, height=5000, width=4000)
 plot_grid(plotlist=plots, ncol=2)
 dev.off()
 

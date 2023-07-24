@@ -199,9 +199,12 @@ rule format_eqtlgen_smr:
     "{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_eqtlgen_smr.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 ####
 # Run SMR using pQTL
@@ -236,9 +239,12 @@ rule process_rosmap_smr:
     "{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/process_rosmap_smr.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 ###
@@ -325,7 +331,10 @@ rule format_metabrain_smr:
     "{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_metabrain_smr.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 

@@ -8,15 +8,23 @@ option_list = list(
   make_option("--panel", action="store", default=NA, type='character',
               help="PANEL [required]"),
   make_option("--lincs_siginfo_path", action="store", default=NA, type='character',
-              help="Path to LINCS sig_info file [required]")
+              help="Path to LINCS sig_info file [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in TWAS-GSEA results
-res<-fread(paste0('results/',opt$twas,'/twas/cmap/twas_gsea_cmap_',opt$panel,'.competitive.txt'))
+res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/cmap/twas_gsea_cmap_',opt$panel,'.competitive.txt'))
 
 # Flip one-sided hypothesis to be testing for a negative correlation
 res$P<-2*pnorm(-abs(res$T))
@@ -36,7 +44,7 @@ res<-res[,c('sig_id','pert_mfc_id','cmap_name','pert_idose','pert_itime','cell_i
 # Sort by p-value
 res<-res[order(res$P),]
 
-write.csv(res, paste0('results/',opt$twas,'/twas/cmap/twas_gsea_cmap_',opt$panel,'.competitive.clean.csv'), row.names=F)
+write.csv(res, paste0(outdir,'/results/',opt$twas,'/twas/cmap/twas_gsea_cmap_',opt$panel,'.competitive.clean.csv'), row.names=F)
 
 # Insert ATC codes
 atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
@@ -70,5 +78,5 @@ atc_labels<-atc[nchar(atc$Code) == 4,]
 atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
-write.csv(atc_enrich, paste0('results/',opt$twas,'/twas/cmap/twas_gsea_',opt$panel,'_res_atc_res.csv'), row.names=F)
+write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/cmap/twas_gsea_',opt$panel,'_res_atc_res.csv'), row.names=F)
 
