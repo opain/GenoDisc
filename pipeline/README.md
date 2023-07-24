@@ -1,4 +1,4 @@
-# GenoFunc: Genomic Analysis of Functional Annotations Pipeline
+# GenoDiscover: Genomic Discovery Platform
 
 This is a snakemake pipeline for running a range of genome-wide association study (GWAS) summary statistic-based analyses. Analyses can be split into three parts:
 
@@ -20,7 +20,7 @@ Part 3: Drug finding analyses
   * Identify drugs that reverse diseases gene expression
   * Identify enriched ATC classifications
 
-The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoFunc/example_report.html).
+The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoDiscovery/example_report.html).
 
 ### Using the pipeline
 
@@ -39,8 +39,8 @@ Alternatively, users can download the pipeline and run analyses [locally](#local
 #### Step 1: Clone the repository.
 
 ```bash
-git clone https://github.com/opain/GenoFunc.git
-cd GenoFunc/GenoFuncPipe
+git clone https://github.com/opain/GenoDiscover.git
+cd GenoDiscover/pipeline
 ```
 
 #### Step 2: Install [Anaconda](https://conda.io/en/latest/miniconda.html).
