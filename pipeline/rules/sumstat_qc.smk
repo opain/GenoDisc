@@ -218,8 +218,6 @@ rule process_clump:
     "Rscript scripts/process_clump.R \
       --gwas {wildcards.gwas}"
 
-
-
 ###
 # Run COJO
 ###
