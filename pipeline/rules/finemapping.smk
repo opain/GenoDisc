@@ -16,10 +16,12 @@ rule finemap:
   conda:
     "../envs/main.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    config_file=config['config_file']
   shell:
     "Rscript scripts/finemap.R \
       --gwas {wildcards.gwas} \
+      --config_file {params.config_file} \
       --chr {wildcards.chr}"
 
 rule finemap_all_chr:
