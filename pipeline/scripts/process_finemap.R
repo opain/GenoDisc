@@ -3,7 +3,9 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="Name of GWAS [required]")
+              help="Name of GWAS [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -12,8 +14,14 @@ library(data.table)
 library(susieR)
 library(stringr)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in the sumstats
-ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
 
 # Read in gene locations
 library(biomaRt)
@@ -27,8 +35,8 @@ Genes$start_position<-Genes$start_position-gene_window
 Genes$end_position<-Genes$end_position+gene_window
 
 # List all finemapping results
-finemap_files<-list.files(path=paste0('results/',opt$gwas,'/finemap/'), pattern='.rds')
-finemap_files<-paste0('results/',opt$gwas,'/finemap/',finemap_files)
+finemap_files<-list.files(path=paste0(outdir,'/results/',opt$gwas,'/finemap/'), pattern='.rds')
+finemap_files<-paste0(outdir,'/results/',opt$gwas,'/finemap/',finemap_files)
 
 finemap_files_L10<-finemap_files[!grepl('L1.rds',finemap_files)]
 finemap_files_L1<-finemap_files[grepl('L1.rds',finemap_files)]
@@ -88,7 +96,7 @@ if(length(finemap_files_L10) > 0){
   }
   
   # Write out results
-  write.csv(finemap_summary, paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.csv'), row.names=F, quote=T)
+  write.csv(finemap_summary, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.csv'), row.names=F, quote=T)
 }
 
 # Summarise L=1 restricted analyses
@@ -147,7 +155,7 @@ for(i in 1:length(finemap_files_L1)){
 }
 
 # Write out results
-write.csv(finemap_summary, paste0('results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.L1.csv'), row.names=F, quote=T)
+write.csv(finemap_summary, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.L1.csv'), row.names=F, quote=T)
 
 
 

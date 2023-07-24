@@ -214,9 +214,12 @@ rule process_clump:
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/process_clump.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 ###
 # Run COJO
@@ -263,9 +266,12 @@ rule process_cojo:
     "{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/process_cojo.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 

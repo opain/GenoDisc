@@ -67,6 +67,9 @@ ID: `r params$gwas`
 # Read in config file
 config<-readLines(params$config_file)
 
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Determine which analyses were requested
 clump_logical<-config[grepl('clump:',config)] == "clump: T"
 
@@ -157,7 +160,7 @@ This section provides some information from the sumstat quality control process 
 <details><summary>Show sumstat_cleaner.R log file</summary>
 
 ```{r, eval=T, echo=F, comment=''}
-sumstat_cleaner_log<-readLines(paste0('resources/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.log'))
+sumstat_cleaner_log<-readLines(paste0(outdir,'/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.log'))
 sumstat_cleaner_log
 
 ```
@@ -168,14 +171,14 @@ sumstat_cleaner_log
 
 ```{r, eval=T, echo=F, comment=''}
 
-focus_munge_log<-readLines(paste0('resources/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.munged.log'))
+focus_munge_log<-readLines(paste0(outdir,'/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.munged.log'))
 focus_munge_log
 
 ```
 
 ```{r, echo=FALSE, eval=ldsc_logical, results='asis'}
 
-cat(paste0('Full results file: resources/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.munged.log'))
+cat(paste0('Full results file: ',outdir,'/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.munged.log'))
 
 ```
 
@@ -192,14 +195,14 @@ cat("<details><summary>Show LDSC log file</summary>")
 
 ```{r, echo=F, comment='', eval=ldsc_logical}
 
-ldsc_log<-readLines(paste0('results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
+ldsc_log<-readLines(paste0(outdir,'/results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
 ldsc_log
 
 ```
 
 ```{r, echo=FALSE, eval=ldsc_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
+cat(paste0('Full results file: ", outdir,"/results/',params$gwas,'/ldsc/',params$gwas,'_ldsc_res.log'))
 
 ```
 
@@ -219,7 +222,7 @@ cat("This section list independent SNP associations achieving either genome-wide
 
 ```{r, echo=F, comment='', eval=clump_logical}
 
-clump_lead_snps<-fread(paste0('results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv'))
+clump_lead_snps<-fread(paste0(outdir,'/results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv'))
 
 clump_lead_snps<-clump_lead_snps[clump_lead_snps$P < 1e-5,]
 
@@ -256,7 +259,7 @@ datatable(clump_lead_snps_gw, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=clump_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
 
 ```
@@ -291,7 +294,7 @@ datatable(clump_lead_snps, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=clump_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv \n\n'))
+cat(paste0('Full results file: ', outdir,'/results/',params$gwas,'/clump/',params$gwas,'.GW.clump.clean.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
 
 ```
@@ -304,7 +307,7 @@ cat("</details> \n")
 
 ```{r, echo=F, comment='', eval=cojo_logical}
 
-cojo_lead_snps<-fread(paste0('results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv'))
+cojo_lead_snps<-fread(paste0(outdir,'/results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv'))
 
 cojo_lead_snps$pJ<-NULL
 
@@ -343,7 +346,7 @@ datatable(cojo_lead_snps_gw, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=cojo_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
 
 
@@ -383,7 +386,7 @@ datatable(cojo_lead_snps, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=cojo_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; A1 = Allele 1 (effect allele); A2 = Allele 2 (reference allele); BETA = Effect size; SE = Standard error; P = p-value; FREQ = Frequency of allele 1 reported in GWAS; REF.FREQ = Frequency of allele 1 reported in ancestry matched reference population; N = Sample size; NearestGene = Nearest genes to lead variant with distance in parentheses"))
 
 
@@ -408,7 +411,7 @@ cat("<details><summary>Finemapping (L<10): All loci</summary> \n")
 
 ```{r, echo=F, comment='', eval=finemap_logical}
 
-finemap<-fread(paste0('results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv'))
+finemap<-fread(paste0(outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv'))
 finemap$variable<-NULL
 finemap$Gene[is.na(finemap$Gene)]<-'None'
 
@@ -428,7 +431,7 @@ datatable(finemap, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=finemap_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; cs = Credible set number; NSNP = Number of SNPs in 95% credible set; TopPIP = Highest posterior inclusion probability of variants within 95% credible set; Gene = Genes boundaries (0kb window) contain all variants within 95% credible set."))
 
 
@@ -448,7 +451,7 @@ cat("<details><summary>Finemapping (L=1): All loci</summary> \n")
 
 ```{r, echo=F, comment='', eval=finemap_logical}
 
-finemap_L1<-fread(paste0('results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.L1.csv'))
+finemap_L1<-fread(paste0(outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.L1.csv'))
 finemap_L1$variable<-NULL
 finemap_L1$Gene[is.na(finemap_L1$Gene)]<-'None'
 
@@ -468,7 +471,7 @@ datatable(finemap_L1, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=finemap_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; SNP = Variant ID; cs = Credible set number; NSNP = Number of SNPs in 95% credible set; TopPIP = Highest posterior inclusion probability of variants within 95% credible set; Gene = Genes boundaries (+/- 10kb) all variants within 95% credible set."))
 
 
@@ -669,7 +672,7 @@ cat("<details><summary>TWAS: FDR significant and colocalised results</summary> \
 
 ```{r, echo=F, eval=twas_logical}
 
-twas_all<-fread(paste0('results/',params$gwas,'/twas/',params$gwas,'_twas_GW_clean.txt.gz'))
+twas_all<-fread(paste0(outdir,'/results/',params$gwas,'/twas/',params$gwas,'_twas_GW_clean.txt.gz'))
 twas_all$FILE<-NULL
 twas_all$MODEL<-NULL
 twas_all<-twas_all[!is.na(twas_all$TWAS.Z),]
@@ -724,7 +727,7 @@ txt<-paste0("TWAS contain ",nrow(twas_all_clean)," transcriptome-wide significan
 
 cat(txt)
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/',params$gwas,'_twas_GW_clean.txt.gz \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/',params$gwas,'_twas_GW_clean.txt.gz \n\n'))
 cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Gene expression panel; TWAS.Z = TWAS Z-score; TWAS.P = TWAS p-value; TWAS.P.FDR = BY FDR corrected TWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
@@ -744,7 +747,7 @@ cat("<details><summary>TWAS: Full conditional analysis results</summary> \n")
 
 ```{r, echo=F, eval=twas_conditional_logical}
 
-twas_cond_full<-fread(paste0('results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_full.csv'))
+twas_cond_full<-fread(paste0(outdir,'/results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_full.csv'))
 twas_cond_full$BEST.TWAS.P<-format(twas_cond_full$BEST.TWAS.P, scientific = TRUE, digits = 3)
 twas_cond_full$BEST.SNP.P<-format(twas_cond_full$BEST.SNP.P, scientific = TRUE, digits = 3)
 
@@ -754,7 +757,7 @@ datatable(twas_cond_full, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=twas_conditional_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_full.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_full.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position range of locus; JOINT.ID = Features remaining significiant in joint model of significant features in locus; MARGIN.ID = Features not significiant in joint model of significant features in locus; BEST.TWAS.P = P-value of most significant feature within locus; BEST.SNP.P = P-value of most significant variant within locus; VAR.EXP = Variance in SNP-phenotype associations explained by jointly significant TWAS features."))
 
 
@@ -775,7 +778,7 @@ cat("<details><summary>TWAS: Brief conditional analysis results</summary> \n")
 
 ```{r, echo=F, eval=twas_conditional_logical}
 
-twas_cond_brief<-fread(paste0('results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv'))
+twas_cond_brief<-fread(paste0(outdir,'/results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv'))
 twas_cond_brief$BEST.TWAS.P<-format(twas_cond_brief$BEST.TWAS.P, scientific = TRUE, digits = 3)
 twas_cond_brief$BEST.SNP.P<-format(twas_cond_brief$BEST.SNP.P, scientific = TRUE, digits = 3)
 
@@ -785,7 +788,7 @@ datatable(twas_cond_brief, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=twas_conditional_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position range of locus; JOINT.ID = Features remaining significiant in joint model of significant features in locus; MARGIN.N =  Number of features not significiant in joint model of significant features in locus; BEST.TWAS.P = P-value of most significant feature within locus; BEST.SNP.P = P-value of most significant variant within locus; VAR.EXP = Variance in SNP-phenotype associations explained by jointly significant TWAS features."))
 
 ```
@@ -805,7 +808,7 @@ cat("<details><summary>TWAS: Detailed results</summary> \n")
 
 ```{r, echo=F, eval=twas_conditional_logical}
 
-twas_novel<-fread(paste0('results/',params$gwas,'/twas/',params$gwas,'_twas_novelty.csv'))
+twas_novel<-fread(paste0(outdir,'/results/',params$gwas,'/twas/',params$gwas,'_twas_novelty.csv'))
 twas_novel$TWAS.P<-format(twas_novel$TWAS.P, scientific = TRUE, digits = 3)
 twas_novel$BEST.GWAS.P<-format(twas_novel$BEST.GWAS.P, scientific = TRUE, digits = 3)
 
@@ -815,7 +818,7 @@ datatable(twas_novel, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=twas_conditional_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/conditional/',params$gwas,'_twas_conditional_clean_brief.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Gene expression panel; TWAS.Z = TWAS Z-score; TWAS.P = TWAS p-value; BEST.GWAS.P = P-value of most significant variant within 500kb of feature; TOP.SNP.COR = Correlation between most significant variant and gene's predicted expression; Type = Indicates whether gene was (Joint) or was not (Marginal) significant in the joint model of significant features; Novel = Indicates whether TWAS association is independent of a genome-wide significant variant; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy); Colocalised = Indicates whether COLOC.PP4 was greater than 0.8."))
 
 
@@ -847,12 +850,12 @@ smr_expression_res<-NULL
 
 if(smr_expression_panel_psychencode_logical){
   
-  smr_psychencode_files<-list.files(path=paste0('results/',params$gwas,'/smr/psychencode/'), pattern=paste0(params$gwas,'_smr_psychencode_chr'))
+  smr_psychencode_files<-list.files(path=paste0(outdir,'/results/',params$gwas,'/smr/psychencode/'), pattern=paste0(params$gwas,'_smr_psychencode_chr'))
   smr_psychencode_files<-smr_psychencode_files[grepl('.smr$', smr_psychencode_files)]
   
   smr_psychencode<-NULL
   for(i in smr_psychencode_files){
-    smr_psychencode<-rbind(smr_psychencode, fread(paste0('results/',params$gwas,'/smr/psychencode/',i)))
+    smr_psychencode<-rbind(smr_psychencode, fread(paste0(outdir,'/results/',params$gwas,'/smr/psychencode/',i)))
   }
   
   smr_psychencode_tmp<-smr_psychencode
@@ -868,7 +871,7 @@ if(smr_expression_panel_psychencode_logical){
 
 if(smr_expression_panel_eqtlgen_logical){
   
-  smr_eqtlgen<-fread(paste0('results/',params$gwas,'/smr/eqtlgen/',params$gwas,'_smr_eqtlgen_GW.txt.gz'))
+  smr_eqtlgen<-fread(paste0(outdir,'/results/',params$gwas,'/smr/eqtlgen/',params$gwas,'_smr_eqtlgen_GW.txt.gz'))
   
   smr_eqtlgen_tmp<-smr_eqtlgen
   
@@ -884,7 +887,7 @@ if(smr_expression_panel_eqtlgen_logical){
 
 if(metabrain_logical){
 
-  smr_metabrain_all<-fread(paste0('results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz'))
+  smr_metabrain_all<-fread(paste0(outdir,'/results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz'))
   
   smr_metabrain_tmp<-smr_metabrain_all
   
@@ -977,7 +980,7 @@ datatable(twas_psychencode_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=twas_panel_psychencode_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/psychencode/',params$gwas,'_twas_psychencode_GW_clean.txt.gz \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/psychencode/',params$gwas,'_twas_psychencode_GW_clean.txt.gz \n\n'))
 cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Gene expression panel; TWAS.Z = TWAS Z-score; TWAS.P = TWAS p-value; TWAS.P.FDR = BY FDR corrected TWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
@@ -1016,7 +1019,7 @@ datatable(smr_psychencode_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=smr_expression_panel_psychencode_logical, results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/smr/psychencode/',params$gwas,'_smr_psychencode_chr* \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/smr/psychencode/',params$gwas,'_smr_psychencode_chr* \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
@@ -1113,7 +1116,7 @@ datatable(smr_eqtlgen_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(smr_expression_panel_eqtlgen_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/smr/eqtlgen/',params$gwas,'_smr_eqtlgen_GW.txt.gz \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/smr/eqtlgen/',params$gwas,'_smr_eqtlgen_GW.txt.gz \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
@@ -1160,7 +1163,7 @@ datatable(smr_metabrain_all_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(metabrain_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/smr/metabrain/',params$gwas,'_smr_metabrain_GW.txt.gz \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
@@ -1189,11 +1192,11 @@ cat("<details><summary>PWAS: ROSMAP - FDR significant and colocalised results</s
 
 ```{r, echo=F, eval=pwas_panel_rosmap_logical}
 
-pwas_rosmap_files<-list.files(path=paste0('results/',params$gwas,'/pwas/rosmap/'), pattern=paste0(params$gwas,'_pwas_rosmap_chr'))
+pwas_rosmap_files<-list.files(path=paste0(outdir,'/results/',params$gwas,'/pwas/rosmap/'), pattern=paste0(params$gwas,'_pwas_rosmap_chr'))
 
 pwas_rosmap<-NULL
 for(i in pwas_rosmap_files){
-  pwas_rosmap<-rbind(pwas_rosmap, fread(paste0('results/',params$gwas,'/pwas/rosmap/',i)))
+  pwas_rosmap<-rbind(pwas_rosmap, fread(paste0(outdir,'/results/',params$gwas,'/pwas/rosmap/',i)))
 }
 
 pwas_rosmap$TWAS.P.FDR<-p.adjust(pwas_rosmap$TWAS.P, method = 'fdr')
@@ -1223,7 +1226,7 @@ datatable(pwas_rosmap_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(pwas_panel_rosmap_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/pwas/rosmap/',params$gwas,'_pwas_rosmap_chr \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/pwas/rosmap/',params$gwas,'_pwas_rosmap_chr \n\n'))
 cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Protein expression panel; PWAS.Z = PWAS Z-score; TWAS.P = TWAS p-value; PWAS.P.FDR = BY FDR corrected PWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
@@ -1242,7 +1245,7 @@ cat("<details><summary>SMR: ROSMAP - FDR significant and colocalised results</su
 
 ```{r, echo=F, eval=smr_protein_panel_rosmap_logical}
 
-smr_rosmap<-fread(paste0('results/',params$gwas,'/smr/rosmap/',params$gwas,'_smr_rosmap_GW.txt.gz'))
+smr_rosmap<-fread(paste0(outdir,'/results/',params$gwas,'/smr/rosmap/',params$gwas,'_smr_rosmap_GW.txt.gz'))
 
 smr_rosmap_clean<-smr_rosmap
 
@@ -1266,7 +1269,7 @@ datatable(smr_rosmap_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(smr_protein_panel_rosmap_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/smr/rosmap/',params$gwas,'_smr_rosmap_GW.txt.gz \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/smr/rosmap/',params$gwas,'_smr_rosmap_GW.txt.gz \n\n'))
 cat(paste0("Note. CHR = Chromsome; BP = Basepair position; b_SMR = SMR effect size (BETA); p_SMR = SMR p-value; p_SMR.FDR = BY FDR-corrected SMR p-value; p_HEIDI = HEIDI p-value indicating significant evidence of horizontal pleiotropy (lack of colocalisation)"))
 
 ```
@@ -1285,11 +1288,11 @@ cat("<details><summary>PWAS: Banner - FDR significant and colocalised results</s
 
 ```{r, echo=F, eval=pwas_panel_banner_logical}
 
-pwas_banner_files<-list.files(path=paste0('results/',params$gwas,'/pwas/banner/'), pattern=paste0(params$gwas,'_pwas_banner_chr'))
+pwas_banner_files<-list.files(path=paste0(outdir,'/results/',params$gwas,'/pwas/banner/'), pattern=paste0(params$gwas,'_pwas_banner_chr'))
 
 pwas_banner<-NULL
 for(i in pwas_banner_files){
-  pwas_banner<-rbind(pwas_banner, fread(paste0('results/',params$gwas,'/pwas/banner/',i)))
+  pwas_banner<-rbind(pwas_banner, fread(paste0(outdir,'/results/',params$gwas,'/pwas/banner/',i)))
 }
 
 pwas_banner$TWAS.P.FDR<-p.adjust(pwas_banner$TWAS.P, method = 'fdr')
@@ -1315,7 +1318,7 @@ datatable(pwas_banner_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(pwas_panel_banner_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/pwas/banner/',params$gwas,'_pwas_banner_chr* \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/pwas/banner/',params$gwas,'_pwas_banner_chr* \n\n'))
 cat(paste0("Note. CHR = Chromsome; P0 = Gene start; P1 = Gene end; PANEL = Protein expression panel; PWAS.Z = PWAS Z-score; TWAS.P = TWAS p-value; PWAS.P.FDR = BY FDR corrected PWAS p-value; COLOC.PP3 = Posterior probability of coloc model 3 (linkage); COLOC.PP4 = Posterior probability of coloc model 4 (pleiotropy)."))
 
 ```
@@ -1431,7 +1434,7 @@ cat("<details><summary>Show FDR significant results</summary> \n")
 
 ```{r, echo=F, eval=magma_gene_logical}
 
-magma<-fread(paste0('results/',params$gwas,'/magma/magma_gene_level.clean.csv'))
+magma<-fread(paste0(outdir,'/results/',params$gwas,'/magma/magma_gene_level.clean.csv'))
 
 magma$P.FDR<-p.adjust(magma$P, method = 'fdr')
 
@@ -1449,7 +1452,7 @@ datatable(magma_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(magma_gene_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/magma/magma_gene_level.clean.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/magma/magma_gene_level.clean.csv \n\n'))
 cat(paste0("Note. CHR = Chromsome; START = Gene start; STOP = Gene stop; P = P-value; P.FDR = BY FDR-corrected p-value."))
 
 ```
@@ -1757,7 +1760,7 @@ for(chunk_i in 1:length(chunks)){
   
   }
   
-  png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=40*length(unique(all_func_res_all_chunk_i$ID))+800, width=3750)
+  png(paste0(outdir,'/results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=40*length(unique(all_func_res_all_chunk_i$ID))+800, width=3750)
   
   grid.draw(gt)
   
@@ -1785,7 +1788,7 @@ for(chunk_i in 1:length(chunks)){
   
   }
   
-  png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'_test.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
+  png(paste0(outdir,'/results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'_test.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
   
   grid.draw(gt)
   
@@ -1855,7 +1858,7 @@ for(i in 1:nrow(group_siz)){
 
 }
 
-png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_mini.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_mini$ID))+600, width=2500)
+png(paste0(outdir,'/results/',params$gwas,'/reports/gene_con_func_heatmap_mini.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_mini$ID))+600, width=2500)
 
 grid.draw(gt)
 
@@ -1881,7 +1884,7 @@ for(i in 1:nrow(group_siz)){
 
 }
 
-png(paste0('results/',params$gwas,'/reports/gene_con_func_heatmap_mini_test.png'), units = 'px', res=300, height=60*length(unique(all_func_res_all_mini$ID))+600, width=2500)
+png(paste0(outdir,'/results/',params$gwas,'/reports/gene_con_func_heatmap_mini_test.png'), units = 'px', res=300, height=60*length(unique(all_func_res_all_mini$ID))+600, width=2500)
 
 grid.draw(gt)
 
@@ -1934,7 +1937,7 @@ cat("<details><summary>Show Drugs </summary>")
 
 ```{r, echo=F, eval=dgi_db_comp_logical}
 
-gene_assoc_drug<-fread(paste0('results/',params$gwas,'/DGIdb/DGIdb_opposing_clean.csv'))
+gene_assoc_drug<-fread(paste0(outdir,'/results/',params$gwas,'/DGIdb/DGIdb_opposing_clean.csv'))
 gene_assoc_drug$Score<-NULL
 gene_assoc_drug$Ref<-paste0('<a href="https://www.dgidb.org/interactions/',gene_assoc_drug$IntID,'#_summary">link</a>')
 gene_assoc_drug$IntID<-NULL
@@ -1950,7 +1953,7 @@ datatable(gene_assoc_drug, rownames= FALSE, escape = -5)
 
 ```{r, echo=FALSE, eval=any(dgi_db_comp_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/So_res_clean.csv \n\n'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/cmap/So_res_clean.csv \n\n'))
 cat(paste0("Note. ID = Gene ID; GenoPhenoAssoc = Whether the GWAS phenotype is associated with an up or downregulation of the gene; Drug = Drug name; DrugGeneInt = Whether the drug inhibits or activates the gene"))
 
 ```
@@ -1973,12 +1976,12 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary>")
 
 ```{r, echo=F, eval=twas_so_lincs_logical}
 
-weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-read.table(paste0(outdir,'/results/',params$gwas,'/twas/list_of_weights.txt'))$V1
 weights<-weights[!grepl('SPLIC',weights)]
 
 so_cmap_all<-NULL
 for(i in weights){
-  so_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/So_res_',i,'_clean.csv'))
+  so_cmap<-fread(paste0(outdir,'/results/',params$gwas,'/twas/cmap/So_res_',i,'_clean.csv'))
   so_cmap$Panel<-i
   so_cmap_all<-rbind(so_cmap_all, so_cmap)
 }
@@ -2006,7 +2009,7 @@ datatable(so_cmap_all_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(twas_so_lincs_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/So_res_clean.csv'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/cmap/So_res_clean.csv'))
 
 ```
 
@@ -2019,12 +2022,12 @@ cat("<details><summary>Show ATC Enrichment Results</summary> \n")
 
 ```{r, echo=F, eval=twas_so_lincs_logical}
 
-weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-read.table(paste0(outdir,'/results/',params$gwas,'/twas/list_of_weights.txt'))$V1
 weights<-weights[!grepl('SPLIC',weights)]
 
 so_cmap_atc_all<-NULL
 for(i in weights){
-  so_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/atc_res_',i,'.csv'))
+  so_cmap_atc<-fread(paste0(outdir,'/results/',params$gwas,'/twas/cmap/atc_res_',i,'.csv'))
   so_cmap_atc$Panel<-i
   so_cmap_atc$P.FDR<-p.adjust(so_cmap_atc$P, method = 'fdr')
   so_cmap_atc_all<-rbind(so_cmap_atc_all, so_cmap_atc)
@@ -2063,7 +2066,7 @@ so_cmap_atc_all_brief_brown_sig<-so_cmap_atc_all_brief_brown[(so_cmap_atc_all_br
 so_cmap_atc_all_brief_brown_sig$Label<-paste0(so_cmap_atc_all_brief_brown_sig$ATC,': ', so_cmap_atc_all_brief_brown_sig$Name)
 so_cmap_atc_all_brief_brown_sig$Label<-factor(so_cmap_atc_all_brief_brown_sig$Label, levels=so_cmap_atc_all_brief_brown_sig$Label[so_cmap_atc_all_brief_brown_sig$Panel == 'All'][order(so_cmap_atc_all_brief_brown_sig$P[so_cmap_atc_all_brief_brown_sig$Panel == 'All'])])
 
-png(paste0('results/',params$gwas,'/reports/so_atc.png'), units = 'px', res=300, height=40*length(unique(so_cmap_atc_all_brief_brown_sig$ATC))+1000, width=2750)
+png(paste0(outdir,'/results/',params$gwas,'/reports/so_atc.png'), units = 'px', res=300, height=40*length(unique(so_cmap_atc_all_brief_brown_sig$ATC))+1000, width=2750)
 
 ggplot(so_cmap_atc_all_brief_brown_sig, aes(x=Panel, y=Label)) +
 	theme_bw()	+
@@ -2085,7 +2088,7 @@ cat(paste0("![](../results/",params$gwas,"/reports/so_atc.png)\n\n"))
 
 ```{r, echo=FALSE, eval=any(twas_so_lincs_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/So_res_atc_res.csv'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/cmap/So_res_atc_res.csv'))
 
 ```
 
@@ -2105,12 +2108,12 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary> \n")
 
 ```{r, echo=F, eval=twas_gsea_lincs_logical}
 
-weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-read.table(paste0(outdir,'/results/',params$gwas,'/twas/list_of_weights.txt'))$V1
 weights<-weights[!grepl('SPLIC',weights)]
 
 gsea_cmap_all<-NULL
 for(i in weights){
-  gsea_cmap<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_cmap_',i,'.competitive.clean.csv'))
+  gsea_cmap<-fread(paste0(outdir,'/results/',params$gwas,'/twas/cmap/twas_gsea_cmap_',i,'.competitive.clean.csv'))
   gsea_cmap$Panel<-i
   gsea_cmap_all<-rbind(gsea_cmap_all, gsea_cmap)
 }
@@ -2141,7 +2144,7 @@ datatable(gsea_cmap_all_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(twas_gsea_lincs_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/twas_gsea_cmap.competitive.clean.csv'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/cmap/twas_gsea_cmap.competitive.clean.csv'))
 
 ```
 
@@ -2153,12 +2156,12 @@ cat("<details><summary>Show ATC Enrichment Results</summary> \n")
 ```
 
 ```{r, echo=F, eval=twas_gsea_lincs_logical}
-weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-read.table(paste0(outdir,'/results/',params$gwas,'/twas/list_of_weights.txt'))$V1
 weights<-weights[!grepl('SPLIC',weights)]
 
 gsea_cmap_atc_all<-NULL
 for(i in weights){
-  gsea_cmap_atc<-fread(paste0('results/',params$gwas,'/twas/cmap/twas_gsea_',i,'_res_atc_res.csv'))
+  gsea_cmap_atc<-fread(paste0(outdir,'/results/',params$gwas,'/twas/cmap/twas_gsea_',i,'_res_atc_res.csv'))
   gsea_cmap_atc$Panel<-i
   gsea_cmap_atc_all<-rbind(gsea_cmap_atc_all, gsea_cmap_atc)
 }
@@ -2173,7 +2176,7 @@ names(gsea_drugtargetor_atc_all_brief)<-c('Panel','ATC','Name','log10_P','P','P.
 gsea_cmap_atc_all_brief_sig<-gsea_cmap_atc_all_brief[(gsea_cmap_atc_all_brief$ATC %in% gsea_cmap_atc_all_brief$ATC[gsea_cmap_atc_all_brief$P.FDR < 0.05]),]
 gsea_cmap_atc_all_brief_sig$Label<-paste0(gsea_cmap_atc_all_brief_sig$ATC,': ', gsea_cmap_atc_all_brief_sig$Name)
 
-png(paste0('results/',params$gwas,'/reports/gsea_atc.png'), units = 'px', res=300, height=40*length(unique(gsea_cmap_atc_all_brief_sig$ATC))+1000, width=2750)
+png(paste0(outdir,'/results/',params$gwas,'/reports/gsea_atc.png'), units = 'px', res=300, height=40*length(unique(gsea_cmap_atc_all_brief_sig$ATC))+1000, width=2750)
 
 ggplot(gsea_cmap_atc_all_brief_sig, aes(x=Panel, y=Label)) +
 	theme_bw()	+
@@ -2196,7 +2199,7 @@ cat(paste0("![](../results/",params$gwas,"/reports/gsea_atc.png)\n\n"))
 
 ```{r, echo=FALSE, eval=any(twas_gsea_lincs_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/cmap/twas_gsea_*_res_atc_res.csv'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/cmap/twas_gsea_*_res_atc_res.csv'))
 
 ```
 
@@ -2216,12 +2219,12 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary> \n")
 
 ```{r, echo=F, eval=twas_gsea_drugtargetor_logical}
 
-weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-read.table(paste0(outdir,'/results/',params$gwas,'/twas/list_of_weights.txt'))$V1
 weights<-weights[!grepl('SPLIC',weights)]
 
 gsea_drugtargetor_all<-NULL
 for(i in weights){
-  gsea_drugtargetor<-fread(paste0('results/',params$gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_',i,'.competitive.clean.csv'))
+  gsea_drugtargetor<-fread(paste0(outdir,'/results/',params$gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_',i,'.competitive.clean.csv'))
   gsea_drugtargetor$Panel<-i
   gsea_drugtargetor_all<-rbind(gsea_drugtargetor_all, gsea_drugtargetor)
 }
@@ -2269,7 +2272,7 @@ datatable(gsea_drugtargetor_all_clean, rownames= FALSE)
 
 ```{r, echo=FALSE, eval=any(twas_gsea_drugtargetor_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/drugtargetor/twas_gsea_drugtargetor.competitive.clean.csv'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/drugtargetor/twas_gsea_drugtargetor.competitive.clean.csv'))
 
 ```
 
@@ -2281,12 +2284,12 @@ cat("<details><summary>Show ATC Enrichment Results</summary> \n")
 ```
 
 ```{r, echo=F, eval=twas_gsea_drugtargetor_logical}
-weights<-read.table(paste0('results/',params$gwas,'/twas/list_of_weights.txt'))$V1
+weights<-read.table(paste0(outdir,'/results/',params$gwas,'/twas/list_of_weights.txt'))$V1
 weights<-weights[!grepl('SPLIC',weights)]
 
 gsea_drugtargetor_atc_all<-NULL
 for(i in weights){
-  gsea_drugtargetor_atc<-fread(paste0('results/',params$gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
+  gsea_drugtargetor_atc<-fread(paste0(outdir,'/results/',params$gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
   gsea_drugtargetor_atc$Panel<-i
   gsea_drugtargetor_atc_all<-rbind(gsea_drugtargetor_atc_all, gsea_drugtargetor_atc)
 }
@@ -2322,7 +2325,7 @@ gsea_drugtargetor_atc_all_brief$Panel[gsea_drugtargetor_atc_all_brief$Panel == "
 gsea_drugtargetor_atc_all_brief_sig<-gsea_drugtargetor_atc_all_brief[(gsea_drugtargetor_atc_all_brief$ATC %in% gsea_drugtargetor_atc_all_brief$ATC[gsea_drugtargetor_atc_all_brief$P.FDR < 0.05]),]
 gsea_drugtargetor_atc_all_brief_sig$Label<-paste0(gsea_drugtargetor_atc_all_brief_sig$ATC,': ', gsea_drugtargetor_atc_all_brief_sig$Name)
 
-png(paste0('results/',params$gwas,'/reports/gsea_drugtargetor_atc.png'), units = 'px', res=300, height=40*length(unique(gsea_drugtargetor_atc_all_brief_sig$ATC))+1000, width=2750)
+png(paste0(outdir,'/results/',params$gwas,'/reports/gsea_drugtargetor_atc.png'), units = 'px', res=300, height=40*length(unique(gsea_drugtargetor_atc_all_brief_sig$ATC))+1000, width=2750)
 
 ggplot(gsea_drugtargetor_atc_all_brief_sig, aes(x=Panel, y=Label)) +
 	theme_bw()	+
@@ -2345,7 +2348,7 @@ cat(paste0("![](../results/",params$gwas,"/reports/gsea_drugtargetor_atc.png)\n\
 
 ```{r, echo=FALSE, eval=any(twas_gsea_drugtargetor_logical), results='asis'}
 
-cat(paste0('Full results file: results/',params$gwas,'/twas/drugtargetor/twas_gsea_*_res_atc_res.csv'))
+cat(paste0('Full results file: ',outdir,'/results/',params$gwas,'/twas/drugtargetor/twas_gsea_*_res_atc_res.csv'))
 
 ```
 
@@ -2365,7 +2368,7 @@ cat("<details><summary>Show Top Drug Enrichment Results</summary> \n")
 
 ```{r, echo=F, eval=magma_drugtargetor_logical}
 
-magma_gs<-fread(paste0('results/',params$gwas,'/magma/magma_drug_targetor.clean.csv'))
+magma_gs<-fread(paste0(outdir,'/results/',params$gwas,'/magma/magma_drug_targetor.clean.csv'))
 magma_gs<-magma_gs[order(magma_gs$P),]
 magma_gs$P.FDR<-p.adjust(magma_gs$P, method='fdr')
 
@@ -2436,7 +2439,7 @@ if(sum(magma_gs$P.FDR < 0.05) > 50){
 all_gsea$Panel<-factor(all_gsea$Panel, levels=c('MAGMA',unique(all_gsea$Panel)[unique(all_gsea$Panel) != 'MAGMA']))
 all_gsea$Name<-factor(all_gsea$Name, levels=unique(magma_gs$Name[order(magma_gs$P)]))
 
-png(paste0('results/',params$gwas,'/reports/magma_drug_twas_gsea.png'), units = 'px', res=300, height=50*length(unique(all_gsea$Name))+1000, width=2500)
+png(paste0(outdir,'/results/',params$gwas,'/reports/magma_drug_twas_gsea.png'), units = 'px', res=300, height=50*length(unique(all_gsea$Name))+1000, width=2500)
 
 ggplot(all_gsea, aes(x=Panel, y=Name)) +
 	theme_bw()	+
@@ -2487,7 +2490,7 @@ if(sum(magma_gs$P.FDR < 0.05) > 50){
 all_so$Panel<-factor(all_so$Panel, levels=c('MAGMA',unique(all_so$Panel)[unique(all_so$Panel) != 'MAGMA']))
 all_so$Name<-factor(all_so$Name, levels=unique(magma_gs$Name[order(magma_gs$P)]))
 
-png(paste0('results/',params$gwas,'/reports/magma_drug_twas_so.png'), units = 'px', res=300, height=50*length(unique(all_so$Name))+1000, width=2500)
+png(paste0(outdir,'/results/',params$gwas,'/reports/magma_drug_twas_so.png'), units = 'px', res=300, height=50*length(unique(all_so$Name))+1000, width=2500)
 
 ggplot(all_so, aes(x=Panel, y=Name)) +
 	theme_bw()	+
@@ -2511,7 +2514,7 @@ cat(paste0("![](../results/",params$gwas,"/reports/magma_drug_twas_so.png)\n\n")
 ```{r, echo=F, eval=F}
 #```{r, echo=FALSE, eval=any(magma_drugtargetor_logical), results='asis'}
 
-cat(paste0("Full results file: results/",params$gwas,"/magma/magma_drug_targetor.clean.csv"))
+cat(paste0("Full results file: ",outdir,"/results/",params$gwas,"/magma/magma_drug_targetor.clean.csv"))
 
 ```
 
@@ -2542,7 +2545,7 @@ if(sum(magma_gs$P.FDR < 0.05) > 50){
 all_gsea$Panel<-factor(all_gsea$Panel, levels=c('MAGMA',unique(all_gsea$Panel)[unique(all_gsea$Panel) != 'MAGMA']))
 all_gsea$Name<-factor(all_gsea$Name, levels=unique(magma_gs$Name[order(magma_gs$P)]))
 
-png(paste0('results/',params$gwas,'/reports/magma_drug_twas_gsea_drugtargetor.png'), units = 'px', res=300, height=50*length(unique(all_gsea$Name))+1000, width=2500)
+png(paste0(outdir,'/results/',params$gwas,'/reports/magma_drug_twas_gsea_drugtargetor.png'), units = 'px', res=300, height=50*length(unique(all_gsea$Name))+1000, width=2500)
 
 ggplot(all_gsea, aes(x=Panel, y=Name)) +
 	theme_bw()	+
@@ -2574,7 +2577,7 @@ cat("<details><summary>Show ATC Enrichment Results</summary> \n")
 ```{r, echo=F, eval=F}
 #```{r, echo=F, eval=magma_drugtargetor_logical}
 
-magma_gs_atc<-fread(paste0('results/',params$gwas,'/magma/magma_drug_targetor_atc_res.csv'))
+magma_gs_atc<-fread(paste0(outdir,'/results/',params$gwas,'/magma/magma_drug_targetor_atc_res.csv'))
 magma_gs_atc$P.FDR<-p.adjust(magma_gs_atc$P, method = 'fdr')
 
 magma_gs_atc<-magma_gs_atc[,c("ATC","N","Estimate","P","P.FDR","Name"), with=F]
@@ -2619,7 +2622,7 @@ datatable(magma_gs_atc, rownames= FALSE)
 ```{r, echo=F, eval=F}
 #```{r, echo=FALSE, eval=any(magma_drugtargetor_logical), results='asis'}
 
-cat(paste0("Full results file: results/",params$gwas,"/magma/magma_drug_targetor_atc_res.csv"))
+cat(paste0("Full results file: ",outdir,"/results/",params$gwas,"/magma/magma_drug_targetor_atc_res.csv"))
 
 ```
 

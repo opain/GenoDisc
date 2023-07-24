@@ -3,14 +3,23 @@
 suppressMessages(library("optparse"))
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
+
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
-ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
 
 if(all(names(ss) != 'BETA')){
   ss$BETA<-log(ss$OR)
@@ -23,5 +32,5 @@ if(any(names(ss) != 'FREQ')){
 ss<-ss[,c('SNP','A1','A2','FREQ','BETA','SE','P','N'),with=F]
 names(ss)<-c('SNP','A1','A2','freq','b','se','p','N')
 
-fwrite(ss, paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.cojo'), sep=' ', na='NA', quote=F)
+fwrite(ss, paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.cojo'), sep=' ', na='NA', quote=F)
 

@@ -134,9 +134,12 @@ rule format_sumstats_smr:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo"
   conda:
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_sumstats_smr.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 ####
 # Run SMR using eQTL

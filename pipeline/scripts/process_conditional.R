@@ -4,7 +4,9 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -12,10 +14,16 @@ opt = parse_args(OptionParser(option_list=option_list))
 # Read in the report files
 library(data.table)
 
-# Read in all jointly significant associations
-temp = list.files(path=paste0('results/',opt$gwas,'/twas/conditional/'),pattern=glob2rx("*chr*.report"))
+# Read in config file
+config<-readLines(opt$config_file)
 
-report<-do.call(rbind, lapply(temp, function(x) read.table(paste0('results/',opt$gwas,'/twas/conditional/',x), header=T,stringsAsFactors=F)))
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+# Read in all jointly significant associations
+temp = list.files(path=paste0(outdir,'/results/',opt$gwas,'/twas/conditional/'),pattern=glob2rx("*chr*.report"))
+
+report<-do.call(rbind, lapply(temp, function(x) read.table(paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',x), header=T,stringsAsFactors=F)))
 report$JOINT.ID<-NA
 report$MARGIN.ID<-NA
 report$JOINT.N<-NA
@@ -26,13 +34,13 @@ margin_res<-NULL
 
 # Insert names of jointly significant genes
 for(i in unique(report$CHR)){
-  joint_i<-read.table(paste0('results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_chr',i,'.joint_included.dat'), header=T,stringsAsFactors=F)
-  margin_i<-read.table(paste0('results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_chr',i,'.joint_dropped.dat'), header=T,stringsAsFactors=F)
+  joint_i<-read.table(paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_chr',i,'.joint_included.dat'), header=T,stringsAsFactors=F)
+  margin_i<-read.table(paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_chr',i,'.joint_dropped.dat'), header=T,stringsAsFactors=F)
   
-  temp = list.files(path=paste0('results/',opt$gwas,'/twas/conditional/'), pattern=glob2rx(paste0("*chr",i,".loc*.genes")))
+  temp = list.files(path=paste0(outdir,'/results/',opt$gwas,'/twas/conditional/'), pattern=glob2rx(paste0("*chr",i,".loc*.genes")))
 
   for(k in gsub('.genes','',gsub('.*loc_','', temp))){
-    loc_k<-read.table(paste0('results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_chr',i,'.loc_',k,'.genes'), header=T, stringsAsFactors=F)
+    loc_k<-read.table(paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_chr',i,'.loc_',k,'.genes'), header=T, stringsAsFactors=F)
     
     loc_k_joint<-loc_k[(loc_k$FILE %in% joint_i$FILE),]
     joint_res<-rbind(joint_res,loc_k_joint)
@@ -103,4 +111,4 @@ gene_res$Colocalised[gene_res$COLOC.PP4 >0.8]<-T
 gene_res<-gene_res[,c('CHR','BP','P0','P1','ID','PANEL','TWAS.Z','TWAS.P','BEST.GWAS.P','TOP.SNP.COR','Type','Novel','COLOC.PP3','COLOC.PP4','Colocalised')]
 
 # Save table showing whether gene associations are novel
-write.csv(gene_res,paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_novelty.csv'), row.names=F, quote=T)
+write.csv(gene_res,paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_novelty.csv'), row.names=F, quote=T)
