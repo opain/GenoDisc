@@ -1,5 +1,5 @@
 ---
-title: "GenoFuncPipe Analysis"
+title: "GenoDiscover Analysis"
 output: html_document
 ---
 
@@ -24,10 +24,10 @@ PMID: 35396580
 EUR only
 
 ```{r, eval=F, echo=T}
-dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ', recursive = T)
-system('wget --no-check-certificate -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ/SCZ.original.gz https://figshare.com/ndownloader/files/34517828')
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/SCZ', recursive = T)
+system('wget --no-check-certificate -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/SCZ/SCZ.original.gz https://figshare.com/ndownloader/files/34517828')
 
-ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ/SCZ.original.gz')
+ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/SCZ/SCZ.original.gz')
 
 # Update column names. Use NEFF as N
 # I am not sure how PGS is computing NEFF but appears wrong
@@ -40,7 +40,7 @@ ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
 # Keep only relevent columns
 ss<-ss[,c('SNP','A1','A2','INFO','BETA','SE','P','N','FREQ'), with=F]
 
-fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ/SCZ.reformat.gz', sep=' ', na='NA', quote=F)
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/SCZ/SCZ.reformat.gz', sep=' ', na='NA', quote=F)
 
 ```
 
@@ -51,10 +51,10 @@ fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/SC
 PMID: 34002096
 
 ```{r, eval=F, echo=T}
-dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/BIP', recursive = T)
-system('wget --no-check-certificate -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/BIP/BIP.original.gz https://figshare.com/ndownloader/files/26603681')
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/BIP', recursive = T)
+system('wget --no-check-certificate -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/BIP/BIP.original.gz https://figshare.com/ndownloader/files/26603681')
 
-ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/BIP/BIP.original.gz')
+ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/BIP/BIP.original.gz')
 
 # Update column names. Use NEFF as N
 # I am not sure how PGS is computing NEFF but appears wrong
@@ -67,7 +67,7 @@ ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
 # Keep only relevent columns
 ss<-ss[,c('SNP','A1','A2','INFO','BETA','SE','P','N','FREQ'), with=F]
 
-fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/BIP/BIP.reformat.gz', sep=' ', na='NA', quote=F)
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/BIP/BIP.reformat.gz', sep=' ', na='NA', quote=F)
 
 ```
 
@@ -79,7 +79,7 @@ I have access to the latest sumstat (incl. 23andMe). Not yet published.
 
 ```{r, eval=F, echo=T}
 
-dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MDD', recursive = T)
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/MDD', recursive = T)
 
 # Read in the sumstats
 ss<-fread('/users/k1806347/brc_scratch/Software/mdd-meta_2/mdd-meta/results/distribution/daner_pgc_mdd_full_eur_hg19_v3.49.24.11.gz')
@@ -94,7 +94,7 @@ ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
 # Keep only relevent columns
 ss<-ss[,c('SNP','A1','A2','INFO','OR','SE','P','N','FREQ'), with=F]
 
-fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MDD/MDD.reformat.gz', sep=' ', na='NA', quote=F)
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/MDD/MDD.reformat.gz', sep=' ', na='NA', quote=F)
 
 ```
 
@@ -150,15 +150,15 @@ PMID: 34493870
 Excludes 23andMe.
 
 ```{r, eval=F, echo=T}
-dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/ALZ', recursive = T)
-system('wget --no-check-certificate -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/ALZ/ALZ.original.gz https://ctg.cncr.nl/documents/p1651/PGCALZ2sumstatsExcluding23andMe.txt.gz')
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/ALZ', recursive = T)
+system('wget --no-check-certificate -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/ALZ/ALZ.original.gz https://ctg.cncr.nl/documents/p1651/PGCALZ2sumstatsExcluding23andMe.txt.gz')
 
-ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/ALZ/ALZ.original.gz')
+ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/ALZ/ALZ.original.gz')
 
 # Update column names.
 names(ss)<-c('CHR','ORIGBP','A1','A2','BETA','P','N')
 
-fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/ALZ/ALZ.reformat.gz', sep=' ', na='NA', quote=F)
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/ALZ/ALZ.reformat.gz', sep=' ', na='NA', quote=F)
 
 ```
 
@@ -171,13 +171,13 @@ Publicly available version
 PMID: 31701892
 
 ```{r, eval=F, echo=T}
-dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK', recursive = T)
-system('wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN" -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/PRK.original.zip && rm -rf /tmp/cookies.txt')
-setwd('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/')
-system('unzip /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/PRK.original.zip')
-system('rm /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/PRK.original.zip')
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK', recursive = T)
+system('wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN" -O /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK/PRK.original.zip && rm -rf /tmp/cookies.txt')
+setwd('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK/')
+system('unzip /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK/PRK.original.zip')
+system('rm /users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK/PRK.original.zip')
 
-ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/nallsEtAl2019_excluding23andMe_allVariants.tab')
+ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK/nallsEtAl2019_excluding23andMe_allVariants.tab')
 
 ss$CHR<-gsub('chr','',gsub(':.*','',ss$SNP))
 ss$BP<-gsub('.*:','',ss$SNP)
@@ -190,7 +190,7 @@ ss$N<-4/((1/ss$NCAS)+(1/ss$NCON))
 # Keep only relevent columns
 ss<-ss[,c('CHR','ORIGBP','A1','A2','BETA','SE','P','N','FREQ'), with=F]
 
-fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/PRK/PRK.reformat.gz', sep=' ', na='NA', quote=F)
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/PRK/PRK.reformat.gz', sep=' ', na='NA', quote=F)
 
 ```
 
@@ -204,14 +204,14 @@ Requested from Dale Nyholt.
 
 ```{r, eval=F, echo=T}
 
-dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MIG', recursive = T)
+dir.create('/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/MIG', recursive = T)
 
 ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/Migraine_Hautakangas_excl23andMe/migraine_IHGC2021_no23andMe_gwama_v2.txt.gz')
 
 ss<-ss[,c('chromosome','position','reference_allele','other_allele','eaf','beta','se','p.value','Neff'), with=F]
 names(ss)<-c('CHR','ORIGBP','A1','A2','FREQ','BETA','SE','P','N')
 
-fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoFuncPipe_paper/MIG/MIG.reformat.gz', sep=' ', na='NA', quote=F)
+fwrite(ss, '/users/k1806347/brc_scratch/Data/GWAS_sumstats/GenoDiscover_paper/MIG/MIG.reformat.gz', sep=' ', na='NA', quote=F)
 
 ```
 
