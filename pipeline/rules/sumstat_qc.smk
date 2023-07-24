@@ -11,7 +11,7 @@ rule install_liftover:
   output:
     touch("resources/software/install_liftover.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/software/liftover/; wget --no-check-certificate -O resources/software/liftover/liftover https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver"
 
@@ -20,7 +20,7 @@ rule download_liftover_track:
   output:
     touch("resources/software/download_liftover_track.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/liftover/; wget --no-check-certificate -O resources/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O resources/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz"
 
@@ -37,7 +37,7 @@ rule prep_1kg:
   output:
     touch("resources/data/prep_1kg.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/prep_1kg.R"
 
@@ -62,7 +62,7 @@ rule install_ldsc:
   output:
     directory("resources/software/ldsc/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "git clone git@github.com:bulik/ldsc.git {output}"
 
@@ -71,7 +71,7 @@ rule download_ldsc_scores:
   output:
     "resources/software/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/eur_w_ld_chr.tar.bz2 https://data.broadinstitute.org/alkesgroup/LDSCORE/eur_w_ld_chr.tar.bz2; tar -jxvf resources/data/ldsc/eur_w_ld_chr.tar.bz2 -C resources/data/ldsc; rm resources/data/ldsc/eur_w_ld_chr.tar.bz2"
 
@@ -79,7 +79,7 @@ rule download_ldsc_hm3:
   output:
     "resources/software/ldsc/w_hm3.snplist"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/w_hm3.snplist.bz2 https://data.broadinstitute.org/alkesgroup/LDSCORE/w_hm3.snplist.bz2; bunzip2 -d resources/data/ldsc/w_hm3.snplist.bz2"
 
@@ -88,7 +88,7 @@ rule download_gcta:
   output:
     directory('resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/')
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/software/gcta; wget -O resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d resources/software/gcta; rm resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip"
     
@@ -111,7 +111,7 @@ rule sumstat_prep:
   output:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     path= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'path'].iloc[0]
@@ -148,7 +148,7 @@ rule retrieve_N:
   output:
     "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/median_n.R --munged {input} --out {output}"
 
@@ -180,7 +180,7 @@ rule clump:
   output:
     touch("results/{gwas}/checks/{gwas}_chr{chr}.clumped.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
   shell:
@@ -210,7 +210,7 @@ rule process_clump:
   output:
     "results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/process_clump.R \
       --gwas {wildcards.gwas}"
@@ -261,7 +261,7 @@ rule process_cojo:
   output:
     "results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/process_cojo.R \
       --gwas {wildcards.gwas}"

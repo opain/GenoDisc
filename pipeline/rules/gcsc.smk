@@ -6,7 +6,7 @@ rule install_gcsc:
   output:
     directory("resources/software/GCSC/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "git clone git@github.com:ksiewert/GCSC.git {output}"
 
@@ -20,7 +20,7 @@ rule download_gcsc_coreg:
   output:
     "resources/data/GCSC/coreg/{gcsc_tissue}_geneNames.txt"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; wget -O resources/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt"
 
@@ -37,7 +37,7 @@ rule download_gcsc_twas_weights:
   output:
     directory("resources/data/GCSC/twas_weights/GTEx.{gcsc_tissue}.P01")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; wget -O resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 http://gusevlab.org/projects/fusion/weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2; tar xjvf resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 -C resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; rm resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2"
 
@@ -63,7 +63,7 @@ rule run_twas_gcsc:
   output:
     "results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
     --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
@@ -96,7 +96,7 @@ checkpoint prep_set_gcsc:
   output:
     "results/{gwas}/gcsc/drugtargetor_gcsc_sets.nset.txt"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     config_file= config["config_file"]
   shell:
@@ -151,7 +151,7 @@ rule combine_gcsc:
   output:
     "results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.txt"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     config_file= config["config_file"]
   shell:

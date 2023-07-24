@@ -40,7 +40,7 @@ rule query_dgidb:
   output:
     "results/{gwas}/DGIdb/DGIdb_opposing_clean.csv"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     config_file=config["config_file"]
   shell:

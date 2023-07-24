@@ -1,5 +1,5 @@
 ---
-title: "GenoFunc: Genomic Analysis of Functional Annotations"
+title: "GenoDiscover: Genomic Discovery Platform"
 output: html_document
 ---
 
@@ -9,13 +9,13 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ***
 
-Welcome! This website documents research regarding the integration of GWAS summary statistics with functional genomic annotations.
+Welcome! This website documents research regarding the analysis of GWAS summary statistics for novel mechanistic and therapeutic insights.
 
 ***
 
 ### Projects:
 
-* [GenoFuncPipe: A drug target and drug repurposing pipeline](https://github.com/opain/GenoFunc/tree/main/GenoFuncPipe)
+* [GenoDiscover - Pipeline: A drug target and drug repurposing pipeline](https://github.com/opain/GenoDiscover/tree/main/pipeline)
 
 ***
 

@@ -14,7 +14,7 @@ rule finemap:
   output:
     "results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
   shell:
@@ -38,7 +38,7 @@ rule process_finemap:
   output:
     "results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/process_finemap.R \
       --gwas {wildcards.gwas}"

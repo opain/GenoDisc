@@ -7,7 +7,7 @@ rule install_fusion:
   output:
     directory("resources/software/fusion/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "git clone git@github.com:gusevlab/fusion_twas.git {output}"
 
@@ -18,7 +18,7 @@ rule download_plink2R:
   output:
     "resources/software/plink2R/plink2R-master/data.bed"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; unzip resources/software/plink2R/master.zip -d resources/software/plink2R"
 
@@ -29,7 +29,7 @@ rule install_plink2R:
   output:
     touch("resources/software/install_plink2R")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript -e 'install.packages(\"resources/software/plink2R/plink2R-master/plink2R/\",repos=NULL)'"
 
@@ -38,7 +38,7 @@ rule install_snp_weight_pipe:
   output:
     directory("resources/software/Calculating-FUSION-TWAS-weights-pipeline/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "git clone git@github.com:opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}"
 
@@ -50,7 +50,7 @@ rule install_cmapR:
   output:
     "resources/software/install_cmapR.done"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/install_cmapR.R"
 
@@ -66,7 +66,7 @@ rule download_psychENCODE_weights:
   output:
     touch("resources/data/download_psychENCODE_weights.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/fusion_snp_weights/psychencode; wget -O resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; mkdir -p resources/data/fusion_snp_weights/psychencode/psychencode; tar xvzf resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C resources/data/fusion_snp_weights/psychencode/psychencode; rm resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz"
     
@@ -78,7 +78,7 @@ rule format_psychencode:
   output:
     "resources/data/format_psychencode.done"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_psychENCODE.R"
 
@@ -90,7 +90,7 @@ rule download_gtex_weights:
   output:
     touch("resources/data/download_fusion_gtex_{weight}_weights.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/fusion_snp_weights/{wildcards.weight}; wget -O resources/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz https://s3.us-west-1.amazonaws.com/gtex.v8.fusion/EUR/GTExv8.EUR.{wildcards.weight}.tar.gz; tar xf resources/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz -C resources/data/fusion_snp_weights/{wildcards.weight}; rm resources/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz; mv resources/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight}.pos resources/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos; mv resources/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight} resources/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}"
 
@@ -101,7 +101,7 @@ rule update_gtex_coord:
   output:
     touch("resources/data/update_gtex_coord_{weight}.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/update_gtex_coord.R \
       --panel {wildcards.weight}"
@@ -116,7 +116,7 @@ rule download_non_gtex_weights:
   output:
     touch("resources/data/download_non_gtex_{weight}_weights.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/fusion_snp_weights/{wildcards.weight}; wget --no-check-certificate -O resources/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 https://data.broadinstitute.org/alkesgroup/FUSION/WGT/{wildcards.weight}.tar.bz2; tar xvjf resources/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 -C resources/data/fusion_snp_weights/{wildcards.weight}; rm resources/data/fusion_snp_weights/{wildcards.weight}.tar.bz2"
 
@@ -127,7 +127,7 @@ rule insert_n_nongtex:
   output:
     touch("resources/data/insert_n_nongtex_{weight}.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/insert_n_nongtex.R \
       --panel {wildcards.weight}"
@@ -140,7 +140,7 @@ rule download_glist:
   output:
     "resources/data/glist-hg19"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -P resources/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19"
 
@@ -166,7 +166,7 @@ rule subset_lincs:
   output:
     "resources/data/lincs/subset_lincs.done"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     lincs_level5= config["lincs_level5"],
     lincs_siginfo= config["lincs_siginfo"]
@@ -183,7 +183,7 @@ rule install_twas_gsea:
   output:
     directory("resources/software/TWAS-GSEA/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "git clone git@github.com:opain/TWAS-GSEA.git {output}"
 
@@ -197,7 +197,7 @@ rule format_lincs_for_twas_gsea:
   output:
     "resources/data/lincs/lincs_core_subset.txt.gz"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_lincs_for_twas_gsea.R"
 
@@ -209,7 +209,7 @@ rule install_feature_pred:
   output:
     directory("resources/software/Predicting-TWAS-features/")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "git clone git@github.com:opain/Predicting-TWAS-features.git {output}"
 
@@ -221,7 +221,7 @@ rule install_pigz:
   output:
     "resources/software/pigz/pigz/pigz"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/software/pigz.tar.gz https://zlib.net/pigz/pigz.tar.gz; mkdir -p resources/software/pigz; tar xvzf resources/software/pigz.tar.gz -C resources/software/pigz; rm resources/software/pigz.tar.gz; cd resources/software/pigz/pigz; make"
 
@@ -273,7 +273,7 @@ rule feature_pred:
   output:
     "resources/data/predicted_expression/{weight}/Reference_Expression/Reference_Expression_{weight}.txt.gz"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript resources/software/Predicting-TWAS-features/FeaturePred.V2.0.R \
     	--PLINK_prefix_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
@@ -297,7 +297,7 @@ rule format_pred:
   output:
     touch("resources/data/predicted_expression/format_pred_{weight}.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "zcat resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz | sed -e s/{wildcards.weight}.//g | gzip > resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz; mv resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz resources/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz"
 
@@ -310,7 +310,7 @@ rule install_lme4qtl:
   output:
     touch("resources/software/install_lme4qtl.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript -e 'devtools::install_github(\"variani/lme4qtl\")'"
 
@@ -322,7 +322,7 @@ rule format_pwas_data:
   output:
     "resources/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     rosmap_fusion= config["rosmap_fusion"],
     banner_fusion= config["banner_fusion"]
@@ -355,7 +355,7 @@ rule run_twas:
   output:
     "results/{gwas}/twas/{weights}/{gwas}_twas_{weights}_chr{chr}"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
     --sumstats resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
@@ -386,7 +386,7 @@ checkpoint combine_twas_res:
   output:
     "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     config_file= config["config_file"]
   shell:
@@ -416,7 +416,7 @@ rule run_conditional:
   output:
     touch("results/{gwas}/checks/run_conditional_{gwas}_{chr}.done")
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p results/{wildcards.gwas}/twas/conditional; Rscript resources/software/fusion/FUSION.post_process.R \
       --input results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
@@ -442,7 +442,7 @@ rule process_conditional:
   output:
     "results/{gwas}/twas/{gwas}_twas_novelty.csv"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/process_conditional.R \
       --gwas {wildcards.gwas}"
@@ -464,7 +464,7 @@ rule run_rosmap_pwas:
   output:
     "results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
@@ -495,7 +495,7 @@ rule run_banner_pwas:
   output:
     "results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "N=$(cat resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
@@ -530,7 +530,7 @@ rule so_cmap_step1:
   output:
     "results/{gwas}/twas/cmap/res_{weight}_batch_{batch}.RDS"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/so_cmap_step1.R \
     --twas {wildcards.gwas} \
@@ -549,7 +549,7 @@ rule so_cmap_step2:
   output:
     "results/{gwas}/twas/cmap/So_res_{weight}.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/so_cmap_step2.R \
     --twas {wildcards.gwas} \
@@ -563,7 +563,7 @@ rule format_so_results:
   output:
     "results/{gwas}/twas/cmap/atc_res_{weight}.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     lincs_siginfo= config["lincs_siginfo"]
   shell:
@@ -597,7 +597,7 @@ rule run_twas_gsea:
   output:
     touch("results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript resources/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
       --twas_results results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
@@ -623,7 +623,7 @@ rule format_twas_gsea_results:
   output:
     "results/{gwas}/twas/cmap/twas_gsea_{weight}_res_atc_res.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     lincs_siginfo= config["lincs_siginfo"]
   shell:
@@ -650,7 +650,7 @@ rule format_drug_targetor_for_twas_gsea:
   output:
     "resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_drug_targetor_for_twas_gsea.R"
 
@@ -668,7 +668,7 @@ rule run_twas_gsea_drug_targetor:
   output:
     touch("results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript resources/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
       --twas_results results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
@@ -694,7 +694,7 @@ rule format_twas_gsea_drugtargetor_results:
   output:
     "results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_twas_gsea_drugtargetor_results.R \
     --twas {wildcards.gwas} \

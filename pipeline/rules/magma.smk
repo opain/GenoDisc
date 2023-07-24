@@ -6,7 +6,7 @@ rule download_magma:
   output:
     "resources/software/magma/magma"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/software/magma.zip https://ctg.cncr.nl/software/MAGMA/prog/magma_v1.10.zip; unzip resources/software/magma.zip -d resources/software/magma; rm resources/software/magma.zip"
 
@@ -18,7 +18,7 @@ rule download_magma_gene_loc:
   output:
     "resources/data/magma/NCBI37.3.gene.loc"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/aux_files/NCBI37.3.zip; unzip resources/data/magma.zip -d resources/data/magma; rm resources/data/magma.zip"
 
@@ -30,7 +30,7 @@ rule download_magma_ref:
   output:
     "resources/data/magma_ref/g1000_eur.bed"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip; unzip resources/data/magma.zip -d resources/data/magma_ref; rm resources/data/magma.zip"
 
@@ -46,7 +46,7 @@ rule magma_annot:
   output:
     "resources/data/magma/NCBI37.3.genes.annot"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "resources/software/magma/magma \
       --annotate window=35,10 \
@@ -62,7 +62,7 @@ rule download_atc:
   output:
     "resources/data/atc/atc_20220201.txt"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "wget -O resources/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; mkdir -p resources/data/atc; unzip resources/data/2022-02-01-v3extracts.zip -d resources/data/atc; rm resources/data/2022-02-01-v3extracts.zip"
 
@@ -74,7 +74,7 @@ rule download_drug_targetor:
   output:
     "resources/data/drug_targetor/wholedatabase_for_targetor"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "mkdir -p resources/data/drug_targetor/ ; wget -O resources/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
 
@@ -85,7 +85,7 @@ rule format_drug_targetor:
   output:
     "resources/data/drug_targetor/wholedatabase_for_targetor.gmt"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/format_drug_targetor.R"
 
@@ -105,7 +105,7 @@ rule magma_gene_level:
   output:
     "results/{gwas}/magma/magma_gene_level.genes.raw"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "gzip -f -d -c resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
       --bfile resources/data/magma_ref/g1000_eur \
@@ -120,7 +120,7 @@ rule format_magma_gene_results:
   output:
     "results/{gwas}/magma/magma_gene_level.clean.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     lincs_siginfo= config["lincs_siginfo"]
   shell:
@@ -135,7 +135,7 @@ rule magma_drug_targetor:
   output:
     "results/{gwas}/magma/magma_drug_targetor.gsa.out"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "resources/software/magma/magma \
       --gene-results results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
@@ -150,7 +150,7 @@ rule format_magma_results:
   output:
     "results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     lincs_siginfo= config["lincs_siginfo"]
   shell:
@@ -165,7 +165,7 @@ rule comp_magma_gsea_twas_results:
   output:
     "results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
   conda: 
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript scripts/comp_magma_gsea_twas_results.R \
     --gwas {wildcards.gwas}"

@@ -7,7 +7,7 @@ rule install_poolr:
   output:
     touch("resources/software/install_poolr.done")
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   shell:
     "Rscript -e 'install.packages(\"poolr\", repos = \"http://cran.us.r-project.org\")'"
     
@@ -86,7 +86,7 @@ rule create_report:
   output:
     "results/{gwas}/reports/{gwas}_report.html"
   conda:
-    "../envs/GenoFunc.yaml"
+    "../envs/main.yaml"
   params:
     config_file= config["config_file"]
   shell:
