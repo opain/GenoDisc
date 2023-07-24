@@ -121,8 +121,6 @@ rule format_magma_gene_results:
     "results/{gwas}/magma/magma_gene_level.clean.csv"
   conda: 
     "../envs/main.yaml"
-  params:
-    lincs_siginfo= config["lincs_siginfo"]
   shell:
     "Rscript scripts/format_magma_gene_results.R \
     --gwas {wildcards.gwas}"
@@ -151,8 +149,6 @@ rule format_magma_results:
     "results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
   conda: 
     "../envs/main.yaml"
-  params:
-    lincs_siginfo= config["lincs_siginfo"]
   shell:
     "Rscript scripts/format_magma_gsea_results.R \
     --gwas {wildcards.gwas}"
