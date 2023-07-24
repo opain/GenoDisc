@@ -1827,8 +1827,6 @@ group_siz$Size[group_siz$Size < 2]<-2
 group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
 group_siz$Width<-4*group_siz$Prop
 
-# Plot in chunks to make the plot exportable
-all_func_res_all_mini<-all_func_res_all_mini[all_func_res_all_mini$ID %in% chunks[[chunk_i]],]
 all_func_res_all_mini$ID<-factor(all_func_res_all_mini$ID, levels=rev(unique(as.character(all_func_res_all_mini$ID))))
   
 # Create heatmap
