@@ -1,8 +1,8 @@
 ---
 title: "GenoFunc"
 params:
-  gwas: "ALS_only"
-  config_file: "private/config_als_only.yaml"
+  gwas: ""
+  config_file: ""
 output:
   html_document:
     toc: true
@@ -16,8 +16,8 @@ output:
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
-#knitr::opts_knit$set(root.dir = '../')
-knitr::opts_knit$set(root.dir = '/scratch/prj/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe')
+knitr::opts_knit$set(root.dir = '../')
+#knitr::opts_knit$set(root.dir = '/scratch/prj/oliverpainfel/Software/MyGit/GenoDiscover/pipeline')
 
 library(data.table)
 library(knitr)
