@@ -61,7 +61,7 @@ rule run_twas_gcsc:
     "resources/data/GCSC/coreg/{gcsc_tissue}_geneNames.txt",
     "resources/data/GCSC/twas_weights/GTEx.{gcsc_tissue}.P01"
   output:
-    "{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}"
+    "{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat"
   conda:
     "../envs/main.yaml"
   shell:
@@ -75,13 +75,13 @@ rule run_twas_gcsc:
 
 rule twas_gcsc_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}", gwas=w.gwas, gcsc_tissue=w.gcsc_tissue, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat", gwas=w.gwas, gcsc_tissue=w.gcsc_tissue, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/gcsc_twas_{gcsc_tissue}_all_chr.done")
 
 rule twas_gcsc_all_panel:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/checks/gcsc_twas_{gcsc_tissue}_all_chr.done", gwas=w.gwas, gcsc_tissue=gcsc_tissues)
+      lambda w: expand("{outdir}/results/{gwas}/checks/gcsc_twas_{gcsc_tissue}_all_chr.done", gwas=w.gwas, gcsc_tissue=gcsc_tissues, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/gcsc_twas_all_panel.done")
       
@@ -105,8 +105,8 @@ checkpoint prep_set_gcsc:
       --config {params.config_file}"
 
 def n_chunk_gcsc(x):
-    checkpoint_output = checkpoints.prep_set_gcsc.get(gwas=x).output[0]
-    checkpoint_output = "results/" + x + "/gcsc/drugtargetor_gcsc_sets.nset.txt"
+    checkpoint_output = checkpoints.prep_set_gcsc.get(gwas=x, outdir=outdir).output[0]
+    checkpoint_output = outdir + "results/" + x + "/gcsc/drugtargetor_gcsc_sets.nset.txt"
     n_chunk_gcsc_df = pd.read_table(checkpoint_output, sep=' ')
     return n_chunk_gcsc_df['x'].tolist()
 
@@ -137,7 +137,7 @@ rule run_gcsc_drugtargetor:
 
 rule run_gcsc_all_chunk:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/gcsc/drugtargetor/{chunk}/GCSCresults.txt", gwas=w.gwas, chunk=n_chunk_gcsc("{}".format(w.gwas)))
+      lambda w: expand("{outdir}/results/{gwas}/gcsc/drugtargetor/{chunk}/GCSCresults.txt", gwas=w.gwas, chunk=n_chunk_gcsc("{}".format(w.gwas)), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/run_gcsc_all_chunk.done")
       

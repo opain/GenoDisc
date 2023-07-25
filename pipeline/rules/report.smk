@@ -69,6 +69,9 @@ if config["smr_protein_panel_rosmap"] == "T":
 
 if config["twas_gsea_drugtargetor"] == "T":
     myoutput.append("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
+
+if config["gcsc"] == "T":
+    myoutput.append("{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.txt")
     
 rule create_report:
   input:

@@ -3,18 +3,26 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
-chunks<-fread(paste0('results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets.nset.txt'))$x
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+chunks<-fread(paste0(outdir,'/results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets.nset.txt'))$x
       
 res<-NULL
 for(i in 1:length(chunks)){
-  res<-rbind(res, fread(paste0('results/',opt$gwas,'/gcsc/drugtargetor/',i,'/GCSCresults.txt'), fill=T, sep=' '))
+  res<-rbind(res, fread(paste0(outdir,'/results/',opt$gwas,'/gcsc/drugtargetor/',i,'/GCSCresults.txt'), fill=T, sep=' '))
 }
 
 res<-res[grepl('enrichment:',res$Parameter),]
@@ -29,7 +37,7 @@ res<-res[,c('Drug','Value','Standard_error','P-value','ATC'), with=F]
 names(res)<-c('Drug','Enrichment','SE','P','ATC')
 res$P.FDR<-p.adjust(res$P, method='fdr')
 
-fwrite(res, paste0('results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res.txt'), sep=' ', quote=F, na='NA')
+fwrite(res, paste0(outdir,'/results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res.txt'), sep=' ', quote=F, na='NA')
 
 # Perform enrichment analysis of ATC codes
 res_enrich<-NULL
@@ -68,5 +76,5 @@ atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 atc_enrich$P.FDR<-p.adjust(atc_enrich$P, method='fdr')
 
-fwrite(atc_enrich, paste0('results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res_atc.txt'), sep=' ', quote=F, na='NA')
+fwrite(atc_enrich, paste0(outdir,'/results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res_atc.txt'), sep=' ', quote=F, na='NA')
 
