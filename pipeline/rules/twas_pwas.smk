@@ -335,7 +335,7 @@ checkpoint combine_twas_res:
   shell:
     "Rscript scripts/combine_twas.R \
       --gwas {wildcards.gwas} \
-      --config {params.config_file}"
+      --config_file {params.config_file}"
 
 # Identify chromosomes with significant associations
 from pathlib import Path

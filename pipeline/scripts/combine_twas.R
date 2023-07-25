@@ -4,7 +4,7 @@ suppressMessages(library("optparse"))
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
               help="GWAS ID [required]"),
-  make_option("--config", action="store", default=NA, type='character',
+  make_option("--config_file", action="store", default=NA, type='character',
               help="config file [required]")
 )
 
@@ -13,7 +13,11 @@ opt = parse_args(OptionParser(option_list=option_list))
 library(data.table)
 library(biomaRt)
 
-config<-readLines(opt$config)
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
 gtex_weights<-config[grepl('^gtex_weights', config)]
 gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',gtex_weights))),','))
@@ -36,7 +40,7 @@ if(external_weights_log == "external_weights: T"){
 }
 
 # Write out this list of SNP-weights as this might be useful elsewhere
-write.table(weights, paste0('results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
+write.table(weights, paste0(outdir,'/results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
 
 # Read in gene names from biomart
 library(biomaRt)
@@ -47,11 +51,11 @@ Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensemb
 # Read in TWAS resukts and insert external_gene_name
 all<-NULL
 for(weight_i in weights){
-  twas_files<-list.files(path=paste0('results/',opt$gwas,'/twas/',weight_i,'/'), pattern=paste0(opt$twas,'_twas_',weight_i,'_chr'))
+  twas_files<-list.files(path=paste0(outdir,'/results/',opt$gwas,'/twas/',weight_i,'/'), pattern=paste0(opt$twas,'_twas_',weight_i,'_chr'))
   
   twas<-NULL
   for(i in twas_files){
-    twas<-rbind(twas, fread(paste0('results/',opt$gwas,'/twas/',weight_i,'/',i)))
+    twas<-rbind(twas, fread(paste0(outdir,'/results/',opt$gwas,'/twas/',weight_i,'/',i)))
   }
   
   twas<-merge(twas,Genes, by.x='ID', by.y='ensembl_gene_id', all.x=T)
@@ -63,7 +67,7 @@ for(weight_i in weights){
   # Create ID column for compatability with post TWAS analyses
   twas$ID<-twas$external_gene_name
   
-  fwrite(twas, paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_',weight_i,'_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
+  fwrite(twas, paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_',weight_i,'_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
   
   all<-rbind(all, twas)
   
@@ -73,12 +77,12 @@ for(weight_i in weights){
 # Write out combined results
 ###
 
-fwrite(all, paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
+fwrite(all, paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
 
 # Write file listing chromosomes with transcriptome-wide significant results
 all$TWAS.P.FDR<-p.adjust(all$TWAS.P, method='fdr')
-write.table(unique(all$CHR[which(all$TWAS.P.FDR < 0.05)]), paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_sig_chr.txt'), row.names=F, col.names=T, quote=F)
+write.table(unique(all$CHR[which(all$TWAS.P.FDR < 0.05)]), paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_sig_chr.txt'), row.names=F, col.names=T, quote=F)
 
 # Write out transcriptome-wide significant results
 names(all)[names(all) == 'external_gene_name']<-'ID'
-write.table(all[which(all$TWAS.P.FDR < 0.05),], paste0('results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean_sig.txt'), row.names=F, col.names=T, quote=F)
+write.table(all[which(all$TWAS.P.FDR < 0.05),], paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean_sig.txt'), row.names=F, col.names=T, quote=F)
