@@ -160,6 +160,7 @@ This section provides some information from the sumstat quality control process 
 <details><summary>Show sumstat_cleaner.R log file</summary>
 
 ```{r, eval=T, echo=F, comment=''}
+
 sumstat_cleaner_log<-readLines(paste0(outdir,'/data/gwas_sumstat/',params$gwas,'/',params$gwas,'.cleaned.log'))
 sumstat_cleaner_log
 
