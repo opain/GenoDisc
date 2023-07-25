@@ -45,7 +45,7 @@ if(nrow(lead) == 0){
 lead$NearestGene<-NULL
 
 # Read in reference SNP data to match alleles
-bim<-fread(paste0(outdir,'/resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
+bim<-fread(paste0('resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
 
 # Flip sumstat Z to match alleles across gwas and reference
 ss_bim_match<-merge(ss, bim, by.x=c('SNP','A1','A2'), by.y=c('V2','V5','V6'))
@@ -62,7 +62,7 @@ for(loc in 1:nrow(lead)){
   write.table(ss_subset$SNP, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt'), col.names=F, row.names=F, quote=F)
   
   # Calculate LD matrix for variants surrounding lead variants
-  system(paste0('plink --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
+  system(paste0('plink --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
   
   ld<-as.matrix(fread(paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.ld')))
   dimnames(ld)<-list(ss_subset$SNP, ss_subset$SNP)
