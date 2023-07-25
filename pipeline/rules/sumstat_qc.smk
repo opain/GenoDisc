@@ -161,7 +161,10 @@ rule retrieve_N:
 
 rule ldsc:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
+    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    "resources/software/ldsc",
+    "resources/software/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
+    "resources/software/ldsc/w_hm3.snplist"
   output:
     "{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log"
   conda:
