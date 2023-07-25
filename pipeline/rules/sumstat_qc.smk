@@ -64,24 +64,24 @@ rule install_ldsc:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone git@github.com:bulik/ldsc.git {output}"
+    "git clone https://github.com/bulik/ldsc.git {output}"
 
 # Download LDSC reference data
 rule download_ldsc_scores:
   output:
-    "resources/software/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
+    "resources/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
   conda:
     "../envs/main.yaml"
   shell:
-    "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/eur_w_ld_chr.tar.bz2 https://data.broadinstitute.org/alkesgroup/LDSCORE/eur_w_ld_chr.tar.bz2; tar -jxvf resources/data/ldsc/eur_w_ld_chr.tar.bz2 -C resources/data/ldsc; rm resources/data/ldsc/eur_w_ld_chr.tar.bz2"
+    "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/eur_w_ld_chr.tar.gz https://zenodo.org/record/8182036/files/eur_w_ld_chr.tar.gz?download=1; tar -xf resources/data/ldsc/eur_w_ld_chr.tar.gz -C resources/data/ldsc; rm resources/data/ldsc/eur_w_ld_chr.tar.gz"
 
 rule download_ldsc_hm3:
   output:
-    "resources/software/ldsc/w_hm3.snplist"
+    "resources/data/ldsc/w_hm3.snplist"
   conda:
     "../envs/main.yaml"
   shell:
-    "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/w_hm3.snplist.bz2 https://data.broadinstitute.org/alkesgroup/LDSCORE/w_hm3.snplist.bz2; bunzip2 -d resources/data/ldsc/w_hm3.snplist.bz2"
+    "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d resources/data/ldsc/w_hm3.snplist.gz"
 
 # Download GCTA
 rule download_gcta:
@@ -162,9 +162,9 @@ rule retrieve_N:
 rule ldsc:
   input:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    "resources/software/ldsc",
-    "resources/software/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
-    "resources/software/ldsc/w_hm3.snplist"
+    "resources/software/ldsc/",
+    "resources/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
+    "resources/data/ldsc/w_hm3.snplist"
   output:
     "{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log"
   conda:
