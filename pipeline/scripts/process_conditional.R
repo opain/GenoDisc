@@ -82,10 +82,10 @@ report<-report[,c('CHR','P0','P1','BP','LOCUS',"JOINT.N",'MARGIN.N','BEST.TWAS.P
 report<-report[order(report$CHR, report$P0),]
 
 # Save full conditional results table
-write.csv(report[,c("CHR","BP","JOINT.ID","MARGIN.ID","BEST.TWAS.P","BEST.SNP.P","VAR.EXP")],paste0('results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_clean_full.csv'), row.names=F, quote=T)
+write.csv(report[,c("CHR","BP","JOINT.ID","MARGIN.ID","BEST.TWAS.P","BEST.SNP.P","VAR.EXP")],paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_clean_full.csv'), row.names=F, quote=T)
 
 # Save brief conditional results table
-write.csv(report[,c('CHR','BP','JOINT.ID','MARGIN.N','BEST.TWAS.P','BEST.SNP.P','VAR.EXP')],paste0('results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_clean_brief.csv'), row.names=F, quote=T)
+write.csv(report[,c('CHR','BP','JOINT.ID','MARGIN.N','BEST.TWAS.P','BEST.SNP.P','VAR.EXP')],paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',opt$gwas,'_twas_conditional_clean_brief.csv'), row.names=F, quote=T)
 
 # Combine gene results for marginal and joint genes
 joint_res$Type<-'Joint'
