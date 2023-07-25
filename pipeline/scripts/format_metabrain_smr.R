@@ -3,12 +3,20 @@
 suppressMessages(library("optparse"))
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="GWAS ID [required]")
+              help="GWAS ID [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
+
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
 library(biomaRt)
 ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
@@ -40,12 +48,12 @@ for(tissues in metabrain_tissues[c(smr_expression_panel_metabrain_basalganglia_l
                                    smr_expression_panel_metabrain_hippocampus_logical,
                                    smr_expression_panel_metabrain_spinalcord_logical)]){
   
-  smr_metabrain_files<-list.files(path=paste0('results/',opt$gwas,'/smr/metabrain/',tissues,'/'), pattern=paste0(opt$gwas,'_smr_metabrain_',tissues,'_chr'))
+  smr_metabrain_files<-list.files(path=paste0(outdir,'/results/',opt$gwas,'/smr/metabrain/',tissues,'/'), pattern=paste0(opt$gwas,'_smr_metabrain_',tissues,'_chr'))
   smr_metabrain_files<-smr_metabrain_files[grepl('.smr$', smr_metabrain_files)]
 
   smr_metabrain_tissue<-NULL
   for(i in smr_metabrain_files){
-    smr_metabrain_tissue<-rbind(smr_metabrain_tissue, fread(paste0('results/',opt$gwas,'/smr/metabrain/',tissues,'/',i)))
+    smr_metabrain_tissue<-rbind(smr_metabrain_tissue, fread(paste0(outdir,'/results/',opt$gwas,'/smr/metabrain/',tissues,'/',i)))
   }
   
   smr_metabrain_tissue<-smr_metabrain_tissue[!duplicated(smr_metabrain_tissue$probeID),]
@@ -62,5 +70,5 @@ for(tissues in metabrain_tissues[c(smr_expression_panel_metabrain_basalganglia_l
 smr_metabrain_all<-do.call(rbind, smr_metabrain)
 smr_metabrain_all$external_gene_name[smr_metabrain_all$external_gene_name == '']<-NA
 
-fwrite(smr_metabrain_all, paste0('results/',opt$gwas,'/smr/metabrain/',opt$gwas,'_smr_metabrain_GW.txt.gz'), quote=F, sep=' ', na='NA')
+fwrite(smr_metabrain_all, paste0(outdir,'/results/',opt$gwas,'/smr/metabrain/',opt$gwas,'_smr_metabrain_GW.txt.gz'), quote=F, sep=' ', na='NA')
 
