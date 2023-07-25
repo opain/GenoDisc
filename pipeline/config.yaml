@@ -79,5 +79,5 @@ smr_protein_panel_rosmap: T
 
 # Run GCSC drug enrichment analysis
 gcsc: T
-gcsc_tissues: ["Brain_Frontal_Cortex_BA9"]
+gcsc_tissues: ["Brain_Frontal_Cortex_BA9","Brain_Cortex"]
 

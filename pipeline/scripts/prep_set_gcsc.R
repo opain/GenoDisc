@@ -4,7 +4,7 @@ suppressMessages(library("optparse"))
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
               help="GWAS ID [required]"),
-  make_option("--config", action="store", default=NA, type='character',
+  make_option("--config_file", action="store", default=NA, type='character',
               help="config file [required]")
 )
 

@@ -8,7 +8,7 @@ rule install_gcsc:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone git@github.com:ksiewert/GCSC.git {output}"
+    "git clone https://github.com/ksiewert/GCSC.git {output}"
 
 ####
 # Download GCSC gene co-regulation scores
@@ -70,7 +70,7 @@ rule run_twas_gcsc:
     --weights resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
     --weights_dir resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
     --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
-    --out {output}.dat \
+    --out {output} \
     --chr {wildcards.chr}"
 
 rule twas_gcsc_all_chr:
@@ -92,7 +92,8 @@ rule twas_gcsc_all_panel:
 checkpoint prep_set_gcsc:
   input:
     "{outdir}/results/{gwas}/checks/gcsc_twas_all_panel.done",
-    rules.download_drug_targetor.output
+    rules.download_drug_targetor.output,
+    rules.install_gcsc.output
   output:
     "{outdir}/results/{gwas}/gcsc/drugtargetor_gcsc_sets.nset.txt"
   conda: 
@@ -102,11 +103,11 @@ checkpoint prep_set_gcsc:
   shell:
     "Rscript scripts/prep_set_gcsc.R \
       --gwas {wildcards.gwas} \
-      --config {params.config_file}"
+      --config_file {params.config_file}"
 
 def n_chunk_gcsc(x):
     checkpoint_output = checkpoints.prep_set_gcsc.get(gwas=x, outdir=outdir).output[0]
-    checkpoint_output = outdir + "results/" + x + "/gcsc/drugtargetor_gcsc_sets.nset.txt"
+    checkpoint_output = outdir + "/results/" + x + "/gcsc/drugtargetor_gcsc_sets.nset.txt"
     n_chunk_gcsc_df = pd.read_table(checkpoint_output, sep=' ')
     return n_chunk_gcsc_df['x'].tolist()
 
@@ -127,7 +128,7 @@ rule run_gcsc_drugtargetor:
   params:
     gcsc_tissues= config["gcsc_tissues"]
   shell:
-    "mkdir -p results/ALS_only/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python resources/software/GCSC/gcsc.py \
+    "mkdir -p {outdir}/results/ALS_only/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python resources/software/GCSC/gcsc.py \
 --geneSets {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor_gcsc_sets_{wildcards.chunk}.csv \
 --TWASdir {outdir}/results/{wildcards.gwas}/gcsc/twas/tissue \
 --N ${{N}} \
