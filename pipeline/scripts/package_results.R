@@ -25,11 +25,9 @@ outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
 gwas_qc<-list()
 
-gwas_qc$cleaner_dat<-process_cleaner_log(outdir=outdir, gwas=opt$gwas)
-gwas_qc$focus_dat<-process_focus_log(outdir=outdir, gwas=opt$gwas)
-if(config[grepl('ldsc:',config)] == "ldsc: T"){
-  gwas_qc$ldsc_dat<-process_ldsc_log(outdir=outdir, gwas=opt$gwas)
-}
+gwas_qc$cleaner_dat<-process_cleaner_log(config_file=opt$config_file, gwas=opt$gwas)
+gwas_qc$focus_dat<-process_focus_log(config_file=opt$config_file, gwas=opt$gwas)
+gwas_qc$ldsc_dat<-process_ldsc_log(config_file=opt$config_file, gwas=opt$gwas)
 
 ##################
 # SNP associations
@@ -67,42 +65,13 @@ mol_assoc$exp<-list()
 # FUSION
 ###
 
-# Check whether TWAS was performed
-twas_panel_psychencode_logical<-config[grepl('twas_panel_psychencode:',config)] == "twas_panel_psychencode: T"
-twas_panel_fusion_logical<-config[grepl('twas_panel_fusion:',config)] == "twas_panel_fusion: T"
-twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical)
-
-if(twas_logical){
-  mol_assoc$exp$fusion<-read_fusion_exp(config=config, gwas=opt$gwas, outdir=outdir)
-}
+mol_assoc$exp$fusion<-read_fusion_exp(config_file=opt$config_file, gwas=opt$gwas)
 
 ###
 # SMR
 ###
 
-# Check whether SMR with expression data was performed
-smr_expression_panel_psychencode_logical<-config[grepl('smr_expression_panel_psychencode:',config)] == "smr_expression_panel_psychencode: T"
-
-smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
-smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
-smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"
-smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
-smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
-
-smr_expression_panel_eqtlgen_logical<-config[grepl('smr_expression_panel_eqtlgen:',config)] == "smr_expression_panel_eqtlgen: T"
-
-metabrain_logical<-any(smr_expression_panel_metabrain_basalganglia_logical,
-                        smr_expression_panel_metabrain_cerebellum_logical,
-                        smr_expression_panel_metabrain_cortex_logical,
-                        smr_expression_panel_metabrain_hippocampus_logical,
-                        smr_expression_panel_metabrain_spinalcord_logical)
-
-smr_expression_logical<-any(smr_expression_panel_psychencode_logical,
-                         metabrain_logical,
-                         smr_expression_panel_eqtlgen_logical)
-if(smr_expression_logical){
-  mol_assoc$exp$smr<-read_smr_exp(config=config, gwas=opt$gwas, outdir=outdir)
-}
+mol_assoc$exp$smr<-read_smr_exp(config_file=opt$config_file, gwas=opt$gwas)
 
 ######
 # Protein
@@ -110,4 +79,76 @@ if(smr_expression_logical){
 
 mol_assoc$protein<-list()
 
+###
+# FUSION
+###
 
+mol_assoc$protein$fusion<-read_fusion_protein(config_file=opt$config_file, gwas=opt$gwas)
+
+###
+# SMR
+###
+
+mol_assoc$exp$smr<-read_smr_protein(config_file=opt$config_file, gwas=opt$gwas)
+
+######
+# MAGMA
+######
+
+mol_assoc$magma<-read_magma(config_file=opt$config_file, gwas=opt$gwas)
+
+######
+# Nearest
+######
+
+mol_assoc$nearest<-list()
+
+if(config[grepl('clump:',config)] == "clump: T"){
+  mol_assoc$nearest$clump<-identify_nearest(snp_assoc$clump$NearestGene)
+}
+
+if(config[grepl('cojo:',config)] == "cojo: T"){
+  mol_assoc$nearest$cojo<-identify_nearest(snp_assoc$cojo$NearestGene)
+
+}
+
+######
+# Finemapping
+######
+
+mol_assoc$finemap<-list()
+
+if(config[grepl('finemap:',config)] == "finemap: T"){
+  mol_assoc$finemap$L1<-unlist(strsplit(snp_assoc$susie$L1$Gene, ', '))
+  mol_assoc$finemap$L1<-mol_assoc$finemap$L1[mol_assoc$finemap$L1 != 'None']
+  mol_assoc$finemap$L10<-unlist(strsplit(snp_assoc$susie$L10$Gene, ', '))
+  mol_assoc$finemap$L10<-mol_assoc$finemap$L10[mol_assoc$finemap$L10 != 'None']
+}
+
+#################
+# Drug repruposing
+#################
+
+tx<-list()
+
+######
+# Drug-specific
+######
+
+tx$drug<-list()
+
+######
+# ATC
+######
+
+tx$atc<-list()
+
+#################
+# Configuration
+#################
+
+config<-list()
+
+config$repo<-system('git describe --tags', intern=T)
+config$config<-config
+config$gwas_list<-fread(gsub('gwas_list: ','', config[grepl('gwas_list: ',config)]))
