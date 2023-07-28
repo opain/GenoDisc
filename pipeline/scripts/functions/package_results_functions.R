@@ -488,3 +488,93 @@ identify_nearest<-function(x){
 
   return(nearest)
 }
+
+
+read_twas_gsea_drug<-function(config_file, gwas){
+  config<-readLines(config_file)
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+  dat<-NULL
+
+  if(twas_gsea_drugtargetor_logical<-config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
+
+    atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+    names(atc)<-c('Code','Name')
+    atc$Name<-tolower(atc$Name)
+
+    atc_labels<-atc[nchar(atc$Code) == 4,]
+
+    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-weights[!grepl('SPLIC',weights)]
+
+    res_all<-NULL
+    for(i in weights){
+      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_',i,'.competitive.clean.csv'))
+      res$Panel<-i
+      res_all<-rbind(res_all, res)
+    }
+
+    res_all$P.FDR<-p.adjust(res_all$P, method='fdr')
+
+    res_all$NAME<-paste(toupper(substr(res_all$NAME, 1, 1)), substr(res_all$NAME, 2, nchar(res_all$NAME)), sep="")
+    res_all$NAME<-gsub('\\.',' ',res_all$NAME)
+
+    for(i in 1:nrow(res_all)){
+      tmp<-unlist(strsplit(res_all$ATC[i], ','))
+      tmp<-substr(tmp, 1, 4)
+      tmp2<-atc_labels[atc_labels$Code %in% tmp]$Name
+      if(length(tmp) > 1){
+        res_all$ATC_code[i]<-paste0(tmp, collapse=';')
+        res_all$ATC_desc[i]<-paste0(tmp2, collapse=';')
+      } else {
+        res_all$ATC_code[i]<-tmp
+        res_all$ATC_desc[i]<-tmp2
+
+      }
+    }
+
+    res_all<-res_all[order(res_all$P),]
+
+    res_all<-res_all[,c("NAME","Panel","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
+    names(res_all)<-c('Drug','Panel','Estimate','SE','P','P.FDR','ATC','Description')
+
+    dat<-res_all
+  }
+  return(dat)
+}
+
+
+read_twas_gsea_atc<-function(config_file, gwas){
+  config<-readLines(config_file)
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+  dat<-NULL
+
+  if(twas_gsea_drugtargetor_logical<-config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
+
+    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-weights[!grepl('SPLIC',weights)]
+
+    res_all<-NULL
+    for(i in weights){
+      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
+      res$Panel<-i
+      res_all<-rbind(res_all, res)
+    }
+
+    res_all$P.FDR_all<-p.adjust(res_all$P, method = 'fdr')
+    res_all$log10_P<-sign(res_all$Estimate)*-log10(res_all$P)
+
+    res_all_brief<-res_all[,c('Panel','ATC','Name','log10_P','P','P.FDR_all'),with=T]
+    names(res_all_brief)<-c('Panel','ATC','Name','log10_P','P','P.FDR')
+
+    # Update labels
+    res_all_brief$Panel<-tidy_panel_names(res_all_brief$Panel)
+    
+    dat<-res_all_brief
+  }
+
+  return(dat)
+}
+
+

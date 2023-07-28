@@ -137,18 +137,47 @@ tx<-list()
 
 tx$drug<-list()
 
+###
+# MAGMA
+###
+
+###
+# GCSC
+###
+
+###
+# TWAS-GSEA
+###
+
+tx$drug$twas_gsea<-read_twas_gsea_drug(config_file=opt$config_file, gwas=opt$gwas)
+
 ######
 # ATC
 ######
 
 tx$atc<-list()
 
+###
+# MAGMA
+###
+###
+# GCSC
+###
+###
+# TWAS-GSEA
+###
+
+tx$atc$twas_gsea<-read_twas_gsea_atc(config_file=opt$config_file, gwas=opt$gwas)
+
 #################
 # Configuration
 #################
 
-config<-list()
+configuration<-list()
 
-config$repo<-system('git describe --tags', intern=T)
-config$config<-config
-config$gwas_list<-fread(gsub('gwas_list: ','', config[grepl('gwas_list: ',config)]))
+configuration$repo<-list()
+configuration$repo$remote<-gsub('.*@','',gsub(' .*','',system('git remote -v', intern=T)[1]))
+configuration$repo$branch<-gsub('On branch ','', system('git status', intern=T)[1])
+configuration$repo$commit<-system('git describe --tags --always', intern=T)
+configuration$configuration<-config
+configuration$gwas_list<-fread(gsub('gwas_list: ','', config[grepl('gwas_list: ',config)]))
