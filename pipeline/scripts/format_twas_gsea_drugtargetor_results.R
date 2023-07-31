@@ -24,8 +24,9 @@ outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 # Read in TWAS-GSEA results
 res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.txt'))
 
-# Flip one-sided hypothesis to be testing for a negative correlation
+# Convert the one sided p-value into a two sided p-value, testing for positive or negative correlation.
 res$P<-2*pnorm(-abs(res$T))
+
 res$P.CORR<-p.adjust(res$P, method='fdr')
 
 res$ATC<-gsub('ATC.','',gsub('\\.NAME.*','',res$GeneSet))
@@ -53,7 +54,7 @@ for(cat in unique(res_atc$atc_cat)){
   if(sum(class_bin == 1) > 5){
     
     # Use wilcoxon test
-    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T)
+    wil_cox_res<-wilcox.test(rank(res_atc$T) ~ class_bin, conf.int =T)
     
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
@@ -80,7 +81,7 @@ for(cat in unique(res_atc$atc_cat_2)){
   if(sum(class_bin == 1) > 2){
     
     # Use wilcoxon test
-    wil_cox_res<-wilcox.test(rank(res_atc$Estimate) ~ class_bin, conf.int =T)
+    wil_cox_res<-wilcox.test(rank(res_atc$T) ~ class_bin, conf.int =T)
     
     atc_enrich_2<-rbind(atc_enrich_2, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),

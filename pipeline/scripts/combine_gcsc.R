@@ -35,6 +35,7 @@ res$ATC<-gsub('ATC_','',gsub('_NAME.*','',res$Parameter))
 
 res<-res[,c('Drug','Value','Standard_error','P-value','ATC'), with=F]
 names(res)<-c('Drug','Enrichment','SE','P','ATC')
+
 res$P.FDR<-p.adjust(res$P, method='fdr')
 
 fwrite(res, paste0(outdir,'/results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res.txt'), sep=' ', quote=F, na='NA')
@@ -43,7 +44,8 @@ fwrite(res, paste0(outdir,'/results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_
 res_enrich<-NULL
 for(i in 1:nrow(res)){
   res_enrich<-rbind(res_enrich, data.frame( ATC=unlist(strsplit(res$ATC[i],'_')),
-                                                  Enrichment=res$Enrichment[i]))
+                                                  Enrichment=res$Enrichment[i],
+                                                  P=res$P[i]))
 }
 
 res_enrich$atc_cat<-substr(res_enrich$ATC, 1, 4) 
@@ -56,7 +58,8 @@ for(cat in unique(res_enrich$atc_cat)){
   
   if(sum(class_bin == 1) > 5){
     
-    wil_cox_res<-wilcox.test(rank(res_enrich$Enrichment) ~ class_bin, conf.int =T, alternative='less')
+    # Rank genes by an enrichment signed -log10(p-value). 
+    wil_cox_res<-wilcox.test(rank(sign(res_enrich$Enrichment) * -log10(res_enrich$P)) ~ class_bin, conf.int =T, alternative='less')
     
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
@@ -76,5 +79,5 @@ atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 atc_enrich$P.FDR<-p.adjust(atc_enrich$P, method='fdr')
 
-fwrite(atc_enrich, paste0(outdir,'/results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res_atc.txt'), sep=' ', quote=F, na='NA')
+fwrite(atc_enrich, paste0(outdir,'/results/',opt$gwas,'/gcsc/',opt$gwas,'_drugtargetor_gcsc_res_atc.csv'), sep=',', quote=T, na='NA')
 

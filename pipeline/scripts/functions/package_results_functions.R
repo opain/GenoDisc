@@ -1,9 +1,6 @@
 #!/usr/bin/Rscript
 
-process_cleaner_log<-function(config_file, gwas){
-
-  # Read in config file
-  config<-readLines(config_file)
+process_cleaner_log<-function(config, gwas){
 
   # Identify outdir
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
@@ -40,9 +37,8 @@ extract_build<-function(x){
   return(best_match)
 }
 
-process_focus_log<-function(config_file, gwas){
-
-  config<-readLines(config_file)
+process_focus_log<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-list()
@@ -57,8 +53,8 @@ process_focus_log<-function(config_file, gwas){
   return(dat)
 }
 
-process_ldsc_log<-function(config_file, gwas){
-  config<-readLines(config_file)
+process_ldsc_log<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -112,8 +108,8 @@ tidy_panel_names<-function(x){
   
 }
 
-read_fusion_exp<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_fusion_exp<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   # Check whether TWAS was performed
@@ -187,7 +183,7 @@ read_fusion_exp<-function(config_file, gwas){
 # Read in PWAS results
 read_pwas<-function(outdir, gwas, panel){
   pwas_all<-NULL
-  for(panel_i in panels){
+  for(panel_i in panel){
 
     pwas_files<-list.files(path=paste0(outdir,'/results/',gwas,'/pwas/',panel,'/'), pattern=paste0(gwas,'_pwas_',panel,'_chr'))
 
@@ -220,8 +216,8 @@ read_pwas<-function(outdir, gwas, panel){
   return(pwas_all)
 }
 
-read_fusion_protein<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_fusion_protein<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   pwas_panel_rosmap_logical<-config[grepl('pwas_panel_rosmap:',config)] == "pwas_panel_rosmap: T"
@@ -267,8 +263,8 @@ read_fusion_protein<-function(config_file, gwas){
   return(dat)
 }
 
-read_smr_exp<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_smr_exp<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   # Check whether SMR with expression data was performed
@@ -428,8 +424,8 @@ read_smr_exp<-function(config_file, gwas){
 }
 
 
-read_smr_protein<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_smr_protein<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -459,8 +455,8 @@ read_smr_protein<-function(config_file, gwas){
   return(dat)
 }
 
-read_magma<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_magma_gene<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -490,8 +486,8 @@ identify_nearest<-function(x){
 }
 
 
-read_twas_gsea_drug<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_twas_gsea_drug<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -507,45 +503,39 @@ read_twas_gsea_drug<-function(config_file, gwas){
     weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
     weights<-weights[!grepl('SPLIC',weights)]
 
-    res_all<-NULL
+    dat<-NULL
     for(i in weights){
       res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_',i,'.competitive.clean.csv'))
       res$Panel<-i
-      res_all<-rbind(res_all, res)
+      dat<-rbind(dat, res)
     }
 
-    res_all$P.FDR<-p.adjust(res_all$P, method='fdr')
+    dat$P.FDR<-p.adjust(dat$P, method='fdr')
 
-    res_all$NAME<-paste(toupper(substr(res_all$NAME, 1, 1)), substr(res_all$NAME, 2, nchar(res_all$NAME)), sep="")
-    res_all$NAME<-gsub('\\.',' ',res_all$NAME)
+    dat$NAME<-paste(toupper(substr(dat$NAME, 1, 1)), substr(dat$NAME, 2, nchar(dat$NAME)), sep="")
+    dat$NAME<-gsub('\\.',' ',dat$NAME)
 
-    for(i in 1:nrow(res_all)){
-      tmp<-unlist(strsplit(res_all$ATC[i], ','))
-      tmp<-substr(tmp, 1, 4)
-      tmp2<-atc_labels[atc_labels$Code %in% tmp]$Name
-      if(length(tmp) > 1){
-        res_all$ATC_code[i]<-paste0(tmp, collapse=';')
-        res_all$ATC_desc[i]<-paste0(tmp2, collapse=';')
-      } else {
-        res_all$ATC_code[i]<-tmp
-        res_all$ATC_desc[i]<-tmp2
+    # Format ATC codes and insert ATC descriptions
+    tmp<-lapply(strsplit(dat$ATC, ','), function(x) substr(x, 1, 4))
+    tmp2<-lapply(tmp, insert_atc_desc, atc_labels)
+    dat$ATC_code<-unlist(lapply(tmp, function(x) paste0(x, collapse=';')))
+    dat$ATC_desc<-unlist(lapply(tmp2, function(x) paste0(x, collapse=';')))
 
-      }
-    }
+    dat<-dat[order(dat$P),]
 
-    res_all<-res_all[order(res_all$P),]
+    dat$Panel<-tidy_panel_names(dat$Panel)
 
-    res_all<-res_all[,c("NAME","Panel","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
-    names(res_all)<-c('Drug','Panel','Estimate','SE','P','P.FDR','ATC','Description')
+    dat<-dat[,c("NAME","Panel","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
+    names(dat)<-c('Drug','Panel','Estimate','SE','P','P.FDR','ATC Code','ATC Description')
 
-    dat<-res_all
+    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
+
   }
   return(dat)
 }
 
-
-read_twas_gsea_atc<-function(config_file, gwas){
-  config<-readLines(config_file)
+read_twas_gsea_atc<-function(config, gwas){
+  
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -555,26 +545,146 @@ read_twas_gsea_atc<-function(config_file, gwas){
     weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
     weights<-weights[!grepl('SPLIC',weights)]
 
-    res_all<-NULL
+    dat<-NULL
     for(i in weights){
       res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
       res$Panel<-i
-      res_all<-rbind(res_all, res)
+      dat<-rbind(dat, res)
     }
 
-    res_all$P.FDR_all<-p.adjust(res_all$P, method = 'fdr')
-    res_all$log10_P<-sign(res_all$Estimate)*-log10(res_all$P)
+    dat$P.FDR_all<-p.adjust(dat$P, method = 'fdr')
 
-    res_all_brief<-res_all[,c('Panel','ATC','Name','log10_P','P','P.FDR_all'),with=T]
-    names(res_all_brief)<-c('Panel','ATC','Name','log10_P','P','P.FDR')
+    dat<-dat[,c('Panel','ATC','Name','N','Estimate','Class_Median','Non_Class_Median','P','P.FDR_all'),with=T]
+    names(dat)<-c('Panel','ATC Code','ATC Description','N Drugs','Estimate','Class Median T','Non-class Median T','P','P.FDR')
+
+    dat<-dat[order(dat$P.onesided),]
 
     # Update labels
-    res_all_brief$Panel<-tidy_panel_names(res_all_brief$Panel)
+    dat$Panel<-tidy_panel_names(dat$Panel)
     
-    dat<-res_all_brief
   }
 
   return(dat)
 }
 
+read_magma_drug<-function(config, gwas){
+  
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
+  dat<-NULL
+
+  if(config[grepl('magma_drugtargetor:',config)] == "magma_drugtargetor: T"){
+
+    atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+    names(atc)<-c('Code','Name')
+    atc$Name<-tolower(atc$Name)
+
+    atc_labels<-atc[nchar(atc$Code) == 4,]
+
+    dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor.clean.csv'))
+    dat<-dat[order(dat$P),]
+    dat$P.FDR<-p.adjust(dat$P, method='fdr')
+
+    dat$NAME<-paste(toupper(substr(dat$NAME, 1, 1)), substr(dat$NAME, 2, nchar(dat$NAME)), sep="")
+    
+    # Format ATC codes and insert ATC descriptions
+    tmp<-lapply(strsplit(dat$ATC, ','), function(x) substr(x, 1, 4))
+    tmp2<-lapply(tmp, insert_atc_desc, atc_labels)
+    dat$ATC_code<-unlist(lapply(tmp, function(x) paste0(x, collapse=';')))
+    dat$ATC_desc<-unlist(lapply(tmp2, function(x) paste0(x, collapse=';')))
+
+    dat<-dat[,c("NAME","NGENES","BETA","SE","P","P.FDR",'ATC_code','ATC_desc') , with=F]
+    names(dat)<-c('Name','N Genes',"BETA","SE",'P','P.FDR','ATC Code','ATC Description')
+
+    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
+
+  }
+
+  return(dat)
+}
+
+insert_atc_desc <- function(x, replacement_df) {
+  idx <- match(x, replacement_df$Code)
+  if (!is.na(idx)) {
+    x <- replacement_df$Name[idx]
+  }
+  return(x)
+}
+
+read_gcsc<-function(config, gwas){
+  
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+  dat<-NULL
+
+  if(config[grepl('gcsc:',config)] == "gcsc: T"){
+
+    atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+    names(atc)<-c('Code','Name')
+    atc$Name<-tolower(atc$Name)
+
+    atc_labels<-atc[nchar(atc$Code) == 4,]
+
+    dat<-fread(paste0('/users/k1806347/oliverpainfel/Analyses/GCSC/GCSC_Brain_Blood_ALS_only_results.csv'))
+    dat$Drug<-paste(toupper(substr(dat$Drug, 1, 1)), substr(dat$Drug, 2, nchar(dat$Drug)), sep="")
+
+    dat<-dat[order(dat$P),]
+    dat$P.FDR<-p.adjust(dat$P, method='fdr')
+
+    # Format ATC codes and insert ATC descriptions
+    tmp<-lapply(strsplit(dat$ATC, '_'), function(x) substr(x, 1, 4))
+    tmp2<-lapply(tmp, insert_atc_desc, atc_labels)
+    dat$ATC_code<-unlist(lapply(tmp, function(x) paste0(x, collapse=';')))
+    dat$ATC_desc<-unlist(lapply(tmp2, function(x) paste0(x, collapse=';')))
+
+    dat$Z<--qnorm(dat$P/2)
+    dat$Z<-dat$Z*sign(dat$Enrichment)
+
+    dat<-dat[,c("Drug","Enrichment","SE","Z","P","P.FDR",'ATC_code','ATC_desc') , with=F]
+    names(dat)<-c('Name',"Enrichment","SE","Z","P","P.FDR",'ATC Code','ATC Description')
+
+    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
+  }
+  return(dat)
+}
+
+read_magma_drug_atc<-function(config, gwas){
+  
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+  dat<-NULL
+
+  if(config[grepl('magma_drugtargetor:',config)] == "magma_drugtargetor: T"){
+
+    dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_atc_res.csv'))
+    dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
+
+    dat<-dat[,c("ATC","N","P","P.FDR","Name"), with=F]
+    names(dat)<-c("ATC Code","N Drugs","P","P.FDR","ATC Description")
+
+    dat<-dat[order(dat$P),]
+
+  }
+  return(dat)
+}
+
+read_gcsc_atc<-function(config, gwas){
+  
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+  dat<-NULL
+
+  if(config[grepl('gcsc:',config)] == "gcsc: T"){
+
+    dat<-fread(paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res_atc.csv'))
+    
+    dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
+
+    dat<-dat[,c("ATC","N","P","P.FDR","Name"), with=F]
+    names(dat)<-c("ATC Code","N Drugs","P","P.FDR","ATC Description")
+
+    dat<-dat[order(dat$P),]
+
+  }
+  return(dat)
+}
