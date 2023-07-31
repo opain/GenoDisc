@@ -41,16 +41,22 @@ for(gwas_i in gwas_list$name){
 
   if(config[grepl('clump:',config)] == "clump: T"){
     snp_assoc$clump<-fread(paste0(outdir,'/results/',gwas_i,'/clump/',gwas_i,'.GW.clump.clean.csv'))
+  } else {
+    snp_assoc$clump<-NULL
   }
 
   if(config[grepl('cojo:',config)] == "cojo: T"){
     snp_assoc$cojo<-fread(paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.clean.csv'))
+  } else {
+    snp_assoc$cojo<-NULL
   }
 
   if(config[grepl('finemap:',config)] == "finemap: T"){
     snp_assoc$susie<-list()
     snp_assoc$susie$L10<-process_susie(outdir=outdir, gwas=gwas_i, L=10)
     snp_assoc$susie$L1<-process_susie(outdir=outdir, gwas=gwas_i, L=1)
+  } else {
+    snp_assoc$susie<-NULL
   }
 
   #################
@@ -113,7 +119,6 @@ for(gwas_i in gwas_list$name){
 
   if(config[grepl('cojo:',config)] == "cojo: T"){
     mol_assoc$nearest$cojo<-identify_nearest(snp_assoc$cojo$NearestGene)
-
   }
 
   ######
@@ -127,6 +132,8 @@ for(gwas_i in gwas_list$name){
     mol_assoc$finemap$L1<-mol_assoc$finemap$L1[mol_assoc$finemap$L1 != 'None']
     mol_assoc$finemap$L10<-unlist(strsplit(snp_assoc$susie$L10$Gene, ', '))
     mol_assoc$finemap$L10<-mol_assoc$finemap$L10[mol_assoc$finemap$L10 != 'None']
+  } else {
+    mol_assoc$finemap<-NULL
   }
 
   #################

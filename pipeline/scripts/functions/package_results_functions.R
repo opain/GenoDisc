@@ -442,9 +442,9 @@ read_smr_protein<-function(config, gwas){
     dat$results<-fread(paste0(outdir,'/results/',gwas,'/smr/rosmap/',gwas,'_smr_rosmap_GW.txt.gz'))
 
     dat$results$p_SMR.FDR<-p.adjust(dat$results$p_SMR, method = 'fdr')
-    dat$results<-dat$results[,c('ProbeChr','Probe_bp','ensembl_gene_id','external_gene_name','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
+    dat$results<-dat$results[,c('ProbeChr','Probe_bp','ensembl_gene_id','external_gene_name','b_SMR','se_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
 
-    names(dat$results)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
+    names(dat$results)<-c('CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_SMR.FDR','p_HEIDI')
 
     dat$results$PANEL<-"Brain - DLPFC (ROSMAP)"
 
@@ -471,16 +471,20 @@ read_magma_gene<-function(config, gwas){
 }
 
 identify_nearest<-function(x){
-  # Identify genes containing lead SNP (Some are within multiple genes)
-  nearest_list<-unlist(strsplit(x,','))
-  nearest_list<-nearest_list[!grepl("kb", nearest_list)]
-  nearest_list<-gsub(' ','',nearest_list)
+  if(!is.null(x)){
+    # Identify genes containing lead SNP (Some are within multiple genes)
+    nearest_list<-unlist(strsplit(x,','))
+    nearest_list<-nearest_list[!grepl("kb", nearest_list)]
+    nearest_list<-gsub(' ','',nearest_list)
+    
+    # Identify nearest genes
+    nearest_list_2<-gsub(' .*','',gsub(',.*','',x))
   
-  # Identify nearest genes
-  nearest_list_2<-gsub(' .*','',gsub(',.*','',x))
-
-  nearest<-unique(c(nearest_list,nearest_list_2))
-  nearest<-nearest[nearest != 'None']
+    nearest<-unique(c(nearest_list,nearest_list_2))
+    nearest<-nearest[nearest != 'None']
+  } else{
+    nearest<-NULL
+  }
 
   return(nearest)
 }
@@ -605,9 +609,7 @@ read_magma_drug<-function(config, gwas){
 
 insert_atc_desc <- function(x, replacement_df) {
   idx <- match(x, replacement_df$Code)
-  if (!is.na(idx)) {
-    x <- replacement_df$Name[idx]
-  }
+  x <- replacement_df$Name[idx]
   return(x)
 }
 
