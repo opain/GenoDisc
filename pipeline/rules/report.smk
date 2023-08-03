@@ -14,86 +14,80 @@ rule install_poolr:
 myoutput = list()
 
 if config["clump"] == "T":
-    myoutput.append("results/{gwas}/clump/{gwas}.GW.clump.clean.csv")
+    myoutput.append("{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv")
 
 if config["cojo"] == "T":
-    myoutput.append("results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv")
+    myoutput.append("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv")
 
 if config["finemap"] == "T":
-    myoutput.append("results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv")
+    myoutput.append("{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv")
 
 if config["ldsc"] == "T":
-    myoutput.append("results/{gwas}/ldsc/{gwas}_ldsc_res.log")
+    myoutput.append("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log")
     
 if config["magma_gene"] == "T":
-    myoutput.append("results/{gwas}/magma/magma_gene_level.clean.csv")
+    myoutput.append("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv")
     
 if config["magma_drugtargetor"] == "T":
-    myoutput.append("results/{gwas}/magma/magma_drug_targetor_atc_res.csv")
+    myoutput.append("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv")
 
 if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
-    myoutput.append("results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz")
 
 if config["twas_conditional"] == "T" and (config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T"):
-    myoutput.append("results/{gwas}/twas/{gwas}_twas_novelty.csv")
-
-if config["twas_gsea_lincs"] == "T":
-    myoutput.append("results/{gwas}/checks/format_twas_gsea_results_all_panel.done")
-
-if config["twas_so_lincs"] == "T":
-    myoutput.append("results/{gwas}/checks/format_so_results_all_panel.done")
+    myoutput.append("{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv")
 
 if config["pwas_panel_rosmap"] == "T":
-    myoutput.append("results/{gwas}/checks/rosmap_pwas_all_chr.done")
+    myoutput.append("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done")
 
 if config["pwas_panel_banner"] == "T":
-    myoutput.append("results/{gwas}/checks/banner_pwas_all_chr.done")
+    myoutput.append("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done")
 
 if config["smr_expression_panel_psychencode"] == "T":
-    myoutput.append("results/{gwas}/checks/psychencode_smr_all_chr.done")
+    myoutput.append("{outdir}/results/{gwas}/checks/psychencode_smr_all_chr.done")
 
 if config["smr_expression_panel_metabrain_basalganglia"] == "T":
-    myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
 if config["smr_expression_panel_metabrain_cerebellum"] == "T":
-    myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
 if config["smr_expression_panel_metabrain_cortex"] == "T":
-    myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
 if config["smr_expression_panel_metabrain_hippocampus"] == "T":
-    myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
 if config["smr_expression_panel_metabrain_spinalcord"] == "T":
-    myoutput.append("results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz")
 
 if config["smr_expression_panel_eqtlgen"] == "T":
-    myoutput.append("results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz")
+    myoutput.append("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz")
 
 if config["smr_protein_panel_rosmap"] == "T":
-    myoutput.append("results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz")
-
-if config["dgi_db_comp"] == "T":
-    myoutput.append("results/{gwas}/DGIdb/DGIdb_opposing_clean.csv")
+    myoutput.append("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz")
 
 if config["twas_gsea_drugtargetor"] == "T":
-    myoutput.append("results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
+    myoutput.append("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
+
+if config["gcsc"] == "T":
+    myoutput.append("{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.txt")
     
 rule create_report:
   input:
     myoutput,
     "resources/software/install_poolr.done"
   output:
-    "results/{gwas}/reports/{gwas}_report.html"
+    "{outdir}/results/{gwas}/reports/{gwas}_report.html"
   conda:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
   shell:
-    "mkdir -p results/{wildcards.gwas}/reports; Rscript -e \"rmarkdown::render(\'scripts/create_report.Rmd\', \
-     output_file = \'../results/{wildcards.gwas}/reports/{wildcards.gwas}_report.html\', \
+    "mkdir -p {outdir}/results/{wildcards.gwas}/reports; Rscript -e \"rmarkdown::render(\'scripts/create_report.Rmd\', \
+     output_file = \'../{outdir}/results/{wildcards.gwas}/reports/{wildcards.gwas}_report.html\', \
      params = list(gwas = \'{wildcards.gwas}\', config_file = \'{params.config_file}\'))\""
 
 rule run_create_report:
-  input: expand("results/{gwas}/reports/{gwas}_report.html", gwas=gwas_list_df_eur['name'])
+  input: expand("{outdir}/results/{gwas}/reports/{gwas}_report.html", gwas=gwas_list_df_eur['name'], outdir={outdir})
 

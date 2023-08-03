@@ -9,24 +9,26 @@ rule finemap:
   resources: 
     mem_mb=get_mem_mb_fine 
   input:
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
-    "results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
+    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
+    "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   output:
-    "results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
+    "{outdir}/results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
   conda:
     "../envs/main.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    config_file=config['config_file']
   shell:
     "Rscript scripts/finemap.R \
       --gwas {wildcards.gwas} \
+      --config_file {params.config_file} \
       --chr {wildcards.chr}"
 
 rule finemap_all_chr:
     input: 
-      lambda w: expand("results/{gwas}/checks/{gwas}.chr{chr}.finemap.done", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}.chr{chr}.finemap.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
-      touch("results/{gwas}/checks/finemap_all_chr.done")
+      touch("{outdir}/results/{gwas}/checks/finemap_all_chr.done")
 
 #################
 # Process SuSiE results
@@ -34,14 +36,17 @@ rule finemap_all_chr:
 
 rule process_finemap:
   input:
-    "results/{gwas}/checks/finemap_all_chr.done"
+    "{outdir}/results/{gwas}/checks/finemap_all_chr.done"
   output:
-    "results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/process_finemap.R \
-      --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 

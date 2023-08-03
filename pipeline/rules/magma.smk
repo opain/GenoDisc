@@ -100,75 +100,80 @@ rule format_drug_targetor:
 # Run gene level association analysis
 rule magma_gene_level:
   input:
-    "resources/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
+    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
     rules.magma_annot.output
   output:
-    "results/{gwas}/magma/magma_gene_level.genes.raw"
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw"
   conda: 
     "../envs/main.yaml"
   shell:
-    "gzip -f -d -c resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
+    "gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
       --bfile resources/data/magma_ref/g1000_eur \
-      --pval resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
+      --pval {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
       --gene-annot resources/data/magma/NCBI37.3.genes.annot \
-      --out results/{wildcards.gwas}/magma/magma_gene_level; rm resources/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
 
 # Format the MAGMA gene results 
 rule format_magma_gene_results:
   input:
-    "results/{gwas}/magma/magma_gene_level.genes.raw"
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw"
   output:
-    "results/{gwas}/magma/magma_gene_level.clean.csv"
+    "{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv"
   conda: 
     "../envs/main.yaml"
   params:
-    lincs_siginfo= config["lincs_siginfo"]
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_magma_gene_results.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 # Run Drug Targetor enrichment analysis
 rule magma_drug_targetor:
   input:
-    "results/{gwas}/magma/magma_gene_level.genes.raw",
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
     "resources/data/drug_targetor/wholedatabase_for_targetor.gmt"
   output:
-    "results/{gwas}/magma/magma_drug_targetor.gsa.out"
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out"
   conda: 
     "../envs/main.yaml"
   shell:
     "resources/software/magma/magma \
-      --gene-results results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
+      --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
       --set-annot resources/data/drug_targetor/wholedatabase_for_targetor.gmt \
-      --out results/{wildcards.gwas}/magma/magma_drug_targetor"
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_drug_targetor"
 
 # Format the MAGMA GSEA results 
 rule format_magma_results:
   input:
-    "results/{gwas}/magma/magma_drug_targetor.gsa.out",
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out",
     rules.download_atc.output
   output:
-    "results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
   conda: 
     "../envs/main.yaml"
   params:
-    lincs_siginfo= config["lincs_siginfo"]
+    config_file=config['config_file']
   shell:
     "Rscript scripts/format_magma_gsea_results.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 # Compare TWAS signiture compared to enriched drugs in MAGMA
 rule comp_magma_gsea_twas_results:
   input:
-    "results/{gwas}/magma/magma_drug_targetor_atc_res.csv",
-    "results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv",
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   output:
-    "results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
   conda: 
     "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
   shell:
     "Rscript scripts/comp_magma_gsea_twas_results.R \
-    --gwas {wildcards.gwas}"
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file}"
 
 
 

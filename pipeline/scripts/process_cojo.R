@@ -3,21 +3,29 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="Name of GWAs [required]")
+              help="Name of GWAs [required]"),  
+  make_option("--config_file", action="store", default=NA, type='character',
+              help="Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
 # Read in the sumstats
-ss<-fread(paste0('resources/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
 
 # Read in COJO results
 cojo_res<-NULL
 for(i in 1:22){
-  if(file.exists(paste0('results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))){
-    tmp<-fread(paste0('results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))
+  if(file.exists(paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))){
+    tmp<-fread(paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo'))
     cojo_res<-rbind(cojo_res, tmp) 
   }
 }
@@ -71,7 +79,7 @@ for(i in 1:nrow(ss_subset)){
 }
 
 # Write out results
-write.csv(ss_subset, paste0('results/',opt$gwas,'/cojo/',opt$gwas,'.GW.cojo.clean.csv'), row.names=F, quote=T)
+write.csv(ss_subset, paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'.GW.cojo.clean.csv'), row.names=F, quote=T)
 
 
 

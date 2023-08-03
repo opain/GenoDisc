@@ -1,8 +1,2 @@
 name path population sampling prevalence mean sd label
-BODY04 test_data/gwas_sumstats/BODY04.gz EUR NA NA 0 1 "Body Mass Index"
-COAD01 test_data/gwas_sumstats/COAD01.gz EUR 0.33 0.03 NA NA "Coronary Artery Disease"
-SCHI02 /scratch/groups/ukbiobank/sumstats/cleaned/SCHI02.gz EUR NA NA NA NA "Schizophrenia"
-ALS2021 /users/k1806347/brc_scratch/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_only_reformat.txt.gz EUR 0.245 0.003 0 0 "ALS"
-PGC3MDD /users/k1806347/brc_scratch/Software/mdd-meta/results/drug_enrichment/daner_pgc_mdd_full_eur_hg19_v3.49.24.11_GenoFunc.gz EUR 0.5 0.15 0 0 "MDD"
-ALS_AAO_KCL /users/k1806347/brc_scratch/Data/GWAS_sumstats/ALS/Isabella_C9ORF_AAO/kcl_ss_nofreq.gz EUR NA NA 0 1 "ALS_AAO_KCL"
-ALS_AAO_SARA /users/k1806347/brc_scratch/Data/GWAS_sumstats/ALS/Isabella_C9ORF_AAO/sara_ss.gz EUR NA NA 0 1 "ALS_AAO_SARA"
+COAD01 test_data/reference/gwas_sumstats/COAD01.gz EUR 0.33 0.03 NA NA "Coronary Artery Disease"

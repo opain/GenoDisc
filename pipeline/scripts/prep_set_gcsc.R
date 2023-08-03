@@ -4,7 +4,7 @@ suppressMessages(library("optparse"))
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
               help="GWAS ID [required]"),
-  make_option("--config", action="store", default=NA, type='character',
+  make_option("--config_file", action="store", default=NA, type='character',
               help="config file [required]")
 )
 
@@ -12,6 +12,12 @@ opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 library(biomaRt)
+
+# Read in config file
+config<-readLines(opt$config_file)
+
+# Identify outdir
+outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
 # Read in database
 pathways<-fread('resources/data/drug_targetor/wholedatabase_for_targetor')
@@ -48,7 +54,7 @@ for(weight_i in gcsc_tissues){
   for(chr_i in 1:22){
     twas<-rbind(
       twas,
-      fread(paste0('results/',opt$gwas,'/gcsc/twas/',weight_i,'/',opt$gwas,'_twas_',weight_i,'_chr',chr_i,'.dat')))
+      fread(paste0(outdir,'/results/',opt$gwas,'/gcsc/twas/',weight_i,'/',opt$gwas,'_twas_',weight_i,'_chr',chr_i,'.dat')))
   }
 }
 
@@ -63,7 +69,7 @@ gene_id_all_mat<-t(gene_id_all_mat)
 
 chunks<-split(1:nrow(gene_id_all_mat), ceiling(seq_along(1:nrow(gene_id_all_mat))/10))
 for(chunks_i in 1:length(chunks)){
-  write.csv(gene_id_all_mat[chunks[[chunks_i]],], paste0('results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets_',chunks_i,'.csv'), quote=F)
+  write.csv(gene_id_all_mat[chunks[[chunks_i]],], paste0(outdir,'/results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets_',chunks_i,'.csv'), quote=F)
 }
 
-write.table(data.frame(x=1:length(chunks)), paste0('results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets.nset.txt'), col.names=T, row.names=F, quote=F)
+write.table(data.frame(x=1:length(chunks)), paste0(outdir,'/results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets.nset.txt'), col.names=T, row.names=F, quote=F)

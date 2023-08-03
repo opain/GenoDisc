@@ -1,5 +1,5 @@
-GenoFuncPipe/logs/*
-GenoFuncPipe/test_data/
-GenoFuncPipe/resources/
-GenoFuncPipe/results/
-GenoFuncPipe/.snakemake/
+pipeline/logs/*
+pipeline/test_data/
+pipeline/resources/
+pipeline/results/
+pipeline/.snakemake/
