@@ -254,6 +254,13 @@ clump_lead_snps<-output[[params$gwas]]$snp_assoc$clump
 clump_lead_snps<-clump_lead_snps[clump_lead_snps$P < 1e-5,]
 
 clump_lead_snps<-clump_lead_snps[order(clump_lead_snps$CHR, clump_lead_snps$BP),]
+
+clump_lead_snps$BETA<-round(clump_lead_snps$BETA,3)
+clump_lead_snps$SE<-round(clump_lead_snps$SE,3)
+clump_lead_snps$FREQ<-NULL
+clump_lead_snps$REF.FREQ<-NULL
+clump_lead_snps$N<-NULL
+
 clump_lead_snps_gw<-clump_lead_snps[clump_lead_snps$P < 5e-8,]
     
 ```
@@ -338,9 +345,15 @@ cojo_lead_snps<-output[[params$gwas]]$snp_assoc$cojo
 
 cojo_lead_snps$pJ<-NULL
 
+cojo_lead_snps<-cojo_lead_snps[order(cojo_lead_snps$CHR, cojo_lead_snps$BP)]
 cojo_lead_snps<-cojo_lead_snps[cojo_lead_snps$P < 1e-5,]
 
-cojo_lead_snps<-cojo_lead_snps[order(cojo_lead_snps$CHR, cojo_lead_snps$BP),]
+cojo_lead_snps$BETA<-round(cojo_lead_snps$BETA,3)
+cojo_lead_snps$SE<-round(cojo_lead_snps$SE,3)
+cojo_lead_snps$FREQ<-NULL
+cojo_lead_snps$REF.FREQ<-NULL
+cojo_lead_snps$N<-NULL
+
 cojo_lead_snps_gw<-cojo_lead_snps[cojo_lead_snps$P < 5e-8,]
 
 ```
@@ -439,14 +452,7 @@ cat("<details><summary>Finemapping (L<10): All loci</summary> \n")
 ```{r, echo=F, comment='', eval=finemap_logical}
 
 finemap<-output[[params$gwas]]$snp_assoc$susie$L10
-finemap$variable<-NULL
-finemap$Gene[is.na(finemap$Gene)]<-'None'
 
-finemap<-finemap[order(finemap$CHR, finemap$BP),]
-
-#finemap$cs_log10bf<-round(finemap$cs_log10bf,2)
-#finemap$cs_avg_r2<-round(finemap$cs_avg_r2,2)
-#finemap$cs_min_r2<-round(finemap$cs_min_r2,2)
 finemap$cs_log10bf<-NULL
 finemap$cs_avg_r2<-NULL
 finemap$cs_min_r2<-NULL
@@ -479,14 +485,7 @@ cat("<details><summary>Finemapping (L=1): All loci</summary> \n")
 ```{r, echo=F, comment='', eval=finemap_logical}
 
 finemap_L1<-output[[params$gwas]]$snp_assoc$susie$L1
-finemap_L1$variable<-NULL
-finemap_L1$Gene[is.na(finemap_L1$Gene)]<-'None'
 
-finemap_L1<-finemap_L1[order(finemap_L1$CHR, finemap_L1$BP),]
-
-#finemap_L1$cs_log10bf<-round(finemap_L1$cs_log10bf,2)
-#finemap_L1$cs_avg_r2<-round(finemap_L1$cs_avg_r2,2)
-#finemap_L1$cs_min_r2<-round(finemap_L1$cs_min_r2,2)
 finemap_L1$cs_log10bf<-NULL
 finemap_L1$cs_avg_r2<-NULL
 finemap_L1$cs_min_r2<-NULL
@@ -531,6 +530,9 @@ panel_info<-do.call(rbind, list(output[[params$gwas]]$mol_assoc$exp$fusion$panel
                                 output[[params$gwas]]$mol_assoc$exp$smr$panels,
                                 output[[params$gwas]]$mol_assoc$protein$smr$panels,
                                 output[[params$gwas]]$mol_assoc$protein$smr$panels))
+
+names(panel_info)[names(panel_info) == 'N_indiv']<-'N individuals'
+names(panel_info)[names(panel_info) == 'N_gene']<-'N genes'
 
 datatable(panel_info, rownames= FALSE)
 
@@ -798,6 +800,427 @@ cat("*** \n")
 cat("# Drug repurposing \n")
 cat("This section shows results drug repurposing analyses. Several analysis approaches are available. The inferred differential expression results from TWAS can be compared to the drug-induced expression profiles from the [Connectivity Map](https://clue.io/), AKA LINCS, to identify drugs that induce expression profiles opposite expression profiles associated with the GWAS phenotype. Two methods are used to compare TWAS and CMAP profiles, including the [average rank based method from So et al.](https://pubmed.ncbi.nlm.nih.gov/28805813/) and [TWAS-GSEA from Pain et al](https://github.com/opain/TWAS-GSEA). An alternative approach is to use MAGMA to identify drugs that are enriched for connections to genes associated with the GWAS phenotype. We use the collection of bipartite gene-drug interactions collated by [DrugTargetor](https://drugtargetor.com/). Unlike the TWAS-CMAP approaches, the MAGMA based approach does not consider the direction of effect of the gene on the GWAS phenotype or the drug on the genes expression/function, so may highlight drugs that might increase risk of the GWAS phenotype. However, the MAGMA approach can use a broader and perhaps more reliable sources of drug-gene interaction databases. To help validate the approaches used for identifying drug repurposing oppurtunities, we test for enrichment of drugs within ATC classifications. \n\n")
 
+```
+
+```{r, eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
+
+###
+# MAGMA
+###
+magma_gs<-output[[params$gwas]]$tx$drug$magma
+
+# Convert one-sided p to a Z score
+magma_gs$Z<--qnorm(magma_gs$P)
+magma_gs<-magma_gs[,c('Name','Z','P','P.FDR'),with=F]
+magma_gs$Method<-'MAGMA'
+magma_gs$Panel<-'MAGMA'
+
+###
+# GCSC
+###
+gcsc_gs<-output[[params$gwas]]$tx$drug$gcsc
+
+gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR'),with=F]
+gcsc_gs$Method<-'GCSC'
+gcsc_gs$Panel<-'Brain and Blood'
+
+###
+# TWAS-GSEA
+###
+
+gsea_gs<-output[[params$gwas]]$tx$drug$twas_gsea
+gsea_gs$Method<-'TWAS-GSEA'
+gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
+gsea_gs<-gsea_gs[,c('Drug','Z','P','P.FDR','Method','Panel'),with=F]
+names(gsea_gs)<-c('Name','Z','P','P.FDR','Method','Panel')
+# Flip Z so >0 indicates reversal of GWAS outcome.
+gsea_gs$Z<--gsea_gs$Z
+
+# Insert missing values
+#gsea_gs_all<-gsea_gs
+#for(i in gsea_gs_all$Panel){
+#  gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
+#  gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
+#  gsea_gs_rest<-data.frame(NAME=unique(gsea_gs_other$NAME[!(gsea_gs_other$NAME %in% gsea_gs_i$NAME)]),
+#                           Z=NA,
+#                           P=NA,
+#                           P.FDR=NA,
+#                           Method='TWAS-GSEA',
+#                           Panel=i)
+#  
+#  gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+#  
+#}
+#gsea_gs<-gsea_gs_all
+
+###
+# Combine results
+###
+
+all_gs<-do.call(rbind, list(magma_gs, gcsc_gs, gsea_gs))
+all_gs<-all_gs[all_gs$Name %in% all_gs$Name[all_gs$P.FDR < 0.05 & all_gs$Z > 0],]
+all_gs$Method<-factor(all_gs$Method, levels=c('MAGMA','GCSC','TWAS-GSEA'))
+
+group_siz<-NULL
+for(i in c('MAGMA','GCSC','TWAS-GSEA')){
+  group_siz<-rbind(group_siz, data.frame(Group=i,
+                           Size=length(unique(all_gs$Panel[all_gs$Method==i]))))
+}
+
+# Set minimum size to 3 to allow space for labels
+group_siz$Size[group_siz$Size < 2]<-2
+group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+group_siz$Width<-4*group_siz$Prop
+
+x<-c(-max(abs(all_gs$Z), na.rm=T),0,max(abs(all_gs$Z), na.rm=T))
+x<-(x-min(x))/(max(x)-min(x))
+
+heatmap<-ggplot(data = all_gs, aes(x = Panel, y = Name)) +
+	theme_bw()	+
+	geom_point(data=all_gs[all_gs$P < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
+	geom_point(data=all_gs[all_gs$P.FDR < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
+	geom_point(data=all_gs, aes(colour = Z), size=5) +
+  	scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs$Z), na.rm=T), max(abs(all_gs$Z), na.rm=T)), values=x) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+  facet_wrap(~ Method , nrow=1, scales = "free_x")
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png(paste0(outdir,'/results/',params$gwas,'/reports/tx_assoc.png'), units='px', res=300, width=2250, height=1200)
+  grid.draw(gt)
+a<-dev.off()
+
+```
+
+```{r, results='asis', eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
+
+cat("<details><summary>Comparison of Methods</summary> \n")
+
+cat(paste0("![](../",outdir,'/results/',params$gwas,"/reports/tx_assoc.png)\n\n"))
+
+cat("</details>  \n")
+
+```
+
+```{r, eval=F}
+
+#######
+# ATC associations
+#######
+
+###
+# MAGMA
+###
+
+magma_gs_atc<-fread(paste0('/users/k1806347/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe/results/ALS_only/magma/magma_drug_targetor_atc_res.csv'))
+magma_gs_atc$P.FDR<-p.adjust(magma_gs_atc$P, method = 'fdr')
+magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
+magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
+magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
+magma_gs_atc$Name<-paste0(magma_gs_atc$ATC,': ',magma_gs_atc$Name)
+magma_gs_atc$Method<-'MAGMA'
+magma_gs_atc$Panel<-'MAGMA'
+
+magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+###
+# GCSC
+###
+
+gcsc_gs_atc<-fread(paste0('/users/k1806347/oliverpainfel/Analyses/GCSC/GCSC_Brain_Blood_ALS_only_atc_res.csv'))
+gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
+gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
+gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
+gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$ATC,': ',gcsc_gs_atc$Name)
+gcsc_gs_atc$Method<-'GCSC'
+gcsc_gs_atc$Panel<-'GCSC'
+
+gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+###
+# TWAS-GSEA
+###
+
+weights<-read.table(paste0('/users/k1806347/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe/results/ALS_only/twas/list_of_weights.txt'))$V1
+weights<-weights[!grepl('SPLIC',weights)]
+
+gsea_drugtargetor_atc_all<-NULL
+for(i in weights){
+  gsea_drugtargetor_atc<-fread(paste0('/users/k1806347/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe/results/ALS_only/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
+  gsea_drugtargetor_atc$Panel<-i
+  # Calc. one-sided p
+  gsea_drugtargetor_atc$P.oneside<-gsea_drugtargetor_atc$P/2
+  gsea_drugtargetor_atc$P.oneside[gsea_drugtargetor_atc$Estimate < 0] <- 1-gsea_drugtargetor_atc$P.oneside[gsea_drugtargetor_atc$Estimate < 0]
+  gsea_drugtargetor_atc$P.FDR<-p.adjust(gsea_drugtargetor_atc$P, method = 'fdr')
+  gsea_drugtargetor_atc$P.FDR.onside<-p.adjust(gsea_drugtargetor_atc$P.onside, method = 'fdr')
+  gsea_drugtargetor_atc_all<-rbind(gsea_drugtargetor_atc_all, gsea_drugtargetor_atc)
+}
+
+gsea_drugtargetor_atc_all$P.FDR_all<-p.adjust(gsea_drugtargetor_atc_all$P, method = 'fdr')
+gsea_drugtargetor_atc_all$P.FDR.onside_all<-p.adjust(gsea_drugtargetor_atc_all$P.oneside, method = 'fdr')
+
+gsea_gs_atc<-gsea_drugtargetor_atc_all
+gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
+gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
+gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
+gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
+gsea_gs_atc$Name<-paste0(gsea_gs_atc$ATC,': ',gsea_gs_atc$Name)
+
+gsea_gs_atc$Method<-'TWAS-GSEA'
+
+gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+# Insert missing values
+gsea_gs_atc_all<-gsea_gs_atc
+for(i in weights){
+  gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
+  gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
+  gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
+                           Z =NA,
+                           FDR_Sig=NA,
+                           Nom_Sig=NA,
+                           Method='TWAS-GSEA',
+                           Panel=i)
+  
+  gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+  
+}
+gsea_gs_atc<-gsea_gs_atc_all
+
+# Update labels
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Anterior_cingulate_cortex_BA24"]<-"Brain - Anterior cingulate cortex BA24 (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "psychencode"]<-"Brain - DLPFC (PsychENCODE)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Cerebellar_Hemisphere"]<-"Brain - Cerebellar hemisphere (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "NTR.BLOOD.RNAARR"]<-"Blood (NTR)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Cortex"]<-"Brain - Cortex (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Caudate_basal_ganglia"]<-"Brain - Caudate basal ganglia (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "YFS.BLOOD.RNAARR"]<-"Blood (YFS)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Hippocampus"]<-"Brain - Hippocampus (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Substantia_nigra"]<-"Brain - Substantia nigra (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Nucleus_accumbens_basal_ganglia"]<-"Brain - Nucleus accumbens basal ganglia (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Putamen_basal_ganglia"]<-"Brain - Putamen basal ganglia (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Frontal_Cortex_BA9"]<-"Brain - Frontal cortex BA9 (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Whole_Blood"]<-"Blood (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "CMC.BRAIN.RNASEQ"]<-"Brain - DLPFC (CMC)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Cerebellum"]<-"Brain - Cerebellum (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Spinal_cord_cervical_c-1"]<-"Brain - Spinal cord vervical c-1 (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Hypothalamus"]<-"Brain - Hypothalamus (GTEx)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "kcl_brainbank_motor_cortex"]<-"Brain - Motor cortex (KCL Brain Bank)"
+gsea_gs_atc$Panel[gsea_gs_atc$Panel == "Brain_Amygdala"]<-"Brain - Amygdala (GTEx)"
+
+###
+# Combine results and plot
+###
+all_gs_atc<-do.call(rbind, list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc))
+all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[all_gs_atc$FDR_Sig],]
+
+all_gs_atc$Method<-factor(all_gs_atc$Method, levels=c('MAGMA','GCSC','TWAS-GSEA'))
+
+all_gs_atc$Name[grepl('C08C: selective calcium', all_gs_atc$Name)]<-'C08C: selective calcium channel blockers\nwith mainly vascular effects'
+  
+library(ggplot2)
+library(cowplot)
+
+group_siz<-NULL
+for(i in c('MAGMA','GCSC','TWAS-GSEA')){
+  group_siz<-rbind(group_siz, data.frame(Group=i,
+                           Size=length(unique(all_gs_atc$Panel[all_gs_atc$Method==i]))))
+}
+
+# Set minimum size to 3 to allow space for labels
+group_siz$Size[group_siz$Size < 2]<-2
+group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+group_siz$Width<-4*group_siz$Prop
+
+x<-c(min(all_gs_atc$Z, na.rm=T),0,max(all_gs_atc$Z, na.rm=T))
+x<-(x-min(x))/(max(x)-min(x))
+
+heatmap<-ggplot(data = all_gs_atc, aes(x = Panel, y = Name)) +
+	theme_bw()	+
+	geom_tile(data=all_gs_atc, aes(fill = Z), width=0.95, height=0.95) +
+	geom_tile(data=all_gs_atc[all_gs_atc$Nom_Sig == T,], aes(x = Panel, y = Name), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
+	geom_tile(data=all_gs_atc[all_gs_atc$FDR_Sig == T,], aes(x = Panel, y = Name), colour='green2', fill=NA, size=0.3, width=0.95, height=0.95) +
+	scale_fill_gradientn(colours=c("blue","grey95","red"), na.value=NA , name = "Z", limits = c(min(all_gs_atc$Z, na.rm=T), max(all_gs_atc$Z, na.rm=T)), values=x) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+  facet_wrap(~ Method , nrow=1, scales = "free_x")
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png('/users/k1806347/oliverpainfel/Analyses/GCSC/atc_enrich_comp_magma_gcsc_twasgsea.png', units='px', res=300, width=3000, height=1750)
+grid.draw(gt)
+dev.off()
+
+# Make a clearer version of the plot
+heatmap<-ggplot(data = all_gs_atc, aes(x = Panel, y = Name)) +
+	theme_bw() +
+	geom_point(data=all_gs_atc[all_gs_atc$Nom_Sig == T,], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
+	geom_point(data=all_gs_atc[all_gs_atc$FDR_Sig == T,], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
+	geom_point(data=all_gs_atc, aes(colour = Z), size=5) +
+  	scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(min(all_gs_atc$Z, na.rm=T), max(all_gs_atc$Z, na.rm=T)), values=x) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+  facet_wrap(~ Method , nrow=1, scales = "free_x")
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png('/users/k1806347/oliverpainfel/Analyses/GCSC/atc_enrich_comp_magma_gcsc_twasgsea_2.png', units='px', res=300, width=3000, height=1850)
+grid.draw(gt)
+dev.off()
+
+#######
+# ATC level 4 associations
+#######
+
+###
+# MAGMA
+###
+
+magma_gs_atc_level4<-fread(paste0('/users/k1806347/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe/results/ALS_only/magma/magma_drug_targetor_atc_res_level4.csv'))
+magma_gs_atc_level4$P.FDR<-p.adjust(magma_gs_atc_level4$P, method = 'fdr')
+magma_gs_atc_level4$log10_P<--log10(magma_gs_atc_level4$P)
+magma_gs_atc_level4$FDR_Sig<-magma_gs_atc_level4$P.FDR < 0.05
+magma_gs_atc_level4$Nom_Sig<-magma_gs_atc_level4$P < 0.05
+magma_gs_atc_level4$Name<-paste0(magma_gs_atc_level4$ATC,': ',magma_gs_atc_level4$Name)
+magma_gs_atc_level4$Method<-'MAGMA'
+magma_gs_atc_level4$Panel<-'MAGMA'
+
+magma_gs_atc_level4<-magma_gs_atc_level4[,c("Name","log10_P","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+###
+# GCSC
+###
+
+gcsc_gs_atc_level4<-fread(paste0('/users/k1806347/oliverpainfel/Analyses/GCSC/GCSC_Brain_Blood_ALS_only_atc_res_level4.csv'))
+gcsc_gs_atc_level4$log10_P<--log10(gcsc_gs_atc_level4$P)
+gcsc_gs_atc_level4$FDR_Sig<-gcsc_gs_atc_level4$P.FDR < 0.05
+gcsc_gs_atc_level4$Nom_Sig<-gcsc_gs_atc_level4$P < 0.05
+gcsc_gs_atc_level4$Name<-paste0(gcsc_gs_atc_level4$ATC,': ',gcsc_gs_atc_level4$Name)
+gcsc_gs_atc_level4$Method<-'GCSC'
+gcsc_gs_atc_level4$Panel<-'GCSC'
+
+gcsc_gs_atc_level4<-gcsc_gs_atc_level4[,c("Name","log10_P","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+###
+# TWAS-GSEA
+###
+
+weights<-read.table(paste0('/users/k1806347/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe/results/ALS_only/twas/list_of_weights.txt'))$V1
+weights<-weights[!grepl('SPLIC',weights)]
+
+gsea_drugtargetor_atc_all_level4<-NULL
+for(i in weights){
+  gsea_drugtargetor_atc<-fread(paste0('/users/k1806347/oliverpainfel/Software/MyGit/GenoFunc/GenoFuncPipe/results/ALS_only/twas/drugtargetor/twas_gsea_',i,'_res_atc_res_level4.csv'))
+  gsea_drugtargetor_atc$Panel<-i
+  # Calc. one-sided p
+  gsea_drugtargetor_atc$P.oneside<-gsea_drugtargetor_atc$P/2
+  gsea_drugtargetor_atc$P.oneside[gsea_drugtargetor_atc$Estimate < 0] <- 1-gsea_drugtargetor_atc$P.oneside[gsea_drugtargetor_atc$Estimate < 0]
+  gsea_drugtargetor_atc$P.FDR<-p.adjust(gsea_drugtargetor_atc$P, method = 'fdr')
+  gsea_drugtargetor_atc$P.FDR.onside<-p.adjust(gsea_drugtargetor_atc$P.onside, method = 'fdr')
+  gsea_drugtargetor_atc_all_level4<-rbind(gsea_drugtargetor_atc_all_level4, gsea_drugtargetor_atc)
+}
+
+gsea_drugtargetor_atc_all_level4$P.FDR_all<-p.adjust(gsea_drugtargetor_atc_all_level4$P, method = 'fdr')
+gsea_drugtargetor_atc_all_level4$P.FDR.onside_all<-p.adjust(gsea_drugtargetor_atc_all_level4$P.oneside, method = 'fdr')
+
+gsea_gs_atc_level4<-gsea_drugtargetor_atc_all_level4
+gsea_gs_atc_level4$log10_P<-sign(gsea_gs_atc_level4$Estimate)*-log10(gsea_gs_atc_level4$P)
+gsea_gs_atc_level4$FDR_Sig<-gsea_gs_atc_level4$P.FDR_all < 0.05
+gsea_gs_atc_level4$Nom_Sig<-gsea_gs_atc_level4$P < 0.05
+gsea_gs_atc_level4$Name<-paste0(gsea_gs_atc_level4$ATC,': ',gsea_gs_atc_level4$Name)
+
+gsea_gs_atc_level4$Method<-'TWAS-GSEA'
+
+gsea_gs_atc_level4<-gsea_gs_atc_level4[,c("Name","log10_P","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+# Update labels
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Anterior_cingulate_cortex_BA24"]<-"Brain - Anterior cingulate cortex BA24 (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "psychencode"]<-"Brain - DLPFC (PsychENCODE)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Cerebellar_Hemisphere"]<-"Brain - Cerebellar hemisphere (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "NTR.BLOOD.RNAARR"]<-"Blood (NTR)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Cortex"]<-"Brain - Cortex (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Caudate_basal_ganglia"]<-"Brain - Caudate basal ganglia (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "YFS.BLOOD.RNAARR"]<-"Blood (YFS)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Hippocampus"]<-"Brain - Hippocampus (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Substantia_nigra"]<-"Brain - Substantia nigra (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Nucleus_accumbens_basal_ganglia"]<-"Brain - Nucleus accumbens basal ganglia (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Putamen_basal_ganglia"]<-"Brain - Putamen basal ganglia (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Frontal_Cortex_BA9"]<-"Brain - Frontal cortex BA9 (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Whole_Blood"]<-"Blood (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "CMC.BRAIN.RNASEQ"]<-"Brain - DLPFC (CMC)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Cerebellum"]<-"Brain - Cerebellum (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Spinal_cord_cervical_c-1"]<-"Brain - Spinal cord vervical c-1 (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Hypothalamus"]<-"Brain - Hypothalamus (GTEx)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "kcl_brainbank_motor_cortex"]<-"Brain - Motor cortex (KCL Brainbank)"
+gsea_gs_atc_level4$Panel[gsea_gs_atc_level4$Panel == "Brain_Amygdala"]<-"Brain - Amygdala (GTEx)"
+
+###
+# Combine results and plot
+###
+all_gs_atc_level4<-do.call(rbind, list(magma_gs_atc_level4, gcsc_gs_atc_level4, gsea_gs_atc_level4))
+
+# Retain only ATC codes 4 code within enriched ATC 3 codes.
+all_gs_atc_level4<-all_gs_atc_level4[grepl(gsub(':.*','',all_gs_atc$Name[all_gs_atc$FDR_Sig == T]),all_gs_atc_level4$Name),]
+
+all_gs_atc_level4$Method<-factor(all_gs_atc_level4$Method, levels=c('MAGMA','GCSC','TWAS-GSEA'))
+
+library(ggplot2)
+library(cowplot)
+
+group_siz<-NULL
+for(i in c('MAGMA','GCSC','TWAS-GSEA')){
+  group_siz<-rbind(group_siz, data.frame(Group=i,
+                           Size=length(unique(all_gs_atc_level4$Panel[all_gs_atc_level4$Method==i]))))
+}
+
+# Set minimum size to 3 to allow space for labels
+group_siz$Size[group_siz$Size < 2]<-2
+group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+group_siz$Width<-4*group_siz$Prop
+
+x<-c(min(all_gs_atc_level4$log10_P, na.rm=T),0,max(all_gs_atc_level4$log10_P, na.rm=T))
+x<-(x-min(x))/(max(x)-min(x))
+
+heatmap<-ggplot(data = all_gs_atc_level4, aes(x = Panel, y = Name)) +
+	theme_bw()	+
+	geom_tile(data=all_gs_atc_level4, aes(fill = log10_P), width=0.95, height=0.95) +
+	geom_tile(data=all_gs_atc_level4[all_gs_atc_level4$Nom_Sig == T,], aes(x = Panel, y = Name), colour='black', fill=NA, size=0.3, width=0.95, height=0.95) +
+	geom_tile(data=all_gs_atc_level4[all_gs_atc_level4$FDR_Sig == T,], aes(x = Panel, y = Name), colour='green2', fill=NA, size=0.3, width=0.95, height=0.95) +
+	scale_fill_gradientn(colours=c("blue","grey95","red"),name = "Z", limits = c(min(all_gs_atc_level4$log10_P, na.rm=T), max(all_gs_atc_level4$log10_P, na.rm=T)), values=x) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+  facet_wrap(~ Method , nrow=1, scales = "free_x")
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png('/users/k1806347/oliverpainfel/Analyses/GCSC/atc_level4_enrich_comp_magma_gcsc_twasgsea.png', units='px', res=300, width=3000, height=5000)
+grid.draw(gt)
+dev.off()
 ```
 
 ***
