@@ -17,7 +17,7 @@ output:
 
 knitr::opts_chunk$set(echo = TRUE)
 #knitr::opts_knit$set(root.dir = '../')
-knitr::opts_knit$set(root.dir = '/scratch/prj/oliverpainfel/Software/MyGit/GenoDiscover/pipeline')
+knitr::opts_knit$set(root.dir = 'C:\\Users\\ollie\\Documents\\Research\\git\\GenoDiscover\\pipeline')
 
 library(data.table)
 library(knitr)
@@ -32,6 +32,7 @@ knit_hooks$set(pngquant = hook_pngquant)
 ```
 
 ```{r, echo=FALSE, eval=TRUE}
+
 # Read in config file
 config<-readLines(params$config_file)
 
@@ -333,7 +334,7 @@ cat("</details> \n")
 
 ```{r, echo=F, comment='', eval=cojo_logical}
 
-cojo_lead_snps<-fread(paste0(outdir,'/results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv'))
+cojo_lead_snps<-output[[params$gwas]]$snp_assoc$cojo
 
 cojo_lead_snps$pJ<-NULL
 
@@ -437,7 +438,7 @@ cat("<details><summary>Finemapping (L<10): All loci</summary> \n")
 
 ```{r, echo=F, comment='', eval=finemap_logical}
 
-finemap<-fread(paste0(outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv'))
+finemap<-output[[params$gwas]]$snp_assoc$susie$L10
 finemap$variable<-NULL
 finemap$Gene[is.na(finemap$Gene)]<-'None'
 
@@ -477,7 +478,7 @@ cat("<details><summary>Finemapping (L=1): All loci</summary> \n")
 
 ```{r, echo=F, comment='', eval=finemap_logical}
 
-finemap_L1<-fread(paste0(outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.L1.csv'))
+finemap_L1<-output[[params$gwas]]$snp_assoc$susie$L1
 finemap_L1$variable<-NULL
 finemap_L1$Gene[is.na(finemap_L1$Gene)]<-'None'
 
@@ -764,7 +765,8 @@ for(chunk_i in 1:length(chunks)){
   
   }
   
-  png(paste0(outdir,'/results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
+  dir.create(paste0(outdir,'/results/',params$gwas,'/reports'), recursive=T)
+  png(paste0(outdir,'/results/',params$gwas,'/reports/mol_assoc_',chunk_i,'.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
   
   grid.draw(gt)
   
@@ -781,8 +783,7 @@ txt<-paste0("In total, ",length(unique(all_func_res_all$ID))," unique genes have
 cat("<details><summary>Comparison of Methods</summary> \n")
 
   for(chunk_i in 1:length(chunks)){
-    cat(paste0("![](../results/",params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,".png)\n\n"))
-
+    cat(paste0("![](../",outdir,'/results/',params$gwas,'/reports/mol_assoc_',chunk_i,".png)\n\n"))
   }
 
 cat(txt)
