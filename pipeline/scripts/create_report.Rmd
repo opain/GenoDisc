@@ -16,8 +16,8 @@ output:
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
-#knitr::opts_knit$set(root.dir = '../')
-knitr::opts_knit$set(root.dir = 'C:\\Users\\ollie\\Documents\\Research\\git\\GenoDiscover\\pipeline')
+knitr::opts_knit$set(root.dir = '../')
+#knitr::opts_knit$set(root.dir = 'C:\\Users\\ollie\\Documents\\Research\\git\\GenoDiscover\\pipeline')
 
 library(data.table)
 library(knitr)
@@ -360,7 +360,6 @@ cojo_lead_snps<-output[[params$gwas]]$snp_assoc$cojo
 
 cojo_lead_snps$pJ<-NULL
 
-cojo_lead_snps<-cojo_lead_snps[order(cojo_lead_snps$CHR, cojo_lead_snps$BP)]
 cojo_lead_snps<-cojo_lead_snps[cojo_lead_snps$P < 1e-5,]
 
 cojo_lead_snps$BETA<-round(cojo_lead_snps$BETA,3)
@@ -608,7 +607,8 @@ if(pwas_panel_rosmap_logical & !(pwas_panel_rosmap_logical & pwas_panel_banner_l
                        Z=output[[params$gwas]]$mol_assoc$protein$fusion$res$pwas_all.Z,
                        Sig=output[[params$gwas]]$mol_assoc$protein$fusion$res$pwas_all.P.FDR < 0.05,
                        Coloc=output[[params$gwas]]$mol_assoc$protein$fusion$res$COLOC_logical)
-    
+  
+  # Retain most significant association for each panel-gene pair
   pwas_tmp<-pwas_tmp[order(-abs(pwas_tmp$Z)),]
   pwas_tmp<-pwas_tmp[!duplicated(paste0(pwas_tmp$Panel, pwas_tmp$ID)),]
   pwas_tmp$Method<-'FUSION'
@@ -628,6 +628,7 @@ if(smr_protein_panel_rosmap_logical){
                                    Sig=output[[params$gwas]]$mol_assoc$protein$smr$res$p_SMR.FDR < 0.05,
                                    Coloc=output[[params$gwas]]$mol_assoc$protein$smr$res$p_HEIDI > 0.05)
   
+  # Retain most significant association for each panel-gene pair
   smr_protein_res_tmp<-smr_protein_res_tmp[order(-abs(smr_protein_res_tmp$Z)),]
   smr_protein_res_tmp<-smr_protein_res_tmp[!duplicated(paste0(smr_protein_res_tmp$Panel, smr_protein_res_tmp$ID)),]
   smr_protein_res_tmp$Method<-'SMR'
@@ -922,8 +923,7 @@ gcsc_gs$Panel<-'Brain and Blood'
 gsea_gs<-output[[params$gwas]]$tx$drug$twas_gsea
 gsea_gs$Method<-'TWAS-GSEA'
 gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
-gsea_gs<-gsea_gs[,c('Drug','Z','P','P.FDR','Method','Panel'),with=F]
-names(gsea_gs)<-c('Name','Z','P','P.FDR','Method','Panel')
+gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel'),with=F]
 # Flip Z so >0 indicates reversal of GWAS outcome.
 gsea_gs$Z<--gsea_gs$Z
 
@@ -1007,7 +1007,7 @@ cat("# ATC associations \n")
 
 ```
 
-```{r, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
+```{r, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), warning=F, echo=F}
 
 ###
 # MAGMA
@@ -1116,12 +1116,12 @@ heatmap<-ggplot(data = all_gs_atc, aes(x = Panel, y = Name)) +
 library(grid)
 gt = ggplot_gtable(ggplot_build(heatmap))
 
-#for(i in 1:nrow(group_siz)){
-#  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = #group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
-#
-#}
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
 
-png(paste0(outdir,'/results/',params$gwas,'/reports/tx_atc_assoc.png'), units='px', res=300, width=2250, height=1200)
+}
+
+png(paste0(outdir,'/results/',params$gwas,'/reports/tx_atc_assoc.png'), units='px', res=300, width=2500, height=1400)
   grid.draw(gt)
 a<-dev.off()
 
