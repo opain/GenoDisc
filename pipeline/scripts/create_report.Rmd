@@ -128,8 +128,6 @@ drug_logical<-any(dgi_db_comp_logical,
 
 ```
 
-***
-
 <style type="text/css">
 
 h1 { /* Header 1 */
@@ -160,7 +158,11 @@ ID: `r params$gwas`
 
 # GWAS QC
 
-This table shows descriptive statistics for the submitted GWAS.
+```{r, results='asis', echo=FALSE, eval=T}
+
+cat("<details><summary>GWAS QC descriptives</summary>")
+
+```
 
 ```{r, eval=T, echo=F}
 
@@ -201,7 +203,13 @@ datatable(qc_val, options = list(dom = 't',
 
 ```
 
-<details><summary>Show sumstat_cleaner.R log file</summary>
+```{r, results='asis', echo=FALSE, eval=T}
+
+cat("</details>")
+
+```
+
+<details><summary>Log file: sumstat_cleaner.R</summary>
 
 ```{r, eval=T, echo=F, comment=''}
 
@@ -211,7 +219,7 @@ output[[params$gwas]]$gwas_qc$cleaner_dat$log
 
 </details>
 
-<details><summary>Show FOCUS munge log file</summary>
+<details><summary>Log file: FOCUS munge</summary>
 
 ```{r, eval=T, echo=F, comment=''}
 
@@ -223,7 +231,7 @@ output[[params$gwas]]$gwas_qc$focus_dat$log
 
 ```{r, results='asis', echo=FALSE, eval=ldsc_logical}
 
-cat("<details><summary>Show LDSC log file</summary>")
+cat("<details><summary>Log file: LDSC</summary>")
 
 ```
 
@@ -243,6 +251,13 @@ cat("</details>")
 
 cat("*** \n")
 cat("# SNP associations \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=any(clump_logical, cojo_logical)}
+
+cat("## Lead variants \n")
 cat("This section list independent SNP associations achieving either genome-wide or suggestive significance. Independence is determined using [LD-based clumping](https://www.cog-genomics.org/plink/1.9/postproc#clump) and/or conditional-joint ([COJO](https://yanglab.westlake.edu.cn/software/gcta/#COJO](https://yanglab.westlake.edu.cn/software/gcta/#COJO)) analysis. Note, LD is estimated using a reference sample and may not accurately reflect the LD structure in the GWAS sample. COJO analysis is particularly sensitive to LD mispecification. \n")
 
 ```
@@ -441,7 +456,6 @@ cat("</details> \n")
 
 ```{r,  results='asis', echo=FALSE, eval=finemap_logical}
 
-cat("*** \n")
 cat("## SNP Finemapping \n")
 cat("This section summarises the results SNP-based statistical finemapping, using the software [SuSiE](https://stephenslab.github.io/susie-paper/). Note, LD is estimated using a reference sample and may not accurately reflect the LD structure in the GWAS sample. Finemapping analysis with multiple causal variants (L>1) is particularly sensitive to LD mispecification. Below we also provide finemapping results assuming a single causal variant (i.e. L=1), which is robust to LD mispecification but has reduced power when more than one causal variant is present. \n\n")
 
@@ -513,42 +527,12 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("# Molecular associations \n")
-cat("This section summarises analyses that infer molecular changes associated with the GWAS phenotype, either altered gene expression or protein levels. We integrate a range of datasets indicating the effect of genetic variants on expression and protein levels in different tissues. Depending on the availability of data, we run the analysis using [FUSION](http://gusevlab.org/projects/fusion/) or [SMR](https://yanglab.westlake.edu.cn/software/smr/#Overview) \n\n")
-
-```
-
-```{r,  results='asis', echo=FALSE, eval=mol_assoc_logical}
-
-cat("<details><summary>Show list of molecular datasets included</summary> \n")
-
-```
-
-```{r, echo=FALSE, eval=mol_assoc_logical}
-
-# Combine all panel data
-panel_info<-do.call(rbind, list(output[[params$gwas]]$mol_assoc$exp$fusion$panels,
-                                output[[params$gwas]]$mol_assoc$exp$smr$panels,
-                                output[[params$gwas]]$mol_assoc$protein$smr$panels,
-                                output[[params$gwas]]$mol_assoc$protein$smr$panels))
-
-names(panel_info)[names(panel_info) == 'N_indiv']<-'N individuals'
-names(panel_info)[names(panel_info) == 'N_gene']<-'N genes'
-
-datatable(panel_info, rownames= FALSE)
-
-```
-
-```{r, results='asis', echo=FALSE, eval=mol_assoc_logical}
-
-cat("</details> \n")
 
 ```
 
 ```{r, results='asis', echo=FALSE, eval=any(expression_logical,protein_logical), echo=F}
 
-cat("*** \n")
-cat("## Summary of Molecular Associations \n")
-cat("This section summarises gene-level association results from MAGMA, TWAS, PWAS, and SMR. This simply shows the whether genes showed a statistically significant association with the GWAS phenotype, and for TWAS/PWAS/SMR whether the association for gene expression/protein levels and the GWAS phenotype colocalised (same causal variant) and are thereby consistent with a causal model. \n\n")
+cat("## Summary across methods \n")
 
 ```
 
@@ -794,6 +778,114 @@ cat("</details>  \n")
 
 ```
 
+```{r, results='asis', echo=FALSE, eval=any(expression_logical,protein_logical), echo=F}
+
+cat("## Method-specific results \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_logical}
+
+cat("<details><summary>FUSION expression results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=twas_logical}
+
+output[[params$gwas]]$mol_assoc$exp$fusion$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_logical}
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_expression_logical}
+
+cat("<details><summary>SMR expression results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=smr_expression_logical}
+
+output[[params$gwas]]$mol_assoc$exp$smr$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_expression_logical}
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+cat("<details><summary>FUSION protein results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+output[[params$gwas]]$mol_assoc$protein$fusion$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_protein_panel_rosmap_logical}
+
+cat("<details><summary>SMR protein results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=smr_protein_panel_rosmap_logical}
+
+output[[params$gwas]]$mol_assoc$protein$smr$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_protein_panel_rosmap_logical}
+
+cat("</details>  \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=mol_assoc_logical}
+
+cat("## Molecular datasets \n")
+
+cat("<details><summary>List of molecular datasets included</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=mol_assoc_logical}
+
+# Combine all panel data
+panel_info<-do.call(rbind, list(output[[params$gwas]]$mol_assoc$exp$fusion$panels,
+                                output[[params$gwas]]$mol_assoc$exp$smr$panels,
+                                output[[params$gwas]]$mol_assoc$protein$smr$panels,
+                                output[[params$gwas]]$mol_assoc$protein$smr$panels))
+
+names(panel_info)[names(panel_info) == 'N_indiv']<-'N individuals'
+names(panel_info)[names(panel_info) == 'N_gene']<-'N genes'
+
+datatable(panel_info, rownames= FALSE)
+
+```
+
+```{r, results='asis', echo=FALSE, eval=mol_assoc_logical}
+
+cat("</details> \n")
+
+```
+
 ```{r, results='asis', echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
 
 cat("*** \n")
@@ -801,7 +893,7 @@ cat("# Drug associations \n")
 
 ```
 
-```{r, eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
+```{r, eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F, warning=F}
 
 ###
 # MAGMA
@@ -915,7 +1007,7 @@ cat("# ATC associations \n")
 
 ```
 
-```{r, eval=F}
+```{r, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
 
 ###
 # MAGMA
@@ -968,7 +1060,7 @@ gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), wi
 
 # Insert missing values
 gsea_gs_atc_all<-gsea_gs_atc
-for(i in unique(gsea_gs_atc_i$Panel)){
+for(i in unique(gsea_gs_atc_all$Panel)){
   gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
   gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
   gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
@@ -1028,7 +1120,6 @@ gt = ggplot_gtable(ggplot_build(heatmap))
 #  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = #group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
 #
 #}
-
 
 png(paste0(outdir,'/results/',params$gwas,'/reports/tx_atc_assoc.png'), units='px', res=300, width=2250, height=1200)
   grid.draw(gt)
