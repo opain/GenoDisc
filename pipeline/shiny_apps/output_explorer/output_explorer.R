@@ -9,15 +9,23 @@ library(cowplot)
 # Define UI for the Shiny app
 ui <- fluidPage(
   navbarPage(
-    title="GenoDiscover",
+    title ="GenoDiscover",
+    
     tabsetPanel(
       tabPanel(
         title="Data Input",
+        br(),
+        p("Welcome! This is an application for visualising the output of GenoDiscover. To start, upload the 'results_package.rds' file output by the GenoDiscover pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."), 
+        p("Click ",a("here", href = "https://github.com/opain/GenoDiscover"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDiscover"), "  and relevent software and datasets included in your analysis."), 
+        hr(),
         br(),
         fileInput("file", "Choose an .RDS file"),
         selectInput("gwas_selector", "Select a GWAS", "")),
       tabPanel(
         title="GWAS QC",
+        br(),
+        p("This tab shows key quality control statistics for your selected GWAS."), 
+        hr(),
         br(),
         fluidRow(
           column(width=6,
@@ -26,11 +34,13 @@ ui <- fluidPage(
         )),
       tabPanel(
         title="SNP Associations",
+        br(),
+        p("This tab shows SNP association results. Select the Lead variant tab below to view information for independent lead variants identified by either LD-based clumping or COJO. Select the Fine-mapping tab below to view SuSiE Finemaping results."), 
+        hr(),
         tabsetPanel(
           tabPanel(
             title="Lead variants",
-            br(),
-            
+            br(),            
             fluidPage(
               sidebarPanel(
                 radioButtons("clumping_type", "Select method:",
@@ -53,7 +63,6 @@ ui <- fluidPage(
           tabPanel(
             title="Fine-mapping",
             br(),
-                   
             fluidPage(
               sidebarPanel(
                 radioButtons("l_param", "Select L parameter:",
@@ -73,6 +82,9 @@ ui <- fluidPage(
       ),
       tabPanel(
         title="Molecular Associations",
+        br(),
+        p("This tab shows molecular association results. Select the tabs below to see a summary of results across methods, or method-specific results tables."), 
+        hr(),
         tabsetPanel(
           tabPanel(
             title="Summary",
@@ -82,11 +94,18 @@ ui <- fluidPage(
               sidebarPanel(
                 selectInput("selected_methods", "Select methods", "", multiple=T),
                 selectInput("selected_expr_panels", "Select expression panels", "", multiple=T),
-                selectInput("selected_protein_panels", "Select protein panels", "", multiple=T)
+                selectInput("selected_protein_panels", "Select protein panels", "", multiple=T),
+                radioButtons("conf_only", "Show high-confidence only :",
+                             choices = c("True" = T,
+                                         "False" = F),
+                             selected = T),
+                textInput("geneInput", "Enter gene symbols (whitespace- or comma-seperated):")
               ),
               
               mainPanel(
-               uiOutput("mol_assoc_plot.ui")
+                uiOutput("messageDiv1"),
+                uiOutput("messageDiv2"),
+                uiOutput("mol_assoc_plot.ui")
               )
             )
           )
@@ -95,6 +114,7 @@ ui <- fluidPage(
     )
   )
 )
+
 
 # Define server logic
 server <- function(input, output, session) {
@@ -444,28 +464,8 @@ server <- function(input, output, session) {
         
       }
       
-      # Subset to high confidence genes
-      all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[which((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)")],]
-      
       return(all_func_res)
     })
-    
-#    # Identify available expression and protein panels
-#    expr_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Expr.'])
-#    protein_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
-#    
-#    # Identify methods available
-#    methods<-unique(all_func_res$Method)
-#    
-#    # Update UI
-#    updateSelectInput(session, "selected_methods", choices = methods, selected=methods)
-#    updateSelectInput(session, "selected_expr_panels", choices = expr_panels, selected=expr_panels)
-#    updateSelectInput(session, "selected_protein_panels", choices = protein_panels, selected=protein_panels)
-#    
-#    # Subset results according to input parameters
-#    all_func_res<-all_func_res[all_func_res$Method %in% input$selected_methods,]
-#    #all_func_res<-all_func_res[all_func_res$Panel %in% input$selected_panels,]
-#    #all_func_res<-all_func_res[all_func_res$Panel %in% input$selected_panels,]
     
     observe({
       all_func_res<-mol_assoc_summary_data()
@@ -483,7 +483,7 @@ server <- function(input, output, session) {
       all_func_res<-mol_assoc_summary_data()
       protein_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
       updateSelectInput(session, "selected_protein_panels", choices = protein_panels, selected=protein_panels)
-    })   
+    })
     
     mol_assoc_summary_data_filtered<-reactive({
       all_func_res<-mol_assoc_summary_data()
@@ -496,6 +496,29 @@ server <- function(input, output, session) {
       if(any(all_func_res$Type == 'Protein')){
         all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels)),]
       }
+      if(input$conf_only){
+        all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[which((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)")],]
+      }
+      
+      input_genes <- unlist(strsplit(input$geneInput, "[, ]"))
+      selected_genes <- input_genes[input_genes != ""]
+      
+      # Insert NA rows for all panels and methods so when filtering by gene, all selected panels and methods remain
+      na_rows<-all_func_res[!(duplicated(paste0(all_func_res$Panel, all_func_res$Method))),]
+      na_rows$ID<-NA
+      na_rows$Z<-NA
+      na_rows$Sig<-NA
+      na_rows$Coloc<-NA
+
+      all_func_res<-rbind(na_rows, all_func_res)
+      
+      if(length(selected_genes) > 0){
+        if(sum(selected_genes %in% all_func_res$ID) > 0){
+          all_func_res<-all_func_res[all_func_res$ID %in% selected_genes | is.na(all_func_res$ID),]
+        } else {
+          all_func_res<-data.frame(matrix(nrow=0, ncol=5))
+        }
+      }
       
       return(all_func_res)
     })
@@ -503,98 +526,139 @@ server <- function(input, output, session) {
     # Identifyj number of genes
     plot_dim<-reactive({
       all_func_res<-mol_assoc_summary_data_filtered()
-      num_row <- length(unique(all_func_res$ID))
-      plot_height<-(max(nchar(all_func_res$Panel))*1.2)+(num_row * 20)
       
-      num_col <- length(unique(paste0(all_func_res$Panel,'_',all_func_res$Method,'_',all_func_res$Type)))
-      plot_width<-(max(nchar(all_func_res$ID))*1.2)+(num_col * 60)
-      plot_width<-max(plot_width,(length(unique(all_func_res$Method))*100))
+      if(nrow(all_func_res) > 0){
+        num_row <- length(unique(all_func_res$ID))
+        plot_height<-(max(nchar(all_func_res$Panel))*3)+(num_row * 20)+100
+        num_col <- length(unique(paste0(all_func_res$Panel,'_',all_func_res$Method,'_',all_func_res$Type)))
+        plot_width<-(max(nchar(all_func_res$ID))*1.2)+(num_col * 60)
+        plot_width<-max(plot_width,(length(unique(all_func_res$Method))*100))
+      } else {
+        plot_height<-100
+        plot_width<-100
+      }
       
       return(list(height=plot_height,
                   width=plot_width))
     })
-    
+  
     output$mol_assoc_plot<-renderPlot({
       
       all_func_res<-mol_assoc_summary_data_filtered()
-
-      # Insert missing data
-      all_func_res_all<-NULL
-      for(i in unique(all_func_res$Panel)){
-        for(j in unique(all_func_res$Method[all_func_res$Panel == i])){
-          all_func_res_panel<-all_func_res[all_func_res$Panel == i & all_func_res$Method == j,]
-          all_func_res_other<-all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel) & !(all_func_res$Method %in% all_func_res_panel$Method),]
-          all_func_res_other<-all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID),]
-          all_func_res_other<-unique(all_func_res_other$ID)
-          all_func_res_panel_missing<-data.frame(ID=all_func_res_other)
-          
-          all_func_res_panel_missing$Panel=i
-          all_func_res_panel_missing$ID=all_func_res_other
-          all_func_res_panel_missing$Z=NA
-          all_func_res_panel_missing$Sig=0
-          all_func_res_panel_missing$Coloc=0
-          all_func_res_panel_missing$Method=j
-          all_func_res_panel_missing$Type=all_func_res_panel$Type[1]
-          all_func_res_panel_missing$Group=all_func_res_panel$Group[1]
-          
-          all_func_res_panel_missing<-all_func_res_panel_missing[,names(all_func_res_panel)]
-          
-          all_func_res_all<-rbind(all_func_res_all,all_func_res_panel)
-          all_func_res_all<-rbind(all_func_res_all,all_func_res_panel_missing)
-        }
-      }
       
-      all_func_res_all$Group<-paste0(all_func_res_all$Method,'\n',all_func_res_all$Type )
-      all_func_res_all$Group[all_func_res_all$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
-      all_func_res_all$Group[all_func_res_all$Group == 'MAGMA\n']<-'MAGMA'
-      all_func_res_all$Group[all_func_res_all$Group == 'Nearest\nGene\n']<-'Nearest\nGene'
-      all_func_res_all$Group<-factor(all_func_res_all$Group, levels=unique(all_func_res_all$Group))
-      
-      all_func_res_all<-all_func_res_all[order(as.character(all_func_res_all$ID)),]
-      
-      all_func_res_all$ID<-factor(all_func_res_all$ID, levels=unique(all_func_res_all$ID))
-      
-      group_siz<-NULL
-      for(i in unique(all_func_res_all$Group)){
-        group_siz<-rbind(group_siz, data.frame(Group=i,
-                                               Size=length(unique(all_func_res_all$Panel[all_func_res_all$Group==i]))))
-      }
-      
-      # Set minimum size to 3 to allow space for labels
-      group_siz$Size[group_siz$Size < 2]<-2
-      group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
-      group_siz$Width<-4*group_siz$Prop
-      
-      all_func_res_all$ID<-factor(all_func_res_all$ID, levels=rev(unique(as.character(all_func_res_all$ID))))
-      
-      x<-c(min(all_func_res_all$Z, na.rm=T),0,max(all_func_res_all$Z, na.rm=T))
-      x<-(x-min(x))/(max(x)-min(x))
-      
-      # Create second version of the plot
-      heatmap<-ggplot(data = all_func_res_all, aes(x = Panel, y = ID)) +
-        theme_bw()	+
-        geom_point(data=all_func_res_all[all_func_res_all$Sig == T,], aes(x = Panel, y = ID), colour='black', size=4) +
-        geom_point(data=all_func_res_all[all_func_res_all$Coloc ==T & all_func_res_all$Sig == T,], aes(x = Panel, y = ID), colour='black', shape=15, size=5) +
-        geom_point(data=all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !(is.na(all_func_res_all$Z)),], aes(x = Panel, y = ID), colour='#00FF00', size=4) +
-        geom_point(data=all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene',], aes(colour = Z), size=3) +
-        scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(min(all_func_res_all$Z, na.rm=T), max(all_func_res_all$Z, na.rm=T)), values=x) +
-        theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
-        labs(x='', y='') +
-        facet_wrap(~ Group , nrow=1, scales = "free_x") +
-        scale_y_discrete(limits= unique(rev(all_func_res_all$ID)))
-      
-      gt = ggplot_gtable(ggplot_build(heatmap))
-      
-      for(i in 1:nrow(group_siz)){
-        gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+      if(plot_dim()[['height']] < 10000 & nrow(all_func_res) > 0){
         
+        # Insert missing data
+        all_func_res_all<-NULL
+        for(i in unique(all_func_res$Panel)){
+          for(j in unique(all_func_res$Method[all_func_res$Panel == i])){
+
+            all_func_res_panel<-all_func_res[all_func_res$Panel == i & all_func_res$Method == j,]
+            all_func_res_other<-all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel) & !(all_func_res$Method %in% all_func_res_panel$Method),]
+            all_func_res_other<-all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID),]
+            all_func_res_other<-unique(all_func_res_other$ID)
+            
+            if(length(all_func_res_other) > 0){
+              all_func_res_panel_missing<-data.frame(ID=all_func_res_other)
+  
+              all_func_res_panel_missing$Panel=i
+              all_func_res_panel_missing$ID=all_func_res_other
+              all_func_res_panel_missing$Z=NA
+              all_func_res_panel_missing$Sig=0
+              all_func_res_panel_missing$Coloc=0
+              all_func_res_panel_missing$Method=j
+              all_func_res_panel_missing$Type=all_func_res_panel$Type[1]
+              all_func_res_panel_missing$Group=all_func_res_panel$Group[1]
+              
+              all_func_res_panel_missing<-all_func_res_panel_missing[,names(all_func_res_panel)]
+              
+              all_func_res_all<-rbind(all_func_res_all,all_func_res_panel_missing)
+            }
+            
+            all_func_res_all<-rbind(all_func_res_all,all_func_res_panel)
+          }
+        }
+        
+        # Now remove the NA rows
+        all_func_res_all<-all_func_res_all[!is.na(all_func_res_all$ID),]
+        
+        all_func_res_all$Group<-paste0(all_func_res_all$Method,'\n',all_func_res_all$Type )
+        all_func_res_all$Group[all_func_res_all$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
+        all_func_res_all$Group[all_func_res_all$Group == 'MAGMA\n']<-'MAGMA'
+        all_func_res_all$Group[all_func_res_all$Group == 'Nearest\nGene\n']<-'Nearest\nGene'
+        all_func_res_all$Group<-factor(all_func_res_all$Group, levels=unique(all_func_res_all$Group))
+        
+        all_func_res_all<-all_func_res_all[order(as.character(all_func_res_all$ID)),]
+        
+        all_func_res_all$ID<-factor(all_func_res_all$ID, levels=unique(all_func_res_all$ID))
+        
+        group_siz<-NULL
+        for(i in unique(all_func_res_all$Group)){
+          group_siz<-rbind(group_siz, data.frame(Group=i,
+                                                 Size=length(unique(all_func_res_all$Panel[all_func_res_all$Group==i]))))
+        }
+        
+        # Set minimum size to 3 to allow space for labels
+        group_siz$Size[group_siz$Size < 2]<-2
+        group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+        group_siz$Width<-4*group_siz$Prop
+        
+        all_func_res_all$ID<-factor(all_func_res_all$ID, levels=rev(unique(as.character(all_func_res_all$ID))))
+        
+        x<-c(-max(abs(all_func_res_all$Z), na.rm=T),0,max(abs(all_func_res_all$Z), na.rm=T))
+        x<-(x-min(x))/(max(x)-min(x))
+        
+        # Create second version of the plot
+        heatmap<-ggplot(data = all_func_res_all, aes(x = Panel, y = ID)) +
+          theme_bw()	+
+          geom_point(data=all_func_res_all[all_func_res_all$Sig == T,], aes(x = Panel, y = ID), colour='black', size=5) +
+          geom_point(data=all_func_res_all[all_func_res_all$Coloc ==T & all_func_res_all$Sig == T,], aes(x = Panel, y = ID), colour='black', shape=15, size=6) +
+          geom_point(data=all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !(is.na(all_func_res_all$Z)),], aes(x = Panel, y = ID), colour='#00FF00', size=5) +
+          geom_point(data=all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene',], aes(colour = Z), size=4) +
+          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm=T), max(abs(all_func_res_all$Z), na.rm=T)), values=x) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+          labs(x='', y='') +
+          facet_wrap(~ Group , nrow=1, scales = "free_x") +
+          scale_y_discrete(limits= unique(rev(all_func_res_all$ID))) +
+          theme(text = element_text(size = 14))
+                
+        gt = ggplot_gtable(ggplot_build(heatmap))
+        
+        for(i in 1:nrow(group_siz)){
+          gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+          
+        }
+        
+        grid.draw(gt)
+      } else {
+        NULL
       }
-      
-      grid.draw(gt)
-    })
+    }, type = "cairo")
     
     output$mol_assoc_plot.ui <- renderUI({
-      plotOutput("mol_assoc_plot", height = plot_dim()[['height']], width=plot_dim()[['width']])
+      if(plot_dim()[['height']] < 10000 & nrow(mol_assoc_summary_data_filtered()) > 0){
+        plotOutput("mol_assoc_plot", height = plot_dim()[['height']], width=plot_dim()[['width']])
+      } else {
+        NULL
+      }
+    })
+    
+    output$messageDiv1 <- renderUI({
+      if(plot_dim()[['height']] > 10000){
+        HTML(sprintf(
+          "<div style='color: red;'>%s</div>",
+          "Plot is too large. Restrict to high-confidence genes or specify a list of genes."
+        ))
+      }
+    })
+    
+    output$messageDiv2 <- renderUI({
+      if(nrow(mol_assoc_summary_data_filtered()) == 0){
+        HTML(sprintf(
+          "<div style='color: red;'>%s</div>",
+          "No genes are present."
+        ))        
+      }
     })
   })
 }
