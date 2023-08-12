@@ -47,6 +47,7 @@ for(gwas_i in gwas_list$name){
 
   if(config[grepl('cojo:',config)] == "cojo: T"){
     snp_assoc$cojo<-fread(paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.clean.csv'))
+    snp_assoc$cojo<-snp_assoc$cojo[order(snp_assoc$cojo$CHR, snp_assoc$cojo$BP),]
   } else {
     snp_assoc$cojo<-NULL
   }
