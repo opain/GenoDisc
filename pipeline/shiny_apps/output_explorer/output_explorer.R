@@ -5,116 +5,277 @@ library(DT)
 library(grid)
 library(ggplot2)
 library(cowplot)
+library(shinythemes)
 
 # Define UI for the Shiny app
 ui <- fluidPage(
+
+  tags$style(HTML("
+    .navbar {
+      min-height: 80px; /* Set the minimum height of the navbar */
+    }
+    .navbar .nav.navbar-nav li {
+      margin: 15px 0; /* Adjust vertical spacing for buttons */
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+      padding: 20px;
+      background-color: #f5f5f5; /* Light grey background color */
+    }
+  ")),
+  
   navbarPage(
-    title ="GenoDiscover",
+    title = div(img(src='logo/horizontal.png',
+                    style="margin-top: -14px;
+                               padding-right:10px;
+                               padding-bottom:0px",
+                    height = 80)),
+    theme = shinythemes::shinytheme("paper"),
     
-    tabsetPanel(
-      tabPanel(
-        title="Data Input",
-        br(),
-        p("Welcome! This is an application for visualising the output of GenoDiscover. To start, upload the 'results_package.rds' file output by the GenoDiscover pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."), 
-        p("Click ",a("here", href = "https://github.com/opain/GenoDiscover"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDiscover"), "  and relevent software and datasets included in your analysis."), 
-        hr(),
-        br(),
-        fileInput("file", "Choose an .RDS file"),
-        selectInput("gwas_selector", "Select a GWAS", "")),
-      tabPanel(
-        title="GWAS QC",
-        br(),
-        p("This tab shows key quality control statistics for your selected GWAS."), 
-        hr(),
-        br(),
-        fluidRow(
-          column(width=6,
-            dataTableOutput("qc_table"),
-          )
-        )),
-      tabPanel(
-        title="SNP Associations",
-        br(),
-        p("This tab shows SNP association results. Select the Lead variant tab below to view information for independent lead variants identified by either LD-based clumping or COJO. Select the Fine-mapping tab below to view SuSiE Finemaping results."), 
-        hr(),
-        tabsetPanel(
-          tabPanel(
-            title="Lead variants",
-            br(),            
-            fluidPage(
-              sidebarPanel(
-                radioButtons("clumping_type", "Select method:",
-                             choices = c("COJO" = "cojo_analysis",
-                                         "LD-based clumping" = "ld_clumping"),
-                             selected = "cojo_analysis"),
-                radioButtons("pvalue_threshold", "Select P-value Threshold:",
-                             choices = c("Genome-wide significance (p < 5e-8)" = 5e-8, 
-                                         "Suggestive significance (p < 1e-5)" = 1e-5), 
-                             selected = 5e-8),
-                width = 3
-              ),
-              
-              mainPanel(
-                dataTableOutput("snp_assoc_lead_table"),
-                width = 9
-              )
-            )
-          ),
-          tabPanel(
-            title="Fine-mapping",
-            br(),
-            fluidPage(
-              sidebarPanel(
-                radioButtons("l_param", "Select L parameter:",
-                             choices = c("L1" = "L1",
-                                         "L10" = "L10"),
-                             selected = "L1"),
-                width = 3
-              ),
-              
-              mainPanel(
-                dataTableOutput("snp_assoc_finemap_table"),
-                width = 6
-              )
-            )
+    tabPanel(
+      title='Home',
+      
+      div(
+        style = "display: flex; align-items; padding: 20px;",
+        div(
+          style = "flex: 4; padding-right: 20px;",
+           h2("Welcome to GenoDiscover"),
+           p("GenoDiscover is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
+           p("Get started by uploading your GWAS summary statistics and let GenoDiscover help you uncover meaningful patterns in your data."),
+           hr(),
+           
+           # Instructions for submitting data
+           h3("Submitting GWAS Summary Statistics"),
+           p("You can submit your GWAS summary statistics for analysis via our King's College London server by going to the 'Submit' tab."),
+           hr(),
+           
+           # Instructions for exploring existing results
+           h3("Exploring Previous Results"),
+           p("If you have already run the GenoDiscover pipeline and have results, you can explore them by uploading your results_package.rds file to the 'Explore' tab."),
+           hr(),
+           
+           # Information on citing the platform
+           h3("Citing GenoDiscover"),
+           p("If you use GenoDiscover for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
+           p("Publication reference: TBD"),
+           hr(),        
+         ),
+        
+        div(
+          style = "flex: 2; padding-left: 20px; text-align: center;",
+          img(
+            src = "schematic.png",
+            alt = "Schematic",
+            style = "max-width: 70%; height: auto;"
           )
         )
-      ),
-      tabPanel(
-        title="Molecular Associations",
-        br(),
-        p("This tab shows molecular association results. Select the tabs below to see a summary of results across methods, or method-specific results tables."), 
-        hr(),
-        tabsetPanel(
-          tabPanel(
-            title="Summary",
-            br(),
-            
-            fluidPage(
-              sidebarPanel(
-                selectInput("selected_methods", "Select methods", "", multiple=T),
-                selectInput("selected_expr_panels", "Select expression panels", "", multiple=T),
-                selectInput("selected_protein_panels", "Select protein panels", "", multiple=T),
-                radioButtons("conf_only", "Show high-confidence only :",
-                             choices = c("True" = T,
-                                         "False" = F),
-                             selected = T),
-                textInput("geneInput", "Enter gene symbols (whitespace- or comma-seperated):")
-              ),
-              
-              mainPanel(
-                uiOutput("messageDiv1"),
-                uiOutput("messageDiv2"),
-                uiOutput("mol_assoc_plot.ui")
+      )
+    ),
+    tabPanel(
+      title='Submit'
+      
+    ),
+    tabPanel(
+      title='Explore',
+  
+      tabsetPanel(
+        tabPanel(
+          title="Data Input",
+          br(),
+          p("This is an application for visualising the output of GenoDiscover. To start, upload the 'results_package.rds' file output by the GenoDiscover pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."), 
+          p("Click ",a("here", href = "https://github.com/opain/GenoDiscover"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDiscover"), "  and relevent software and datasets included in your analysis."), 
+          hr(),
+          br(),
+          fileInput("file", "Choose an .RDS file"),
+          selectInput("gwas_selector", "Select a GWAS", ""),
+          br(),
+          br(),
+          br(),
+          br(),
+          br()
+        ),
+        tabPanel(
+          title="GWAS QC",
+          br(),
+          p("This tab shows key quality control statistics for your selected GWAS."), 
+          hr(),
+          br(),
+          fluidRow(
+            column(width=6,
+              dataTableOutput("qc_table"),
+            )
+          )
+        ),
+        tabPanel(
+          title="SNP Associations",
+          br(),
+          p("This tab shows SNP association results. Select the Lead variant tab below to view information for independent lead variants identified by either LD-based clumping or COJO. Select the Fine-mapping tab below to view SuSiE Finemaping results."), 
+          hr(),
+          tabsetPanel(
+            tabPanel(
+              title="Lead variants",
+              br(),            
+              fluidPage(
+                sidebarPanel(
+                  radioButtons("clumping_type", "Select method:",
+                               choices = c("COJO" = "cojo_analysis",
+                                           "LD-based clumping" = "ld_clumping"),
+                               selected = "cojo_analysis"),
+                  radioButtons("pvalue_threshold", "Select P-value Threshold:",
+                               choices = c("Genome-wide significance (p < 5e-8)" = 5e-8, 
+                                           "Suggestive significance (p < 1e-5)" = 1e-5), 
+                               selected = 5e-8),
+                  width = 3
+                ),
+                
+                mainPanel(
+                  dataTableOutput("snp_assoc_lead_table"),
+                  width = 9
+                )
               )
+            ),
+            tabPanel(
+              title="Fine-mapping",
+              br(),
+              fluidPage(
+                sidebarPanel(
+                  radioButtons("l_param", "Select L parameter:",
+                               choices = c("L1" = "L1",
+                                           "L10" = "L10"),
+                               selected = "L1"),
+                  width = 3
+                ),
+                
+                mainPanel(
+                  dataTableOutput("snp_assoc_finemap_table"),
+                  width = 6
+                )
+              )
+            )
+          )
+        ),
+        tabPanel(
+          title="Molecular Associations",
+          br(),
+          p("This tab shows molecular association results. Select the tabs below to see a summary of results across methods, or method-specific results tables."), 
+          hr(),
+          tabsetPanel(
+            tabPanel(
+              title="Summary",
+              br(),
+              
+              fluidPage(
+                sidebarPanel(
+                  selectInput("selected_methods", "Select methods", "", multiple=T),
+                  selectInput("selected_expr_panels", "Select expression panels", "", multiple=T),
+                  selectInput("selected_protein_panels", "Select protein panels", "", multiple=T),
+                  radioButtons("conf_only", "Show high-confidence only :",
+                               choices = c("True" = T,
+                                           "False" = F),
+                               selected = T),
+                  textInput("geneInput", "Enter gene symbols (whitespace- or comma-seperated):")
+                ),
+                
+                mainPanel(
+                  uiOutput("messageDiv1"),
+                  uiOutput("messageDiv2"),
+                  uiOutput("mol_assoc_plot.ui")
+                )
+              )
+            ),
+            tabPanel(
+              title="MAGMA",
+              br(),
+              p("This tab shows MAGMA gene association results."), 
+              hr(),
+              br(),
+              fluidRow(
+                column(width=6,
+                       dataTableOutput("mol_assoc_magma_table"),
+                )
+              ),
+              br()
+            ),
+            tabPanel(
+              title="Expression - FUSION",
+              br(),
+              p("This tab shows differential expression association results from FUSION."), 
+              hr(),
+              br(),
+              fluidRow(
+                column(width=6,
+                       dataTableOutput("mol_assoc_fusion_expr_table"),
+                )
+              ),
+              br()
+            ),
+            tabPanel(
+              title="Protein - FUSION",
+              br(),
+              p("This tab shows differential protein level association results from FUSION."), 
+              hr(),
+              br(),
+              fluidRow(
+                column(width=6,
+                       dataTableOutput("mol_assoc_fusion_protein_table"),
+                )
+              ),
+              br()
+            ),
+            tabPanel(
+              title="Expression - SMR",
+              br(),
+              p("This tab shows differential expression association results from SMR"), 
+              hr(),
+              br(),
+              fluidRow(
+                column(width=6,
+                       dataTableOutput("mol_assoc_smr_expr_table"),
+                )
+              ),
+              br()
+            ),
+            tabPanel(
+              title="Protein - SMR",
+              br(),
+              p("This tab shows differential protein level association results from SMR"), 
+              hr(),
+              br(),
+              fluidRow(
+                column(width=6,
+                       dataTableOutput("mol_assoc_smr_protein_table"),
+                )
+              ),
+              br()
             )
           )
         )
       )
     )
+  ),
+  
+  br(),
+  br(),
+  br(),
+  br(),
+  
+  fluidRow(
+    class = "footer",
+    
+    column(6, style = "text-align: left;",
+           div("Created by Oliver Pain with colleagues at King's College London."),
+    ),
+    
+    column(6, style = "text-align: right;",
+           img(src = "kcl.svg", alt = "Kings College London", style = "height: 60px;"),
+           img(src = "Wellcome_logo.png", alt = "The Wellcome Trust", style = "height: 60px;"),
+           img(src = "Turing_logo.png", alt = "The Turing Institute", style = "height: 60px;")
+    )
   )
 )
-
 
 # Define server logic
 server <- function(input, output, session) {
@@ -347,6 +508,106 @@ server <- function(input, output, session) {
     })
     
     #######
+    # Prepare data for molecular association tables
+    #######
+    
+    output$mol_assoc_magma_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[4];",
+        "  $('td:eq(4)', row).html(x.toExponential(2));",
+        "  var y = data[5];",
+        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "}"
+      )
+
+      datatable(gwas_data()[[gwas_selected]]$mol_assoc$magma, rownames=F, options = list(
+        # Apply javascript for P value column
+        rowCallback = JS(js), 
+        # Centre column contents and fix width of Pvalue column
+        columnDefs = list(list(className = 'dt-center', targets = 0:5))))
+    })
+    
+    output$mol_assoc_fusion_expr_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[7];",
+        "  $('td:eq(7)', row).html(x.toExponential(2));",
+        "  var y = data[8];",
+        "  $('td:eq(8)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      mol_assoc_fusion_expr_data<-gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res
+      mol_assoc_fusion_expr_data$TWAS.Z<-round(mol_assoc_fusion_expr_data$TWAS.Z, 3)
+        
+      datatable(mol_assoc_fusion_expr_data, rownames=F, options = list(
+        # Apply javascript for P value column
+        rowCallback = JS(js), 
+        # Centre column contents and fix width of Pvalue column
+        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+    })
+    
+    output$mol_assoc_fusion_protein_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[7];",
+        "  $('td:eq(7)', row).html(x.toExponential(2));",
+        "  var y = data[8];",
+        "  $('td:eq(8)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      mol_assoc_fusion_protein_data<-gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res
+      mol_assoc_fusion_protein_data$pwas_all.Z<-round(mol_assoc_fusion_protein_data$pwas_all.Z, 3)
+      
+      datatable(mol_assoc_fusion_protein_data, rownames=F, options = list(
+        # Apply javascript for P value column
+        rowCallback = JS(js), 
+        # Centre column contents and fix width of Pvalue column
+        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+    })
+    
+    output$mol_assoc_smr_expr_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[7];",
+        "  $('td:eq(7)', row).html(x.toExponential(2));",
+        "  var y = data[8];",
+        "  $('td:eq(8)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      datatable(gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res, rownames=F, options = list(
+        # Apply javascript for P value column
+        rowCallback = JS(js), 
+        # Centre column contents and fix width of Pvalue column
+        columnDefs = list(list(className = 'dt-center', targets = 0:9))))
+    })
+    
+    output$mol_assoc_smr_protein_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[6];",
+        "  $('td:eq(6)', row).html(x.toExponential(2));",
+        "  var y = data[7];",
+        "  $('td:eq(7)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      datatable(gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res, rownames=F, options = list(
+        # Apply javascript for P value column
+        rowCallback = JS(js), 
+        # Centre column contents and fix width of Pvalue column
+        columnDefs = list(list(className = 'dt-center', targets = 0:9))))
+    })
+        
+    #######
     # Prepare data for molecular association plot
     #######
     
@@ -487,15 +748,19 @@ server <- function(input, output, session) {
     
     mol_assoc_summary_data_filtered<-reactive({
       all_func_res<-mol_assoc_summary_data()
-
+      
+      # Filter results table by user specified methods
       all_func_res<-all_func_res[all_func_res$Method %in% input$selected_methods,]
       
+      # Filter results table by user specified expression and protein panels
       if(any(all_func_res$Type == 'Expr.')){
         all_func_res<-all_func_res[!(all_func_res$Type == 'Expr.' & !(all_func_res$Panel %in% input$selected_expr_panels)),]
       }
       if(any(all_func_res$Type == 'Protein')){
         all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels)),]
       }
+      
+      # Filter results table if user specifies high confidence genes only
       if(input$conf_only){
         all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[which((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)")],]
       }
@@ -523,7 +788,7 @@ server <- function(input, output, session) {
       return(all_func_res)
     })
       
-    # Identifyj number of genes
+    # Identify number of genes
     plot_dim<-reactive({
       all_func_res<-mol_assoc_summary_data_filtered()
       
