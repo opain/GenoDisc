@@ -10,6 +10,7 @@ library(shinythemes)
 # Define UI for the Shiny app
 ui <- fluidPage(
 
+  
   tags$style(HTML("
     .navbar {
       min-height: 80px; /* Set the minimum height of the navbar */
