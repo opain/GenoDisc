@@ -16,8 +16,8 @@ output:
 ```{r setup, include=FALSE}
 
 knitr::opts_chunk$set(echo = TRUE)
-#knitr::opts_knit$set(root.dir = '../')
-knitr::opts_knit$set(root.dir = '/scratch/prj/oliverpainfel/Software/MyGit/GenoDiscover/pipeline')
+knitr::opts_knit$set(root.dir = '../')
+#knitr::opts_knit$set(root.dir = 'C:\\Users\\ollie\\Documents\\Research\\git\\GenoDiscover\\pipeline')
 
 library(data.table)
 library(knitr)
@@ -32,6 +32,7 @@ knit_hooks$set(pngquant = hook_pngquant)
 ```
 
 ```{r, echo=FALSE, eval=TRUE}
+
 # Read in config file
 config<-readLines(params$config_file)
 
@@ -127,8 +128,6 @@ drug_logical<-any(dgi_db_comp_logical,
 
 ```
 
-***
-
 <style type="text/css">
 
 h1 { /* Header 1 */
@@ -159,7 +158,11 @@ ID: `r params$gwas`
 
 # GWAS QC
 
-This table shows descriptive statistics for the submitted GWAS.
+```{r, results='asis', echo=FALSE, eval=T}
+
+cat("<details><summary>GWAS QC descriptives</summary>")
+
+```
 
 ```{r, eval=T, echo=F}
 
@@ -200,7 +203,13 @@ datatable(qc_val, options = list(dom = 't',
 
 ```
 
-<details><summary>Show sumstat_cleaner.R log file</summary>
+```{r, results='asis', echo=FALSE, eval=T}
+
+cat("</details>")
+
+```
+
+<details><summary>Log file: sumstat_cleaner.R</summary>
 
 ```{r, eval=T, echo=F, comment=''}
 
@@ -210,7 +219,7 @@ output[[params$gwas]]$gwas_qc$cleaner_dat$log
 
 </details>
 
-<details><summary>Show FOCUS munge log file</summary>
+<details><summary>Log file: FOCUS munge</summary>
 
 ```{r, eval=T, echo=F, comment=''}
 
@@ -222,7 +231,7 @@ output[[params$gwas]]$gwas_qc$focus_dat$log
 
 ```{r, results='asis', echo=FALSE, eval=ldsc_logical}
 
-cat("<details><summary>Show LDSC log file</summary>")
+cat("<details><summary>Log file: LDSC</summary>")
 
 ```
 
@@ -242,6 +251,13 @@ cat("</details>")
 
 cat("*** \n")
 cat("# SNP associations \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=any(clump_logical, cojo_logical)}
+
+cat("## Lead variants \n")
 cat("This section list independent SNP associations achieving either genome-wide or suggestive significance. Independence is determined using [LD-based clumping](https://www.cog-genomics.org/plink/1.9/postproc#clump) and/or conditional-joint ([COJO](https://yanglab.westlake.edu.cn/software/gcta/#COJO](https://yanglab.westlake.edu.cn/software/gcta/#COJO)) analysis. Note, LD is estimated using a reference sample and may not accurately reflect the LD structure in the GWAS sample. COJO analysis is particularly sensitive to LD mispecification. \n")
 
 ```
@@ -253,6 +269,13 @@ clump_lead_snps<-output[[params$gwas]]$snp_assoc$clump
 clump_lead_snps<-clump_lead_snps[clump_lead_snps$P < 1e-5,]
 
 clump_lead_snps<-clump_lead_snps[order(clump_lead_snps$CHR, clump_lead_snps$BP),]
+
+clump_lead_snps$BETA<-round(clump_lead_snps$BETA,3)
+clump_lead_snps$SE<-round(clump_lead_snps$SE,3)
+clump_lead_snps$FREQ<-NULL
+clump_lead_snps$REF.FREQ<-NULL
+clump_lead_snps$N<-NULL
+
 clump_lead_snps_gw<-clump_lead_snps[clump_lead_snps$P < 5e-8,]
     
 ```
@@ -333,13 +356,18 @@ cat("</details> \n")
 
 ```{r, echo=F, comment='', eval=cojo_logical}
 
-cojo_lead_snps<-fread(paste0(outdir,'/results/',params$gwas,'/cojo/',params$gwas,'.GW.cojo.clean.csv'))
+cojo_lead_snps<-output[[params$gwas]]$snp_assoc$cojo
 
 cojo_lead_snps$pJ<-NULL
 
 cojo_lead_snps<-cojo_lead_snps[cojo_lead_snps$P < 1e-5,]
 
-cojo_lead_snps<-cojo_lead_snps[order(cojo_lead_snps$CHR, cojo_lead_snps$BP),]
+cojo_lead_snps$BETA<-round(cojo_lead_snps$BETA,3)
+cojo_lead_snps$SE<-round(cojo_lead_snps$SE,3)
+cojo_lead_snps$FREQ<-NULL
+cojo_lead_snps$REF.FREQ<-NULL
+cojo_lead_snps$N<-NULL
+
 cojo_lead_snps_gw<-cojo_lead_snps[cojo_lead_snps$P < 5e-8,]
 
 ```
@@ -427,7 +455,6 @@ cat("</details> \n")
 
 ```{r,  results='asis', echo=FALSE, eval=finemap_logical}
 
-cat("*** \n")
 cat("## SNP Finemapping \n")
 cat("This section summarises the results SNP-based statistical finemapping, using the software [SuSiE](https://stephenslab.github.io/susie-paper/). Note, LD is estimated using a reference sample and may not accurately reflect the LD structure in the GWAS sample. Finemapping analysis with multiple causal variants (L>1) is particularly sensitive to LD mispecification. Below we also provide finemapping results assuming a single causal variant (i.e. L=1), which is robust to LD mispecification but has reduced power when more than one causal variant is present. \n\n")
 
@@ -437,15 +464,8 @@ cat("<details><summary>Finemapping (L<10): All loci</summary> \n")
 
 ```{r, echo=F, comment='', eval=finemap_logical}
 
-finemap<-fread(paste0(outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.csv'))
-finemap$variable<-NULL
-finemap$Gene[is.na(finemap$Gene)]<-'None'
+finemap<-output[[params$gwas]]$snp_assoc$susie$L10
 
-finemap<-finemap[order(finemap$CHR, finemap$BP),]
-
-#finemap$cs_log10bf<-round(finemap$cs_log10bf,2)
-#finemap$cs_avg_r2<-round(finemap$cs_avg_r2,2)
-#finemap$cs_min_r2<-round(finemap$cs_min_r2,2)
 finemap$cs_log10bf<-NULL
 finemap$cs_avg_r2<-NULL
 finemap$cs_min_r2<-NULL
@@ -477,15 +497,8 @@ cat("<details><summary>Finemapping (L=1): All loci</summary> \n")
 
 ```{r, echo=F, comment='', eval=finemap_logical}
 
-finemap_L1<-fread(paste0(outdir,'/results/',params$gwas,'/finemap/',params$gwas,'.GW.finemap.L1.csv'))
-finemap_L1$variable<-NULL
-finemap_L1$Gene[is.na(finemap_L1$Gene)]<-'None'
+finemap_L1<-output[[params$gwas]]$snp_assoc$susie$L1
 
-finemap_L1<-finemap_L1[order(finemap_L1$CHR, finemap_L1$BP),]
-
-#finemap_L1$cs_log10bf<-round(finemap_L1$cs_log10bf,2)
-#finemap_L1$cs_avg_r2<-round(finemap_L1$cs_avg_r2,2)
-#finemap_L1$cs_min_r2<-round(finemap_L1$cs_min_r2,2)
 finemap_L1$cs_log10bf<-NULL
 finemap_L1$cs_avg_r2<-NULL
 finemap_L1$cs_min_r2<-NULL
@@ -513,39 +526,12 @@ cat("</details> \n")
 
 cat("*** \n")
 cat("# Molecular associations \n")
-cat("This section summarises analyses that infer molecular changes associated with the GWAS phenotype, either altered gene expression or protein levels. We integrate a range of datasets indicating the effect of genetic variants on expression and protein levels in different tissues. Depending on the availability of data, we run the analysis using [FUSION](http://gusevlab.org/projects/fusion/) or [SMR](https://yanglab.westlake.edu.cn/software/smr/#Overview) \n\n")
-
-```
-
-```{r,  results='asis', echo=FALSE, eval=mol_assoc_logical}
-
-cat("<details><summary>Show list of molecular datasets included</summary> \n")
-
-```
-
-```{r, echo=FALSE, eval=mol_assoc_logical}
-
-# Combine all panel data
-panel_info<-do.call(rbind, list(output[[params$gwas]]$mol_assoc$exp$fusion$panels,
-                                output[[params$gwas]]$mol_assoc$exp$smr$panels,
-                                output[[params$gwas]]$mol_assoc$protein$smr$panels,
-                                output[[params$gwas]]$mol_assoc$protein$smr$panels))
-
-datatable(panel_info, rownames= FALSE)
-
-```
-
-```{r, results='asis', echo=FALSE, eval=mol_assoc_logical}
-
-cat("</details> \n")
 
 ```
 
 ```{r, results='asis', echo=FALSE, eval=any(expression_logical,protein_logical), echo=F}
 
-cat("*** \n")
-cat("## Summary of Molecular Associations \n")
-cat("This section summarises gene-level association results from MAGMA, TWAS, PWAS, and SMR. This simply shows the whether genes showed a statistically significant association with the GWAS phenotype, and for TWAS/PWAS/SMR whether the association for gene expression/protein levels and the GWAS phenotype colocalised (same causal variant) and are thereby consistent with a causal model. \n\n")
+cat("## Summary across methods \n")
 
 ```
 
@@ -621,7 +607,8 @@ if(pwas_panel_rosmap_logical & !(pwas_panel_rosmap_logical & pwas_panel_banner_l
                        Z=output[[params$gwas]]$mol_assoc$protein$fusion$res$pwas_all.Z,
                        Sig=output[[params$gwas]]$mol_assoc$protein$fusion$res$pwas_all.P.FDR < 0.05,
                        Coloc=output[[params$gwas]]$mol_assoc$protein$fusion$res$COLOC_logical)
-    
+  
+  # Retain most significant association for each panel-gene pair
   pwas_tmp<-pwas_tmp[order(-abs(pwas_tmp$Z)),]
   pwas_tmp<-pwas_tmp[!duplicated(paste0(pwas_tmp$Panel, pwas_tmp$ID)),]
   pwas_tmp$Method<-'FUSION'
@@ -641,6 +628,7 @@ if(smr_protein_panel_rosmap_logical){
                                    Sig=output[[params$gwas]]$mol_assoc$protein$smr$res$p_SMR.FDR < 0.05,
                                    Coloc=output[[params$gwas]]$mol_assoc$protein$smr$res$p_HEIDI > 0.05)
   
+  # Retain most significant association for each panel-gene pair
   smr_protein_res_tmp<-smr_protein_res_tmp[order(-abs(smr_protein_res_tmp$Z)),]
   smr_protein_res_tmp<-smr_protein_res_tmp[!duplicated(paste0(smr_protein_res_tmp$Panel, smr_protein_res_tmp$ID)),]
   smr_protein_res_tmp$Method<-'SMR'
@@ -764,7 +752,8 @@ for(chunk_i in 1:length(chunks)){
   
   }
   
-  png(paste0(outdir,'/results/',params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,'.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
+  dir.create(paste0(outdir,'/results/',params$gwas,'/reports'), recursive=T)
+  png(paste0(outdir,'/results/',params$gwas,'/reports/mol_assoc_',chunk_i,'.png'), units = 'px', res=300, height=50*length(unique(all_func_res_all_chunk_i$ID))+800, width=3500)
   
   grid.draw(gt)
   
@@ -781,8 +770,7 @@ txt<-paste0("In total, ",length(unique(all_func_res_all$ID))," unique genes have
 cat("<details><summary>Comparison of Methods</summary> \n")
 
   for(chunk_i in 1:length(chunks)){
-    cat(paste0("![](../results/",params$gwas,'/reports/gene_con_func_heatmap_',chunk_i,".png)\n\n"))
-
+    cat(paste0("![](../",outdir,'/results/',params$gwas,'/reports/mol_assoc_',chunk_i,".png)\n\n"))
   }
 
 cat(txt)
@@ -791,13 +779,364 @@ cat("</details>  \n")
 
 ```
 
+```{r, results='asis', echo=FALSE, eval=any(expression_logical,protein_logical), echo=F}
+
+cat("## Method-specific results \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_logical}
+
+cat("<details><summary>FUSION expression results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=twas_logical}
+
+output[[params$gwas]]$mol_assoc$exp$fusion$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=twas_logical}
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_expression_logical}
+
+cat("<details><summary>SMR expression results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=smr_expression_logical}
+
+output[[params$gwas]]$mol_assoc$exp$smr$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_expression_logical}
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+cat("<details><summary>FUSION protein results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+output[[params$gwas]]$mol_assoc$protein$fusion$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)}
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_protein_panel_rosmap_logical}
+
+cat("<details><summary>SMR protein results table</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=smr_protein_panel_rosmap_logical}
+
+output[[params$gwas]]$mol_assoc$protein$smr$res
+
+```
+
+```{r, results='asis', echo=FALSE, eval=smr_protein_panel_rosmap_logical}
+
+cat("</details>  \n")
+
+```
+
+
+```{r,  results='asis', echo=FALSE, eval=mol_assoc_logical}
+
+cat("## Molecular datasets \n")
+
+cat("<details><summary>List of molecular datasets included</summary> \n")
+
+```
+
+```{r, echo=FALSE, eval=mol_assoc_logical}
+
+# Combine all panel data
+panel_info<-do.call(rbind, list(output[[params$gwas]]$mol_assoc$exp$fusion$panels,
+                                output[[params$gwas]]$mol_assoc$exp$smr$panels,
+                                output[[params$gwas]]$mol_assoc$protein$smr$panels,
+                                output[[params$gwas]]$mol_assoc$protein$smr$panels))
+
+names(panel_info)[names(panel_info) == 'N_indiv']<-'N individuals'
+names(panel_info)[names(panel_info) == 'N_gene']<-'N genes'
+
+datatable(panel_info, rownames= FALSE)
+
+```
+
+```{r, results='asis', echo=FALSE, eval=mol_assoc_logical}
+
+cat("</details> \n")
+
+```
+
 ```{r, results='asis', echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
 
 cat("*** \n")
-cat("# Drug repurposing \n")
-cat("This section shows results drug repurposing analyses. Several analysis approaches are available. The inferred differential expression results from TWAS can be compared to the drug-induced expression profiles from the [Connectivity Map](https://clue.io/), AKA LINCS, to identify drugs that induce expression profiles opposite expression profiles associated with the GWAS phenotype. Two methods are used to compare TWAS and CMAP profiles, including the [average rank based method from So et al.](https://pubmed.ncbi.nlm.nih.gov/28805813/) and [TWAS-GSEA from Pain et al](https://github.com/opain/TWAS-GSEA). An alternative approach is to use MAGMA to identify drugs that are enriched for connections to genes associated with the GWAS phenotype. We use the collection of bipartite gene-drug interactions collated by [DrugTargetor](https://drugtargetor.com/). Unlike the TWAS-CMAP approaches, the MAGMA based approach does not consider the direction of effect of the gene on the GWAS phenotype or the drug on the genes expression/function, so may highlight drugs that might increase risk of the GWAS phenotype. However, the MAGMA approach can use a broader and perhaps more reliable sources of drug-gene interaction databases. To help validate the approaches used for identifying drug repurposing oppurtunities, we test for enrichment of drugs within ATC classifications. \n\n")
+cat("# Drug associations \n")
 
 ```
+
+```{r, eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F, warning=F}
+
+###
+# MAGMA
+###
+magma_gs<-output[[params$gwas]]$tx$drug$magma
+
+# Convert one-sided p to a Z score
+magma_gs$Z<--qnorm(magma_gs$P)
+magma_gs<-magma_gs[,c('Name','Z','P','P.FDR'),with=F]
+magma_gs$Method<-'MAGMA'
+magma_gs$Panel<-'MAGMA'
+
+###
+# GCSC
+###
+gcsc_gs<-output[[params$gwas]]$tx$drug$gcsc
+
+gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR'),with=F]
+gcsc_gs$Method<-'GCSC'
+gcsc_gs$Panel<-'Brain and Blood'
+
+###
+# TWAS-GSEA
+###
+
+gsea_gs<-output[[params$gwas]]$tx$drug$twas_gsea
+gsea_gs$Method<-'TWAS-GSEA'
+gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
+gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel'),with=F]
+# Flip Z so >0 indicates reversal of GWAS outcome.
+gsea_gs$Z<--gsea_gs$Z
+
+# Insert missing values
+gsea_gs_all<-gsea_gs
+for(i in unique(gsea_gs_all$Panel)){
+  gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
+  gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
+  gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
+                           Z=NA,
+                           P=NA,
+                           P.FDR=NA,
+                           Method='TWAS-GSEA',
+                           Panel=i)
+  
+  gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+  
+}
+gsea_gs<-gsea_gs_all
+
+###
+# Combine results
+###
+
+all_gs<-do.call(rbind, list(magma_gs, gcsc_gs, gsea_gs))
+all_gs<-all_gs[all_gs$Name %in% all_gs$Name[all_gs$P.FDR < 0.05 & all_gs$Z > 0],]
+all_gs$Method<-factor(all_gs$Method, levels=c('MAGMA','GCSC','TWAS-GSEA'))
+
+group_siz<-NULL
+for(i in c('MAGMA','GCSC','TWAS-GSEA')){
+  group_siz<-rbind(group_siz, data.frame(Group=i,
+                           Size=length(unique(all_gs$Panel[all_gs$Method==i]))))
+}
+
+# Set minimum size to 3 to allow space for labels
+group_siz$Size[group_siz$Size < 2]<-2
+group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+group_siz$Width<-4*group_siz$Prop
+
+x<-c(-max(abs(all_gs$Z), na.rm=T),0,max(abs(all_gs$Z), na.rm=T))
+x<-(x-min(x))/(max(x)-min(x))
+
+heatmap<-ggplot(data = all_gs, aes(x = Panel, y = Name)) +
+	theme_bw()	+
+	geom_point(data=all_gs[all_gs$P < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
+	geom_point(data=all_gs[all_gs$P.FDR < 0.05,], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
+	geom_point(data=all_gs, aes(colour = Z), size=5) +
+  	scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs$Z), na.rm=T), max(abs(all_gs$Z), na.rm=T)), values=x) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+  facet_wrap(~ Method , nrow=1, scales = "free_x")
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png(paste0(outdir,'/results/',params$gwas,'/reports/tx_drug_assoc.png'), units='px', res=300, width=2250, height=1200)
+  grid.draw(gt)
+a<-dev.off()
+
+```
+
+```{r, results='asis', eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
+
+cat("<details><summary>Comparison of Methods</summary> \n")
+
+cat(paste0("![](../",outdir,'/results/',params$gwas,"/reports/tx_drug_assoc.png)\n\n"))
+
+cat("</details>  \n")
+
+```
+
+```{r, results='asis', echo=FALSE, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical)}
+
+cat("*** \n")
+cat("# ATC associations \n")
+
+```
+
+```{r, eval=any(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), warning=F, echo=F}
+
+###
+# MAGMA
+###
+
+magma_gs_atc<-output[[params$gwas]]$tx$atc$magma
+
+magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
+magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
+magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
+magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
+magma_gs_atc$Method<-'MAGMA'
+magma_gs_atc$Panel<-'MAGMA'
+
+magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+###
+# GCSC
+###
+
+gcsc_gs_atc<-output[[params$gwas]]$tx$atc$gcsc
+
+gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
+gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
+gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
+gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
+gcsc_gs_atc$Method<-'GCSC'
+gcsc_gs_atc$Panel<-'GCSC'
+
+gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+###
+# TWAS-GSEA
+###
+
+gsea_gs_atc<-output[[params$gwas]]$tx$atc$twas_gsea
+
+gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
+gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
+
+gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
+gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
+gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
+gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
+gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
+
+gsea_gs_atc$Method<-'TWAS-GSEA'
+
+gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+
+# Insert missing values
+gsea_gs_atc_all<-gsea_gs_atc
+for(i in unique(gsea_gs_atc_all$Panel)){
+  gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
+  gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
+  gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
+                           Z =NA,
+                           FDR_Sig=NA,
+                           Nom_Sig=NA,
+                           Method='TWAS-GSEA',
+                           Panel=i)
+  
+  gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+  
+}
+gsea_gs_atc<-gsea_gs_atc_all
+
+###
+# Combine results and plot
+###
+all_gs_atc<-do.call(rbind, list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc))
+all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[all_gs_atc$FDR_Sig],]
+
+all_gs_atc$Method<-factor(all_gs_atc$Method, levels=c('MAGMA','GCSC','TWAS-GSEA'))
+
+all_gs_atc$Name[grepl('C08C: selective calcium', all_gs_atc$Name)]<-'C08C: selective calcium channel blockers\nwith mainly vascular effects'
+  
+library(ggplot2)
+library(cowplot)
+
+group_siz<-NULL
+for(i in c('MAGMA','GCSC','TWAS-GSEA')){
+  group_siz<-rbind(group_siz, data.frame(Group=i,
+                           Size=length(unique(all_gs_atc$Panel[all_gs_atc$Method==i]))))
+}
+
+# Set minimum size to 3 to allow space for labels
+group_siz$Size[group_siz$Size < 2]<-2
+group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+group_siz$Width<-4*group_siz$Prop
+
+x<-c(min(all_gs_atc$Z, na.rm=T),0,max(all_gs_atc$Z, na.rm=T))
+x<-(x-min(x))/(max(x)-min(x))
+
+# Make a clearer version of the plot
+heatmap<-ggplot(data = all_gs_atc, aes(x = Panel, y = Name)) +
+	theme_bw() +
+	geom_point(data=all_gs_atc[all_gs_atc$Nom_Sig == T,], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
+	geom_point(data=all_gs_atc[all_gs_atc$FDR_Sig == T,], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
+	geom_point(data=all_gs_atc, aes(colour = Z), size=5) +
+  	scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(min(all_gs_atc$Z, na.rm=T), max(all_gs_atc$Z, na.rm=T)), values=x) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+  labs(x='', y='') +
+  facet_wrap(~ Method , nrow=1, scales = "free_x")
+
+library(grid)
+gt = ggplot_gtable(ggplot_build(heatmap))
+
+for(i in 1:nrow(group_siz)){
+  gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+
+}
+
+png(paste0(outdir,'/results/',params$gwas,'/reports/tx_atc_assoc.png'), units='px', res=300, width=2500, height=1400)
+  grid.draw(gt)
+a<-dev.off()
+
+```
+
+```{r, results='asis', eval=all(twas_so_lincs_logical, twas_gsea_lincs_logical, magma_drugtargetor_logical), echo=F}
+
+cat("<details><summary>Comparison of Methods</summary> \n")
+
+cat(paste0("![](../",outdir,'/results/',params$gwas,"/reports/tx_atc_assoc.png)\n\n"))
+
+cat("</details>  \n")
+
+```
+
 
 ***
 

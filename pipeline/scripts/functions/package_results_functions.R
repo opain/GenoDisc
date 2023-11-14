@@ -530,7 +530,7 @@ read_twas_gsea_drug<-function(config, gwas){
     dat$Panel<-tidy_panel_names(dat$Panel)
 
     dat<-dat[,c("NAME","Panel","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
-    names(dat)<-c('Drug','Panel','Estimate','SE','P','P.FDR','ATC Code','ATC Description')
+    names(dat)<-c('Name','Panel','Estimate','SE','P','P.FDR','ATC Code','ATC Description')
 
     dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
 
@@ -544,7 +544,7 @@ read_twas_gsea_atc<-function(config, gwas){
 
   dat<-NULL
 
-  if(twas_gsea_drugtargetor_logical<-config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
+  if(config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
 
     weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
     weights<-weights[!grepl('SPLIC',weights)]
@@ -561,7 +561,7 @@ read_twas_gsea_atc<-function(config, gwas){
     dat<-dat[,c('Panel','ATC','Name','N','Estimate','Class_Median','Non_Class_Median','P','P.FDR_all'),with=T]
     names(dat)<-c('Panel','ATC Code','ATC Description','N Drugs','Estimate','Class Median T','Non-class Median T','P','P.FDR')
 
-    dat<-dat[order(dat$P.onesided),]
+    dat<-dat[order(dat$P),]
 
     # Update labels
     dat$Panel<-tidy_panel_names(dat$Panel)
