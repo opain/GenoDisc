@@ -42,23 +42,23 @@ ui <- fluidPage(
         style = "display: flex; align-items; padding: 20px;",
         div(
           style = "flex: 4; padding-right: 20px;",
-           h2("Welcome to GenoDiscover"),
+           h3("Welcome to GenoDiscover"),
            p("GenoDiscover is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
            p("Get started by uploading your GWAS summary statistics and let GenoDiscover help you uncover meaningful patterns in your data."),
            hr(),
            
            # Instructions for submitting data
-           h3("Submitting GWAS Summary Statistics"),
+           h4("Submitting GWAS Summary Statistics"),
            p("You can submit your GWAS summary statistics for analysis via our King's College London server by going to the 'Submit' tab."),
            hr(),
            
            # Instructions for exploring existing results
-           h3("Exploring Previous Results"),
+           h4("Exploring Previous Results"),
            p("If you have already run the GenoDiscover pipeline and have results, you can explore them by uploading your results_package.rds file to the 'Explore' tab."),
            hr(),
            
            # Information on citing the platform
-           h3("Citing GenoDiscover"),
+           h4("Citing GenoDiscover"),
            p("If you use GenoDiscover for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
            p("Publication reference: TBD"),
            hr(),        
@@ -101,10 +101,9 @@ ui <- fluidPage(
           title="GWAS QC",
           br(),
           p("This tab shows key quality control statistics for your selected GWAS."), 
-          hr(),
-          br(),
+#          br(),
           fluidRow(
-            column(width=6,
+            column(width=4,
               dataTableOutput("qc_table"),
             )
           )
@@ -169,19 +168,19 @@ ui <- fluidPage(
               
               fluidPage(
                 sidebarPanel(
-                  selectInput("selected_methods", "Select methods", "", multiple=T),
-                  selectInput("selected_expr_panels", "Select expression panels", "", multiple=T),
-                  selectInput("selected_protein_panels", "Select protein panels", "", multiple=T),
-                  radioButtons("conf_only", "Show high-confidence only :",
+                  selectInput("selected_methods_mol", "Select methods", "", multiple=T),
+                  selectInput("selected_expr_panels_mol", "Select expression panels", "", multiple=T),
+                  selectInput("selected_protein_panels_mol", "Select protein panels", "", multiple=T),
+                  radioButtons("conf_only_mol", "Show high-confidence only :",
                                choices = c("True" = T,
                                            "False" = F),
                                selected = T),
-                  textInput("geneInput", "Enter gene symbols (whitespace- or comma-seperated):")
+                  textInput("geneInput_mol", "Enter gene symbols (whitespace- or comma-seperated):")
                 ),
                 
                 mainPanel(
-                  uiOutput("messageDiv1"),
-                  uiOutput("messageDiv2"),
+                  uiOutput("message_too_large_mol"),
+                  uiOutput("message_no_genes_mol"),
                   uiOutput("mol_assoc_plot.ui")
                 )
               )
@@ -206,7 +205,7 @@ ui <- fluidPage(
               hr(),
               br(),
               fluidRow(
-                column(width=6,
+                column(width=9,
                        dataTableOutput("mol_assoc_fusion_expr_table"),
                 )
               ),
@@ -219,7 +218,7 @@ ui <- fluidPage(
               hr(),
               br(),
               fluidRow(
-                column(width=6,
+                column(width=9,
                        dataTableOutput("mol_assoc_fusion_protein_table"),
                 )
               ),
@@ -232,7 +231,7 @@ ui <- fluidPage(
               hr(),
               br(),
               fluidRow(
-                column(width=6,
+                column(width=9,
                        dataTableOutput("mol_assoc_smr_expr_table"),
                 )
               ),
@@ -245,10 +244,169 @@ ui <- fluidPage(
               hr(),
               br(),
               fluidRow(
-                column(width=6,
+                column(width=9,
                        dataTableOutput("mol_assoc_smr_protein_table"),
                 )
               ),
+              br()
+            )
+          )
+        ),
+        tabPanel(
+          title="Enrichment Analysis",
+          br(),
+          p("This tab shows enrichment analysis results. Select the tabs below to see results for your desired gene annotations and methods"), 
+          hr(),
+          tabsetPanel(
+            tabPanel(
+              title="Drug",
+              br(),
+              tabsetPanel(
+                tabPanel(
+                  title="Summary",
+                  br(),
+                  
+                  fluidPage(
+                    sidebarPanel(
+                      selectInput("selected_methods_drug", "Select methods", "", multiple=T),
+                      selectInput("selected_expr_panels_drug", "Select expression panels", "", multiple=T),
+                      radioButtons("conf_only_drug", "Show FDR significant only :",
+                                   choices = c("True" = T,
+                                               "False" = F),
+                                   selected = T),
+                      textInput("drugInput_drug", "Search drug (whitespace- or comma-seperated):"),
+                      textInput("atcInput_drug", "Search ATC Code (whitespace- or comma-seperated):"),
+                      selectInput("selected_sort_drug", "Sort by:", '', multiple = F)
+                      
+                    ),
+                    
+                    mainPanel(
+                      uiOutput("message_too_large_drug"),
+                      uiOutput("message_no_drugs_drug"),
+                      uiOutput("tx_drug_plot.ui")                      
+                    )
+                  )
+                ),
+                tabPanel(
+                  title="MAGMA",
+                  br(),
+                  p("This tab shows MAGMA drug enrichment results."), 
+                  hr(),
+                  br(),
+                  fluidRow(
+                    column(width=9,
+                           dataTableOutput("tx_drug_magma_table"),
+                    )
+                  ),
+                  br()
+                ),
+                tabPanel(
+                  title="GCSC",
+                  br(),
+                  p("This tab shows GCSC drug enrichment results."), 
+                  hr(),
+                  br(),
+                  fluidRow(
+                    column(width=9,
+                           dataTableOutput("tx_drug_gcsc_table"),
+                    )
+                  ),
+                  br()
+                ),
+                tabPanel(
+                  title="TWAS-GSEA",
+                  br(),
+                  p("This tab shows TWAS-GSEA drug enrichment results."), 
+                  hr(),
+                  br(),
+                  fluidRow(
+                    column(width=9,
+                           dataTableOutput("tx_drug_twas_gsea_table"),
+                    )
+                  ),
+                  br()
+                )
+              )
+            ),
+            tabPanel(
+              title="ATC",
+              br(),
+              tabsetPanel(
+                tabPanel(
+                  title="Summary",
+                  br(),
+                  
+                  fluidPage(
+                    sidebarPanel(
+                      selectInput("selected_methods_atc", "Select methods", "", multiple=T),
+                      selectInput("selected_expr_panels_atc", "Select expression panels", "", multiple=T),
+                      radioButtons("conf_only_atc", "Show FDR significant only :",
+                                   choices = c("True" = T,
+                                               "False" = F),
+                                   selected = T),
+                      textInput("atcInput_atc", "Search ATC Code (whitespace- or comma-seperated):"),
+                      selectInput("selected_sort_atc", "Sort by:", '', multiple = F)
+                      
+                    ),
+                    
+                    mainPanel(
+                      uiOutput("message_too_large_atc"),
+                      uiOutput("message_no_atcs_atc"),
+                      uiOutput("tx_atc_plot.ui")                      
+                    )
+                  )
+                ),
+                tabPanel(
+                  title="MAGMA",
+                  br(),
+                  p("This tab shows MAGMA ATC enrichment results."), 
+                  hr(),
+                  br(),
+                  fluidRow(
+                    column(width=6,
+                           dataTableOutput("tx_atc_magma_table"),
+                    )
+                  ),
+                  br()
+                ),
+                tabPanel(
+                  title="GCSC",
+                  br(),
+                  p("This tab shows GCSC ATC enrichment results."), 
+                  hr(),
+                  br(),
+                  fluidRow(
+                    column(width=6,
+                           dataTableOutput("tx_atc_gcsc_table"),
+                    )
+                  ),
+                  br()
+                ),
+                tabPanel(
+                  title="TWAS-GSEA",
+                  br(),
+                  p("This tab shows TWAS-GSEA ATC enrichment results."), 
+                  hr(),
+                  br(),
+                  fluidRow(
+                    column(width=8,
+                           dataTableOutput("tx_atc_twas_gsea_table"),
+                    )
+                  ),
+                  br()
+                )
+              )
+            ),
+            tabPanel(
+              title="Pathway",
+              br(),
+            ),
+            tabPanel(
+              title="Tissue",
+              br()
+            ),
+            tabPanel(
+              title="Timepoint",
               br()
             )
           )
@@ -521,8 +679,10 @@ server <- function(input, output, session) {
         "  $('td:eq(5)', row).html(y.toExponential(2));",
         "}"
       )
+      
+      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$magma
 
-      datatable(gwas_data()[[gwas_selected]]$mol_assoc$magma, rownames=F, options = list(
+      datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js), 
         # Centre column contents and fix width of Pvalue column
@@ -540,14 +700,22 @@ server <- function(input, output, session) {
         "}"
       )
       
-      mol_assoc_fusion_expr_data<-gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res
-      mol_assoc_fusion_expr_data$TWAS.Z<-round(mol_assoc_fusion_expr_data$TWAS.Z, 3)
-        
-      datatable(mol_assoc_fusion_expr_data, rownames=F, options = list(
+      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res
+      tmp$TWAS.Z<-round(tmp$TWAS.Z, 3)
+      tmp$COLOC_logical<-NULL
+      tmp[is.na(tmp)]<-'NA'
+
+      names(tmp)[names(tmp) == 'TWAS.Z']<-'Z'
+      names(tmp)[names(tmp) == 'TWAS.P']<-'P'
+      names(tmp)[names(tmp) == 'TWAS.P.FDR']<-'P.FDR'
+
+      tmp<-tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4"), with=F]
+      
+      datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js), 
         # Centre column contents and fix width of Pvalue column
-        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:10))))
     })
     
     output$mol_assoc_fusion_protein_table<-renderDataTable({
@@ -561,14 +729,22 @@ server <- function(input, output, session) {
         "}"
       )
       
-      mol_assoc_fusion_protein_data<-gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res
-      mol_assoc_fusion_protein_data$pwas_all.Z<-round(mol_assoc_fusion_protein_data$pwas_all.Z, 3)
+      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res
+      tmp$pwas_all.Z<-round(tmp$pwas_all.Z, 3)
+      tmp$COLOC_logical<-NULL
+      tmp[is.na(tmp)]<-'NA'
       
-      datatable(mol_assoc_fusion_protein_data, rownames=F, options = list(
+      names(tmp)[names(tmp) == 'pwas_all.Z']<-'Z'
+      names(tmp)[names(tmp) == 'pwas_all.P']<-'P'
+      names(tmp)[names(tmp) == 'pwas_all.P.FDR']<-'P.FDR'
+      
+      tmp<-tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4"), with=F]
+      
+      datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js), 
         # Centre column contents and fix width of Pvalue column
-        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:10))))
     })
     
     output$mol_assoc_smr_expr_table<-renderDataTable({
@@ -579,10 +755,23 @@ server <- function(input, output, session) {
         "  $('td:eq(7)', row).html(x.toExponential(2));",
         "  var y = data[8];",
         "  $('td:eq(8)', row).html(y.toExponential(2));",
+        "  var x = data[9];",
+        "  $('td:eq(9)', row).html(x.toExponential(2));",
         "}"
       )
       
-      datatable(gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res, rownames=F, options = list(
+      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res
+      tmp<-tmp[,c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with=F]
+      tmp$b_SMR<-round(tmp$b_SMR, 3)
+      tmp$se_SMR<-round(tmp$b_SMR, 3)
+      
+      names(tmp)[names(tmp) == 'b_SMR']<-'BETA'
+      names(tmp)[names(tmp) == 'se_SMR']<-'SE'
+      names(tmp)[names(tmp) == 'p_SMR']<-'P'
+      names(tmp)[names(tmp) == 'p_SMR.FDR']<-'P.FDR'
+      names(tmp)[names(tmp) == 'p_HEIDI']<-"P (HEIDI)"
+      
+      datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js), 
         # Centre column contents and fix width of Pvalue column
@@ -593,14 +782,27 @@ server <- function(input, output, session) {
       # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[6];",
-        "  $('td:eq(6)', row).html(x.toExponential(2));",
-        "  var y = data[7];",
-        "  $('td:eq(7)', row).html(y.toExponential(2));",
+        "  var x = data[7];",
+        "  $('td:eq(7)', row).html(x.toExponential(2));",
+        "  var y = data[8];",
+        "  $('td:eq(8)', row).html(y.toExponential(2));",
+        "  var y = data[9];",
+        "  $('td:eq(9)', row).html(y.toExponential(2));",
         "}"
       )
       
-      datatable(gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res, rownames=F, options = list(
+      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res
+      tmp<-tmp[,c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with=F]
+      tmp$b_SMR<-round(tmp$b_SMR, 3)
+      tmp$se_SMR<-round(tmp$b_SMR, 3)
+      
+      names(tmp)[names(tmp) == 'b_SMR']<-'BETA'
+      names(tmp)[names(tmp) == 'se_SMR']<-'SE'
+      names(tmp)[names(tmp) == 'p_SMR']<-'P'
+      names(tmp)[names(tmp) == 'p_SMR.FDR']<-'P.FDR'
+      names(tmp)[names(tmp) == 'p_HEIDI']<-"P (HEIDI)"
+      
+      datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js), 
         # Centre column contents and fix width of Pvalue column
@@ -731,41 +933,41 @@ server <- function(input, output, session) {
     observe({
       all_func_res<-mol_assoc_summary_data()
       methods<-unique(all_func_res$Method)
-      updateSelectInput(session, "selected_methods", choices = methods, selected=methods)
+      updateSelectInput(session, "selected_methods_mol", choices = methods, selected=methods)
     })
     
     observe({
       all_func_res<-mol_assoc_summary_data()
       expr_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Expr.'])
-      updateSelectInput(session, "selected_expr_panels", choices = expr_panels, selected=expr_panels)
+      updateSelectInput(session, "selected_expr_panels_mol", choices = expr_panels, selected=expr_panels)
     })
     
     observe({
       all_func_res<-mol_assoc_summary_data()
       protein_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
-      updateSelectInput(session, "selected_protein_panels", choices = protein_panels, selected=protein_panels)
+      updateSelectInput(session, "selected_protein_panels_mol", choices = protein_panels, selected=protein_panels)
     })
     
     mol_assoc_summary_data_filtered<-reactive({
       all_func_res<-mol_assoc_summary_data()
       
       # Filter results table by user specified methods
-      all_func_res<-all_func_res[all_func_res$Method %in% input$selected_methods,]
+      all_func_res<-all_func_res[all_func_res$Method %in% input$selected_methods_mol,]
       
       # Filter results table by user specified expression and protein panels
       if(any(all_func_res$Type == 'Expr.')){
-        all_func_res<-all_func_res[!(all_func_res$Type == 'Expr.' & !(all_func_res$Panel %in% input$selected_expr_panels)),]
+        all_func_res<-all_func_res[!(all_func_res$Type == 'Expr.' & !(all_func_res$Panel %in% input$selected_expr_panels_mol)),]
       }
       if(any(all_func_res$Type == 'Protein')){
-        all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels)),]
+        all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels_mol)),]
       }
       
       # Filter results table if user specifies high confidence genes only
-      if(input$conf_only){
+      if(input$conf_only_mol){
         all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[which((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)")],]
       }
       
-      input_genes <- unlist(strsplit(input$geneInput, "[, ]"))
+      input_genes <- unlist(strsplit(input$geneInput_mol, "[, ]"))
       selected_genes <- input_genes[input_genes != ""]
       
       # Insert NA rows for all panels and methods so when filtering by gene, all selected panels and methods remain
@@ -789,7 +991,7 @@ server <- function(input, output, session) {
     })
       
     # Identify number of genes
-    plot_dim<-reactive({
+    plot_dim_mol<-reactive({
       all_func_res<-mol_assoc_summary_data_filtered()
       
       if(nrow(all_func_res) > 0){
@@ -811,7 +1013,7 @@ server <- function(input, output, session) {
       
       all_func_res<-mol_assoc_summary_data_filtered()
       
-      if(plot_dim()[['height']] < 10000 & nrow(all_func_res) > 0){
+      if(plot_dim_mol()[['height']] < 10000 & nrow(all_func_res) > 0){
         
         # Insert missing data
         all_func_res_all<-NULL
@@ -898,18 +1100,18 @@ server <- function(input, output, session) {
       } else {
         NULL
       }
-    }, type = "cairo")
+    })
     
     output$mol_assoc_plot.ui <- renderUI({
-      if(plot_dim()[['height']] < 10000 & nrow(mol_assoc_summary_data_filtered()) > 0){
-        plotOutput("mol_assoc_plot", height = plot_dim()[['height']], width=plot_dim()[['width']])
+      if(plot_dim_mol()[['height']] < 10000 & nrow(mol_assoc_summary_data_filtered()) > 0){
+        plotOutput("mol_assoc_plot", height = plot_dim_mol()[['height']], width=plot_dim_mol()[['width']])
       } else {
         NULL
       }
     })
     
-    output$messageDiv1 <- renderUI({
-      if(plot_dim()[['height']] > 10000){
+    output$message_too_large_mol <- renderUI({
+      if(plot_dim_mol()[['height']] > 10000){
         HTML(sprintf(
           "<div style='color: red;'>%s</div>",
           "Plot is too large. Restrict to high-confidence genes or specify a list of genes."
@@ -917,11 +1119,792 @@ server <- function(input, output, session) {
       }
     })
     
-    output$messageDiv2 <- renderUI({
+    output$message_no_genes_mol <- renderUI({
       if(nrow(mol_assoc_summary_data_filtered()) == 0){
         HTML(sprintf(
           "<div style='color: red;'>%s</div>",
           "No genes are present."
+        ))        
+      }
+    })
+    
+    #######
+    # Prepare data for drug-specific association tables
+    #######
+    
+    output$tx_drug_magma_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[4];",
+        "  $('td:eq(4)', row).html(x.toExponential(2));",
+        "  var y = data[5];",
+        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      tmp<-gwas_data()[[gwas_selected]]$tx$drug$magma
+      tmp$BETA<-round(tmp$BETA,3)
+      tmp$SE<-round(tmp$SE,3)
+      
+      datatable(
+        tmp,
+        rownames = F,
+        options = list(# Apply javascript for P value column
+          rowCallback = JS(js),
+          # Centre column contents and fix width of Pvalue column
+          columnDefs = list(
+            list(className = 'dt-center', targets = '_all'),
+            list(width = '60px', targets = 4:5)
+          )),
+        escape = FALSE
+      )
+    })
+    
+    output$tx_drug_gcsc_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[4];",
+        "  $('td:eq(4)', row).html(x.toExponential(2));",
+        "  var y = data[5];",
+        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      tmp<-gwas_data()[[gwas_selected]]$tx$drug$gcsc
+      tmp$Enrichment<-round(tmp$Enrichment, 3)
+      tmp$SE<-round(tmp$SE, 3)
+      tmp$Z<-round(tmp$Z, 3)
+
+      datatable(
+        tmp,
+        rownames = F,
+        options = list(# Apply javascript for P value column
+          rowCallback = JS(js),
+          # Centre column contents and fix width of Pvalue column
+          columnDefs = list(
+            list(className = 'dt-center', targets = '_all'),
+            list(width = '60px', targets = 4:5)
+          )),
+        escape = FALSE
+      )
+    })
+    
+    output$tx_drug_twas_gsea_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[4];",
+        "  $('td:eq(4)', row).html(x.toExponential(2));",
+        "  var y = data[5];",
+        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      tmp<-gwas_data()[[gwas_selected]]$tx$drug$twas_gsea
+      tmp$Estimate<-round(tmp$Estimate, 3)
+      tmp$SE<-round(tmp$SE, 3)
+      
+      datatable(
+        tmp,
+        rownames = F,
+        options = list(# Apply javascript for P value column
+          rowCallback = JS(js),
+          # Centre column contents and fix width of Pvalue column
+          columnDefs = list(
+            list(className = 'dt-center', targets = '_all'),
+            list(width = '60px', targets = 4:5)
+          )),
+        escape = FALSE
+      )
+    })
+    
+    #######
+    # Prepare data for drug enrichment plot
+    #######
+    
+    tx_drug_summary_data <- reactive({
+      
+      ###
+      # MAGMA
+      ###
+      magma_gs<-gwas_data()[[gwas_selected]]$tx$drug$magma
+      
+      # Convert one-sided p to a Z score
+      magma_gs$Z<--qnorm(magma_gs$P)
+      magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
+      magma_gs$Method<-'MAGMA'
+      magma_gs$Panel<-'MAGMA'
+      
+      ###
+      # GCSC
+      ###
+      gcsc_gs<-gwas_data()[[gwas_selected]]$tx$drug$gcsc
+      
+      gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
+      gcsc_gs$Method<-'GCSC'
+      gcsc_gs$Panel<-'Brain and Blood'
+      
+      ###
+      # TWAS-GSEA
+      ###
+      
+      gsea_gs<-gwas_data()[[gwas_selected]]$tx$drug$twas_gsea
+      gsea_gs$Method<-'TWAS-GSEA'
+      gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
+      gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
+      # Flip Z so >0 indicates reversal of GWAS outcome.
+      gsea_gs$Z<--gsea_gs$Z
+      
+      # Insert missing values
+      gsea_gs_all<-gsea_gs
+      for(i in unique(gsea_gs_all$Panel)){
+        gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
+        gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
+        gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
+                                 Z=NA,
+                                 P=NA,
+                                 P.FDR=NA,
+                                 Method='TWAS-GSEA',
+                                 Panel=i,
+                                 ATC_Code=NA)
+        names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
+        
+        gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+        
+      }
+      gsea_gs<-gsea_gs_all
+      
+      ###
+      # Combine results
+      ###
+      
+      all_gs<-do.call(rbind, list(magma_gs, gcsc_gs, gsea_gs))
+      
+      return(all_gs)
+    })
+    
+    observe({
+      all_gs<-tx_drug_summary_data()
+      methods<-unique(all_gs$Method)
+      updateSelectInput(session, "selected_methods_drug", choices = methods, selected=methods)
+    })
+    
+    observe({
+      all_gs<-tx_drug_summary_data()
+      expr_panels<-unique(all_gs$Panel[all_gs$Method == 'TWAS-GSEA'])
+      updateSelectInput(session, "selected_expr_panels_drug", choices = expr_panels, selected=expr_panels)
+    })
+    
+    tx_drug_summary_data_filtered<-reactive({
+      all_gs<-tx_drug_summary_data()
+      
+      # Filter results table by user specified methods
+      all_gs<-all_gs[all_gs$Method %in% input$selected_methods_drug,]
+      
+      # Filter results table by user specified expression
+      if(any(all_gs$Method == 'TWAS-GSEA')){
+        all_gs<-all_gs[!(all_gs$Method == 'TWAS-GSEA' & !(all_gs$Panel %in% input$selected_expr_panels_drug)),]
+      }
+      
+      # Filter results table if user specifies high confidence genes only
+      if(input$conf_only_drug){
+        all_gs<-all_gs[all_gs$Name %in% all_gs$Name[which(all_gs$P.FDR < 0.05)],]
+      }
+      
+      input_drugs <- unlist(strsplit(input$drugInput_drug, "[, ]"))
+      selected_drugs <- input_drugs[input_drugs != ""]
+      
+      input_atc <- unlist(strsplit(input$atcInput_drug, "[, ]"))
+      selected_atc <- input_atc[input_atc != ""]
+      
+      # Insert NA rows for all panels and methods so when filtering by drug, all selected panels and methods remain
+      na_rows<-all_gs[!(duplicated(paste0(all_gs$Panel, all_gs$Method))),]
+      na_rows$Name<-NA
+      na_rows$Z<-NA
+      na_rows$P<-NA
+      na_rows$P.FDR<-NA
+      
+      all_gs<-rbind(na_rows, all_gs)
+      
+      if(length(selected_drugs) > 0){
+        if(sum(grepl(paste(selected_drugs, collapse='|'), all_gs$Name, ignore.case = T)) > 0){
+          all_gs<-all_gs[grepl(paste(selected_drugs, collapse='|'), all_gs$Name, ignore.case = T) & !is.na(all_gs$Name),]
+        } else {
+          all_gs<-data.frame(matrix(nrow=0, ncol=5))
+        }
+      }
+      
+      if(length(selected_atc) > 0){
+        if(sum(grepl(paste(selected_atc, collapse='|'), all_gs$`ATC Code`, ignore.case = T)) > 0){
+          all_gs<-all_gs[grepl(paste(selected_atc, collapse='|'), all_gs$`ATC Code`, ignore.case = T) & !is.na(all_gs$`ATC Code`),]
+        } else {
+          all_gs<-data.frame(matrix(nrow=0, ncol=5))
+        }
+      }
+      
+      return(all_gs)
+    })
+    
+    # Identify number of drugs
+    plot_dim_drug<-reactive({
+      all_gs<-tx_drug_summary_data_filtered()
+      
+      if(nrow(all_gs) > 0){
+        num_row <- length(unique(all_gs$Name))
+        plot_height<-(max(nchar(all_gs$Panel))*3)+(num_row * 20)+100
+        num_col <- length(unique(paste0(all_gs$Panel,'_',all_gs$Method,'_')))
+        plot_width<-150+(max(nchar(all_gs$Name), na.rm=T)*2)+(num_col * 50)
+        plot_width<-max(plot_width,(length(unique(all_gs$Method))*100))
+      } else {
+        plot_height<-100
+        plot_width<-100
+      }
+      
+      return(list(height=plot_height,
+                  width=plot_width))
+    })
+    
+    observe({
+      tmp<-tx_drug_summary_data_filtered()
+      choices<-'All - Z'
+      if(any(tmp$Method == 'MAGMA')){
+        choices<-c(choices, 'MAGMA - Z')
+      }
+      if(any(tmp$Method == 'GCSC')){
+        choices<-c(choices, 'GCSC - Z')
+      }
+      if(any(tmp$Method == 'TWAS.GSEA')){
+        choices<-c(choices, 'TWAS.GSEA - Z')
+      }
+      if(length(unique(tmp$Method)) == 1){
+        choices<-choices[choices != 'All - Z']
+      }
+      choices<-c(choices, 'Alphabetical')
+      
+      updateSelectInput(session, "selected_sort_drug", choices = choices, selected=choices[1])
+    })
+    
+    output$tx_drug_plot<-renderPlot({
+      
+      all_gs<-tx_drug_summary_data_filtered()
+      all_gs$`ATC Code`<-NULL
+      
+      if(plot_dim_drug()[['height']] < 10000 & nrow(all_gs) > 0){
+        
+        # Insert missing data
+        all_gs_all<-NULL
+        for(i in unique(all_gs$Panel)){
+          for(j in unique(all_gs$Method[all_gs$Panel == i])){
+            
+            all_gs_panel<-all_gs[all_gs$Panel == i & all_gs$Method == j,]
+            all_gs_other<-all_gs[!(all_gs$Panel %in% all_gs_panel$Panel) & !(all_gs$Method %in% all_gs_panel$Method),]
+            all_gs_other<-all_gs_other[!(all_gs_other$Name %in% all_gs_panel$Name),]
+            all_gs_other<-unique(all_gs_other$Name)
+            
+            if(length(all_gs_other) > 0){
+              all_gs_panel_missing<-data.frame(Name=all_gs_other)
+              all_gs_panel_missing$Panel=i
+              all_gs_panel_missing$Name=all_gs_other
+              all_gs_panel_missing$Z=NA
+              all_gs_panel_missing$P=NA
+              all_gs_panel_missing$P.FDR=NA
+              all_gs_panel_missing$Method=j
+              
+              all_gs_panel_missing<-all_gs_panel_missing[,names(all_gs_panel)]
+              
+              all_gs_all<-rbind(all_gs_all,all_gs_panel_missing)
+            }
+            
+            all_gs_all<-rbind(all_gs_all,all_gs_panel)
+          }
+        }
+        
+        # Now remove the NA rows
+        all_gs_all<-all_gs_all[!is.na(all_gs_all$Name),]
+        methods<-c('MAGMA','GCSC','TWAS-GSEA')[c('MAGMA','GCSC','TWAS-GSEA') %in% all_gs_all$Method]
+        all_gs_all$Method<-factor(all_gs_all$Method, levels=methods)
+        
+        # Sort according to user input
+        if(input$selected_sort_drug == 'Alphabetical'){
+          all_gs_all$Name<-factor(all_gs_all$Name, levels=unique(all_gs_all$Name[rev(order(all_gs_all$Name))]))
+        }
+        if(input$selected_sort_drug == 'All - Z'){
+          all_gs_all$Name<-factor(all_gs_all$Name, levels=rev(unique(rev(all_gs_all$Name[order(all_gs_all$Z, na.last=F)]))))
+        }
+        if(input$selected_sort_drug == 'TWAS-GSEA - Z'){
+          all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA'], na.last=F)]))))
+        }
+        if(input$selected_sort_drug == 'MAGMA - Z'){
+          all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'MAGMA'][order(all_gs_all$Z[all_gs_all$Method == 'MAGMA'], na.last=F)]))
+        }
+        if(input$selected_sort_drug == 'GCSC - Z'){
+          all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'GCSC'][order(all_gs_all$Z[all_gs_all$Method == 'GCSC'], na.last=F)]))
+        }
+        
+        group_siz<-NULL
+        for(i in methods){
+          group_siz<-rbind(group_siz, data.frame(Group=i,
+                                                 Size=length(unique(all_gs_all$Panel[all_gs_all$Method==i]))))
+        }
+        
+        # Set minimum size to 3 to allow space for labels
+        group_siz$Size[group_siz$Size < 2]<-2
+        group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+        group_siz$Width<-4*group_siz$Prop
+        
+        x<-c(-max(abs(all_gs_all$Z), na.rm=T),0,max(abs(all_gs_all$Z), na.rm=T))
+        x<-(x-min(x))/(max(x)-min(x))
+        
+        heatmap<-ggplot(data = all_gs_all, aes(x = Panel, y = Name)) +
+          theme_bw()	+
+          geom_point(data=all_gs_all, aes(x = Panel, y = Name, colour = Z), size=5) +
+          geom_point(data=all_gs_all[which(all_gs_all$P < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
+          geom_point(data=all_gs_all[which(all_gs_all$P.FDR < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
+          geom_point(data=all_gs_all, aes(x = Panel, y = Name, colour = Z), size=5) +
+          # For reason, the factor-based sorted gets messed up with the Z point, but specifying twice fixes it?
+          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs_all$Z), na.rm=T), max(abs(all_gs_all$Z), na.rm=T)), values=x) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+          labs(x='', y='') +
+          facet_wrap(~ Method , nrow=1, scales = "free_x")
+        
+        library(grid)
+        gt = ggplot_gtable(ggplot_build(heatmap))
+        
+        for(i in 1:nrow(group_siz)){
+          gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+        }
+        
+        grid.draw(gt)
+        
+      } else {
+        NULL
+      }
+    })
+    
+    output$tx_drug_plot.ui <- renderUI({
+      if(plot_dim_drug()[['height']] < 10000 & nrow(tx_drug_summary_data_filtered()) > 0){
+        plotOutput("tx_drug_plot", height = plot_dim_drug()[['height']], width=plot_dim_drug()[['width']])
+      } else {
+        NULL
+      }
+    })
+    
+    output$message_too_large_drug <- renderUI({
+      if(plot_dim_drug()[['height']] > 10000){
+        HTML(sprintf(
+          "<div style='color: red;'>%s</div>",
+          "Plot is too large. Restrict to significant drugs or specify a list of drugs."
+        ))
+      }
+    })
+    
+    output$message_no_drugs_drug <- renderUI({
+      if(nrow(tx_drug_summary_data_filtered()) == 0){
+        HTML(sprintf(
+          "<div style='color: red;'>%s</div>",
+          "No drugs are present."
+        ))        
+      }
+    })
+    
+    #######
+    # Prepare data for atc-specific association tables
+    #######
+    
+    output$tx_atc_magma_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[2];",
+        "  $('td:eq(2)', row).html(x.toExponential(2));",
+        "  var y = data[3];",
+        "  $('td:eq(3)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      tmp<-gwas_data()[[gwas_selected]]$tx$atc$magma
+      tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
+      tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
+      
+      datatable(
+        tmp,
+        rownames = F,
+        options = list(# Apply javascript for P value column
+          rowCallback = JS(js),
+          # Centre column contents and fix width of Pvalue column
+          columnDefs = list(
+            list(className = 'dt-center', targets = 0:3),
+            list(width = '60px', targets = 2:3)
+          )),
+        escape = FALSE
+      )
+    })
+    
+    output$tx_atc_gcsc_table<-renderDataTable({
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[2];",
+        "  $('td:eq(2)', row).html(x.toExponential(2));",
+        "  var y = data[3];",
+        "  $('td:eq(3)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      tmp<-gwas_data()[[gwas_selected]]$tx$atc$gcsc
+      tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
+      tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
+      
+      datatable(
+        tmp,
+        rownames = F,
+        options = list(# Apply javascript for P value column
+          rowCallback = JS(js),
+          # Centre column contents and fix width of Pvalue column
+          columnDefs = list(
+            list(className = 'dt-center', targets = 0:3),
+            list(width = '60px', targets = 2:3)
+          )),
+        escape = FALSE
+      )
+    })
+    
+    output$tx_atc_twas_gsea_table<-renderDataTable({
+      tmp<-gwas_data()[[gwas_selected]]$tx$atc$twas_gsea
+      
+      tmp$P.FDR_all<-p.adjust(tmp$P, method = 'fdr')
+      tmp$P.FDR.onside_all<-p.adjust(tmp$P.oneside, method = 'fdr')
+      
+      tmp$Z<--qnorm(tmp$P)
+      tmp$Z<-tmp$Z*sign(tmp$Estimate)
+      tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
+      
+      tmp$Estimate<-round(tmp$Estimate,3)
+      
+      tmp<-tmp[,c("Name","Panel","N Drugs", "Estimate","P","P.FDR_all"), with=F]
+      names(tmp)<-c("Name","Panel","N Drugs","Estimate","P","P.FDR")
+      
+      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[4];",
+        "  $('td:eq(4)', row).html(x.toExponential(2));",
+        "  var y = data[5];",
+        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "}"
+      )
+      
+      datatable(
+        tmp,
+        rownames = F,
+        options = list(# Apply javascript for P value column
+          rowCallback = JS(js),
+          # Centre column contents and fix width of Pvalue column
+          columnDefs = list(
+            list(className = 'dt-center', targets = '_all'),
+            list(width = '60px', targets = 4:5)
+          )),
+        escape = FALSE
+      )
+    })
+    
+    #######
+    # Prepare data for atc enrichment plot
+    #######
+    
+    tx_atc_summary_data <- reactive({
+      
+      ###
+      # MAGMA
+      ###
+      
+      magma_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$magma
+      
+      magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
+      magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
+      magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
+      magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
+      magma_gs_atc$Method<-'MAGMA'
+      magma_gs_atc$Panel<-'MAGMA'
+      
+      magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      
+      ###
+      # GCSC
+      ###
+      
+      gcsc_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$gcsc
+      
+      gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
+      gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
+      gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
+      gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
+      gcsc_gs_atc$Method<-'GCSC'
+      gcsc_gs_atc$Panel<-'GCSC'
+      
+      gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      
+      ###
+      # TWAS-GSEA
+      ###
+      
+      gsea_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$twas_gsea
+      
+      gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
+      gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
+      
+      gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
+      gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
+      gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
+      gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
+      gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
+      
+      gsea_gs_atc$Method<-'TWAS-GSEA'
+      
+      gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      
+      # Insert missing values
+      gsea_gs_atc_all<-gsea_gs_atc
+      for(i in unique(gsea_gs_atc_all$Panel)){
+        gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
+        gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
+        gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
+                                     Z =NA,
+                                     FDR_Sig=NA,
+                                     Nom_Sig=NA,
+                                     Method='TWAS-GSEA',
+                                     Panel=i)
+        
+        gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+        
+      }
+      gsea_gs_atc<-gsea_gs_atc_all
+      
+      all_gs_atc<-do.call(rbind, list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc))
+      
+      return(all_gs_atc)
+    })
+    
+    observe({
+      all_gs<-tx_atc_summary_data()
+      methods<-unique(all_gs$Method)
+      updateSelectInput(session, "selected_methods_atc", choices = methods, selected=methods)
+    })
+    
+    observe({
+      all_gs<-tx_atc_summary_data()
+      expr_panels<-unique(all_gs$Panel[all_gs$Method == 'TWAS-GSEA'])
+      updateSelectInput(session, "selected_expr_panels_atc", choices = expr_panels, selected=expr_panels)
+    })
+    
+    tx_atc_summary_data_filtered<-reactive({
+      all_gs_atc<-tx_atc_summary_data()
+      
+      # Filter results table by user specified methods
+      all_gs_atc<-all_gs_atc[all_gs_atc$Method %in% input$selected_methods_atc,]
+      
+      # Filter results table by user specified expression
+      if(any(all_gs_atc$Method == 'TWAS-GSEA')){
+        all_gs_atc<-all_gs_atc[!(all_gs_atc$Method == 'TWAS-GSEA' & !(all_gs_atc$Panel %in% input$selected_expr_panels_atc)),]
+      }
+      
+      # Filter results table if user specifies high confidence genes only
+      if(input$conf_only_atc){
+        all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[which(all_gs_atc$FDR_Sig == T)],]
+      }
+      
+      input_atcs <- unlist(strsplit(input$atcInput_atc, "[, ]"))
+      selected_atcs <- input_atcs[input_atcs != ""]
+      
+      # Insert NA rows for all panels and methods so when filtering by atc, all selected panels and methods remain
+      na_rows<-all_gs_atc[!(duplicated(paste0(all_gs_atc$Panel, all_gs_atc$Method))),]
+      na_rows$Name<-NA
+      na_rows$Z<-NA
+      na_rows$FDR_Sig<-NA
+      na_rows$Nom_Sig<-NA
+      
+      all_gs_atc<-rbind(na_rows, all_gs_atc)
+      
+      if(length(selected_atcs) > 0){
+        if(sum(grepl(paste(selected_atcs, collapse='|'), all_gs_atc$Name, ignore.case = T)) > 0){
+          all_gs_atc<-all_gs_atc[grepl(paste(selected_atcs, collapse='|'), all_gs_atc$Name, ignore.case = T) & !is.na(all_gs_atc$Name),]
+        } else {
+          all_gs_atc<-data.frame(matrix(nrow=0, ncol=5))
+        }
+      }
+      
+      return(all_gs_atc)
+    })
+    
+    # Identify number of atcs
+    plot_dim_atc<-reactive({
+      all_gs_atc<-tx_atc_summary_data_filtered()
+      
+      if(nrow(all_gs_atc) > 0){
+        num_row <- length(unique(all_gs_atc$Name))
+        plot_height<-(max(nchar(all_gs_atc$Panel))*2)+(num_row * 20)+100
+        num_col <- length(unique(paste0(all_gs_atc$Panel,'_',all_gs_atc$Method,'_')))
+        plot_width<-150+(max(nchar(all_gs_atc$Name), na.rm=T)*2)+(num_col * 50)
+        plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*100))
+      } else {
+        plot_height<-100
+        plot_width<-100
+      }
+      
+      return(list(height=plot_height,
+                  width=plot_width))
+    })
+    
+    observe({
+      tmp<-tx_atc_summary_data_filtered()
+      choices<-'All - Z'
+      if(any(tmp$Method == 'MAGMA')){
+        choices<-c(choices, 'MAGMA - Z')
+      }
+      if(any(tmp$Method == 'GCSC')){
+        choices<-c(choices, 'GCSC - Z')
+      }
+      if(any(tmp$Method == 'TWAS.GSEA')){
+        choices<-c(choices, 'TWAS.GSEA - Z')
+      }
+      if(length(unique(tmp$Method)) == 1){
+        choices<-choices[choices != 'All - Z']
+      }
+      choices<-c(choices, 'Alphabetical')
+
+      updateSelectInput(session, "selected_sort_atc", choices = choices, selected=choices[1])
+    })
+    
+    output$tx_atc_plot<-renderPlot({
+      
+      all_gs_atc<-tx_atc_summary_data_filtered()
+
+      if(plot_dim_atc()[['height']] < 10000 & nrow(all_gs_atc) > 0){
+        
+        # Insert missing data
+        all_gs_atc_all<-NULL
+        for(i in unique(all_gs_atc$Panel)){
+          for(j in unique(all_gs_atc$Method[all_gs_atc$Panel == i])){
+            
+            all_gs_atc_panel<-all_gs_atc[all_gs_atc$Panel == i & all_gs_atc$Method == j,]
+            all_gs_atc_other<-all_gs_atc[!(all_gs_atc$Panel %in% all_gs_atc_panel$Panel) & !(all_gs_atc$Method %in% all_gs_atc_panel$Method),]
+            all_gs_atc_other<-all_gs_atc_other[!(all_gs_atc_other$Name %in% all_gs_atc_panel$Name),]
+            all_gs_atc_other<-unique(all_gs_atc_other$Name)
+            
+            if(length(all_gs_atc_other) > 0){
+              all_gs_atc_panel_missing<-data.frame(Name=all_gs_atc_other)
+              all_gs_atc_panel_missing$Panel=i
+              all_gs_atc_panel_missing$Name=all_gs_atc_other
+              all_gs_atc_panel_missing$Z=NA
+              all_gs_atc_panel_missing$FDR_Sig=NA
+              all_gs_atc_panel_missing$Nom_Sig=NA
+              all_gs_atc_panel_missing$Method=j
+              
+    
+              all_gs_atc_panel_missing<-all_gs_atc_panel_missing[,names(all_gs_atc_panel)]
+              
+              all_gs_atc_all<-rbind(all_gs_atc_all,all_gs_atc_panel_missing)
+            }
+            
+            all_gs_atc_all<-rbind(all_gs_atc_all,all_gs_atc_panel)
+          }
+        }
+        
+        # Now remove the NA rows
+        all_gs_atc_all<-all_gs_atc_all[!is.na(all_gs_atc_all$Name),]
+        methods<-c('MAGMA','GCSC','TWAS-GSEA')[c('MAGMA','GCSC','TWAS-GSEA') %in% all_gs_atc_all$Method]
+        all_gs_atc_all$Method<-factor(all_gs_atc_all$Method, levels=methods)
+        
+        # Shorten long ATC descriptions
+        for(i in unique(all_gs_atc_all$Name)){
+          if(nchar(i) > 30){
+            i_new<-paste0(substr(i, 1, 27),'...')
+            i_new<-gsub(' \\.\\.\\.','...',i_new)
+            all_gs_atc_all$Name[all_gs_atc_all$Name == i]<-i_new
+          }
+        }
+        
+        # Sort according to user input
+        if(input$selected_sort_atc == 'Alphabetical'){
+          all_gs_atc_all$Name<-factor(all_gs_atc_all$Name, levels=unique(all_gs_atc_all$Name[rev(order(all_gs_atc_all$Name))]))
+        }
+        if(input$selected_sort_atc == 'All - Z'){
+          all_gs_atc_all$Name<-factor(all_gs_atc_all$Name, levels=rev(unique(rev(all_gs_atc_all$Name[order(all_gs_atc_all$Z, na.last=F)]))))
+        }
+        if(input$selected_sort_atc == 'TWAS-GSEA - Z'){
+          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA'], na.last=F)]))))
+        }
+        if(input$selected_sort_atc == 'MAGMA - Z'){
+          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'MAGMA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'MAGMA'], na.last=F)]))
+        }
+        if(input$selected_sort_atc == 'GCSC - Z'){
+          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'GCSC'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'GCSC'], na.last=F)]))
+        }
+        
+        group_siz<-NULL
+        for(i in methods){
+          group_siz<-rbind(group_siz, data.frame(Group=i,
+                                                 Size=length(unique(all_gs_atc_all$Panel[all_gs_atc_all$Method==i]))))
+        }
+        
+        # Set minimum size to 3 to allow space for labels
+        group_siz$Size[group_siz$Size < 2]<-2
+        group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
+        group_siz$Width<-4*group_siz$Prop
+        
+        x<-c(-max(abs(all_gs_atc_all$Z), na.rm=T),0,max(abs(all_gs_atc_all$Z), na.rm=T))
+        x<-(x-min(x))/(max(x)-min(x))
+        
+        heatmap<-ggplot(data = all_gs_atc_all, aes(x = Panel, y = Name)) +
+          theme_bw() +
+          geom_point(data=all_gs_atc_all, aes(colour = Z), size=5) +
+          geom_point(data=all_gs_atc_all[which(all_gs_atc_all$Nom_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
+          geom_point(data=all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
+          geom_point(data=all_gs_atc_all, aes(colour = Z), size=5) +
+          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(min(all_gs_atc_all$Z, na.rm=T), max(all_gs_atc_all$Z, na.rm=T)), values=x) +
+          theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
+          labs(x='', y='') +
+          facet_wrap(~ Method , nrow=1, scales = "free_x")
+        
+        
+        library(grid)
+        gt = ggplot_gtable(ggplot_build(heatmap))
+        
+        for(i in 1:nrow(group_siz)){
+          gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
+        }
+        
+        grid.draw(gt)
+        
+      } else {
+        NULL
+      }
+    })
+    
+    output$tx_atc_plot.ui <- renderUI({
+      if(plot_dim_atc()[['height']] < 10000 & nrow(tx_atc_summary_data_filtered()) > 0){
+        plotOutput("tx_atc_plot", height = plot_dim_atc()[['height']], width=plot_dim_atc()[['width']])
+      } else {
+        NULL
+      }
+    })
+    
+    output$message_too_large_atc <- renderUI({
+      if(plot_dim_atc()[['height']] > 10000){
+        HTML(sprintf(
+          "<div style='color: red;'>%s</div>",
+          "Plot is too large. Restrict to significant atcs or specify a list of atcs."
+        ))
+      }
+    })
+    
+    output$message_no_atcs_atc <- renderUI({
+      if(nrow(tx_atc_summary_data_filtered()) == 0){
+        HTML(sprintf(
+          "<div style='color: red;'>%s</div>",
+          "No ATC codes remain"
         ))        
       }
     })

@@ -1,9 +1,9 @@
 #!/usr/bin/Rscript
-suppressMessages(library("optparse"))
+library("optparse")
 
-option_list = list(  
-  make_option("--config", action="store", default=NA, type='character',
-              help="Path to config file [required]")
+option_list <- list(
+  make_option("--config", action = "store", default = NA, type = "character",
+              help = "Path to config file [required]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -159,7 +159,7 @@ for(gwas_i in gwas_list$name){
   # GCSC
   ###
 
-  tx$drug$gcsc<-read_gcsc(config=config, gwas=gwas_i)
+  tx$drug$gcsc <- read_gcsc(config = config, gwas = gwas_i)
 
   ###
   # TWAS-GSEA
@@ -209,7 +209,7 @@ for(gwas_i in gwas_list$name){
 output$configuration<-list()
 
 output$configuration$repo<-list()
-output$configuration$repo$remote<-gsub('.*@','',gsub(' .*','',system('git remote -v', intern=T)[1]))
+output$configuration$repo$remote<-gsub('.*@','',gsub(' .*','',system('git remote -v', intern=T)[1])) # nolint # nolint: line_length_linter.
 output$configuration$repo$branch<-gsub('On branch ','', system('git status', intern=T)[1])
 output$configuration$repo$commit<-system('git describe --tags --always', intern=T)
 output$configuration$config<-config
