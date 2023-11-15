@@ -501,7 +501,7 @@ server <- function(input, output, session) {
     
     # Read in the header and interpret column names
     sub_ss<-fread(input$sumstats$datapath, nrows = 1000)
-    
+
     return(sub_ss)
   })
   
@@ -690,6 +690,19 @@ server <- function(input, output, session) {
     } else {
       message(submit_criteria())
     }
+    
+    if(is.null(submit_criteria())){
+      # Copy the file to openstack
+      file.copy(input$sumstats$datapath, paste0("C:\\Users\\ollie\\Downloads\\genodisc_sub.txt.gz"))
+      
+      # Transfer file to HPC
+      # system("scp /path/to/local/file user@hpc:/path/to/hpc/location")
+      
+      # Trigger analysis on HPC
+      # This will depend on your HPC setup; you might run a command like:
+      # system("ssh user@hpc 'bash run_analysis_script.sh'")
+    }
+    
   })
   
   output$submit_text <- renderUI({
