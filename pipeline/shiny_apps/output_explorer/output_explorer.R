@@ -7,6 +7,11 @@ library(ggplot2)
 library(cowplot)
 library(shinythemes)
 
+# Loads functions
+source('functions.R')
+
+options(shiny.maxRequestSize = 600 * 1024 * 1024)
+
 # Define UI for the Shiny app
 ui <- fluidPage(
 
@@ -42,9 +47,9 @@ ui <- fluidPage(
         style = "display: flex; align-items; padding: 20px;",
         div(
           style = "flex: 4; padding-right: 20px;",
-           h3("Welcome to GenoDiscover"),
-           p("GenoDiscover is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
-           p("Get started by uploading your GWAS summary statistics and let GenoDiscover help you uncover meaningful patterns in your data."),
+           h3("Welcome to GenoDisc"),
+           p("GenoDisc is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
+           p("Get started by uploading your GWAS summary statistics and let GenoDisc help you uncover meaningful patterns in your data."),
            hr(),
            
            # Instructions for submitting data
@@ -54,12 +59,12 @@ ui <- fluidPage(
            
            # Instructions for exploring existing results
            h4("Exploring Previous Results"),
-           p("If you have already run the GenoDiscover pipeline and have results, you can explore them by uploading your results_package.rds file to the 'Explore' tab."),
+           p("If you have already run the GenoDisc pipeline and have results, you can explore them by uploading your results_package.rds file to the 'Explore' tab."),
            hr(),
            
            # Information on citing the platform
-           h4("Citing GenoDiscover"),
-           p("If you use GenoDiscover for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
+           h4("Citing GenoDisc"),
+           p("If you use GenoDisc for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
            p("Publication reference: TBD"),
            hr(),        
          ),
@@ -75,8 +80,70 @@ ui <- fluidPage(
       )
     ),
     tabPanel(
-      title='Submit'
+      title='Submit',
       
+      tabsetPanel(
+        tabPanel(
+          title="Required",
+          br(),
+          h5("Email Address:"),
+          textInput(inputId="email", label = NULL, value = ""),
+          br(),
+          h5("GWAS sumstats:"),
+          p("Must be gzipped. Max. 600Mb."),
+          fileInput("sumstats", 
+                    label=NULL,
+                    multiple = F,
+                    accept = ".gz"),
+          br(),
+          
+          # This will be a table showing the column names in the sumstats, and how they have been interpreted.
+          uiOutput("submit_colnames.ui"),
+          uiOutput("header_check_messages.ui"),
+          uiOutput("specify_n.ui"),
+          
+          br(),
+          
+          hr(),
+          
+          actionButton("submit_button","Submit Job"),
+          # There should be a way for users to cancel their submitted job.
+          # Perhaps by emailing me with a specific subject, from the associated email address.
+          htmlOutput("text"),
+        ),
+        
+        tabPanel(
+          title="Options",
+          tabsetPanel(
+            tabPanel(
+              title='LD-Score Regression',
+              checkboxInput("ldsc_logical", "LD-score regression intercept and heritability", TRUE),
+            ),
+            tabPanel(
+              title='SNP Association',
+              checkboxInput("clump_logical", "LD-based clumping", TRUE),
+              checkboxInput("cojo_logical", "COJO analysis", TRUE),
+              checkboxInput("finemap_logical", "SNP-based finemapping", TRUE)
+            ),
+            tabPanel(
+              # Make these tabs reactive, so if TWAS is selected, then the user can choose expression panels to include
+              title='Molecular Association',
+              checkboxInput("magma_gene_logical", "MAGMA gene association", TRUE),
+              checkboxInput("twas_logical", "TWAS analysis", TRUE),
+              checkboxInput("pwas_logical", "PWAS finemapping", TRUE)
+            ),
+            tabPanel(
+              # This should have subtabs for drug, pathway, tissue, timepoint
+              title='Enrichment',
+              checkboxInput("magma_drugtargetor_logical", "Drug enrichment analysis using MAGMA and Drug Targetor", TRUE),
+              checkboxInput("twas_gsea_lincs_logical", "Drug enrichment analysis using TWAS and CMAP and Drug Targetor (TWAS-GSEA method)", TRUE)
+            )
+          )
+        )
+      ),
+      
+      br(),
+      br(),
     ),
     tabPanel(
       title='Explore',
@@ -85,8 +152,8 @@ ui <- fluidPage(
         tabPanel(
           title="Data Input",
           br(),
-          p("This is an application for visualising the output of GenoDiscover. To start, upload the 'results_package.rds' file output by the GenoDiscover pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."), 
-          p("Click ",a("here", href = "https://github.com/opain/GenoDiscover"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDiscover"), "  and relevent software and datasets included in your analysis."), 
+          p("This is an application for visualising the output of GenoDisc. To start, upload the 'results_package.rds' file output by the GenoDisc pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."), 
+          p("Click ",a("here", href = "https://github.com/opain/GenoDisc"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDisc"), "  and relevent software and datasets included in your analysis."), 
           hr(),
           br(),
           fileInput("file", "Choose an .RDS file"),
@@ -101,7 +168,6 @@ ui <- fluidPage(
           title="GWAS QC",
           br(),
           p("This tab shows key quality control statistics for your selected GWAS."), 
-#          br(),
           fluidRow(
             column(width=4,
               dataTableOutput("qc_table"),
@@ -437,7 +503,169 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output, session) {
+
+  ##############################################################################
+  # Submit
+  ##############################################################################
   
+  read_ss<-reactive({
+    req(input$sumstats)
+    
+    # Read in the header and interpret column names
+    sub_ss<-fread(input$sumstats$datapath, nrows = 1000)
+    
+    return(sub_ss)
+  })
+  
+  head_interp<-reactive({
+    sub_ss<-read_ss()
+    
+    # Read in the header and interpret column names
+    sub_header<-toupper(names(sub_ss))
+    
+    # Remove columns that are all NA
+    sub_ss_comp<-sub_ss[,apply(sub_ss, 2, function(x) !(all(is.na(x)))), with=F]
+    sub_header_comp<-toupper(names(sub_ss_comp))
+    
+    int_header <- sub_header_comp
+    for(i in names(ss_head_dict)){
+      int_header[int_header %in% ss_head_dict[[i]]] <- i
+    }
+    int_header[!(int_header %in% unlist(ss_head_dict))]<-NA
+
+    # Show original and interpreted header
+    header_interp <- data.frame(Original = sub_header_comp,
+                                Interpreted = int_header)
+    
+    # Show columns that are ignored due to be irrelevant, duplicated, or all NA
+    header_interp$Keep<-!(
+      !(int_header %in% names(ss_head_dict)) | 
+      duplicated(int_header)
+    )
+    
+    # Insert reason it was ignored
+    header_interp$Reason<-NA
+    header_interp$Reason[!(int_header %in% names(ss_head_dict))]<-'Not recognised'
+    header_interp$Reason[duplicated(int_header)]<-'Duplicated'
+    
+    # Show columns ignored due to missingness
+    for(i in sub_header[!(sub_header %in% header_interp$Original)]){
+      header_interp<-rbind(header_interp, data.frame(Original = i,
+                                                     Interpreted = NA,
+                                                     Keep=F,
+                                                     Reason = 'First 1000 rows NA'))
+    }
+    
+    header_interp[is.na(header_interp)]<-'NA'
+    header_interp$Keep<-as.character(header_interp$Keep)
+    
+    # Insert description of each column after interpretation
+    header_labels<-data.frame(Interpreted=c('SNP','CHR','BP','A1','A2','P','OR','BETA','Z','SE','N','N_CAS','N_CON','NEF','FRQ','FRQ_A','FREQ_U','INFO'),
+                              Description=c("RSID for variant",
+                                            "Chromosome number",
+                                            "Base pair position",
+                                            "Allele 1 (effect allele)",
+                                            "Allele 2",
+                                            "P-value of association",
+                                            "Odds ratio effect size",
+                                            "BETA effect size",
+                                            "Z-score",
+                                            "Standard error of log(OR) or BETA",
+                                            "Total sample size",
+                                            "Number of cases",
+                                            "Number of controls",
+                                            "Effective sample size",
+                                            "Allele frequency",
+                                            "Allele frequency in cases",
+                                            "Allele frequency in controls",
+                                            "Imputation quality"))
+    
+    header_interp<-merge(header_interp, header_labels, by='Interpreted')
+    header_interp$Keep<-factor(header_interp$Keep, levels=c('TRUE','FALSE'))
+    header_interp<-header_interp[order(header_interp$Keep),]
+    header_interp<-header_interp[,c('Original','Interpreted','Keep','Reason','Description')]
+    
+    return(header_interp)
+  })
+  
+  output$header_check_messages.ui <- renderUI({
+    header_interp<-head_interp()
+    messages <- NULL
+    if(!all(c('A1','A2') %in% header_interp$Interpreted)){
+      messages <- c(messages, "Error: Missing A1 and A2 information.\n")
+    }
+    if(!any(c('OR','BETA','Z') %in% header_interp$Interpreted)){
+      messages <- c(messages, "Error: Effect size (BETA, OR, Z) must be present.\n")
+    }
+    if(!('SNP' %in% header_interp$Interpreted) & !(all(c('CHR','BP') %in% header_interp$Interpreted))){
+      messages <- c(messages, "Error: Either SNP, or CHR and BP, must be present.\n")
+    }
+    if(any(c('FRQ_A','FRQ_U') %in% header_interp$Interpreted) & sum(c('FRQ_A','FRQ_U') %in% header_interp$Interpreted) == 1){
+      messages <- c(messages, "Warning: Both FRQ_A and FRQ_U must be present for either to be considered.\n")
+    }
+    
+    # Display the messages
+    if (!is.null(messages)) {
+      tags$div(
+        style = "color: red;",  # Style the message, e.g., red for errors
+        messages
+      )
+    }
+  })
+  
+  output$specify_n.ui <- renderUI({
+    header_interp<-head_interp()
+    tag_list<-NULL
+    if(!(any(c('N','NEF') %in% header_interp$Interpreted)) & !(all(c('N_CAS','N_CON') %in% header_interp$Interpreted))){
+      tag_list<-c(tag_list, tagList(
+        tags$div(
+          style = "color: red;",
+          p("Warning: N, NEF, or N_CAS and N_CON, were not present."),
+        ),
+        numericInput("sample_size", "Specify sample size:", value = NULL),
+      ))
+    }
+    if((!('NEF' %in% header_interp$Interpreted)) &
+       (!all(c('N_CAS','N_CON') %in% header_interp$Interpreted))){
+      tag_list<-c(tag_list, tagList(
+        tags$div(
+          style = "color: red;",
+          p("Warning: NEF, or N_CAS and N_CON, were not present."),
+        ),
+        numericInput("samp_prop", "If binary outcome, specify proportion of cases:", value = NULL)
+      ))
+    }
+    tag_list
+  })
+  
+  output$sub_ss_head <- renderDataTable({
+    tmp<-head_interp()
+    
+    datatable(tmp,
+              options = list(
+                columnDefs = list(list(
+                  className = 'dt-center', targets = '_all'
+                ))
+              ),
+              selection = 'none', 
+              rownames = F)
+  })
+  
+  output$submit_colnames.ui<-renderUI({
+    req(input$sumstats)
+    tagList(
+      h5('Column name interpretation:'),
+      fluidRow(
+        column(width=6,
+               dataTableOutput("sub_ss_head")
+        )
+      )
+    )
+  })
+  
+  ##############################################################################
+  # Explore
+  ##############################################################################
   gwas_data <- reactive({
     req(input$file)
     rds<-readRDS(input$file$datapath)
