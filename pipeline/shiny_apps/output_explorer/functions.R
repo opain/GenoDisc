@@ -288,3 +288,7 @@ ss_head_dict<-list(
     "HM_POS"
   )
 )
+
+is_valid_email_format <- function(email) {
+  grepl("^[a-zA-Z0-9.]+@[a-zA-Z0-9.]+\\.[a-zA-Z]{2,}$", email)
+}

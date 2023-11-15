@@ -87,7 +87,7 @@ ui <- fluidPage(
           title="Required",
           br(),
           h5("Email Address:"),
-          textInput(inputId="email", label = NULL, value = ""),
+          textInput(inputId="email", label = NULL, value = NULL),
           br(),
           h5("GWAS sumstats:"),
           p("Must be gzipped. Max. 600Mb."),
@@ -109,7 +109,7 @@ ui <- fluidPage(
           actionButton("submit_button","Submit Job"),
           # There should be a way for users to cancel their submitted job.
           # Perhaps by emailing me with a specific subject, from the associated email address.
-          htmlOutput("text"),
+          uiOutput("submit_text")
         ),
         
         tabPanel(
@@ -462,18 +462,6 @@ ui <- fluidPage(
                   br()
                 )
               )
-            ),
-            tabPanel(
-              title="Pathway",
-              br(),
-            ),
-            tabPanel(
-              title="Tissue",
-              br()
-            ),
-            tabPanel(
-              title="Timepoint",
-              br()
             )
           )
         )
@@ -620,7 +608,7 @@ server <- function(input, output, session) {
       tag_list<-c(tag_list, tagList(
         tags$div(
           style = "color: red;",
-          p("Warning: N, NEF, or N_CAS and N_CON, were not present."),
+          p("Error: N, NEF, or N_CAS and N_CON, were not present."),
         ),
         numericInput("sample_size", "Specify sample size:", value = NULL),
       ))
@@ -628,10 +616,6 @@ server <- function(input, output, session) {
     if((!('NEF' %in% header_interp$Interpreted)) &
        (!all(c('N_CAS','N_CON') %in% header_interp$Interpreted))){
       tag_list<-c(tag_list, tagList(
-        tags$div(
-          style = "color: red;",
-          p("Warning: NEF, or N_CAS and N_CON, were not present."),
-        ),
         numericInput("samp_prop", "If binary outcome, specify proportion of cases:", value = NULL)
       ))
     }
@@ -661,6 +645,55 @@ server <- function(input, output, session) {
         )
       )
     )
+  })
+  
+  # Check whether criteria are met for the button to be clicked
+  submit_criteria<-reactive({
+    header_interp<-head_interp()
+    
+    path <- input$sumstats[["datapath"]]
+    email <- input$email
+    
+    error<-NULL
+    if(email == ''){
+      error<-c(error,"Error: No email address has been specified.\n")
+    } else {
+      if(!is_valid_email_format(email)){
+        error<-c(error,"Error: Email address format is invalid\n")
+      }
+    }
+    if(!all(c('A1','A2') %in% header_interp$Interpreted)){
+      error<-c(error,"Error: Missing A1 and A2 information.\n\n")
+    }
+    if(!any(c('OR','BETA','Z') %in% header_interp$Interpreted)){
+      error<-c(error,"Error: Effect size (BETA, OR, Z) must be present.\n")
+    }
+    if(!('SNP' %in% header_interp$Interpreted) & !(all(c('CHR','BP') %in% header_interp$Interpreted))){
+      error<-c(error,"Error: Either SNP, or CHR and BP, must be present.\n")
+    }
+    if(
+      !(any(c('N','NEF') %in% header_interp$Interpreted)) & 
+      !(all(c('N_CAS','N_CON') %in% header_interp$Interpreted)) &
+      is.na(input$sample_size)){
+      error<-c(error,"Error: Sample size must be specified if N, NEFF, or N_CAS and N_CON, are not present.\n")
+    }
+    
+    return(error)
+  })
+  
+  message <- reactiveVal("")
+  
+  observeEvent(input$submit_button, {
+    message<-''
+    if(is.null(submit_criteria())){
+      message('You must now confirm submission using the link emailed to you.')
+    } else {
+      message(submit_criteria())
+    }
+  })
+  
+  output$submit_text <- renderUI({
+    HTML(gsub("\n", "<br>", message()))
   })
   
   ##############################################################################
