@@ -6,6 +6,8 @@ library(grid)
 library(ggplot2)
 library(cowplot)
 library(shinythemes)
+library(shinycssloaders)
+library(zip)
 
 # Loads functions
 source('functions.R')
@@ -66,7 +68,15 @@ ui <- fluidPage(
            h4("Citing GenoDisc"),
            p("If you use GenoDisc for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
            p("Publication reference: TBD"),
-           hr(),        
+           hr() ,
+          
+          # Information on citing the platform
+          h4("Our Newsletter"),
+          p("If you would like to receive updates regarding GenoDisc. Provide you email address below:"),
+          textInput(inputId="email_newsletter", label = NULL, value = NULL),
+          actionButton("email_button","Submit"),
+          uiOutput("email_submit_text"),
+          hr() 
          ),
         
         div(
@@ -98,49 +108,61 @@ ui <- fluidPage(
           br(),
           
           # This will be a table showing the column names in the sumstats, and how they have been interpreted.
-          uiOutput("submit_colnames.ui"),
+          withSpinner(uiOutput("submit_colnames.ui")),
           uiOutput("header_check_messages.ui"),
           uiOutput("specify_n.ui"),
+          uiOutput("specify_population.ui"),
           
-          br(),
-          
-          hr(),
-          
-          actionButton("submit_button","Submit Job"),
-          # There should be a way for users to cancel their submitted job.
-          # Perhaps by emailing me with a specific subject, from the associated email address.
-          uiOutput("submit_text")
         ),
         
         tabPanel(
           title="Options",
-          tabsetPanel(
-            tabPanel(
-              title='LD-Score Regression',
-              checkboxInput("ldsc_logical", "LD-score regression intercept and heritability", TRUE),
+          br(),
+          h5('Heritability Estimation:'),
+          checkboxInput("ldsc_logical", "LD-Score Regression", F),
+          uiOutput("specify_pop_prev.ui"),
+          h5('SNP Association'),
+          checkboxInput("clump_logical", "LD-based clumping", F),
+          checkboxInput("cojo_logical", "COJO analysis", F),
+          checkboxInput("finemap_logical", "SNP-based finemapping", F),
+          hr(),
+          h5('Molecular Association'),
+          fluidRow(
+            column(width=3,
+                   h6('Positional Mapping'),
+                   checkboxInput("magma_gene_logical", "MAGMA gene association", F)
             ),
-            tabPanel(
-              title='SNP Association',
-              checkboxInput("clump_logical", "LD-based clumping", TRUE),
-              checkboxInput("cojo_logical", "COJO analysis", TRUE),
-              checkboxInput("finemap_logical", "SNP-based finemapping", TRUE)
+            column(width=3,
+                   h6('Expression'),
+                   selectInput("twas_panels", "Select TWAS panels:", choices=twas_panel_names, multiple=T),
+                   selectInput("smr_expr_panels", "Select SMR expression panels:", choices=smr_expr_panel_names, multiple=T)
             ),
-            tabPanel(
-              # Make these tabs reactive, so if TWAS is selected, then the user can choose expression panels to include
-              title='Molecular Association',
-              checkboxInput("magma_gene_logical", "MAGMA gene association", TRUE),
-              checkboxInput("twas_logical", "TWAS analysis", TRUE),
-              checkboxInput("pwas_logical", "PWAS finemapping", TRUE)
-            ),
-            tabPanel(
-              # This should have subtabs for drug, pathway, tissue, timepoint
-              title='Enrichment',
-              checkboxInput("magma_drugtargetor_logical", "Drug enrichment analysis using MAGMA and Drug Targetor", TRUE),
-              checkboxInput("twas_gsea_lincs_logical", "Drug enrichment analysis using TWAS and CMAP and Drug Targetor (TWAS-GSEA method)", TRUE)
+            column(width=3,
+                   h6('Protein'),
+                   selectInput("pwas_panels", "Select PWAS panels:", choices=pwas_panel_names, multiple=T),
+                   selectInput("smr_protein_panels", "Select SMR protein panels:", choices=smr_protein_panel_names, multiple=T)
             )
-          )
+          ),
+          hr(),
+          h5('Enrichment'),
+          selectInput("enrich_method", "Select methods:", c('MAGMA','TWAS-GSEA'), multiple=T),
+          fluidRow(
+            column(width=3,
+                   h6('Drug'),
+                   selectInput("enrich_data", "Select datasets:", c('DrugTargetor - Drug-Gene Interactions'), multiple=T),
+            ),
+          ),
         )
       ),
+      
+      br(),
+      
+      hr(),
+      
+      actionButton("submit_button","Submit Job"),
+      # There should be a way for users to cancel their submitted job.
+      # Perhaps by emailing me with a specific subject, from the associated email address.
+      uiOutput("submit_text"),
       
       br(),
       br(),
@@ -493,6 +515,35 @@ ui <- fluidPage(
 server <- function(input, output, session) {
 
   ##############################################################################
+  # Home
+  ##############################################################################
+  
+  email_message <- reactiveVal("")
+  
+  observeEvent(input$email_button, {
+    
+    email<-input$email_newsletter
+   
+    if(!is_valid_email_format(email)){
+      email_message("Error: Email address format is invalid\n")
+    } else {
+      write.table(
+        email,
+        "C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\mailing_list.txt",
+        col.names = F,
+        row.names = F,
+        quote = T,
+        append = T
+      )
+      email_message("You will receive a confirmation email.\n")
+    }
+  })
+  
+  output$email_submit_text <- renderUI({
+    HTML(gsub("\n", "<br>", email_message()))
+  })
+  
+  ##############################################################################
   # Submit
   ##############################################################################
   
@@ -606,20 +657,45 @@ server <- function(input, output, session) {
     tag_list<-NULL
     if(!(any(c('N','NEF') %in% header_interp$Interpreted)) & !(all(c('N_CAS','N_CON') %in% header_interp$Interpreted))){
       tag_list<-c(tag_list, tagList(
-        tags$div(
-          style = "color: red;",
-          p("Error: N, NEF, or N_CAS and N_CON, were not present."),
-        ),
-        numericInput("sample_size", "Specify sample size:", value = NULL),
+        h6("**Note.** N, NEF, or N_CAS and N_CON, were not present."),
+        br(),
+        h5("Specify sample size:"),
+        numericInput("sample_size", NULL, value = NULL),
       ))
     }
     if((!('NEF' %in% header_interp$Interpreted)) &
        (!all(c('N_CAS','N_CON') %in% header_interp$Interpreted))){
       tag_list<-c(tag_list, tagList(
-        numericInput("samp_prop", "If binary outcome, specify proportion of cases:", value = NULL)
+        br(),
+        h5("If binary outcome, specify proportion of cases:"),
+        numericInput("samp_prop", NULL, value = NULL)
       ))
     }
     tag_list
+  })
+  
+  output$specify_pop_prev.ui <- renderUI({
+    header_interp<-head_interp()
+    if(input$ldsc_logical){
+      tagList(
+        h6("If binary outcome, specify the population prevalence:"),
+        p('Note. This is used to convert heritability estimates onto the liability scale.'),
+        numericInput("pop_prev", NULL, value = NULL),
+        br(),
+      )
+    }
+  })
+  
+  output$specify_population.ui <- renderUI({
+    header_interp<-head_interp()
+
+    tagList(
+      br(),
+      h5("Specify the population the GWAS based on:"),
+      p('Note. If mixed, you can select the largest population within the GWAS.'),
+      selectInput("population", NULL, selected = NULL, choices=populations),
+      br()    
+    )
   })
   
   output$sub_ss_head <- renderDataTable({
@@ -677,6 +753,40 @@ server <- function(input, output, session) {
       is.na(input$sample_size)){
       error<-c(error,"Error: Sample size must be specified if N, NEFF, or N_CAS and N_CON, are not present.\n")
     }
+    if(
+      'TWAS-GSEA' %in% input$enrich_method & 
+      is.null(input$twas_panels)
+      ){
+      error<-c(error,"Error: At least one TWAS panel must be selected to use TWAS-GSEA.\n")
+    }
+    if(
+      (is.null(input$enrich_method) &
+      !is.null(input$enrich_data)) | 
+      (!is.null(input$enrich_method) &
+       is.null(input$enrich_data))
+    ){
+      error<-c(error,"Error: For enrichment analysis, the user must select both an enrichment method and dataset.\n")
+    }
+    if(
+      input$clump_logical == F &
+      input$cojo_logical == F &
+      input$finemap_logical == F &
+      input$magma_gene_logical == F &
+      is.null(input$enrich_method) &
+      is.null(input$enrich_data) &
+      is.null(input$twas_panels) &
+      is.null(input$pwas_panels) &
+      is.null(input$smr_expr_panels) &
+      is.null(input$smr_protein_panels) &
+      is.null(input$smr_protein_panels)
+      ){
+      error<-c(error,"Error: No analyses have been selected. Go to the 'Options' tab.\n")
+    }
+    if(
+      is.null(input$population)
+    ){
+      error<-c(error,"Error: You must specify which population the GWAS is based on.\n")
+    }
     
     return(error)
   })
@@ -686,17 +796,195 @@ server <- function(input, output, session) {
   observeEvent(input$submit_button, {
     message<-''
     if(is.null(submit_criteria())){
-      message('You must now confirm submission using the link emailed to you.')
+      message('You will receive a confirmation email shortly.')
     } else {
       message(submit_criteria())
     }
     
     if(is.null(submit_criteria())){
-      # Copy the file to openstack
-      file.copy(input$sumstats$datapath, paste0("C:\\Users\\ollie\\Downloads\\genodisc_sub.txt.gz"))
       
-      # Transfer file to HPC
-      # system("scp /path/to/local/file user@hpc:/path/to/hpc/location")
+      # Create directory to store output
+      dir.create("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1", recursive = T)
+      dir.create("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\outputs\\job_1", recursive = T)
+
+      # Copy the file to openstack
+      file.copy(input$sumstats$datapath, paste0("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\job_1_ss.gz"))
+      
+      #############
+      # Prepare config file based on user input
+      #############
+      config_file<-NULL
+      config_file<-c("outdir: C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\outputs\\job_1")
+      config_file<-c("config_file: C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\config.yaml")
+      config_file<-c("rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip")
+      config_file<-c("banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip")
+      config_file<-c("rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt")
+      
+      if(input$ldsc_logical){
+        config_file<-c(config_file, "ldsc: T")
+      } else {
+        config_file<-c(config_file, "ldsc: F")
+      }
+      
+      if(input$clump_logical){
+        config_file<-c(config_file, "clump: T")
+      } else {
+        config_file<-c(config_file, "clump: F")
+      }
+      
+      if(input$cojo_logical){
+        config_file<-c(config_file, "cojo: T")
+      } else {
+        config_file<-c(config_file, "cojo: F")
+      }
+
+      if(input$finemap_logical){
+        config_file<-c(config_file, "finemap: T")
+      } else {
+        config_file<-c(config_file, "finemap: F")
+      }
+      
+      if(input$magma_gene_logical){
+        config_file<-c(config_file, "magma_gene: T")
+      } else {
+        config_file<-c(config_file, "magma_gene: F")
+      }
+      
+      if('MAGMA' %in% input$enrich_method & 'DrugTargetor - Drug-Gene Interactions' %in% input$enrich_data){
+        config_file<-c(config_file, "magma_drugtargetor: T")
+        config_file<-gsub('magma_gene: F','magma_gene: T', config_file)
+      } else {
+        config_file<-c(config_file, "magma_drugtargetor: F")
+      }
+      
+      if('TWAS-GSEA' %in% input$enrich_method & 'DrugTargetor - Drug-Gene Interactions' %in% input$enrich_data){
+        config_file<-c(config_file, "twas_gsea_drugtargetor: T")
+      } else {
+        config_file<-c(config_file, "twas_gsea_drugtargetor: F")
+      }
+      
+      config_file<-c(config_file, "external_weights: F")
+      config_file<-c(config_file, "external_weights_pos_path: []")
+      config_file<-c(config_file, "twas_conditional: F")
+      
+      if(any(!(input$twas_panels == 'psychencode'))){
+        config_file<-c(config_file, "twas_panel_psychencode: T")
+      } else {
+        config_file<-c(config_file, "twas_panel_psychencode: F")
+      }
+      
+      if(any(fusion_twas_panel_names$original %in% input$twas_panels)){
+        config_file<-c(config_file, "twas_panel_fusion: T")
+        config_file<-c(config_file, paste0("gtex_weights: [\"",paste(input$twas_panels[input$twas_panels %in% gtex_fusion_panels$original], collapse="\",\""),"\"]"))
+        config_file<-c(config_file, paste0("non_gtex_weights: [\"",paste(input$twas_panels[input$twas_panels %in% nongtex_fusion_panels$original], collapse="\",\""),"\"]"))
+      } else {
+        config_file<-c(config_file, "twas_panel_fusion: F")
+        config_file<-c(config_file, "gtex_weights: []")
+        config_file<-c(config_file, "non_gtex_weights: []")
+      }
+      
+      if('smr_expression_panel_psychencode' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_psychencode: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_psychencode: F")
+      }
+      
+      if('smr_expression_panel_metabrain_basalganglia' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_metabrain_basalganglia: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_metabrain_basalganglia: F")
+      }
+      
+      if('smr_expression_panel_metabrain_cerebellum' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_metabrain_cerebellum: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_metabrain_cerebellum: F")
+      }
+      
+      if('smr_expression_panel_metabrain_cortex' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_metabrain_cortex: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_metabrain_cortex: F")
+      }
+      
+      if('smr_expression_panel_metabrain_hippocampus' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_metabrain_hippocampus: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_metabrain_hippocampus: F")
+      }
+      
+      if('smr_expression_panel_metabrain_spinalcord' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_metabrain_spinalcord: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_metabrain_spinalcord: F")
+      }
+      
+      if('smr_expression_panel_eqtlgen' %in% input$smr_expr_panels){
+        config_file<-c(config_file, "smr_expression_panel_eqtlgen: T")
+      } else {
+        config_file<-c(config_file, "smr_expression_panel_eqtlgen: F")
+      }
+      
+      if('rosmap' %in% input$pwas_panels){
+        config_file<-c(config_file, "pwas_panel_rosmap: T")
+      } else {
+        config_file<-c(config_file, "pwas_panel_rosmap: F")
+      }
+      
+      if('banner' %in% input$pwas_panels){
+        config_file<-c(config_file, "pwas_panel_banner: T")
+      } else {
+        config_file<-c(config_file, "pwas_panel_banner: F")
+      }
+      
+      if('smr_protein_panel_rosmap' %in% input$smr_protein_panels){
+        config_file<-c(config_file, "smr_protein_panel_rosmap: T")
+      } else {
+        config_file<-c(config_file, "smr_protein_panel_rosmap: F")
+      }
+      
+      config_file<-c(config_file, "gcsc: F")
+      config_file<-c(config_file, "gcsc_tissues: []")
+      
+      writeLines(config_file, paste0("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\config.yaml"))
+      
+      ############
+      # Create gwas_list
+      ############
+      
+      gwas_list<-data.frame(
+        name='sub_1',
+        path='C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\job_1_ss.gz',
+        population=input$population,
+        sampling=ifelse(is.null(input$samp_prop), NA, input$samp_prop),
+        prevelance=ifelse(is.null(input$pop_prev), NA, input$pop_prev),
+        mean=NA,
+        sd=NA,
+        label="\"Outcome\""
+      )
+      write.table(gwas_list, "C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\gwas_list.txt", col.names=T, row.names=F, quote=F)
+      
+      ############
+      # Save submission data
+      ############
+      
+      write.table(
+        input$email,
+        "C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\job_1_email.txt",
+        col.names = F,
+        row.names = F,
+        quote = F
+      )
+      
+      # Transfer submission to HPC
+      # I have asked IT how to do this securly.
+      orig_wd<-getwd()
+      setwd("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\")
+      if(file.exists('job_1.zip')){
+        file.remove('job_1.zip')
+      }
+      zip::zip("job_1.zip", files="job_1")
+      setwd(orig_wd)
       
       # Trigger analysis on HPC
       # This will depend on your HPC setup; you might run a command like:

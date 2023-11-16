@@ -9,7 +9,6 @@ gwas_data <- function(){
 
 gwas_selected<-'COAD01'
 
-
 mol_assoc_summary_data <- function(){
   
   all_func_res<-NULL
