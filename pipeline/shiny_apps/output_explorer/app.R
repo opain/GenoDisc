@@ -70,7 +70,7 @@ ui <- fluidPage(
         div(
           style = "flex: 4; padding-right: 20px;",
           h3("Welcome to GenoDisc"),
-          p("GenoDisc is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
+          p("GenoDisc is a comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
           p("Get started by uploading your GWAS summary statistics and let GenoDisc help you uncover meaningful patterns in your data."),
           hr(),
           
@@ -92,7 +92,7 @@ ui <- fluidPage(
           
           # Information on citing the platform
           h4("Our Newsletter"),
-          p("If you would like to receive updates regarding GenoDisc. Provide you email address below:"),
+          p("If you would like to receive updates regarding GenoDisc, provide you email address below:"),
           textInput(inputId="email_newsletter", label = NULL, value = NULL),
           actionButton("email_button","Sign Up"),
           uiOutput("email_submit_text"),
@@ -196,9 +196,15 @@ ui <- fluidPage(
           p("This is an application for visualising the output of GenoDisc. To start, upload the 'results_package.rds' file output by the GenoDisc pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."), 
           p("Click ",a("here", href = "https://github.com/opain/GenoDisc"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDisc"), "  and relevent software and datasets included in your analysis."), 
           hr(),
-          br(),
-          fileInput("file", "Choose an .RDS file"),
-          selectInput("gwas_selector", "Select a GWAS", ""),
+          h5("Choose an .RDS file"),
+          fileInput("file", NULL),
+          h6('Or'),
+          actionButton("loadExample", "Use example data"),
+          
+          hr(),
+          
+          h5("Select a GWAS"),
+          selectInput("gwas_selector", NULL, ""),
           br(),
           br(),
           br(),
@@ -1045,10 +1051,20 @@ server <- function(input, output, session) {
   ##############################################################################
   # Explore
   ##############################################################################
+  
+  rds_path <- reactiveVal('')
+  
+  observeEvent(input$file, {
+    rds_path(input$file$datapath)
+  })
+  
+  observeEvent(input$loadExample, {
+    rds_path('example.rds')
+  })
+  
   gwas_data <- reactive({
-    req(input$file)
-    rds<-readRDS(input$file$datapath)
-    rds
+    req(!is.null(input$file) | input$loadExample > 0)
+    readRDS(rds_path())
   })
   
   observeEvent(gwas_data(), {
