@@ -7,7 +7,7 @@ library(ggplot2)
 library(cowplot)
 library(shinythemes)
 library(shinycssloaders)
-library(zip)
+library(R.utils)
 
 # Loads functions
 source('functions.R')
@@ -16,7 +16,7 @@ options(shiny.maxRequestSize = 600 * 1024 * 1024)
 
 # Define UI for the Shiny app
 ui <- fluidPage(
-
+  
   tags$style(HTML("
     .navbar {
       min-height: 80px; /* Set the minimum height of the navbar */
@@ -49,26 +49,26 @@ ui <- fluidPage(
         style = "display: flex; align-items; padding: 20px;",
         div(
           style = "flex: 4; padding-right: 20px;",
-           h3("Welcome to GenoDisc"),
-           p("GenoDisc is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
-           p("Get started by uploading your GWAS summary statistics and let GenoDisc help you uncover meaningful patterns in your data."),
-           hr(),
-           
-           # Instructions for submitting data
-           h4("Submitting GWAS Summary Statistics"),
-           p("You can submit your GWAS summary statistics for analysis via our King's College London server by going to the 'Submit' tab."),
-           hr(),
-           
-           # Instructions for exploring existing results
-           h4("Exploring Previous Results"),
-           p("If you have already run the GenoDisc pipeline and have results, you can explore them by uploading your results_package.rds file to the 'Explore' tab."),
-           hr(),
-           
-           # Information on citing the platform
-           h4("Citing GenoDisc"),
-           p("If you use GenoDisc for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
-           p("Publication reference: TBD"),
-           hr() ,
+          h3("Welcome to GenoDisc"),
+          p("GenoDisc is your comprehensive platform for Genome-Wide Association Study (GWAS) summary statistics analysis. Explore genetic associations, visualize results, and gain insights into your data with our user-friendly tools."),
+          p("Get started by uploading your GWAS summary statistics and let GenoDisc help you uncover meaningful patterns in your data."),
+          hr(),
+          
+          # Instructions for submitting data
+          h4("Submitting GWAS Summary Statistics"),
+          p("You can submit your GWAS summary statistics for analysis via our King's College London server by going to the 'Submit' tab."),
+          hr(),
+          
+          # Instructions for exploring existing results
+          h4("Exploring Previous Results"),
+          p("If you have already run the GenoDisc pipeline and have results, you can explore them by uploading your results_package.rds file to the 'Explore' tab."),
+          hr(),
+          
+          # Information on citing the platform
+          h4("Citing GenoDisc"),
+          p("If you use GenoDisc for a publication, please cite our publication describing the platform, as well as the underlying datasets and methods it uses."),
+          p("Publication reference: TBD"),
+          hr() ,
           
           # Information on citing the platform
           h4("Our Newsletter"),
@@ -77,7 +77,7 @@ ui <- fluidPage(
           actionButton("email_button","Submit"),
           uiOutput("email_submit_text"),
           hr() 
-         ),
+        ),
         
         div(
           style = "flex: 2; padding-left: 20px; text-align: center;",
@@ -169,7 +169,7 @@ ui <- fluidPage(
     ),
     tabPanel(
       title='Explore',
-  
+      
       tabsetPanel(
         tabPanel(
           title="Data Input",
@@ -192,7 +192,7 @@ ui <- fluidPage(
           p("This tab shows key quality control statistics for your selected GWAS."), 
           fluidRow(
             column(width=4,
-              dataTableOutput("qc_table"),
+                   dataTableOutput("qc_table"),
             )
           )
         ),
@@ -513,7 +513,7 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output, session) {
-
+  
   ##############################################################################
   # Home
   ##############################################################################
@@ -523,13 +523,13 @@ server <- function(input, output, session) {
   observeEvent(input$email_button, {
     
     email<-input$email_newsletter
-   
+    
     if(!is_valid_email_format(email)){
       email_message("Error: Email address format is invalid\n")
     } else {
       write.table(
         email,
-        "C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\mailing_list.txt",
+        "../uploads/mailing_list.txt",
         col.names = F,
         row.names = F,
         quote = T,
@@ -552,7 +552,7 @@ server <- function(input, output, session) {
     
     # Read in the header and interpret column names
     sub_ss<-fread(input$sumstats$datapath, nrows = 1000)
-
+    
     return(sub_ss)
   })
   
@@ -571,7 +571,7 @@ server <- function(input, output, session) {
       int_header[int_header %in% ss_head_dict[[i]]] <- i
     }
     int_header[!(int_header %in% unlist(ss_head_dict))]<-NA
-
+    
     # Show original and interpreted header
     header_interp <- data.frame(Original = sub_header_comp,
                                 Interpreted = int_header)
@@ -579,7 +579,7 @@ server <- function(input, output, session) {
     # Show columns that are ignored due to be irrelevant, duplicated, or all NA
     header_interp$Keep<-!(
       !(int_header %in% names(ss_head_dict)) | 
-      duplicated(int_header)
+        duplicated(int_header)
     )
     
     # Insert reason it was ignored
@@ -688,7 +688,7 @@ server <- function(input, output, session) {
   
   output$specify_population.ui <- renderUI({
     header_interp<-head_interp()
-
+    
     tagList(
       br(),
       h5("Specify the population the GWAS based on:"),
@@ -756,12 +756,12 @@ server <- function(input, output, session) {
     if(
       'TWAS-GSEA' %in% input$enrich_method & 
       is.null(input$twas_panels)
-      ){
+    ){
       error<-c(error,"Error: At least one TWAS panel must be selected to use TWAS-GSEA.\n")
     }
     if(
       (is.null(input$enrich_method) &
-      !is.null(input$enrich_data)) | 
+       !is.null(input$enrich_data)) | 
       (!is.null(input$enrich_method) &
        is.null(input$enrich_data))
     ){
@@ -779,7 +779,7 @@ server <- function(input, output, session) {
       is.null(input$smr_expr_panels) &
       is.null(input$smr_protein_panels) &
       is.null(input$smr_protein_panels)
-      ){
+    ){
       error<-c(error,"Error: No analyses have been selected. Go to the 'Options' tab.\n")
     }
     if(
@@ -804,18 +804,18 @@ server <- function(input, output, session) {
     if(is.null(submit_criteria())){
       
       # Create directory to store output
-      dir.create("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1", recursive = T)
-      dir.create("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\outputs\\job_1", recursive = T)
-
+      dir.create("../uploads/submissions/job_1", recursive = T)
+      dir.create("../uploads/outputs/job_1", recursive = T)
+      
       # Copy the file to openstack
-      file.copy(input$sumstats$datapath, paste0("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\job_1_ss.gz"))
+      file.copy(input$sumstats$datapath, paste0("../uploads/submissions/job_1/job_1_ss.gz"))
       
       #############
       # Prepare config file based on user input
       #############
       config_file<-NULL
-      config_file<-c("outdir: C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\outputs\\job_1")
-      config_file<-c("config_file: C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\config.yaml")
+      config_file<-c("outdir: ../uploads/outputs/job_1")
+      config_file<-c("config_file: ../uploads/submissions/job_1/config.yaml")
       config_file<-c("rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip")
       config_file<-c("banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip")
       config_file<-c("rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt")
@@ -837,7 +837,7 @@ server <- function(input, output, session) {
       } else {
         config_file<-c(config_file, "cojo: F")
       }
-
+      
       if(input$finemap_logical){
         config_file<-c(config_file, "finemap: T")
       } else {
@@ -946,7 +946,7 @@ server <- function(input, output, session) {
       config_file<-c(config_file, "gcsc: F")
       config_file<-c(config_file, "gcsc_tissues: []")
       
-      writeLines(config_file, paste0("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\config.yaml"))
+      writeLines(config_file, paste0("../uploads/submissions/job_1/config.yaml"))
       
       ############
       # Create gwas_list
@@ -954,7 +954,7 @@ server <- function(input, output, session) {
       
       gwas_list<-data.frame(
         name='sub_1',
-        path='C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\job_1_ss.gz',
+        path='../uploads/submissions/job_1/job_1_ss.gz',
         population=input$population,
         sampling=ifelse(is.null(input$samp_prop), NA, input$samp_prop),
         prevelance=ifelse(is.null(input$pop_prev), NA, input$pop_prev),
@@ -962,7 +962,7 @@ server <- function(input, output, session) {
         sd=NA,
         label="\"Outcome\""
       )
-      write.table(gwas_list, "C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\gwas_list.txt", col.names=T, row.names=F, quote=F)
+      write.table(gwas_list, "../uploads/submissions/job_1/gwas_list.txt", col.names=T, row.names=F, quote=F)
       
       ############
       # Save submission data
@@ -970,21 +970,14 @@ server <- function(input, output, session) {
       
       write.table(
         input$email,
-        "C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\job_1\\job_1_email.txt",
+        "../uploads/submissions/job_1/job_1_email.txt",
         col.names = F,
         row.names = F,
         quote = F
       )
       
       # Transfer submission to HPC
-      # I have asked IT how to do this securly.
-      orig_wd<-getwd()
-      setwd("C:\\Users\\ollie\\OneDrive\\Documents\\GenoDiscPipe\\submissions\\")
-      if(file.exists('job_1.zip')){
-        file.remove('job_1.zip')
-      }
-      zip::zip("job_1.zip", files="job_1")
-      setwd(orig_wd)
+      # This can be done by sending these output to a mounted HPC folder.
       
       # Trigger analysis on HPC
       # This will depend on your HPC setup; you might run a command like:
@@ -1243,7 +1236,7 @@ server <- function(input, output, session) {
       )
       
       tmp<-gwas_data()[[gwas_selected]]$mol_assoc$magma
-
+      
       datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js), 
@@ -1266,11 +1259,11 @@ server <- function(input, output, session) {
       tmp$TWAS.Z<-round(tmp$TWAS.Z, 3)
       tmp$COLOC_logical<-NULL
       tmp[is.na(tmp)]<-'NA'
-
+      
       names(tmp)[names(tmp) == 'TWAS.Z']<-'Z'
       names(tmp)[names(tmp) == 'TWAS.P']<-'P'
       names(tmp)[names(tmp) == 'TWAS.P.FDR']<-'P.FDR'
-
+      
       tmp<-tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4"), with=F]
       
       datatable(tmp, rownames=F, options = list(
@@ -1370,15 +1363,15 @@ server <- function(input, output, session) {
         # Centre column contents and fix width of Pvalue column
         columnDefs = list(list(className = 'dt-center', targets = 0:9))))
     })
-        
+    
     #######
     # Prepare data for molecular association plot
     #######
     
     mol_assoc_summary_data <- reactive({
-        
+      
       all_func_res<-NULL
-
+      
       if(finemap_logical){
         
         finemap_L1_tmp<-data.frame(Panel = "SuSie (L=1)",
@@ -1538,7 +1531,7 @@ server <- function(input, output, session) {
       na_rows$Z<-NA
       na_rows$Sig<-NA
       na_rows$Coloc<-NA
-
+      
       all_func_res<-rbind(na_rows, all_func_res)
       
       if(length(selected_genes) > 0){
@@ -1551,7 +1544,7 @@ server <- function(input, output, session) {
       
       return(all_func_res)
     })
-      
+    
     # Identify number of genes
     plot_dim_mol<-reactive({
       all_func_res<-mol_assoc_summary_data_filtered()
@@ -1570,7 +1563,7 @@ server <- function(input, output, session) {
       return(list(height=plot_height,
                   width=plot_width))
     })
-  
+    
     output$mol_assoc_plot<-renderPlot({
       
       all_func_res<-mol_assoc_summary_data_filtered()
@@ -1581,7 +1574,7 @@ server <- function(input, output, session) {
         all_func_res_all<-NULL
         for(i in unique(all_func_res$Panel)){
           for(j in unique(all_func_res$Method[all_func_res$Panel == i])){
-
+            
             all_func_res_panel<-all_func_res[all_func_res$Panel == i & all_func_res$Method == j,]
             all_func_res_other<-all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel) & !(all_func_res$Method %in% all_func_res_panel$Method),]
             all_func_res_other<-all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID),]
@@ -1589,7 +1582,7 @@ server <- function(input, output, session) {
             
             if(length(all_func_res_other) > 0){
               all_func_res_panel_missing<-data.frame(ID=all_func_res_other)
-  
+              
               all_func_res_panel_missing$Panel=i
               all_func_res_panel_missing$ID=all_func_res_other
               all_func_res_panel_missing$Z=NA
@@ -1650,7 +1643,7 @@ server <- function(input, output, session) {
           facet_wrap(~ Group , nrow=1, scales = "free_x") +
           scale_y_discrete(limits= unique(rev(all_func_res_all$ID))) +
           theme(text = element_text(size = 14))
-                
+        
         gt = ggplot_gtable(ggplot_build(heatmap))
         
         for(i in 1:nrow(group_siz)){
@@ -1738,7 +1731,7 @@ server <- function(input, output, session) {
       tmp$Enrichment<-round(tmp$Enrichment, 3)
       tmp$SE<-round(tmp$SE, 3)
       tmp$Z<-round(tmp$Z, 3)
-
+      
       datatable(
         tmp,
         rownames = F,
@@ -2335,14 +2328,14 @@ server <- function(input, output, session) {
         choices<-choices[choices != 'All - Z']
       }
       choices<-c(choices, 'Alphabetical')
-
+      
       updateSelectInput(session, "selected_sort_atc", choices = choices, selected=choices[1])
     })
     
     output$tx_atc_plot<-renderPlot({
       
       all_gs_atc<-tx_atc_summary_data_filtered()
-
+      
       if(plot_dim_atc()[['height']] < 10000 & nrow(all_gs_atc) > 0){
         
         # Insert missing data
@@ -2364,7 +2357,7 @@ server <- function(input, output, session) {
               all_gs_atc_panel_missing$Nom_Sig=NA
               all_gs_atc_panel_missing$Method=j
               
-    
+              
               all_gs_atc_panel_missing<-all_gs_atc_panel_missing[,names(all_gs_atc_panel)]
               
               all_gs_atc_all<-rbind(all_gs_atc_all,all_gs_atc_panel_missing)
