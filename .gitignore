@@ -3,3 +3,4 @@ pipeline/test_data/
 pipeline/resources/
 pipeline/results/
 pipeline/.snakemake/
+pipeline/shiny_apps/uploads/

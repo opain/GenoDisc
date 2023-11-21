@@ -8,6 +8,7 @@ library(cowplot)
 library(shinythemes)
 library(shinycssloaders)
 library(R.utils)
+library(shinyjs)
 
 # Loads functions
 source('functions.R')
@@ -16,6 +17,8 @@ options(shiny.maxRequestSize = 600 * 1024 * 1024)
 
 # Define UI for the Shiny app
 ui <- fluidPage(
+  
+  shinyjs::useShinyjs(),
   
   tags$style(HTML("
     .navbar {
@@ -31,6 +34,23 @@ ui <- fluidPage(
       text-align: left;
       padding: 20px;
       background-color: #f5f5f5; /* Light grey background color */
+    }
+    .disabled-button {
+        pointer-events: none;
+        opacity: 0.4;
+    }
+    .progress {
+        height: 22px;
+        width: 500px;
+    }
+    .input-group .form-control {
+        padding: 10px;
+        font-size: 12px;
+        width: 400px;
+    }
+    .load1 .loader {
+        margin: 88px;
+        position: relative;
     }
   ")),
   
@@ -74,9 +94,8 @@ ui <- fluidPage(
           h4("Our Newsletter"),
           p("If you would like to receive updates regarding GenoDisc. Provide you email address below:"),
           textInput(inputId="email_newsletter", label = NULL, value = NULL),
-          actionButton("email_button","Submit"),
+          actionButton("email_button","Sign Up"),
           uiOutput("email_submit_text"),
-          hr() 
         ),
         
         div(
@@ -121,11 +140,12 @@ ui <- fluidPage(
           h5('Heritability Estimation:'),
           checkboxInput("ldsc_logical", "LD-Score Regression", F),
           uiOutput("specify_pop_prev.ui"),
+          br(),
           h5('SNP Association'),
           checkboxInput("clump_logical", "LD-based clumping", F),
           checkboxInput("cojo_logical", "COJO analysis", F),
           checkboxInput("finemap_logical", "SNP-based finemapping", F),
-          hr(),
+          br(),
           h5('Molecular Association'),
           fluidRow(
             column(width=3,
@@ -143,7 +163,7 @@ ui <- fluidPage(
                    selectInput("smr_protein_panels", "Select SMR protein panels:", choices=smr_protein_panel_names, multiple=T)
             )
           ),
-          hr(),
+          br(),
           h5('Enrichment'),
           selectInput("enrich_method", "Select methods:", c('MAGMA','TWAS-GSEA'), multiple=T),
           fluidRow(
@@ -155,15 +175,14 @@ ui <- fluidPage(
         )
       ),
       
-      br(),
-      
       hr(),
       
-      actionButton("submit_button","Submit Job"),
-      # There should be a way for users to cancel their submitted job.
-      # Perhaps by emailing me with a specific subject, from the associated email address.
+      actionButton("submit_button", "Submit Job", class = "btn-primary"),
       uiOutput("submit_text"),
       
+      # There should be a way for users to cancel their submitted job.
+      # Perhaps by emailing me with a specific subject, from the associated email address.
+
       br(),
       br(),
     ),
@@ -725,6 +744,7 @@ server <- function(input, output, session) {
   
   # Check whether criteria are met for the button to be clicked
   submit_criteria<-reactive({
+
     header_interp<-head_interp()
     
     path <- input$sumstats[["datapath"]]
@@ -791,10 +811,13 @@ server <- function(input, output, session) {
     return(error)
   })
   
+  # Reactive value to track submission state
+  fileSubmitted <- reactiveVal(FALSE)
+  
+  # Reactive value to track messages
   message <- reactiveVal("")
   
   observeEvent(input$submit_button, {
-    message<-''
     if(is.null(submit_criteria())){
       message('You will receive a confirmation email shortly.')
     } else {
@@ -802,19 +825,34 @@ server <- function(input, output, session) {
     }
     
     if(is.null(submit_criteria())){
+      # Create directory to store output
+      dir.create(paste0("../uploads/submissions"), recursive = T)
+      dir.create(paste0("../uploads/outputs"), recursive = T)
+            
+      # Assign job id
+      if(!file.exists('../uploads/job_list.txt')){
+        job_id<-1
+        write.table(job_id,'../uploads/job_list.txt', col.names=F, row.names=F, quote=F)
+      } else {
+        job_list<-as.numeric(fread('../uploads/job_list.txt', header=F)$V1)
+        job_list<-job_list[order(job_list)]
+        job_id<-max(job_list)+1
+        job_list<-c(job_list, job_id)
+        write.table(job_list,'../uploads/job_list.txt', col.names=F, row.names=F, quote=F)
+      }
       
       # Create directory to store output
-      dir.create("../uploads/submissions/job_1", recursive = T)
-      dir.create("../uploads/outputs/job_1", recursive = T)
+      dir.create(paste0("../uploads/submissions/job_",job_id))
+      dir.create(paste0("../uploads/outputs/job_",job_id))
       
       # Copy the file to openstack
-      file.copy(input$sumstats$datapath, paste0("../uploads/submissions/job_1/job_1_ss.gz"))
+      file.copy(input$sumstats$datapath, paste0("../uploads/submissions/job_",job_id,"/job_",job_id,"_ss.gz"))
       
       #############
       # Prepare config file based on user input
       #############
       config_file<-NULL
-      config_file<-c("outdir: ../uploads/outputs/job_1")
+      config_file<-c(paste0("outdir: ../uploads/outputs/job_",job_id))
       config_file<-c("config_file: ../uploads/submissions/job_1/config.yaml")
       config_file<-c("rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip")
       config_file<-c("banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip")
@@ -946,15 +984,15 @@ server <- function(input, output, session) {
       config_file<-c(config_file, "gcsc: F")
       config_file<-c(config_file, "gcsc_tissues: []")
       
-      writeLines(config_file, paste0("../uploads/submissions/job_1/config.yaml"))
+      writeLines(config_file, paste0("../uploads/submissions/job_",job_id,"/config.yaml"))
       
       ############
       # Create gwas_list
       ############
       
       gwas_list<-data.frame(
-        name='sub_1',
-        path='../uploads/submissions/job_1/job_1_ss.gz',
+        name='sub',
+        path=paste0('../uploads/submissions/job_',job_id,'/job_',job_id,'_ss.gz'),
         population=input$population,
         sampling=ifelse(is.null(input$samp_prop), NA, input$samp_prop),
         prevelance=ifelse(is.null(input$pop_prev), NA, input$pop_prev),
@@ -962,7 +1000,7 @@ server <- function(input, output, session) {
         sd=NA,
         label="\"Outcome\""
       )
-      write.table(gwas_list, "../uploads/submissions/job_1/gwas_list.txt", col.names=T, row.names=F, quote=F)
+      write.table(gwas_list, paste0("../uploads/submissions/job_",job_id,"/gwas_list.txt"), col.names=T, row.names=F, quote=F)
       
       ############
       # Save submission data
@@ -970,11 +1008,13 @@ server <- function(input, output, session) {
       
       write.table(
         input$email,
-        "../uploads/submissions/job_1/job_1_email.txt",
+        paste0("../uploads/submissions/job_",job_id,"/job_", job_id,"_email.txt"),
         col.names = F,
         row.names = F,
         quote = F
       )
+      
+      fileSubmitted(TRUE)
       
       # Transfer submission to HPC
       # This can be done by sending these output to a mounted HPC folder.
@@ -984,6 +1024,18 @@ server <- function(input, output, session) {
       # system("ssh user@hpc 'bash run_analysis_script.sh'")
     }
     
+  })
+  
+  observe({
+    if (is.null(input$sumstats)) {
+      shinyjs::addClass(selector = "#submit_button", class = "disabled-button")
+    } else {
+      if(!fileSubmitted()){
+        shinyjs::removeClass(selector = "#submit_button", class = "disabled-button")
+      } else {
+        shinyjs::hide("submit_button")
+      }
+    }
   })
   
   output$submit_text <- renderUI({
