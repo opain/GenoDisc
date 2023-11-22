@@ -76,15 +76,15 @@ tar -xf test_data.tar.gz
 rm test_data.tar.gz
 ```
 
-#### Step 5: Run pipeline for Coronary Artery Disease GWAS (COAD01).
+#### Step 5: Run pipeline
 
 ```bash
-snakemake --profile slurm --use-conda results/COAD01/reports/COAD01_report.html
+snakemake --restart-times 3 --profile slurm --use-conda --conda-frontend mamba run_create_report
 ```
 
 > Note. If you receive an error saying 'MissingOutputException', you should try adding '--latency-wait 20' to the snakemake command, which tells the pipeline to wait 20 seconds between steps, thereby allowing filesystem latency.
 
-> Note. Please be patient when running the pipeline for the first time. Expect the 'downloading and installing remote packages' to take ~1 hour. It has to create the conda environment in first instance, which involves installing python and R and many packages. Expect this to take ~1 hour.
+> Note. Please be patient when running the pipeline for the first time. Expect the 'downloading and installing remote packages' to take ~1 hour. It has to create the conda environment in first instance, which involves installing python and R and many packages.
 
 ### Running pipeline using your own data
 

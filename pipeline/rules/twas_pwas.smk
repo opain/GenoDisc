@@ -20,12 +20,16 @@ rule download_plink2R:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; unzip resources/software/plink2R/master.zip -d resources/software/plink2R"
+    "rm -r resources/software/plink2R; \
+    mkdir -p resources/software/plink2R; \
+    wget -O resources/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; \
+    unzip resources/software/plink2R/master.zip -d resources/software/plink2R"
 
 # Install plink2R
 rule install_plink2R:
   input: 
-    rules.download_plink2R.output
+    rules.download_plink2R.output,
+    "envs/main.yaml"
   output:
     touch("resources/software/install_plink2R")
   conda:

@@ -2,13 +2,19 @@
 # Download MAGMA
 ####
 
+print(outdir)
+
+
 rule download_magma:
   output:
     "resources/software/magma/magma"
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/software/magma.zip https://ctg.cncr.nl/software/MAGMA/prog/magma_v1.10.zip; unzip resources/software/magma.zip -d resources/software/magma; rm resources/software/magma.zip"
+    "rm -r resources/software/magma; \
+    wget -O resources/software/magma.zip https://ctg.cncr.nl/software/MAGMA/prog/magma_v1.10.zip; \
+    unzip resources/software/magma.zip -d resources/software/magma; \
+    rm resources/software/magma.zip"
 
 ####
 # Download MAGMA gene locations
@@ -20,7 +26,10 @@ rule download_magma_gene_loc:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/aux_files/NCBI37.3.zip; unzip resources/data/magma.zip -d resources/data/magma; rm resources/data/magma.zip"
+    "rm -r resources/data/magma; \
+    wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/aux_files/NCBI37.3.zip; \
+    unzip resources/data/magma.zip -d resources/data/magma; \
+    rm resources/data/magma.zip"
 
 ####
 # Download MAGMA reference
@@ -32,7 +41,10 @@ rule download_magma_ref:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip; unzip resources/data/magma.zip -d resources/data/magma_ref; rm resources/data/magma.zip"
+    "rm -r resources/data/magma_ref; \
+    wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip; \
+    unzip resources/data/magma.zip -d resources/data/magma_ref; \
+    rm resources/data/magma.zip"
 
 ####
 # Create MAGMA annotation file
@@ -64,7 +76,11 @@ rule download_atc:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; mkdir -p resources/data/atc; unzip resources/data/2022-02-01-v3extracts.zip -d resources/data/atc; rm resources/data/2022-02-01-v3extracts.zip"
+    "rm -r resources/data/atc; \
+    wget -O resources/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; \
+    mkdir -p resources/data/atc; \
+    unzip resources/data/2022-02-01-v3extracts.zip -d resources/data/atc; \
+    rm resources/data/2022-02-01-v3extracts.zip"
 
 ####
 # Download and format DrugTargetor database
@@ -76,7 +92,8 @@ rule download_drug_targetor:
   conda:
     "../envs/main.yaml"
   shell:
-    "mkdir -p resources/data/drug_targetor/ ; wget -O resources/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
+    "mkdir -p resources/data/drug_targetor/; \
+    wget -O resources/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
 
 rule format_drug_targetor:
   input:
@@ -107,7 +124,8 @@ rule magma_gene_level:
   conda: 
     "../envs/main.yaml"
   shell:
-    "gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
+    "gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; \
+    resources/software/magma/magma \
       --bfile resources/data/magma_ref/g1000_eur \
       --pval {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
       --gene-annot resources/data/magma/NCBI37.3.genes.annot \
