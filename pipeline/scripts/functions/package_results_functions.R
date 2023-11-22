@@ -627,7 +627,7 @@ read_gcsc<-function(config, gwas){
 
     atc_labels<-atc[nchar(atc$Code) == 4,]
 
-    dat<-fread(paste0('/users/k1806347/oliverpainfel/Analyses/GCSC/GCSC_Brain_Blood_ALS_only_results.csv'))
+    dat<-fread(paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res.txt'))
     dat$Drug<-paste(toupper(substr(dat$Drug, 1, 1)), substr(dat$Drug, 2, nchar(dat$Drug)), sep="")
 
     dat<-dat[order(dat$P),]
