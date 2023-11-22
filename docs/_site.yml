@@ -1,10 +1,10 @@
-name: "GenoFunc"
+name: "GenoDisc"
 output_dir: "."
 navbar:
-  title: "GenoFunc"
+  title: "GenoDisc"
   right:
     - icon: fa-github fa-lg
-      href: https://github.com/opain/GenoFunc
+      href: https://github.com/opain/GenoDisc
 html_document:
     includes:
       in_header: header.html
