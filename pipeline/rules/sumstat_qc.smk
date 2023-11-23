@@ -46,12 +46,14 @@ rule prep_1kg:
 ####
 
 rule install_focus:
+  output:
+    directory("resources/software/ma-focus/")
   conda:
     "../envs/focus.yaml"
-  output: 
-    touch("resources/software/pyfocus")
   shell:
-    "python3.8 -m pip install pyfocus==0.6.10 --user"
+    "git clone https://github.com/mancusolab/ma-focus.git {output}; \
+    cd {output}; \
+    python3 -m pip install ."
 
 ####
 # Download LDSC

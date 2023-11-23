@@ -459,7 +459,7 @@ rule run_banner_pwas:
 
 rule banner_pwas_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23))
+      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done")
 
