@@ -52,6 +52,10 @@ ui <- fluidPage(
         margin: 88px;
         position: relative;
     }
+    .custom-panel {
+          padding: 20px; /* Adjust the padding value as needed */
+          border: 1px solid #ccc; /* Optional: Add a border for better visibility */
+    }
   ")),
   
   navbarPage(
@@ -521,6 +525,29 @@ ui <- fluidPage(
                    dataTableOutput("reference_table"),
             )
           ),
+        ),
+        tabPanel(
+          title="Configuration",
+          
+          br(),
+          div(
+            class = "custom-panel",
+            h6(strong('Repository information:')),
+            uiOutput("repo_info")
+          ),
+          hr(),
+          div(
+            class = "custom-panel",
+            h6(strong('Config file:')),
+            DT::dataTableOutput("config_table"),
+          ),
+          hr(),
+          div(
+            class = "custom-panel",
+            h6(strong('GWAS list:')),
+            DT::dataTableOutput("gwas_list")
+          ),
+          hr()
         )
       )
     )
@@ -2630,6 +2657,56 @@ server <- function(input, output, session) {
                   dom = 'lrt'
                 )
                 )
+    })
+    
+    ###############################
+    # Configuration
+    ###############################
+    
+    output$repo_info <- renderUI({
+      tagList(
+        p(HTML(paste0('<strong>Repo:</strong> ', gwas_data()$configuration$repo$remote))),
+        p(HTML(paste0('<strong>Branch:</strong> ', gwas_data()$configuration$repo$branch))),
+        p(HTML(paste0('<strong>Commit:</strong> ', gwas_data()$configuration$repo$commit)))
+      )
+    })
+
+    output$config_table <- DT::renderDataTable({
+      # Make table showing config parameters
+      config_tab<-config[!grepl('#', config)]
+      config_tab<-config_tab[config_tab != '']
+      config_tab<-data.frame(do.call(rbind, strsplit(config_tab, ': ')))
+      names(config_tab)<-c('Parameter', 'Value')
+      
+      datatable(config_tab, 
+                rownames = FALSE,
+                options = list(
+                  scrollX = TRUE,
+                  ordering = FALSE,
+                  columnDefs = list(
+                    list(className = "dt-left", targets = "_all"),
+                    list(width = '250px', targets = 0)
+                  )
+                ),
+                selection = 'none')
+    })
+
+    output$gwas_list <- DT::renderDataTable({
+      
+      dat<-gwas_list
+      dat[is.na(dat)]<-'NA'
+      
+      datatable(dat, 
+                rownames = FALSE,
+                options = list(
+                  scrollX = TRUE,
+                  dom = 't', 
+                  ordering = FALSE,
+                  columnDefs = list(
+                    list(className = "dt-left", targets = "_all")  # Apply the class to all columns
+                  )
+                ),
+                selection = 'none')
     })
   })
 }
