@@ -1662,7 +1662,8 @@ server <- function(input, output, session) {
         num_row <- length(unique(all_func_res$ID))
         plot_height<-(max(nchar(all_func_res$Panel))*3)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_func_res$Panel,'_',all_func_res$Method,'_',all_func_res$Type)))
-        plot_width<-200+(max(nchar(all_func_res$ID), na.rm=T)*2)+(num_col * 27)
+        num_pan <- length(unique(all_func_res$Method))
+        plot_width<-100+(max(nchar(all_func_res$ID), na.rm=T)*4) + (num_col * 27) + (num_pan*15)
         plot_width<-max(plot_width,(length(unique(all_func_res$Method))*100))
       } else {
         plot_height<-100
@@ -2021,13 +2022,14 @@ server <- function(input, output, session) {
         num_row <- length(unique(all_gs$Name))
         plot_height<-(max(nchar(all_gs$Panel))*3)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_gs$Panel,'_',all_gs$Method,'_')))
-        plot_width<-160+(max(nchar(all_gs$Name), na.rm=T)*2)+(num_col * 30)
+        num_pan <- length(unique(all_gs$Method))
+        plot_width<-100+(max(nchar(all_gs$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
         plot_width<-max(plot_width,(length(unique(all_gs$Method))*100))
       } else {
         plot_height<-100
         plot_width<-100
       }
-      
+
       return(list(height=plot_height,
                   width=plot_width))
     })
@@ -2133,7 +2135,8 @@ server <- function(input, output, session) {
           scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs_all$Z), na.rm=T), max(abs(all_gs_all$Z), na.rm=T)), values=x) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
           labs(x='', y='') +
-          facet_wrap(~ Method , nrow=1, scales = "free_x")
+          facet_wrap(~ Method , nrow=1, scales = "free_x") +
+          theme(text = element_text(size = 14))
         
         library(grid)
         gt = ggplot_gtable(ggplot_build(heatmap))
@@ -2410,13 +2413,16 @@ server <- function(input, output, session) {
         num_row <- length(unique(all_gs_atc$Name))
         plot_height<-(max(nchar(all_gs_atc$Panel))*2)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_gs_atc$Panel,'_',all_gs_atc$Method,'_')))
-        plot_width<-160+(30*2)+(num_col * 30)
+        num_pan <- length(unique(all_gs_atc$Method))
+        plot_width<-100+(max(nchar(all_gs_atc$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
+        print(plot_width)
         plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*100))
       } else {
         plot_height<-100
         plot_width<-100
       }
-      
+
+      print(plot_width)
       return(list(height=plot_height,
                   width=plot_width))
     })
@@ -2530,7 +2536,8 @@ server <- function(input, output, session) {
           scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(min(all_gs_atc_all$Z, na.rm=T), max(all_gs_atc_all$Z, na.rm=T)), values=x) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
           labs(x='', y='') +
-          facet_wrap(~ Method , nrow=1, scales = "free_x")
+          facet_wrap(~ Method , nrow=1, scales = "free_x") +
+          theme(text = element_text(size = 14))
         
         
         library(grid)
