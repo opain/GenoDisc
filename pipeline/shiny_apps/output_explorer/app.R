@@ -1110,7 +1110,16 @@ server <- function(input, output, session) {
     updateSelectInput(session, "gwas_selector", choices = gwas_names)
   })
   
-  observeEvent(input$gwas_selector, {
+  selected_gwas<-reactive({
+    req(gwas_data(), input$gwas_selector)
+    gwas_selected <- ifelse(input$gwas_selector %in% names(gwas_data()), 
+                            input$gwas_selector, 
+                            names(gwas_data())[names(gwas_data()) != 'configuration'][1])
+    return(gwas_selected)
+  })
+  
+  observeEvent(selected_gwas(), {
+    req(gwas_data(), selected_gwas())
     
     ######
     # Read in configuration data
@@ -1203,24 +1212,21 @@ server <- function(input, output, session) {
                       twas_so_lincs_logical,
                       twas_gsea_drugtargetor_logical)
     
-    # Assign select GWAS name to variable
-    gwas_selected <- input$gwas_selector
-    
     ######
     # Prepare table for GWAS QC tab
     ######
     
     # Create a table showing key statistics
-    qc_val<-data.table(name=gwas_selected,
-                       label=gwas_list$label[gwas_list$name == gwas_selected],
-                       n_var_orig=gwas_data()[[gwas_selected]]$gwas_qc$cleaner_dat$val$n_var_orig,
-                       build=gwas_data()[[gwas_selected]]$gwas_qc$cleaner_dat$val$build$build,
-                       n_snp_final=gwas_data()[[gwas_selected]]$gwas_qc$cleaner_dat$val$n_snp_final,
-                       lambda_gc=gwas_data()[[gwas_selected]]$gwas_qc$focus_dat$val$lambda_gc,
-                       max_chi2=gwas_data()[[gwas_selected]]$gwas_qc$focus_dat$val$max_chi2,
-                       n_sig_snp=gwas_data()[[gwas_selected]]$gwas_qc$focus_dat$val$n_sig_snp,
-                       obs_h2=paste0(round(gwas_data()[[gwas_selected]]$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(gwas_data()[[gwas_selected]]$gwas_qc$ldsc_dat$val$obs_h2_se,3),")"),
-                       int=paste0(round(gwas_data()[[gwas_selected]]$gwas_qc$ldsc_dat$val$int_est,3), " (",round(gwas_data()[[gwas_selected]]$gwas_qc$ldsc_dat$val$int_se,3),")"))
+    qc_val<-data.table(name=selected_gwas(),
+                       label=gwas_list$label[gwas_list$name == selected_gwas()],
+                       n_var_orig=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_var_orig,
+                       build=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$build$build,
+                       n_snp_final=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_snp_final,
+                       lambda_gc=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$lambda_gc,
+                       max_chi2=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$max_chi2,
+                       n_sig_snp=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$n_sig_snp,
+                       obs_h2=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_se,3),")"),
+                       int=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_se,3),")"))
     
     names(qc_val)<-c('GWAS Name',
                      'GWAS Label',
@@ -1237,7 +1243,7 @@ server <- function(input, output, session) {
     qc_val<-data.table(Parameter=dimnames(qc_val)[[1]],
                        Value=qc_val[,1])
     
-    snp_assoc_data <- gwas_data()[[gwas_selected]]$snp_assoc$clump
+    snp_assoc_data <- gwas_data()[[selected_gwas()]]$snp_assoc$clump
     
     output$qc_table <- renderDataTable({
       datatable(qc_val, options = list(dom = 't', 
@@ -1256,12 +1262,12 @@ server <- function(input, output, session) {
     snp_assoc_lead_data <- reactive({
       if (input$clumping_type == "ld_clumping") {
         # Read in LD-clumped SNP-associations
-        snp_assoc_lead <- gwas_data()[[gwas_selected]]$snp_assoc$clump
+        snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$clump
       }
       
       if (input$clumping_type == "cojo_analysis") {
         # Read in the COJO associations
-        snp_assoc_lead <- gwas_data()[[gwas_selected]]$snp_assoc$cojo
+        snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$cojo
       }
       
       snp_assoc_lead<-snp_assoc_lead[,names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","NearestGene"),with=F]
@@ -1303,11 +1309,11 @@ server <- function(input, output, session) {
     
     snp_assoc_finemap_data <- reactive({
       if (input$l_param == "L1") {
-        snp_assoc_finemap <- gwas_data()[[gwas_selected]]$snp_assoc$susie$L1
+        snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L1
       }
       
       if (input$l_param == "L10") {
-        snp_assoc_finemap <- gwas_data()[[gwas_selected]]$snp_assoc$susie$L10
+        snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L10
       }
       
       snp_assoc_finemap$cs_log10bf<-NULL
@@ -1340,7 +1346,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$magma
+      tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$magma
       
       datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
@@ -1360,7 +1366,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res
+      tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res
       tmp$TWAS.Z<-round(tmp$TWAS.Z, 3)
       tmp$COLOC_logical<-NULL
       tmp[is.na(tmp)]<-'NA'
@@ -1389,7 +1395,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res
+      tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res
       tmp$pwas_all.Z<-round(tmp$pwas_all.Z, 3)
       tmp$COLOC_logical<-NULL
       tmp[is.na(tmp)]<-'NA'
@@ -1420,7 +1426,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res
+      tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res
       tmp<-tmp[,c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with=F]
       tmp$b_SMR<-round(tmp$b_SMR, 3)
       tmp$se_SMR<-round(tmp$b_SMR, 3)
@@ -1451,7 +1457,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res
+      tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res
       tmp<-tmp[,c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with=F]
       tmp$b_SMR<-round(tmp$b_SMR, 3)
       tmp$se_SMR<-round(tmp$b_SMR, 3)
@@ -1474,13 +1480,13 @@ server <- function(input, output, session) {
     #######
     
     mol_assoc_summary_data <- reactive({
-      
+
       all_func_res<-NULL
       
       if(finemap_logical){
         
         finemap_L1_tmp<-data.frame(Panel = "SuSie (L=1)",
-                                   ID=gwas_data()[[gwas_selected]]$mol_assoc$finemap$L1,
+                                   ID=gwas_data()[[selected_gwas()]]$mol_assoc$finemap$L1,
                                    Z=1,
                                    Sig=F,
                                    Coloc=F,
@@ -1493,30 +1499,33 @@ server <- function(input, output, session) {
       
       if(twas_logical){
         
-        twas_tmp<-data.table(Panel=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$PANEL,
-                             ID=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$`Gene Symbol`,
-                             Z=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$TWAS.Z,
-                             Sig=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$TWAS.P.FDR < 0.05,
-                             Coloc=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$COLOC_logical)
+        twas_tmp<-data.table(Panel=gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$PANEL,
+                             ID=gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$`Gene Symbol`,
+                             Z=gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$TWAS.Z,
+                             Sig=gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$TWAS.P.FDR < 0.05,
+                             Coloc=gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$COLOC_logical)
         
         twas_tmp$Method<-'FUSION'
         twas_tmp$Type<-'Expr.'
-        twas_tmp$Type[grepl('SPLIC',twas_tmp$Panel)]<-'Splice'
+        twas_tmp$Type[grepl('SPLIC',twas_tmp$Panel, ignore.case = T)]<-'Splice'
         
         # Retain only the most significant assoc for each gene within PANEL (only relevent for splice panel)
         twas_tmp<-twas_tmp[order(-abs(twas_tmp$Z)),]
         twas_tmp<-twas_tmp[!duplicated(paste0(twas_tmp$Panel, twas_tmp$ID)),]
+        
+        twas_tmp$Type<-factor(twas_tmp$Type, levels=c('Expr.','Splice'))
+        twas_tmp<-twas_tmp[order(twas_tmp$Type),]
         
         all_func_res<-rbind(all_func_res, twas_tmp)
       }
       
       if(smr_expression_logical){
         # SMR expression
-        smr_expression_res_tmp<-data.table(Panel=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$PANEL,
-                                           ID=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$`Gene Symbol`,
-                                           Z=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$b_SMR/gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$se_SMR,
-                                           Sig=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$p_SMR.FDR < 0.05,
-                                           Coloc=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$p_HEIDI > 0.05)
+        smr_expression_res_tmp<-data.table(Panel=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$PANEL,
+                                           ID=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$`Gene Symbol`,
+                                           Z=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$b_SMR/gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$se_SMR,
+                                           Sig=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$p_SMR.FDR < 0.05,
+                                           Coloc=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$p_HEIDI > 0.05)
         
         smr_expression_res_tmp$Method<-'SMR'
         smr_expression_res_tmp$Type<-'Expr.'
@@ -1525,13 +1534,13 @@ server <- function(input, output, session) {
       }
       
       # PWAS
-      if(pwas_panel_rosmap_logical & !(pwas_panel_rosmap_logical & pwas_panel_banner_logical)){
+      if(any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)){
         
-        pwas_tmp<-data.table( Panel=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$PANEL,
-                              ID=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$`Gene Symbol`,
-                              Z=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$pwas_all.Z,
-                              Sig=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$pwas_all.P.FDR < 0.05,
-                              Coloc=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$COLOC_logical)
+        pwas_tmp<-data.table( Panel=gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$PANEL,
+                              ID=gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$`Gene Symbol`,
+                              Z=gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$pwas_all.Z,
+                              Sig=gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$pwas_all.P.FDR < 0.05,
+                              Coloc=gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$COLOC_logical)
         
         pwas_tmp<-pwas_tmp[order(-abs(pwas_tmp$Z)),]
         pwas_tmp<-pwas_tmp[!duplicated(paste0(pwas_tmp$Panel, pwas_tmp$ID)),]
@@ -1544,11 +1553,11 @@ server <- function(input, output, session) {
       if(smr_protein_panel_rosmap_logical){
         
         # SMR protein
-        smr_protein_res_tmp<-data.table(Panel=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$PANEL,
-                                        ID=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$`Gene Symbol`,
-                                        Z=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$b_SMR/gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$se_SMR,
-                                        Sig=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$p_SMR.FDR < 0.05,
-                                        Coloc=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$p_HEIDI > 0.05)
+        smr_protein_res_tmp<-data.table(Panel=gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$PANEL,
+                                        ID=gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$`Gene Symbol`,
+                                        Z=gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$b_SMR/gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$se_SMR,
+                                        Sig=gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$p_SMR.FDR < 0.05,
+                                        Coloc=gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$p_HEIDI > 0.05)
         
         smr_protein_res_tmp<-smr_protein_res_tmp[order(-abs(smr_protein_res_tmp$Z)),]
         smr_protein_res_tmp<-smr_protein_res_tmp[!duplicated(paste0(smr_protein_res_tmp$Panel, smr_protein_res_tmp$ID)),]
@@ -1562,9 +1571,9 @@ server <- function(input, output, session) {
       if(magma_gene_logical){
         
         magma_tmp<-data.frame(Panel = 'MAGMA',
-                              ID=gwas_data()[[gwas_selected]]$mol_assoc$magma$ID,
-                              Z=abs(qnorm(as.numeric(gwas_data()[[gwas_selected]]$mol_assoc$magma$P))),
-                              Sig=as.numeric(gwas_data()[[gwas_selected]]$mol_assoc$magma$P.FDR) < 0.05,
+                              ID=gwas_data()[[selected_gwas()]]$mol_assoc$magma$ID,
+                              Z=abs(qnorm(as.numeric(gwas_data()[[selected_gwas()]]$mol_assoc$magma$P))),
+                              Sig=as.numeric(gwas_data()[[selected_gwas()]]$mol_assoc$magma$P.FDR) < 0.05,
                               Coloc=F,
                               Method='MAGMA',
                               Type='')
@@ -1576,7 +1585,7 @@ server <- function(input, output, session) {
       if(clump_logical){
         
         nearest_tmp<-data.frame(Panel = 'NearestGene',
-                                ID=gwas_data()[[gwas_selected]]$mol_assoc$nearest$clump,
+                                ID=gwas_data()[[selected_gwas()]]$mol_assoc$nearest$clump,
                                 Z=1,
                                 Sig=F,
                                 Coloc=F,
@@ -1590,20 +1599,15 @@ server <- function(input, output, session) {
       return(all_func_res)
     })
     
-    observe({
+    observeEvent(mol_assoc_summary_data(), {
       all_func_res<-mol_assoc_summary_data()
+      
       methods<-unique(all_func_res$Method)
       updateSelectInput(session, "selected_methods_mol", choices = methods, selected=methods)
-    })
-    
-    observe({
-      all_func_res<-mol_assoc_summary_data()
-      expr_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Expr.'])
+      
+      expr_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Expr.' | all_func_res$Type == 'Splice'])
       updateSelectInput(session, "selected_expr_panels_mol", choices = expr_panels, selected=expr_panels)
-    })
-    
-    observe({
-      all_func_res<-mol_assoc_summary_data()
+      
       protein_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
       updateSelectInput(session, "selected_protein_panels_mol", choices = protein_panels, selected=protein_panels)
     })
@@ -1615,8 +1619,8 @@ server <- function(input, output, session) {
       all_func_res<-all_func_res[all_func_res$Method %in% input$selected_methods_mol,]
       
       # Filter results table by user specified expression and protein panels
-      if(any(all_func_res$Type == 'Expr.')){
-        all_func_res<-all_func_res[!(all_func_res$Type == 'Expr.' & !(all_func_res$Panel %in% input$selected_expr_panels_mol)),]
+      if(any(all_func_res$Type == 'Expr.' | all_func_res$Type == 'Splice')){
+        all_func_res<-all_func_res[!((all_func_res$Type == 'Expr.' | all_func_res$Type == 'Splice') & !(all_func_res$Panel %in% input$selected_expr_panels_mol)),]
       }
       if(any(all_func_res$Type == 'Protein')){
         all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels_mol)),]
@@ -1648,7 +1652,7 @@ server <- function(input, output, session) {
       }
       
       return(all_func_res)
-    })
+    }) %>% debounce(1000)
     
     # Identify number of genes
     plot_dim_mol<-reactive({
@@ -1658,7 +1662,7 @@ server <- function(input, output, session) {
         num_row <- length(unique(all_func_res$ID))
         plot_height<-(max(nchar(all_func_res$Panel))*3)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_func_res$Panel,'_',all_func_res$Method,'_',all_func_res$Type)))
-        plot_width<-(max(nchar(all_func_res$ID))*1.2)+(num_col * 60)
+        plot_width<-200+(max(nchar(all_func_res$ID), na.rm=T)*2)+(num_col * 27)
         plot_width<-max(plot_width,(length(unique(all_func_res$Method))*100))
       } else {
         plot_height<-100
@@ -1713,14 +1717,18 @@ server <- function(input, output, session) {
         all_func_res_all$Group[all_func_res_all$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
         all_func_res_all$Group[all_func_res_all$Group == 'MAGMA\n']<-'MAGMA'
         all_func_res_all$Group[all_func_res_all$Group == 'Nearest\nGene\n']<-'Nearest\nGene'
-        all_func_res_all$Group<-factor(all_func_res_all$Group, levels=unique(all_func_res_all$Group))
+        
+        groups<-c('SuSiE','FUSION\nExpr.','FUSION\nSplice','SMR\nExpr.','FUSION\nProtein','SMR\nProtein','MAGMA','Nearest\nGene')
+        groups<-groups[groups %in% all_func_res_all$Group]
+        
+        all_func_res_all$Group<-factor(all_func_res_all$Group, levels=groups)
         
         all_func_res_all<-all_func_res_all[order(as.character(all_func_res_all$ID)),]
         
         all_func_res_all$ID<-factor(all_func_res_all$ID, levels=unique(all_func_res_all$ID))
         
         group_siz<-NULL
-        for(i in unique(all_func_res_all$Group)){
+        for(i in groups){
           group_siz<-rbind(group_siz, data.frame(Group=i,
                                                  Size=length(unique(all_func_res_all$Panel[all_func_res_all$Group==i]))))
         }
@@ -1755,7 +1763,7 @@ server <- function(input, output, session) {
           gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
           
         }
-        
+
         grid.draw(gt)
       } else {
         NULL
@@ -1803,7 +1811,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$tx$drug$magma
+      tmp<-gwas_data()[[selected_gwas()]]$tx$drug$magma
       tmp$BETA<-round(tmp$BETA,3)
       tmp$SE<-round(tmp$SE,3)
       
@@ -1832,7 +1840,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$tx$drug$gcsc
+      tmp<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
       tmp$Enrichment<-round(tmp$Enrichment, 3)
       tmp$SE<-round(tmp$SE, 3)
       tmp$Z<-round(tmp$Z, 3)
@@ -1862,7 +1870,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$tx$drug$twas_gsea
+      tmp<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
       
@@ -1889,7 +1897,7 @@ server <- function(input, output, session) {
       ###
       # MAGMA
       ###
-      magma_gs<-gwas_data()[[gwas_selected]]$tx$drug$magma
+      magma_gs<-gwas_data()[[selected_gwas()]]$tx$drug$magma
       
       # Convert one-sided p to a Z score
       magma_gs$Z<--qnorm(magma_gs$P)
@@ -1900,7 +1908,7 @@ server <- function(input, output, session) {
       ###
       # GCSC
       ###
-      gcsc_gs<-gwas_data()[[gwas_selected]]$tx$drug$gcsc
+      gcsc_gs<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
       
       gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
       gcsc_gs$Method<-'GCSC'
@@ -1910,7 +1918,7 @@ server <- function(input, output, session) {
       # TWAS-GSEA
       ###
       
-      gsea_gs<-gwas_data()[[gwas_selected]]$tx$drug$twas_gsea
+      gsea_gs<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
       gsea_gs$Method<-'TWAS-GSEA'
       gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
       gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
@@ -1945,14 +1953,12 @@ server <- function(input, output, session) {
       return(all_gs)
     })
     
-    observe({
+    observeEvent(tx_drug_summary_data(), {
       all_gs<-tx_drug_summary_data()
+      
       methods<-unique(all_gs$Method)
       updateSelectInput(session, "selected_methods_drug", choices = methods, selected=methods)
-    })
-    
-    observe({
-      all_gs<-tx_drug_summary_data()
+
       expr_panels<-unique(all_gs$Panel[all_gs$Method == 'TWAS-GSEA'])
       updateSelectInput(session, "selected_expr_panels_drug", choices = expr_panels, selected=expr_panels)
     })
@@ -2005,7 +2011,7 @@ server <- function(input, output, session) {
       }
       
       return(all_gs)
-    })
+    }) %>% debounce(1000)
     
     # Identify number of drugs
     plot_dim_drug<-reactive({
@@ -2015,7 +2021,7 @@ server <- function(input, output, session) {
         num_row <- length(unique(all_gs$Name))
         plot_height<-(max(nchar(all_gs$Panel))*3)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_gs$Panel,'_',all_gs$Method,'_')))
-        plot_width<-150+(max(nchar(all_gs$Name), na.rm=T)*2)+(num_col * 50)
+        plot_width<-160+(max(nchar(all_gs$Name), na.rm=T)*2)+(num_col * 30)
         plot_width<-max(plot_width,(length(unique(all_gs$Method))*100))
       } else {
         plot_height<-100
@@ -2026,7 +2032,7 @@ server <- function(input, output, session) {
                   width=plot_width))
     })
     
-    observe({
+    observeEvent(tx_drug_summary_data_filtered(), {
       tmp<-tx_drug_summary_data_filtered()
       choices<-'All - Z'
       if(any(tmp$Method == 'MAGMA')){
@@ -2184,7 +2190,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$tx$atc$magma
+      tmp<-gwas_data()[[selected_gwas()]]$tx$atc$magma
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
       
@@ -2213,7 +2219,7 @@ server <- function(input, output, session) {
         "}"
       )
       
-      tmp<-gwas_data()[[gwas_selected]]$tx$atc$gcsc
+      tmp<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
       
@@ -2232,7 +2238,7 @@ server <- function(input, output, session) {
     })
     
     output$tx_atc_twas_gsea_table<-renderDataTable({
-      tmp<-gwas_data()[[gwas_selected]]$tx$atc$twas_gsea
+      tmp<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
       
       tmp$P.FDR_all<-p.adjust(tmp$P, method = 'fdr')
       tmp$P.FDR.onside_all<-p.adjust(tmp$P.oneside, method = 'fdr')
@@ -2280,7 +2286,7 @@ server <- function(input, output, session) {
       # MAGMA
       ###
       
-      magma_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$magma
+      magma_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$magma
       
       magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
       magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
@@ -2295,7 +2301,7 @@ server <- function(input, output, session) {
       # GCSC
       ###
       
-      gcsc_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$gcsc
+      gcsc_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
       
       gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
       gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
@@ -2310,7 +2316,7 @@ server <- function(input, output, session) {
       # TWAS-GSEA
       ###
       
-      gsea_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$twas_gsea
+      gsea_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
       
       gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
       gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
@@ -2347,14 +2353,12 @@ server <- function(input, output, session) {
       return(all_gs_atc)
     })
     
-    observe({
+    observeEvent(tx_atc_summary_data(), {
       all_gs<-tx_atc_summary_data()
+      
       methods<-unique(all_gs$Method)
       updateSelectInput(session, "selected_methods_atc", choices = methods, selected=methods)
-    })
-    
-    observe({
-      all_gs<-tx_atc_summary_data()
+
       expr_panels<-unique(all_gs$Panel[all_gs$Method == 'TWAS-GSEA'])
       updateSelectInput(session, "selected_expr_panels_atc", choices = expr_panels, selected=expr_panels)
     })
@@ -2396,7 +2400,7 @@ server <- function(input, output, session) {
       }
       
       return(all_gs_atc)
-    })
+    }) %>% debounce(1000)
     
     # Identify number of atcs
     plot_dim_atc<-reactive({
@@ -2406,7 +2410,7 @@ server <- function(input, output, session) {
         num_row <- length(unique(all_gs_atc$Name))
         plot_height<-(max(nchar(all_gs_atc$Panel))*2)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_gs_atc$Panel,'_',all_gs_atc$Method,'_')))
-        plot_width<-150+(max(nchar(all_gs_atc$Name), na.rm=T)*2)+(num_col * 50)
+        plot_width<-160+(30*2)+(num_col * 30)
         plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*100))
       } else {
         plot_height<-100
@@ -2417,7 +2421,7 @@ server <- function(input, output, session) {
                   width=plot_width))
     })
     
-    observe({
+    observeEvent(tx_atc_summary_data_filtered(), {
       tmp<-tx_atc_summary_data_filtered()
       choices<-'All - Z'
       if(any(tmp$Method == 'MAGMA')){

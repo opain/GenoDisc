@@ -7,7 +7,12 @@ gwas_data <- function(){
   rds
 }
 
-gwas_selected<-'COAD01'
+gwas_data <- function(){
+  rds<-readRDS("C:\\Users\\ollie\\Downloads\\results_package.rds")
+  rds
+}
+
+gwas_selected<-'ALS_only'
 
 mol_assoc_summary_data <- function(){
   
@@ -520,7 +525,7 @@ input$atcInput_atc<-''
 input$selected_methods_mol<-unique(mol_assoc_summary_data()$Method)
 input$conf_only_mol<-T
 input$geneInput_mol<-''
-input$selected_expr_panels_mol<-unique(mol_assoc_summary_data()$Panel[mol_assoc_summary_data()$Type == 'Expr.'])
+input$selected_expr_panels_mol<-unique(mol_assoc_summary_data()$Panel[mol_assoc_summary_data()$Type == 'Expr.' | mol_assoc_summary_data()$Type == 'Splice'])
 input$selected_protein_panels_mol<-unique(mol_assoc_summary_data()$Panel[mol_assoc_summary_data()$Type == 'Protein'])
 
 # Read in config file
