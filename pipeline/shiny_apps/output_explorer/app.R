@@ -1644,8 +1644,8 @@ server <- function(input, output, session) {
       all_func_res<-rbind(na_rows, all_func_res)
       
       if(length(selected_genes) > 0){
-        if(sum(selected_genes %in% all_func_res$ID) > 0){
-          all_func_res<-all_func_res[all_func_res$ID %in% selected_genes | is.na(all_func_res$ID),]
+        if(sum(grepl(paste(selected_genes, collapse='|'), all_func_res$ID, ignore.case = T)) > 0){
+          all_func_res<-all_func_res[grepl(paste(selected_genes, collapse='|'), all_func_res$ID, ignore.case = T) & !is.na(all_func_res$ID),]
         } else {
           all_func_res<-data.frame(matrix(nrow=0, ncol=5))
         }
@@ -1977,7 +1977,12 @@ server <- function(input, output, session) {
       
       # Filter results table if user specifies high confidence genes only
       if(input$conf_only_drug){
-        all_gs<-all_gs[all_gs$Name %in% all_gs$Name[which(all_gs$P.FDR < 0.05)],]
+        all_gs<-all_gs[all_gs$Name %in% all_gs$Name[
+          which(
+            (all_gs$Method == 'TWAS-GSEA' & all_gs$P.FDR < 0.05) |
+            (all_gs$Method == 'MAGMA' & all_gs$P.FDR < 0.05 & all_gs$Z > 0) |
+            (all_gs$Method == 'GCSC' & all_gs$P.FDR < 0.05 & all_gs$Z > 0)
+          )],]
       }
       
       input_drugs <- unlist(strsplit(input$drugInput_drug, "[, ]"))
@@ -2379,7 +2384,12 @@ server <- function(input, output, session) {
       
       # Filter results table if user specifies high confidence genes only
       if(input$conf_only_atc){
-        all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[which(all_gs_atc$FDR_Sig == T)],]
+        all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[
+          which(
+            (all_gs_atc$Method == 'TWAS-GSEA' & all_gs_atc$FDR_Sig) |
+            (all_gs_atc$Method == 'MAGMA' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
+            (all_gs_atc$Method == 'GCSC' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0)
+          )],]
       }
       
       input_atcs <- unlist(strsplit(input$atcInput_atc, "[, ]"))
@@ -2415,14 +2425,12 @@ server <- function(input, output, session) {
         num_col <- length(unique(paste0(all_gs_atc$Panel,'_',all_gs_atc$Method,'_')))
         num_pan <- length(unique(all_gs_atc$Method))
         plot_width<-100+(max(nchar(all_gs_atc$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
-        print(plot_width)
         plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*100))
       } else {
         plot_height<-100
         plot_width<-100
       }
 
-      print(plot_width)
       return(list(height=plot_height,
                   width=plot_width))
     })
