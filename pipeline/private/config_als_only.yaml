@@ -2,6 +2,9 @@
 # Provide relevent paths
 ############
 
+# Location of output
+outdir: /users/k1806347/oliverpainfel/Analyses/GenoDisc_ALS/output
+
 # Location of this config file
 config_file: private/config_als_only.yaml
 
