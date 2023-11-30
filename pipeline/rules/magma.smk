@@ -237,5 +237,21 @@ rule magma_tissue_group:
       --model direction-covar=greater condition-hide=Average \
       --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_group"
 
+# Perform conditional analysis of tissues
+rule magma_tissue_conditional:
+  input:
+    "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out",
+    "scripts/magma_tissue_conditional.R"
+  output:
+    touch("{outdir}/results/{gwas}/magma/magma_property_conditional.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file= config['config_file']
+  shell:
+    "Rscript scripts/magma_tissue_conditional.R \
+      --config_file {params.config_file} \
+      --gwas {wildcards.gwas}"
+
 
 
