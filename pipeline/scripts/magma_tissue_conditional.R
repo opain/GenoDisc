@@ -15,9 +15,6 @@ option_list = list(
 # Parse parameters from command line
 opt = parse_args(OptionParser(option_list=option_list))
 
-opt$config_file<-'config.yaml'
-opt$gwas<-'COAD01'
-
 # Load required packages
 library(data.table)
 
@@ -62,7 +59,7 @@ sink()
 if(nrow(property_enrich) > 1){
     
     sink(file = paste(outdir,"/results/",opt$gwas,'/magma/magma_tissue_conditional.log',sep=''), append = T)
-    cat(paste0("Performing conditional analysis..."))
+    cat(paste0("Performing conditional analysis...\n"))
     sink()
 
     # Create object indicating tmpdir
@@ -82,13 +79,14 @@ if(nrow(property_enrich) > 1){
     i<-1
     
     property_indep <- property_enrich
+    chisq_mat<-
     while(1){
         if(nrow(property_indep) <= i){
             break
         }
         
         property_i<-property_indep$FULL_NAME[i]
-        
+
         log<-system(paste0(
             "resources/software/magma/magma",
             " --gene-results ",outdir,"/results/",opt$gwas,"/magma/magma_gene_level.genes.raw",
@@ -111,20 +109,34 @@ if(nrow(property_enrich) > 1){
             cond_res$FULL_NAME<-cond_res$VARIABLE
         }
         
+        # Remove properties already excluded
+        cond_res<-cond_res[cond_res$FULL_NAME %in% property_indep$FULL_NAME,]
+        
         # Calculate % explained
-        cond_res$VAR.EXP<-NA
         for(j in cond_res$FULL_NAME){
             cond_chisq<-(cond_res$BETA[cond_res$FULL_NAME == j]/cond_res$SE[cond_res$FULL_NAME == j])^2
             marg_chisq<-(property_enrich$BETA[property_enrich$FULL_NAME == j]/property_enrich$SE[property_enrich$FULL_NAME == j])^2
+            lead_chisq<-(property_enrich$BETA[property_enrich$FULL_NAME == property_i]/property_enrich$SE[property_enrich$FULL_NAME == property_i])^2
             cond_res$VAR.EXP[cond_res$FULL_NAME == j] <- 1 - (cond_chisq / marg_chisq)
+            cond_res$R2_ratio[cond_res$FULL_NAME == j] <- marg_chisq / lead_chisq
         }
         
-        # Retain tissues that represent the same signal as the covariate, or that are still significant
-        cond_res<-cond_res[cond_res$VAR.EXP > 0.99 | cond_res$P < 0.05,]
+        sink(file = paste(outdir,"/results/",opt$gwas,'/magma/magma_tissue_conditional.log',sep=''), append = T)
+        cat(paste0("Done!\n"))
+        cat(paste0(nrow(property_indep), " independent properties remain.\n"))
+        sink()
 
-        # Retain tissues that are either conditionally significant or near identical to conditioned set, that are no longer significant (P<0.05)
-        cond_res<-cond_res[cond_res$P < 0.05,]
-        property_indep<-property_indep[property_indep$FULL_NAME %in% c(property_i,cond_res$FULL_NAME),]
+        # Retain tissues that:
+        # - Are colinear with the lead tissue (returns NA)
+        # - Are similar marginal significance (R2_ratio > 0.95)
+        # - Are still significant (P<0.05)
+        cond_res<-cond_res[
+            is.na(cond_res$VAR.EXP) | 
+            cond_res$R2_ratio > 0.95 | 
+            cond_res$P < 0.05
+        ,]
+
+        property_indep<-property_indep[property_indep$FULL_NAME %in% c(property_i, cond_res$FULL_NAME),]
 
         i<-i+1
     }
