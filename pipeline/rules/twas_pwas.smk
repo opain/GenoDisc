@@ -9,7 +9,9 @@ rule install_fusion:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/gusevlab/fusion_twas.git {output}"
+    "git clone https://github.com/gusevlab/fusion_twas.git {output}; \
+    cd {output}; \
+    git reset --hard e1ba5f7f3907e6f586f7fb5bb115b35cc0d3c0c2"
 
 # Download plink2R
 rule download_plink2R:
@@ -44,7 +46,9 @@ rule install_snp_weight_pipe:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}"
+    "git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}; \
+    cd {output}; \
+    git reset --hard ab15a41e4568107f29bc5a538ea016a554d58589"
 
 ####
 # Dowload data for TWAS related analysis
@@ -146,7 +150,9 @@ rule install_twas_gsea:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/opain/TWAS-GSEA.git {output}"
+    "git clone https://github.com/opain/TWAS-GSEA.git {output}; \
+    cd {output}; \
+    git reset --hard d9b98a670121bcf686448b5d65c8d3bc443ba494"
 
 ####
 # Download FeaturePred
@@ -158,7 +164,9 @@ rule install_feature_pred:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/opain/Predicting-TWAS-features.git {output}"
+    "git clone https://github.com/opain/Predicting-TWAS-features.git {output}; \
+    cd {output}; \
+    git reset --hard b9defcf3c96145ab86f605629c48e0d29daebe0c"
 
 ####
 # Download pigz

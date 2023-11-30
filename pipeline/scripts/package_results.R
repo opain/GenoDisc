@@ -8,6 +8,8 @@ option_list <- list(
 
 opt = parse_args(OptionParser(option_list=option_list))
 
+opt$config<-'private/config_als_only.yaml'
+
 library(data.table)
 source('scripts/functions/package_results_functions.R')
 

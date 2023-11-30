@@ -354,7 +354,8 @@ if config["smr_expression_panel_metabrain_spinalcord"] == "T":
     
 rule format_metabrain_smr:
   input:
-    metabrain_output
+    metabrain_output,
+    "scripts/format_metabrain_smr.R"
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"
   conda: 

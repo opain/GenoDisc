@@ -66,7 +66,9 @@ if config["gcsc"] == "T":
 
 rule package_results:
   input:
-    myoutput
+    myoutput,
+    "scripts/package_results.R",
+    "scripts/functions/package_results_functions.R"
   output:
     "{outdir}/results/results_package.rds"
   conda:

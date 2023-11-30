@@ -53,6 +53,7 @@ rule install_focus:
   shell:
     "git clone https://github.com/mancusolab/ma-focus.git {output}; \
     cd {output}; \
+    git reset --hard 8af424a2d38222f76bf7a0422cce8acf274dc610; \
     python3 -m pip install ."
 
 ####
@@ -66,7 +67,9 @@ rule install_ldsc:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/bulik/ldsc.git {output}"
+    "git clone https://github.com/bulik/ldsc.git {output}; \
+    cd {output}; \
+    git reset --hard aa33296abac9569a6422ee6ba7eb4b902422cc74"
 
 # Download LDSC reference data
 rule download_ldsc_scores:

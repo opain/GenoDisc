@@ -96,7 +96,7 @@ process_susie<-function(outdir, gwas, L){
 
 tidy_panel_names<-function(x){
   
-  panel_names<-data.table(t(matrix(c("CMC.BRAIN.RNASEQ_SPLICING","Brain - DLPFC (CMC)","Brain_Anterior_cingulate_cortex_BA24","Brain - Anterior cingulate cortex BA24 (GTEx)","psychencode","Brain - DLPFC (PsychENCODE)","Brain_Cerebellar_Hemisphere","Brain - Cerebellar hemisphere (GTEx)","NTR.BLOOD.RNAARR","Blood (NTR)","Brain_Cortex","Brain - Cortex (GTEx)","Brain_Caudate_basal_ganglia","Brain - Caudate basal ganglia (GTEx)","YFS.BLOOD.RNAARR","Blood (YFS)","Brain_Hippocampus","Brain - Hippocampus (GTEx)","Brain_Substantia_nigra","Brain - Substantia nigra (GTEx)","Brain_Nucleus_accumbens_basal_ganglia","Brain - Nucleus accumbens basal ganglia (GTEx)","Brain_Putamen_basal_ganglia","Brain - Putamen basal ganglia (GTEx)","Brain_Frontal_Cortex_BA9","Brain - Frontal cortex BA9 (GTEx)","Whole_Blood","Blood (GTEx)","CMC.BRAIN.RNASEQ","Brain - DLPFC (CMC)","Brain_Cerebellum","Brain - Cerebellum (GTEx)","Brain_Spinal_cord_cervical_c-1","Brain - Spinal cord vervical c-1 (GTEx)","Brain_Hypothalamus","Brain - Hypothalamus (GTEx)","kcl_brainbank_motor_cortex","Brain - Motor cortex (KCL Brain Bank)","Brain_Amygdala","Brain - Amygdala (GTEx)"), nrow=2)))
+  panel_names<-data.table(t(matrix(c("CMC.BRAIN.RNASEQ_SPLICING","Brain - DLPFC - Splice (CMC)","Brain_Anterior_cingulate_cortex_BA24","Brain - Anterior cingulate cortex BA24 (GTEx)","psychencode","Brain - DLPFC (PsychENCODE)","Brain_Cerebellar_Hemisphere","Brain - Cerebellar hemisphere (GTEx)","NTR.BLOOD.RNAARR","Blood (NTR)","Brain_Cortex","Brain - Cortex (GTEx)","Brain_Caudate_basal_ganglia","Brain - Caudate basal ganglia (GTEx)","YFS.BLOOD.RNAARR","Blood (YFS)","Brain_Hippocampus","Brain - Hippocampus (GTEx)","Brain_Substantia_nigra","Brain - Substantia nigra (GTEx)","Brain_Nucleus_accumbens_basal_ganglia","Brain - Nucleus accumbens basal ganglia (GTEx)","Brain_Putamen_basal_ganglia","Brain - Putamen basal ganglia (GTEx)","Brain_Frontal_Cortex_BA9","Brain - Frontal cortex BA9 (GTEx)","Whole_Blood","Blood (GTEx)","CMC.BRAIN.RNASEQ","Brain - DLPFC (CMC)","Brain_Cerebellum","Brain - Cerebellum (GTEx)","Brain_Spinal_cord_cervical_c-1","Brain - Spinal cord vervical c-1 (GTEx)","Brain_Hypothalamus","Brain - Hypothalamus (GTEx)","kcl_brainbank_motor_cortex","Brain - Motor cortex (KCL Brain Bank)","Brain_Amygdala","Brain - Amygdala (GTEx)"), nrow=2)))
 
   names(panel_names)<-c('original','clean')
   x_tab<-data.table(original=x)
@@ -194,14 +194,14 @@ read_pwas<-function(outdir, gwas, panel){
 
     pwas$PANEL<-NULL
 
-    if(panel == 'rosmap'){
+    if(panel_i == 'rosmap'){
       pwas$PANEL<-"Brain - DLPFC (ROSMAP)"
     }
-    if(panel == 'banner'){
+    if(panel_i == 'banner'){
       pwas$PANEL<-"Brain - DLPFC (Banner)"
     }
 
-    pwas_all<-rbind(pwas, pwas)
+    pwas_all<-rbind(pwas_all, pwas)
   }
 
   pwas_all<-pwas_all[!is.na(pwas_all$TWAS.P),]

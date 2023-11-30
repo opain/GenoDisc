@@ -2,9 +2,6 @@
 # Download MAGMA
 ####
 
-print(outdir)
-
-
 rule download_magma:
   output:
     "resources/software/magma/magma"
@@ -106,6 +103,21 @@ rule format_drug_targetor:
   shell:
     "Rscript scripts/format_drug_targetor.R"
 
+####
+# Download and format GTEx TPM data
+####
+
+rule prep_tissue_exp:
+  input:
+    rules.download_magma_gene_loc.output,
+    "scripts/prep_tissue_exp.R"
+  output:
+    "resources/data/gtex/GTEx_v8_group.tsv"
+  conda:
+    "../envs/main.yaml"
+  shell:
+    "Rscript scripts/prep_tissue_exp.R"
+
 ##########
 # Analyse GWAS summary statistics
 ##########
@@ -193,6 +205,37 @@ rule comp_magma_gsea_twas_results:
       --gwas {wildcards.gwas} \
       --config_file {params.config_file}"
 
+# Perform tissue specific enrichment analysis
+rule magma_tissue_spec:
+  input:
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
+    "resources/data/gtex/GTEx_v8_group.tsv"
+  output:
+    "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out"
+  conda: 
+    "../envs/main.yaml"
+  shell:
+    "resources/software/magma/magma \
+      --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
+      --gene-covar resources/data/gtex/GTEx_v8_tissue.tsv \
+      --model direction-covar=greater condition-hide=Average \
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_spec"
+
+# Perform tissue group enrichment analysis
+rule magma_tissue_group:
+  input:
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
+    "resources/data/gtex/GTEx_v8_group.tsv"
+  output:
+    "{outdir}/results/{gwas}/magma/magma_tissue_group.gsa.out"
+  conda: 
+    "../envs/main.yaml"
+  shell:
+    "resources/software/magma/magma \
+      --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
+      --gene-covar resources/data/gtex/GTEx_v8_group.tsv \
+      --model direction-covar=greater condition-hide=Average \
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_group"
 
 
 

@@ -8,7 +8,9 @@ rule install_gcsc:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/ksiewert/GCSC.git {output}"
+    "git clone https://github.com/ksiewert/GCSC.git {output}; \
+     cd {output}; \
+     git reset --hard b10ea77b9a43399801b46ef70c80516599264123"
 
 ####
 # Download GCSC gene co-regulation scores
