@@ -292,7 +292,10 @@ ui <- fluidPage(
                                choices = c("True" = T,
                                            "False" = F),
                                selected = T),
-                  textInput("geneInput_mol", "Enter gene symbols (whitespace- or comma-seperated):")
+                  textInput("geneInput_mol", "Enter gene symbols (whitespace- or comma-seperated):"),
+                  hr(),
+                  h5('Select high confidence criteria:'),
+                  selectInput("selected_group_hc_mol", "Select methods", "", multiple=T)
                 ),
                 
                 mainPanel(
@@ -363,6 +366,19 @@ ui <- fluidPage(
               fluidRow(
                 column(width=9,
                        dataTableOutput("mol_assoc_smr_protein_table"),
+                )
+              ),
+              br()
+            ),
+            tabPanel(
+              title="Panel Info.",
+              br(),
+              p("This tab shows the number of features and individuals for each panel."), 
+              hr(),
+              br(),
+              fluidRow(
+                column(width=7,
+                       dataTableOutput("panel_info_table"),
                 )
               ),
               br()
@@ -1476,6 +1492,45 @@ server <- function(input, output, session) {
     })
     
     #######
+    # Create table showing panel information
+    #######
+    
+    
+    output$panel_info_table<-renderDataTable({
+      
+      all_panel_info<-NULL
+      
+      if(twas_logical){
+        tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$panels
+        all_panel_info<-rbind(all_panel_info, tmp)
+      }
+      
+      if(smr_expression_logical){
+        tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$panels
+        all_panel_info<-rbind(all_panel_info, tmp)
+      }
+      
+      if(any(pwas_panel_rosmap_logical, pwas_panel_banner_logical)){
+        tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$panels
+        all_panel_info<-rbind(all_panel_info, tmp)
+      }
+      
+      if(smr_protein_panel_rosmap_logical){
+        tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$panels
+        all_panel_info<-rbind(all_panel_info, tmp)
+      }
+      
+      all_panel_info<-all_panel_info[order(all_panel_info$Software, all_panel_info$Type, all_panel_info$Panel),]
+      
+      names(all_panel_info)[names(all_panel_info) == 'N_indiv']<-'N Individuals'
+      names(all_panel_info)[names(all_panel_info) == 'N_gene']<-'N Genes'
+      
+      datatable(all_panel_info, rownames=F, options = list(
+        # Centre column contents and fix width of Pvalue column
+        columnDefs = list(list(className = 'dt-center', targets = '_all'))))
+    })
+    
+    #######
     # Prepare data for molecular association plot
     #######
     
@@ -1610,6 +1665,18 @@ server <- function(input, output, session) {
       
       protein_panels<-unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
       updateSelectInput(session, "selected_protein_panels_mol", choices = protein_panels, selected=protein_panels)
+
+      # Select groups used to define high confidence genes
+      res_group<-paste0(all_func_res$Method,'\n',all_func_res$Type )
+      res_group[res_group == 'SNP\nFine-mapping\n']<-'SuSiE'
+      res_group[res_group == 'MAGMA\n']<-'MAGMA'
+      res_group[res_group == 'Nearest\nGene\n']<-'Nearest\nGene'
+      
+      hc_groups<-c('SuSiE','FUSION\nExpr.','FUSION\nSplice','SMR\nExpr.','FUSION\nProtein','SMR\nProtein')
+      hc_groups<-hc_groups[hc_groups %in% res_group]
+      
+      updateSelectInput(session, "selected_group_hc_mol", choices = hc_groups[hc_groups %in% res_group], selected=hc_groups)
+      
     })
     
     mol_assoc_summary_data_filtered<-reactive({
@@ -1626,25 +1693,33 @@ server <- function(input, output, session) {
         all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels_mol)),]
       }
       
-      # Filter results table if user specifies high confidence genes only
-      if(input$conf_only_mol){
-        all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[which((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)")],]
-      }
-      
-      input_genes <- unlist(strsplit(input$geneInput_mol, "[, ]"))
-      selected_genes <- input_genes[input_genes != ""]
-      
       # Insert NA rows for all panels and methods so when filtering by gene, all selected panels and methods remain
       na_rows<-all_func_res[!(duplicated(paste0(all_func_res$Panel, all_func_res$Method))),]
-      na_rows$ID<-NA
+      na_rows$ID<-'Placeholder'
       na_rows$Z<-NA
       na_rows$Sig<-NA
       na_rows$Coloc<-NA
       
       all_func_res<-rbind(na_rows, all_func_res)
       
+      # Filter results table if user specifies high confidence genes only
+      if(input$conf_only_mol){
+        # Create group variable
+        res_group<-paste0(all_func_res$Method,'\n',all_func_res$Type )
+        res_group[res_group == 'SNP\nFine-mapping\n']<-'SuSiE'
+        res_group[res_group == 'MAGMA\n']<-'MAGMA'
+        res_group[res_group == 'Nearest\nGene\n']<-'Nearest\nGene'
+        
+        hc_genes<-all_func_res$ID[which(((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)") & res_group %in% input$selected_group_hc_mol)]
+        all_func_res<-all_func_res[all_func_res$ID %in% c(hc_genes,'Placeholder'),]
+      }
+      
+      input_genes <- unlist(strsplit(input$geneInput_mol, "[, ]"))
+      selected_genes <- input_genes[input_genes != ""]
+      
       if(length(selected_genes) > 0){
         if(sum(grepl(paste(selected_genes, collapse='|'), all_func_res$ID, ignore.case = T)) > 0){
+          selected_genes<-c(selected_genes, 'Placeholder')
           all_func_res<-all_func_res[grepl(paste(selected_genes, collapse='|'), all_func_res$ID, ignore.case = T) & !is.na(all_func_res$ID),]
         } else {
           all_func_res<-data.frame(matrix(nrow=0, ncol=5))
@@ -1657,14 +1732,14 @@ server <- function(input, output, session) {
     # Identify number of genes
     plot_dim_mol<-reactive({
       all_func_res<-mol_assoc_summary_data_filtered()
-      
+
       if(nrow(all_func_res) > 0){
         num_row <- length(unique(all_func_res$ID))
         plot_height<-(max(nchar(all_func_res$Panel))*3)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_func_res$Panel,'_',all_func_res$Method,'_',all_func_res$Type)))
         num_pan <- length(unique(all_func_res$Method))
-        plot_width<-100+(max(nchar(all_func_res$ID), na.rm=T)*4) + (num_col * 27) + (num_pan*15)
-        plot_width<-max(plot_width,(length(unique(all_func_res$Method))*100))
+        plot_width<-120+(max(nchar(all_func_res$ID), na.rm=T)*4) + (num_col * 27) + (num_pan*15)
+        plot_width<-max(plot_width,(length(unique(all_func_res$Method))*140))
       } else {
         plot_height<-100
         plot_width<-100
@@ -1712,7 +1787,7 @@ server <- function(input, output, session) {
         }
         
         # Now remove the NA rows
-        all_func_res_all<-all_func_res_all[!is.na(all_func_res_all$ID),]
+        all_func_res_all<-all_func_res_all[all_func_res_all$ID != 'Placeholder',]
         
         all_func_res_all$Group<-paste0(all_func_res_all$Method,'\n',all_func_res_all$Type )
         all_func_res_all$Group[all_func_res_all$Group == 'SNP\nFine-mapping\n']<-'SuSiE'
@@ -1975,14 +2050,26 @@ server <- function(input, output, session) {
         all_gs<-all_gs[!(all_gs$Method == 'TWAS-GSEA' & !(all_gs$Panel %in% input$selected_expr_panels_drug)),]
       }
       
+      # Insert NA rows for all panels and methods so when filtering by drug, all selected panels and methods remain
+      na_rows<-all_gs[!(duplicated(paste0(all_gs$Panel, all_gs$Method))),]
+      na_rows$Name<-'Placeholder'
+      na_rows$`ATC Code`<-'Placeholder'
+      na_rows$Z<-NA
+      na_rows$P<-NA
+      na_rows$P.FDR<-NA
+      
+      all_gs<-rbind(na_rows, all_gs)
+      
       # Filter results table if user specifies high confidence genes only
       if(input$conf_only_drug){
-        all_gs<-all_gs[all_gs$Name %in% all_gs$Name[
+        hc_drugs<-all_gs$Name[
           which(
             (all_gs$Method == 'TWAS-GSEA' & all_gs$P.FDR < 0.05) |
-            (all_gs$Method == 'MAGMA' & all_gs$P.FDR < 0.05 & all_gs$Z > 0) |
-            (all_gs$Method == 'GCSC' & all_gs$P.FDR < 0.05 & all_gs$Z > 0)
-          )],]
+              (all_gs$Method == 'MAGMA' & all_gs$P.FDR < 0.05 & all_gs$Z > 0) |
+              (all_gs$Method == 'GCSC' & all_gs$P.FDR < 0.05 & all_gs$Z > 0)
+          )]
+        
+        all_gs<-all_gs[all_gs$Name %in% c(hc_drugs,'Placeholder'),]
       }
       
       input_drugs <- unlist(strsplit(input$drugInput_drug, "[, ]"))
@@ -1991,17 +2078,9 @@ server <- function(input, output, session) {
       input_atc <- unlist(strsplit(input$atcInput_drug, "[, ]"))
       selected_atc <- input_atc[input_atc != ""]
       
-      # Insert NA rows for all panels and methods so when filtering by drug, all selected panels and methods remain
-      na_rows<-all_gs[!(duplicated(paste0(all_gs$Panel, all_gs$Method))),]
-      na_rows$Name<-NA
-      na_rows$Z<-NA
-      na_rows$P<-NA
-      na_rows$P.FDR<-NA
-      
-      all_gs<-rbind(na_rows, all_gs)
-      
       if(length(selected_drugs) > 0){
         if(sum(grepl(paste(selected_drugs, collapse='|'), all_gs$Name, ignore.case = T)) > 0){
+          selected_drugs<-c(selected_drugs, 'Placeholder')
           all_gs<-all_gs[grepl(paste(selected_drugs, collapse='|'), all_gs$Name, ignore.case = T) & !is.na(all_gs$Name),]
         } else {
           all_gs<-data.frame(matrix(nrow=0, ncol=5))
@@ -2010,6 +2089,7 @@ server <- function(input, output, session) {
       
       if(length(selected_atc) > 0){
         if(sum(grepl(paste(selected_atc, collapse='|'), all_gs$`ATC Code`, ignore.case = T)) > 0){
+          selected_atc<-c(selected_atc, 'Placeholder')
           all_gs<-all_gs[grepl(paste(selected_atc, collapse='|'), all_gs$`ATC Code`, ignore.case = T) & !is.na(all_gs$`ATC Code`),]
         } else {
           all_gs<-data.frame(matrix(nrow=0, ncol=5))
@@ -2028,8 +2108,8 @@ server <- function(input, output, session) {
         plot_height<-(max(nchar(all_gs$Panel))*3)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_gs$Panel,'_',all_gs$Method,'_')))
         num_pan <- length(unique(all_gs$Method))
-        plot_width<-100+(max(nchar(all_gs$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
-        plot_width<-max(plot_width,(length(unique(all_gs$Method))*100))
+        plot_width<-120+(max(nchar(all_gs$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
+        plot_width<-max(plot_width,(length(unique(all_gs$Method))*140))
       } else {
         plot_height<-100
         plot_width<-100
@@ -2095,7 +2175,8 @@ server <- function(input, output, session) {
         }
         
         # Now remove the NA rows
-        all_gs_all<-all_gs_all[!is.na(all_gs_all$Name),]
+        all_gs_all<-all_gs_all[all_gs_all$Name != 'Placeholder',]
+
         methods<-c('MAGMA','GCSC','TWAS-GSEA')[c('MAGMA','GCSC','TWAS-GSEA') %in% all_gs_all$Method]
         all_gs_all$Method<-factor(all_gs_all$Method, levels=methods)
         
@@ -2382,30 +2463,33 @@ server <- function(input, output, session) {
         all_gs_atc<-all_gs_atc[!(all_gs_atc$Method == 'TWAS-GSEA' & !(all_gs_atc$Panel %in% input$selected_expr_panels_atc)),]
       }
       
-      # Filter results table if user specifies high confidence genes only
-      if(input$conf_only_atc){
-        all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[
-          which(
-            (all_gs_atc$Method == 'TWAS-GSEA' & all_gs_atc$FDR_Sig) |
-            (all_gs_atc$Method == 'MAGMA' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
-            (all_gs_atc$Method == 'GCSC' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0)
-          )],]
-      }
-      
-      input_atcs <- unlist(strsplit(input$atcInput_atc, "[, ]"))
-      selected_atcs <- input_atcs[input_atcs != ""]
-      
       # Insert NA rows for all panels and methods so when filtering by atc, all selected panels and methods remain
       na_rows<-all_gs_atc[!(duplicated(paste0(all_gs_atc$Panel, all_gs_atc$Method))),]
-      na_rows$Name<-NA
+      na_rows$Name<-'Placeholder'
       na_rows$Z<-NA
       na_rows$FDR_Sig<-NA
       na_rows$Nom_Sig<-NA
       
       all_gs_atc<-rbind(na_rows, all_gs_atc)
       
+      # Filter results table if user specifies high confidence genes only
+      if(input$conf_only_atc){
+        hc_atc<-all_gs_atc$Name[
+          which(
+            (all_gs_atc$Method == 'TWAS-GSEA' & all_gs_atc$FDR_Sig) |
+              (all_gs_atc$Method == 'MAGMA' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
+              (all_gs_atc$Method == 'GCSC' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0)
+          )]
+        
+        all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% c(hc_atc,'Placeholder'),]
+      }
+      
+      input_atcs <- unlist(strsplit(input$atcInput_atc, "[, ]"))
+      selected_atcs <- input_atcs[input_atcs != ""]
+      
       if(length(selected_atcs) > 0){
         if(sum(grepl(paste(selected_atcs, collapse='|'), all_gs_atc$Name, ignore.case = T)) > 0){
+          selected_atcs<-c(selected_atcs, 'Placeholder')
           all_gs_atc<-all_gs_atc[grepl(paste(selected_atcs, collapse='|'), all_gs_atc$Name, ignore.case = T) & !is.na(all_gs_atc$Name),]
         } else {
           all_gs_atc<-data.frame(matrix(nrow=0, ncol=5))
@@ -2421,11 +2505,11 @@ server <- function(input, output, session) {
       
       if(nrow(all_gs_atc) > 0){
         num_row <- length(unique(all_gs_atc$Name))
-        plot_height<-(max(nchar(all_gs_atc$Panel))*2)+(num_row * 20)+100
+        plot_height<-(max(nchar(all_gs_atc$Panel))*4)+(num_row * 20)+100
         num_col <- length(unique(paste0(all_gs_atc$Panel,'_',all_gs_atc$Method,'_')))
         num_pan <- length(unique(all_gs_atc$Method))
-        plot_width<-100+(max(nchar(all_gs_atc$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
-        plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*100))
+        plot_width<-120+(max(nchar(all_gs_atc$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
+        plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*140))
       } else {
         plot_height<-100
         plot_width<-100
@@ -2491,7 +2575,8 @@ server <- function(input, output, session) {
         }
         
         # Now remove the NA rows
-        all_gs_atc_all<-all_gs_atc_all[!is.na(all_gs_atc_all$Name),]
+        all_gs_atc_all<-all_gs_atc_all[all_gs_atc_all$Name != 'Placeholder',]
+        
         methods<-c('MAGMA','GCSC','TWAS-GSEA')[c('MAGMA','GCSC','TWAS-GSEA') %in% all_gs_atc_all$Method]
         all_gs_atc_all$Method<-factor(all_gs_atc_all$Method, levels=methods)
         
@@ -2541,7 +2626,7 @@ server <- function(input, output, session) {
           geom_point(data=all_gs_atc_all[which(all_gs_atc_all$Nom_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
           geom_point(data=all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
           geom_point(data=all_gs_atc_all, aes(colour = Z), size=5) +
-          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(min(all_gs_atc_all$Z, na.rm=T), max(all_gs_atc_all$Z, na.rm=T)), values=x) +
+          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs_atc_all$Z), na.rm=T), max(abs(all_gs_atc_all$Z), na.rm=T)), values=x) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
           labs(x='', y='') +
           facet_wrap(~ Method , nrow=1, scales = "free_x") +

@@ -12,7 +12,16 @@ gwas_data <- function(){
   rds
 }
 
-gwas_selected<-'ALS_only'
+input<-list()
+input$gwas_selector<-'ALS_only'
+
+selected_gwas<-reactive({
+  req(gwas_data(), input$gwas_selector)
+  gwas_selected <- ifelse(input$gwas_selector %in% names(gwas_data()), 
+                          input$gwas_selector, 
+                          names(gwas_data())[names(gwas_data()) != 'configuration'][1])
+  return(gwas_selected)
+})
 
 mol_assoc_summary_data <- function(){
   
