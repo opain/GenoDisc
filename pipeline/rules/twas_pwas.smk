@@ -64,7 +64,11 @@ rule download_psychENCODE_weights:
   conda:
     "../envs/main.yaml"
   shell:
-    "mkdir -p resources/data/fusion_snp_weights/psychencode; wget -O resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; mkdir -p resources/data/fusion_snp_weights/psychencode/psychencode; tar xvzf resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C resources/data/fusion_snp_weights/psychencode/psychencode; rm resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz"
+    "mkdir -p resources/data/fusion_snp_weights/psychencode; \
+    wget -O resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; \
+    mkdir -p resources/data/fusion_snp_weights/psychencode/psychencode; \
+    tar xvzf resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C resources/data/fusion_snp_weights/psychencode/psychencode; \
+    rm resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz"
     
 # Format PsychENCODE SNP-weights
 rule format_psychencode:
@@ -335,6 +339,7 @@ rule twas_all_panel:
       touch("{outdir}/results/{gwas}/checks/twas_all_panel.done")
 
 # Combine TWAS results
+# Delete conditional results folder to avoid conflicts during reruns
 checkpoint combine_twas_res:
   input:
     "{outdir}/results/{gwas}/checks/twas_all_panel.done"
@@ -347,7 +352,8 @@ checkpoint combine_twas_res:
   shell:
     "Rscript scripts/combine_twas.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file}; \
+      rm -r {outdir}/results/{wildcards.gwas}/twas/conditional"
 
 # Identify chromosomes with significant associations
 from pathlib import Path

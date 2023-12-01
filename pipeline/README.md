@@ -51,13 +51,14 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 sh Miniconda3-latest-Linux-x86_64.sh
 ```
 
-Install Python 3.8, Snakemake 5.32, and the basic project dependencies. Note. I am installing these packages in an environment called 'base', if you already have an environment called 'base', you may need to create a new environment to avoid conflicts.
+Install Python 3.8, Snakemake 7.6.2, and the basic project dependencies. Note. I am installing these packages in an environment called 'base', if you already have an environment called 'base', you may need to create a new environment to avoid conflicts.
 
 ```bash
 conda activate base
 conda install python=3.8
 conda install -c conda-forge mamba
-mamba install -c bioconda -c conda-forge snakemake-minimal==5.32.2
+mamba install -c bioconda -c conda-forge snakemake=7.6.2
+mamba install 'tabulate=0.8.10'
 mamba install pandas
 ```
 
@@ -79,7 +80,7 @@ rm test_data.tar.gz
 #### Step 5: Run pipeline
 
 ```bash
-snakemake --restart-times 3 --profile slurm --use-conda --conda-frontend mamba run_create_report
+snakemake --restart-times 3 --profile slurm --use-conda --conda-frontend mamba run_package_results
 ```
 
 > Note. If you receive an error saying 'MissingOutputException', you should try adding '--latency-wait 20' to the snakemake command, which tells the pipeline to wait 20 seconds between steps, thereby allowing filesystem latency.

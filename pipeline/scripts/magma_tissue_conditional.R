@@ -47,7 +47,6 @@ if(all(names(property_enrich) != 'FULL_NAME')){
 }
 
 # Select FDR significant properties
-# Note. this could be a parameter to be tuned
 property_enrich$P.FDR<-p.adjust(property_enrich$P, method = 'fdr')
 property_enrich<-property_enrich[property_enrich$P.FDR <= 0.05,]
 

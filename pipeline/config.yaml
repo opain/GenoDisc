@@ -46,7 +46,7 @@ twas_panel_psychencode: T
 twas_panel_fusion: T
 
 # Specify TWAS FUSION GTEx panels
-gtex_weights: ["Brain_Frontal_Cortex_BA9"]
+gtex_weights: ["Brain_Frontal_Cortex_BA9","Artery_Coronary","Lung","Spleen","Ovary"]
 
 # Specify TWAS FUSION non-GTEx panels
 non_gtex_weights: ["CMC.BRAIN.RNASEQ"]
@@ -79,7 +79,7 @@ smr_protein_panel_rosmap: T
 
 # Run GCSC drug enrichment analysis
 gcsc: T
-gcsc_tissues: ["Brain_Frontal_Cortex_BA9","Brain_Cortex"]
+gcsc_tissues: ["Artery_Coronary"]
 
 # MAGMA tissue enrichment
 tissue_magma: T

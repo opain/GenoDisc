@@ -690,3 +690,70 @@ read_gcsc_atc<-function(config, gwas){
   }
   return(dat)
 }
+
+read_magma_tissue<-function(config, gwas, type){
+  
+  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+
+  dat<-NULL
+
+  if(config[grepl('tissue_magma:',config)] == "tissue_magma: T"){
+    dat<-list()
+
+    if(type == 'specific'){
+      
+      # Read in the MAGMA gene property enrichment results
+      property_enrich<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",gwas,'/magma/magma_tissue_spec.gsa.out'))
+
+      # Insert FULL_NAME column if not present
+      if(all(names(property_enrich) != 'FULL_NAME')){
+          property_enrich$FULL_NAME<-property_enrich$VARIABLE
+      }
+
+      # Calculate FDR-corrected p-value
+      property_enrich$P.FDR<-p.adjust(property_enrich$P, method = 'fdr')
+
+      # Read in the tissue names
+      tissue_groups<-fread('resources/data/gtex/Tissue_labels.tsv')
+    
+      # Insert original tissue names
+      property_enrich<-merge(property_enrich, tissue_groups, by.x='FULL_NAME', by.y='new')
+      
+      # Remove unwanted columns
+      property_enrich<-property_enrich[, c('Tissue','NGENES','BETA','SE','P','P.FDR'), with=F]
+      names(property_enrich)<-c('Tissue','N Gene','BETA','SE','P','P.FDR')
+
+      dat$res<-property_enrich
+
+      # Read in list of retained tissues
+      property_keep<-fread(paste0(outdir,"/results/",gwas,'/magma/magma_tissue_conditional.indep.txt'), header=F)$V1
+      property_keep<-tissue_groups$Tissue[tissue_groups$new %in% property_keep]
+
+      dat$keep<-property_keep
+
+    }
+
+    if(type == 'group'){
+      
+      # Read in the MAGMA gene property enrichment results
+      property_enrich<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",gwas,'/magma/magma_tissue_group.gsa.out'))
+
+      # Insert FULL_NAME column if not present
+      if(all(names(property_enrich) != 'FULL_NAME')){
+          property_enrich$FULL_NAME<-property_enrich$VARIABLE
+      }
+
+      # Calculate FDR-corrected p-value
+      property_enrich$P.FDR<-p.adjust(property_enrich$P, method = 'fdr')
+      property_enrich$Group<-gsub('_',' ', property_enrich$FULL_NAME)
+      
+      # Remove unwanted columns
+      property_enrich<-property_enrich[, c('Group','NGENES','BETA','SE','P','P.FDR'), with=F]
+      names(property_enrich)<-c('Group','N Gene','BETA','SE','P','P.FDR')
+
+      dat$res<-property_enrich
+
+    }
+  }
+  return(dat)
+}
