@@ -11,6 +11,7 @@ library(R.utils)
 library(shinyjs)
 
 # Loads functions
+source('../../scripts/functions/sumstat_cleaner_functions.R')
 source('functions.R')
 
 options(shiny.maxRequestSize = 600 * 1024 * 1024)
