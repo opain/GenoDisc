@@ -7,6 +7,8 @@ make_executable <- function(exe) {
 }
 
 snp_modifyBuild_offline<-function (info_snp, liftOver, chain, from = "hg18", to = "hg19"){
+  tmp_folder<-tempdir()
+
   if (!all(c("chr", "pos") %in% names(info_snp)))
     stop2("Please use proper names for variables in 'info_snp'. Expected %s.",
           "'chr' and 'pos'")
@@ -16,8 +18,8 @@ snp_modifyBuild_offline<-function (info_snp, liftOver, chain, from = "hg18", to 
   info_BED <- with(info_snp, data.frame(paste0("chr", chr),
                                         pos0 = pos - 1L, pos, id = seq_len(nrow(info_snp))))
   fwrite(info_BED, BED, col.names = FALSE, sep = " ")
-  lifted<-'tmp/tmp.lifted'
-  unmapped<-'tmp/tmp.unmapped'
+  lifted<-paste0(tmp_folder,'/tmp.lifted')
+  unmapped<-paste0(tmp_folder,'/tmp.unmapped')
   system(paste(liftOver, BED, chain, lifted, unmapped))
   new_pos <- fread(lifted)
   bad <- grep("^#", readLines(unmapped), value = TRUE, invert = TRUE)
@@ -108,13 +110,14 @@ for(pop in unique(pop_data$V5)){
 # Compute allele frequencies across all individuals
 ####################
 
+# Create object indicating tmpdir
+tmp_folder<-tempdir()
+    
 for(pop in unique(pop_data$V5)){
-  dir.create(paste0(output_dir,'/frq_files/',pop), recursive = T)
+  dir.create(paste0(tmp_folder,'/frq_files/',pop), recursive = T)
   for(chr in 1:22){
-    system(paste0('plink --bfile ',output_dir,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,' --freq --out ',output_dir,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr))
+    system(paste0('plink --bfile ',tmp_folder,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,' --freq --out ',tmp_folder,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr))
   }
-  # Delete the log and nosex files
-  system(paste0('rm ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr*.log'))
 }
 
 ###################
@@ -122,8 +125,6 @@ for(pop in unique(pop_data$V5)){
 ###################
 
 for(pop in unique(pop_data$V5)){
-
-  dir.create('tmp')
 
   chrs<-c(1:22)
   for(chr in chrs){
@@ -161,7 +162,7 @@ for(pop in unique(pop_data$V5)){
     tmp$IUPAC[tmp$A1 == 'A' & tmp$A2 =='C' | tmp$A1 == 'C' & tmp$A2 =='A']<-'M'
     
     # Read in reference frequency data
-    freq<-fread(paste0(output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.frq'))
+    freq<-fread(paste0(tmp_folder,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.frq'))
     
     # The freq files have come from the reference files, so we can assume they are on the same strand
     freq_match<-merge(tmp, freq[,c('SNP','A1','A2','MAF'), with=F], by=c('SNP','A1','A2'))
@@ -175,6 +176,4 @@ for(pop in unique(pop_data$V5)){
     tmp<-tmp[,c("CHR","SNP","BP_GRCh36","BP_GRCh37","BP_GRCh38","A1","A2","IUPAC","REF.FRQ"), with=F]
     saveRDS(tmp, file = paste0(output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.rds'))
   }
-
-  system('rm -r tmp')
 }
