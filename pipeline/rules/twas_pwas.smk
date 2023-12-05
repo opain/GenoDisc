@@ -266,12 +266,14 @@ rule format_pred:
 # Note the version of conda was not working in R 4.0.2
 
 rule install_lme4qtl:
+  input: 
+    "envs/main.yaml"
   output:
     touch("resources/software/install_lme4qtl.done")
   conda:
     "../envs/main.yaml"
   shell:
-    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\")'"
+    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\", ref = \"0.1.10\")'"
 
 ####
 # Format ROSMAP and Banner PWAS data
