@@ -25,13 +25,12 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 # Load dependencies
+library(GenoUtils)
 library(data.table)
-source('scripts/functions/utils_functions.R')
-source('scripts/functions/sumstat_cleaner_functions.R')
 
 # Initiate log file
 log_file <- paste0(opt$output,'.log')
-log_header(log_file = log_file, opt = opt, script = 'sumstat_cleaner.R')
+log_header(log_file = log_file, opt = opt, script = 'sumstat_cleaner.R', start.time = start.time)
 
 #####
 # Read in sumstats
@@ -82,7 +81,7 @@ GWAS$IUPAC<-snp_iupac(GWAS$A1, GWAS$A2)
 # Retain only non-ambiguous SNPs
 GWAS <- remove_ambig(GWAS)
 
-log_add(log_file = log_file, message = paste0('After removal of variants that are not SNPs or are ambiguous ,',nrow(GWAS),' variants remain.'))
+log_add(log_file = log_file, message = paste0('After removal of variants that are not SNPs or are ambiguous, ',nrow(GWAS),' variants remain.'))
 
 #####
 # Harmonise per chromosome with reference
@@ -173,7 +172,6 @@ if(file.exists(paste0(opt$output,'.gz'))){
 }
 
 fwrite(GWAS, paste0(opt$output,'.gz'), sep='\t')
-
 
 end.time <- Sys.time()
 time.taken <- end.time - start.time

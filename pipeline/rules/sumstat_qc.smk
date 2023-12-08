@@ -96,7 +96,18 @@ rule download_gcta:
     "../envs/main.yaml"
   shell:
     "mkdir -p resources/software/gcta; wget -O resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d resources/software/gcta; rm resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip"
-    
+
+# Install GenoUtils
+rule install_genoutils:
+  input:
+    "envs/main.yaml"
+  output:
+    touch("resources/software/install_genoutils.done")
+  conda:
+    "../envs/main.yaml"
+  shell:
+    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@e818f96dda5c7f359df4fab8a5bd7223cd403948\")'"
+
 ##########
 # Analyse GWAS summary statistics
 ##########
@@ -115,7 +126,8 @@ gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 
 rule sumstat_prep:
   input:
-    rules.prep_1kg.output
+    rules.prep_1kg.output,
+    rules.install_genoutils.output
   output:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
   conda:
