@@ -8,6 +8,8 @@ option_list = list(
               help="Path to summary statistics file [required]"),
   make_option("--ref_chr", action="store", default=NA, type='character',
               help="Path to per chromosome reference .rds files [required]"),
+  make_option("--population", action="store", default=NA, type='character',
+              help="Reference population code [required]"),
   make_option("--sampling", action="store", default=NA, type='numeric',
               help="Sampling fraction of cases vs. controls [optional]"),
   make_option("--n", action="store", default=NA, type='numeric',
@@ -88,7 +90,7 @@ log_add(log_file = log_file, message = paste0('After removal of variants that ar
 #####
 # We identify variants present in GWAS and reference, insert missing data (SNP, CHR, BP), and REF.FREQ
 
-GWAS <- ref_harmonise(targ = GWAS, ref_rds = opt$ref_chr, log_file = log_file)
+GWAS <- ref_harmonise(targ = GWAS, ref_rds = opt$ref_chr, population = opt$population, log_file = log_file)
 
 #####
 # Remove SNPs with INFO < opt$info

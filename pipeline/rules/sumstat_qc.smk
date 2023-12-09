@@ -138,7 +138,8 @@ rule sumstat_prep:
   shell:
     "Rscript scripts/sumstat_cleaner.R \
       --sumstats {params.path} \
-      --ref_chr resources/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr \
+      --ref_chr resources/data/1kg/1KG.Phase3.MAF_001.chr \
+      --population {params.population} \
       --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
     
 rule run_sumstat_prep:

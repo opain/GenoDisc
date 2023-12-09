@@ -177,3 +177,35 @@ for(pop in unique(pop_data$V5)){
     saveRDS(tmp, file = paste0(output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.rds'))
   }
 }
+
+# Function to flip REF.FRQ values
+flip_frq <- function(x, y) {
+  if (is.na(x)) 1 - y else x
+}
+
+# Combine the .rds file for each chromomsome across populations
+for(chr in 1:22){
+  print(chr)
+  rds_list<-list()
+  for(pop in unique(pop_data$V5)){
+        print(pop)
+        rds_list[[pop]]<-readRDS(paste0(output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.rds'))
+        # Retain only non-ambiguous SNPs
+        rds_list[[pop]]<-rds_list[[pop]][rds_list[[pop]]$IUPAC %in% c('R', 'Y', 'K', 'M'),]
+        names(rds_list[[pop]])[names(rds_list[[pop]]) == 'REF.FRQ']<-paste0('REF.FRQ.',pop)
+  }
+
+  # Merge all data.tables in the list by the keys
+  rds_merge <- Reduce(function(x, y) merge(x, y, by = names(rds_list[[1]])[!(grepl('REF.FRQ', names(rds_list[[1]])))], all = TRUE), rds_list)
+ 
+  # Apply the function across REF.FRQ columns
+  rds_merge[, (paste0('REF.FRQ.', unique(pop_data$V5))) := 
+      lapply(.SD, function(x) flip_frq(x[1], x[2])), 
+    by = SNP, 
+    .SDcols = patterns('^REF.FRQ')]
+
+  # Remove duplicate rows, keeping the first occurrence
+  rds_merge <- unique(rds_merge, by = "SNP")
+
+  saveRDS(rds_merge, file = paste0(output_dir,'/1KG.Phase3.MAF_001.chr',chr,'.rds'))
+}
