@@ -106,7 +106,7 @@ rule install_genoutils:
   conda:
     "../envs/main.yaml"
   shell:
-    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@e818f96dda5c7f359df4fab8a5bd7223cd403948\")'"
+    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@c22fea83005871675be550cda0468eb9b42c0165\")'"
 
 ##########
 # Analyse GWAS summary statistics
@@ -127,7 +127,8 @@ gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 rule sumstat_prep:
   input:
     rules.prep_1kg.output,
-    rules.install_genoutils.output
+    rules.install_genoutils.output,
+    "scripts/sumstat_cleaner.R"
   output:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
   conda:
