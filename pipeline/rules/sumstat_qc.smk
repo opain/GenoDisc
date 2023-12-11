@@ -106,7 +106,7 @@ rule install_genoutils:
   conda:
     "../envs/main.yaml"
   shell:
-    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@c22fea83005871675be550cda0468eb9b42c0165\")'"
+    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@b885cf27c7f51bc4890f38c1685d3684cf5faa75\")'"
 
 ##########
 # Analyse GWAS summary statistics
@@ -137,11 +137,14 @@ rule sumstat_prep:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     path= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'path'].iloc[0]
   shell:
-    "Rscript scripts/sumstat_cleaner.R \
+    """
+    sumstat_cleaner_script=$(Rscript -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
+    Rscript $sumstat_cleaner_script \
       --sumstats {params.path} \
       --ref_chr resources/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
-      --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
+      --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned
+    """
     
 rule run_sumstat_prep:
   input: expand("{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz", gwas=gwas_list_df_eur['name'], outdir={outdir})
