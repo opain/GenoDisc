@@ -25,14 +25,14 @@ rule download_liftover_track:
     "mkdir -p resources/data/liftover/; wget --no-check-certificate -O resources/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O resources/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz"
 
 ####
-# Download and format 1000 Genomes reference data 
+# Download and format 1000 Genomes reference data
 ####
 
 rule prep_1kg:
   input:
     rules.install_liftover.output,
     rules.download_liftover_track.output
-  resources: 
+  resources:
     mem_mb=20000
   output:
     touch("resources/data/prep_1kg.done")
@@ -106,48 +106,51 @@ rule install_genoutils:
   conda:
     "../envs/main.yaml"
   shell:
-    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@b885cf27c7f51bc4890f38c1685d3684cf5faa75\")'"
+    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")'"
 
 ##########
 # Analyse GWAS summary statistics
 ##########
-
-# Set outdir parameter
-outdir=config['outdir']
 
 # For the time being, assume the GWAS sumstats are in Rosalind format
 ##
 # QC and format GWAS summary statistics
 ##
 
-import pandas as pd
+# Read in GWAS list
 gwas_list_df = pd.read_table(config["gwas_list"], sep=' ')
+
+# Subset to EUR-based GWAS
 gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 
-rule sumstat_prep:
+rule sumstat_prep_i:
   input:
     rules.prep_1kg.output,
     rules.install_genoutils.output,
-    "scripts/sumstat_cleaner.R"
+    lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
   output:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
+    f"{outdir}/data/gwas_sumstat/{{gwas}}/{{gwas}}.cleaned.gz"
   conda:
     "../envs/main.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
-    path= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'path'].iloc[0]
+    outdir=config["outdir"],
+    config_file = config["config_file"],
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    n= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'n'].iloc[0],
+    path= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
   shell:
     """
     sumstat_cleaner_script=$(Rscript -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
     Rscript $sumstat_cleaner_script \
       --sumstats {params.path} \
+      --n {params.n} \
       --ref_chr resources/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
       --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned
     """
-    
-rule run_sumstat_prep:
-  input: expand("{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz", gwas=gwas_list_df_eur['name'], outdir={outdir})
+
+rule sumstat_prep:
+  input: expand(f"{outdir}/data/gwas_sumstat/{{gwas}}/{{gwas}}.cleaned.gz", gwas=gwas_list_df_eur['name'])
 
 ###
 # Munge sumstats
@@ -172,7 +175,7 @@ rule retrieve_N:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
   output:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "Rscript scripts/median_n.R --munged {input} --out {output}"
@@ -223,9 +226,9 @@ rule clump:
       --out {outdir}/results/{wildcards.gwas}/clump/{wildcards.gwas}_chr{wildcards.chr}"
 
 rule clump_all_chr:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/clump_all_chr.done")
 
 ###
@@ -237,7 +240,7 @@ rule process_clump:
     "{outdir}/results/{gwas}/checks/clump_all_chr.done"
   output:
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
-  conda: 
+  conda:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
@@ -275,9 +278,9 @@ rule cojo:
       --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}"
 
 rule cojo_all_chr:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/cojo_all_chr.done")
 
 ###
@@ -289,7 +292,7 @@ rule process_cojo:
     "{outdir}/results/{gwas}/checks/cojo_all_chr.done"
   output:
     "{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv"
-  conda: 
+  conda:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
