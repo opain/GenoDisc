@@ -38,7 +38,7 @@ extract_build<-function(x){
 }
 
 process_focus_log<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-list()
@@ -54,7 +54,7 @@ process_focus_log<-function(config, gwas){
 }
 
 process_ldsc_log<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -95,7 +95,7 @@ process_susie<-function(outdir, gwas, L){
 }
 
 tidy_panel_names<-function(x){
-  
+
   panel_names<-data.table(t(matrix(c("CMC.BRAIN.RNASEQ_SPLICING","Brain - DLPFC - Splice (CMC)","Brain_Anterior_cingulate_cortex_BA24","Brain - Anterior cingulate cortex BA24 (GTEx)","psychencode","Brain - DLPFC (PsychENCODE)","Brain_Cerebellar_Hemisphere","Brain - Cerebellar hemisphere (GTEx)","NTR.BLOOD.RNAARR","Blood (NTR)","Brain_Cortex","Brain - Cortex (GTEx)","Brain_Caudate_basal_ganglia","Brain - Caudate basal ganglia (GTEx)","YFS.BLOOD.RNAARR","Blood (YFS)","Brain_Hippocampus","Brain - Hippocampus (GTEx)","Brain_Substantia_nigra","Brain - Substantia nigra (GTEx)","Brain_Nucleus_accumbens_basal_ganglia","Brain - Nucleus accumbens basal ganglia (GTEx)","Brain_Putamen_basal_ganglia","Brain - Putamen basal ganglia (GTEx)","Brain_Frontal_Cortex_BA9","Brain - Frontal cortex BA9 (GTEx)","Whole_Blood","Blood (GTEx)","CMC.BRAIN.RNASEQ","Brain - DLPFC (CMC)","Brain_Cerebellum","Brain - Cerebellum (GTEx)","Brain_Spinal_cord_cervical_c-1","Brain - Spinal cord vervical c-1 (GTEx)","Brain_Hypothalamus","Brain - Hypothalamus (GTEx)","kcl_brainbank_motor_cortex","Brain - Motor cortex (KCL Brain Bank)","Brain_Amygdala","Brain - Amygdala (GTEx)"), nrow=2)))
 
   names(panel_names)<-c('original','clean')
@@ -105,11 +105,11 @@ tidy_panel_names<-function(x){
   x_tab<-x_tab[match(x, x_tab$original),]
 
   return(x_tab$clean)
-  
+
 }
 
 read_fusion_exp<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   # Check whether TWAS was performed
@@ -185,11 +185,11 @@ read_pwas<-function(outdir, gwas, panel){
   pwas_all<-NULL
   for(panel_i in panel){
 
-    pwas_files<-list.files(path=paste0(outdir,'/results/',gwas,'/pwas/',panel,'/'), pattern=paste0(gwas,'_pwas_',panel,'_chr'))
+    pwas_files<-list.files(path=paste0(outdir,'/results/',gwas,'/pwas/',panel_i,'/'), pattern=paste0(gwas,'_pwas_',panel_i,'_chr'))
 
     pwas<-NULL
     for(i in pwas_files){
-      pwas<-rbind(pwas, fread(paste0(outdir,'/results/',gwas,'/pwas/rosmap/',i)))
+      pwas<-rbind(pwas, fread(paste0(outdir,'/results/',gwas,'/pwas/',panel_i,'/',i)))
     }
 
     pwas$PANEL<-NULL
@@ -217,7 +217,7 @@ read_pwas<-function(outdir, gwas, panel){
 }
 
 read_fusion_protein<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   pwas_panel_rosmap_logical<-config[grepl('pwas_panel_rosmap:',config)] == "pwas_panel_rosmap: T"
@@ -264,7 +264,7 @@ read_fusion_protein<-function(config, gwas){
 }
 
 read_smr_exp<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   # Check whether SMR with expression data was performed
@@ -334,7 +334,7 @@ read_smr_exp<-function(config, gwas){
                                                                     N_indiv=206,
                                                                     N_gene=18406))
     }
-                          
+
     if(smr_expression_panel_metabrain_spinalcord_logical){
       panels<-rbind(panels, data.frame(Type='Expression',
                                                                     Software='SMR',
@@ -355,36 +355,36 @@ read_smr_exp<-function(config, gwas){
     res<-NULL
 
     if(smr_expression_panel_psychencode_logical){
-      
+
       smr_psychencode_files<-list.files(path=paste0(outdir,'/results/',gwas,'/smr/psychencode/'), pattern=paste0(gwas,'_smr_psychencode_chr'))
       smr_psychencode_files<-smr_psychencode_files[grepl('.smr$', smr_psychencode_files)]
-      
+
       smr_psychencode<-NULL
       for(i in smr_psychencode_files){
         smr_psychencode<-rbind(smr_psychencode, fread(paste0(outdir,'/results/',gwas,'/smr/psychencode/',i)))
       }
-      
+
       smr_psychencode_tmp<-smr_psychencode
-      
+
       smr_psychencode_tmp$PANEL<-"Brain - DLPFC (PsychENCODE)"
-      
+
       smr_psychencode_tmp<-smr_psychencode_tmp[,c('PANEL','ProbeChr','Probe_bp','probeID','Gene','b_SMR','se_SMR','p_SMR','p_HEIDI'), with=T]
-      
+
       names(smr_psychencode_tmp)<-c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_HEIDI')
-      
+
       res<-rbind(res, smr_psychencode_tmp)
     }
 
     if(smr_expression_panel_eqtlgen_logical){
-      
+
       smr_eqtlgen<-fread(paste0(outdir,'/results/',gwas,'/smr/eqtlgen/',gwas,'_smr_eqtlgen_GW.txt.gz'))
-      
+
       smr_eqtlgen_tmp<-smr_eqtlgen
-      
+
       smr_eqtlgen_tmp$PANEL<-'Blood (eQTLGen)'
-      
+
       smr_eqtlgen_tmp<-smr_eqtlgen_tmp[,c('PANEL','ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','se_SMR','p_SMR','p_HEIDI'), with=T]
-      
+
       names(smr_eqtlgen_tmp)<-c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_HEIDI')
 
       res<-rbind(res, smr_eqtlgen_tmp)
@@ -394,15 +394,15 @@ read_smr_exp<-function(config, gwas){
     if(metabrain_logical){
 
       smr_metabrain_all<-fread(paste0(outdir,'/results/',gwas,'/smr/metabrain/',gwas,'_smr_metabrain_GW.txt.gz'))
-      
+
       smr_metabrain_tmp<-smr_metabrain_all
-      
+
       smr_metabrain_tmp$PANEL<-paste0('Brain - ', smr_metabrain_tmp$PANEL, " (MetaBrain)")
-      
+
       smr_metabrain_tmp$probeID<-gsub('\\..*','',smr_metabrain_tmp$probeID)
 
       smr_metabrain_tmp<-smr_metabrain_tmp[,c('PANEL','ProbeChr','Probe_bp','probeID','external_gene_name','b_SMR','se_SMR','p_SMR','p_HEIDI'), with=T]
-      
+
       names(smr_metabrain_tmp)<-c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_HEIDI')
 
       res<-rbind(res, smr_metabrain_tmp)
@@ -415,7 +415,7 @@ read_smr_exp<-function(config, gwas){
     res<-res[,c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
 
     res<-res[order(res$CHR, res$BP),]
-  
+
   }
 
   return(list(panels=panels,
@@ -425,7 +425,7 @@ read_smr_exp<-function(config, gwas){
 
 
 read_smr_protein<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -437,7 +437,7 @@ read_smr_protein<-function(config, gwas){
                             Panel='Brain - DLPFC (ROSMAP)',
                             N_indiv=376,
                             N_gene=7809)
-  
+
     # Insert results
     dat$results<-fread(paste0(outdir,'/results/',gwas,'/smr/rosmap/',gwas,'_smr_rosmap_GW.txt.gz'))
 
@@ -456,7 +456,7 @@ read_smr_protein<-function(config, gwas){
 }
 
 read_magma_gene<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -466,7 +466,7 @@ read_magma_gene<-function(config, gwas){
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
     dat<-dat[order(dat$CHR, dat$START),]
   }
-  
+
   return(dat)
 }
 
@@ -476,10 +476,10 @@ identify_nearest<-function(x){
     nearest_list<-unlist(strsplit(x,','))
     nearest_list<-nearest_list[!grepl("kb", nearest_list)]
     nearest_list<-gsub(' ','',nearest_list)
-    
+
     # Identify nearest genes
     nearest_list_2<-gsub(' .*','',gsub(',.*','',x))
-  
+
     nearest<-unique(c(nearest_list,nearest_list_2))
     nearest<-nearest[nearest != 'None']
   } else{
@@ -491,7 +491,7 @@ identify_nearest<-function(x){
 
 
 read_twas_gsea_drug<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -539,7 +539,7 @@ read_twas_gsea_drug<-function(config, gwas){
 }
 
 read_twas_gsea_atc<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -565,14 +565,14 @@ read_twas_gsea_atc<-function(config, gwas){
 
     # Update labels
     dat$Panel<-tidy_panel_names(dat$Panel)
-    
+
   }
 
   return(dat)
 }
 
 read_magma_drug<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -590,7 +590,7 @@ read_magma_drug<-function(config, gwas){
     dat$P.FDR<-p.adjust(dat$P, method='fdr')
 
     dat$NAME<-paste(toupper(substr(dat$NAME, 1, 1)), substr(dat$NAME, 2, nchar(dat$NAME)), sep="")
-    
+
     # Format ATC codes and insert ATC descriptions
     tmp<-lapply(strsplit(dat$ATC, ','), function(x) substr(x, 1, 4))
     tmp2<-lapply(tmp, insert_atc_desc, atc_labels)
@@ -614,7 +614,7 @@ insert_atc_desc <- function(x, replacement_df) {
 }
 
 read_gcsc<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -651,7 +651,7 @@ read_gcsc<-function(config, gwas){
 }
 
 read_magma_drug_atc<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -671,7 +671,7 @@ read_magma_drug_atc<-function(config, gwas){
 }
 
 read_gcsc_atc<-function(config, gwas){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -679,7 +679,7 @@ read_gcsc_atc<-function(config, gwas){
   if(config[grepl('gcsc:',config)] == "gcsc: T"){
 
     dat<-fread(paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res_atc.csv'))
-    
+
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
 
     dat<-dat[,c("ATC","N","P","P.FDR","Name"), with=F]
@@ -692,7 +692,7 @@ read_gcsc_atc<-function(config, gwas){
 }
 
 read_magma_tissue<-function(config, gwas, type){
-  
+
   outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
   dat<-NULL
@@ -701,7 +701,7 @@ read_magma_tissue<-function(config, gwas, type){
     dat<-list()
 
     if(type == 'specific'){
-      
+
       # Read in the MAGMA gene property enrichment results
       property_enrich<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",gwas,'/magma/magma_tissue_spec.gsa.out'))
 
@@ -715,10 +715,10 @@ read_magma_tissue<-function(config, gwas, type){
 
       # Read in the tissue names
       tissue_groups<-fread('resources/data/gtex/Tissue_labels.tsv')
-    
+
       # Insert original tissue names
       property_enrich<-merge(property_enrich, tissue_groups, by.x='FULL_NAME', by.y='new')
-      
+
       # Remove unwanted columns
       property_enrich<-property_enrich[, c('Tissue','NGENES','BETA','SE','P','P.FDR'), with=F]
       names(property_enrich)<-c('Tissue','N Gene','BETA','SE','P','P.FDR')
@@ -734,7 +734,7 @@ read_magma_tissue<-function(config, gwas, type){
     }
 
     if(type == 'group'){
-      
+
       # Read in the MAGMA gene property enrichment results
       property_enrich<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",gwas,'/magma/magma_tissue_group.gsa.out'))
 
@@ -746,7 +746,7 @@ read_magma_tissue<-function(config, gwas, type){
       # Calculate FDR-corrected p-value
       property_enrich$P.FDR<-p.adjust(property_enrich$P, method = 'fdr')
       property_enrich$Group<-gsub('_',' ', property_enrich$FULL_NAME)
-      
+
       # Remove unwanted columns
       property_enrich<-property_enrich[, c('Group','NGENES','BETA','SE','P','P.FDR'), with=F]
       names(property_enrich)<-c('Group','N Gene','BETA','SE','P','P.FDR')
