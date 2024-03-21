@@ -65,7 +65,7 @@ twas_gsea_drugtargetor: F
 smr_expression_panel_psychencode: F
 smr_expression_panel_metabrain_basalganglia: F
 smr_expression_panel_metabrain_cerebellum: F
-smr_expression_panel_metabrain_cortex: T
+smr_expression_panel_metabrain_cortex: F
 smr_expression_panel_metabrain_hippocampus: F
 smr_expression_panel_metabrain_spinalcord: F
 smr_expression_panel_eqtlgen: F
