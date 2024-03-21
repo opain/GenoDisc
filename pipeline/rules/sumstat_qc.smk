@@ -42,21 +42,6 @@ rule prep_1kg:
     "Rscript scripts/prep_1kg.R"
 
 ####
-# Install FOCUS
-####
-
-rule install_focus:
-  output:
-    directory("resources/software/ma-focus/")
-  conda:
-    "../envs/focus.yaml"
-  shell:
-    "git clone https://github.com/mancusolab/ma-focus.git {output}; \
-    cd {output}; \
-    git reset --hard 8af424a2d38222f76bf7a0422cce8acf274dc610; \
-    python3 -m pip install ."
-
-####
 # Download LDSC
 ####
 
@@ -159,8 +144,7 @@ rule sumstat_prep:
 # munge sumstats using FOCUS munge function
 rule focus_munge:
   input:
-    premunged="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
-    focus=rules.install_focus.output
+    premunged="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
   output:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
   conda:
