@@ -25,7 +25,7 @@ library(data.table)
 opt$output_dir<-paste0(dirname(opt$output),'/')
 system(paste0('mkdir -p ',opt$output_dir))
 
-sink(file = paste(opt$output,'.log',sep=''), append = F)
+sink(file = paste(opt$output,'.imputed.log',sep=''), append = F)
 cat(
   '#################################################################
 # sumstat_imputer.R
@@ -69,7 +69,7 @@ gwas<-gwas[complete.cases(gwas),]
 # Write out munged sumstats
 fwrite(gwas, paste0(opt$output,'.munged.tmp.gz'), sep='\t')
 
-sink(file = paste(opt$output,'.log',sep=''), append = T)
+sink(file = paste(opt$output,'.imputed.log',sep=''), append = T)
 cat('Before imputation, sumstats contain',nrow(gwas),'variants.\n')
 sink()
 
@@ -90,13 +90,13 @@ if(opt$n_cores == 1){
   for(i in 1:22){
     jobs<-rbind(jobs,data.frame(CHR=i))
   }
-  
+
   write.table(jobs, paste0(opt$output,'.job_list'), col.names=F, row.names=F, quote=F)
-  
+
   # Write batch job
   writeLines(paste0("#!/bin/sh
-  
-#SBATCH -p shared,brc
+
+#SBATCH -p neurohack_cpu,cpu
 #SBATCH --mem 15G
 #SBATCH -n 1
 #SBATCH --nodes=1
@@ -115,28 +115,28 @@ echo ${chr}
 ",opt$fizi,' impute ',opt$output,'.munged.tmp.gz ',opt$ref_plink_chr,'${chr} --chr ${chr}  --min-prop ',opt$min_prop,' --out ', opt$output,".imped.chr${chr}
 
 "), paste0(opt$output,'.batch.sh'))
-  
+
   # Run batch job
-  jobID<-system(paste0("sbatch --array ",1,"-",nrow(jobs),"%",opt$n_cores," ", opt$output,'.batch.sh'),intern=T) 
+  jobID<-system(paste0("sbatch --array ",1,"-",nrow(jobs),"%",opt$n_cores," ", opt$output,'.batch.sh'),intern=T)
   jobID<-gsub('.* ','', jobID)
-  
+
   # Check whether finished
   Sys.sleep(30)
   while(i){
     system(paste0('sacct -j ',jobID,' > ',opt$output,'.sacct_log.txt'))
     sacct_log<-fread(paste0(opt$output,'.sacct_log.txt'), fill=T)
     sacct_log<-sacct_log[sacct_log$JobName == 'fizi',]
-    
+
     print(sacct_log)
-    
+
     if(sum(sacct_log$State == 'FAILED') > 0){
-      sink(file = paste(opt$output,'.log',sep=''), append = T)
+      sink(file = paste(opt$output,'.imputed.log',sep=''), append = T)
       cat('Job failed.\n')
       sink()
       q()
     }
-    
-    
+
+
     if(sum(sacct_log$State != 'COMPLETED') == 0){
       break
     } else {
@@ -155,14 +155,14 @@ echo ${chr}
 imped<-NULL
 for(i in 1:22){
   log<-readLines(paste0(opt$output,'.imped.chr',i,'.log'))
-  
+
   if(!any(grepl('ERROR', log))){
     imped<-rbind(imped, fread(paste0(opt$output,'.imped.chr',i,'.sumstat')))
   } else {
-    sink(file = paste(opt$output,'.log',sep=''), append = T)
+    sink(file = paste(opt$output,'.imputed.log',sep=''), append = T)
     cat('At least one chromosome failed to complete. Check log files.\n')
     sink()
-    
+
     stop()
   }
 }
@@ -170,7 +170,7 @@ for(i in 1:22){
 # Remove imputed variant with R2 < 0.8
 imped<-imped[!(imped$R2.BLUP < 0.8),]
 
-sink(file = paste(opt$output,'.log',sep=''), append = T)
+sink(file = paste(opt$output,'.imputed.log',sep=''), append = T)
 cat('After applying R2 >= 0.8 threshold, sumstats contain',nrow(imped),'variants.\n')
 cat(sum(imped$TYPE == 'imputed'),'variants are imputed.\n')
 cat(sum(imped$TYPE == 'gwas'),'variants were present in the GWAS\n')
@@ -194,7 +194,7 @@ system(paste0('rm ',opt$output,'.imped.chr*'))
 
 end.time <- Sys.time()
 time.taken <- end.time - start.time
-sink(file = paste(opt$output,'.log',sep=''), append = T)
+sink(file = paste(opt$output,'.imputed.log',sep=''), append = T)
 cat('Analysis finished at',as.character(end.time),'\n')
 cat('Analysis duration was',as.character(round(time.taken,2)),attr(time.taken, 'units'),'\n')
 sink()
