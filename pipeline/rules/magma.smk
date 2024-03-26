@@ -9,7 +9,7 @@ rule download_magma:
     "../envs/main.yaml"
   shell:
     "rm -r resources/software/magma; \
-    wget -O resources/software/magma.zip https://ctg.cncr.nl/software/MAGMA/prog/magma_v1.10.zip; \
+    wget -O resources/software/magma.zip https://vu.data.surfsara.nl/index.php/s/zkKbNeNOZAhFXZB/download; \
     unzip resources/software/magma.zip -d resources/software/magma; \
     rm resources/software/magma.zip"
 
@@ -24,7 +24,7 @@ rule download_magma_gene_loc:
     "../envs/main.yaml"
   shell:
     "rm -r resources/data/magma; \
-    wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/aux_files/NCBI37.3.zip; \
+    wget -O resources/data/magma.zip https://vu.data.surfsara.nl/index.php/s/Pj2orwuF2JYyKxq/download; \
     unzip resources/data/magma.zip -d resources/data/magma; \
     rm resources/data/magma.zip"
 
@@ -39,7 +39,7 @@ rule download_magma_ref:
     "../envs/main.yaml"
   shell:
     "rm -r resources/data/magma_ref; \
-    wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip; \
+    wget -O resources/data/magma.zip https://vu.data.surfsara.nl/index.php/s/VZNByNwpD8qqINe/download; \
     unzip resources/data/magma.zip -d resources/data/magma_ref; \
     rm resources/data/magma.zip"
 
