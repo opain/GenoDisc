@@ -520,7 +520,7 @@ read_twas_gsea_drug<-function(config, gwas){
     dat$NAME<-gsub('\\.',' ',dat$NAME)
 
     # Format ATC codes and insert ATC descriptions
-    tmp<-lapply(strsplit(dat$ATC, ','), function(x) substr(x, 1, 4))
+    tmp<-lapply(strsplit(dat$ATC, '\\.'), function(x) substr(x, 1, 4))
     tmp2<-lapply(tmp, insert_atc_desc, atc_labels)
     dat$ATC_code<-unlist(lapply(tmp, function(x) paste0(x, collapse=';')))
     dat$ATC_desc<-unlist(lapply(tmp2, function(x) paste0(x, collapse=';')))
