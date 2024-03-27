@@ -103,7 +103,7 @@ for(pop in unique(pop_data$V5)){
   system(paste0('rm ',output_dir,'/*',pop,'*_noDup.log'))
   system(paste0('rm ',output_dir,'/*',pop,'*.bed~'))
   system(paste0('rm ',output_dir,'/*',pop,'*.bim~'))
-  system(paste0('rm ',output_dir,'/*',pop,'*.fam~'))  
+  system(paste0('rm ',output_dir,'/*',pop,'*.fam~'))
 }
 
 ####################
@@ -112,11 +112,11 @@ for(pop in unique(pop_data$V5)){
 
 # Create object indicating tmpdir
 tmp_folder<-tempdir()
-    
+
 for(pop in unique(pop_data$V5)){
   dir.create(paste0(tmp_folder,'/frq_files/',pop), recursive = T)
   for(chr in 1:22){
-    system(paste0('plink --bfile ',tmp_folder,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,' --freq --out ',tmp_folder,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr))
+    system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,' --freq --out ',tmp_folder,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr))
   }
 }
 
@@ -128,7 +128,7 @@ for(pop in unique(pop_data$V5)){
 
   chrs<-c(1:22)
   for(chr in chrs){
-    
+
     ######
     # Read in the reference data
     ######
@@ -136,23 +136,23 @@ for(pop in unique(pop_data$V5)){
     ref[['GRCh37']]<-fread(paste0(output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.bim'))
     ref[['GRCh37']]$V3<-NULL
     names(ref[['GRCh37']])<-c('chr','snp','pos','a1','a2')
-    
+
     ######
     # Liftover from GRCh37 to GRCh38 and GRCh36
     ######
-    
+
     # Liftover BP to GRCh38
     ref[['GRCh38']]<-snp_modifyBuild_offline(ref[['GRCh37']], liftOver='resources/software/liftover/liftover', chain='resources/data/liftover/hg19ToHg38.over.chain.gz', from = "hg19", to = "hg38")
     # Liftover BP to GRCh36
     ref[['GRCh36']]<-snp_modifyBuild_offline(ref[['GRCh37']], liftOver='resources/software/liftover/liftover', chain='resources/data/liftover/hg19ToHg18.over.chain.gz', from = "hg19", to = "hg18")
-    
-    # Combine the two builds 
+
+    # Combine the two builds
     tmp<-ref[['GRCh37']]
     names(tmp)<-c('CHR','SNP','BP_GRCh37','A1','A2')
     tmp$BP_GRCh38<-ref[['GRCh38']]$pos
     tmp$BP_GRCh36<-ref[['GRCh36']]$pos
     rm(ref)
-    
+
     # Insert IUPAC codes into ref
     tmp$IUPAC[tmp$A1 == 'A' & tmp$A2 =='T' | tmp$A1 == 'T' & tmp$A2 =='A']<-'W'
     tmp$IUPAC[tmp$A1 == 'C' & tmp$A2 =='G' | tmp$A1 == 'G' & tmp$A2 =='C']<-'S'
@@ -160,17 +160,17 @@ for(pop in unique(pop_data$V5)){
     tmp$IUPAC[tmp$A1 == 'C' & tmp$A2 =='T' | tmp$A1 == 'T' & tmp$A2 =='C']<-'Y'
     tmp$IUPAC[tmp$A1 == 'G' & tmp$A2 =='T' | tmp$A1 == 'T' & tmp$A2 =='G']<-'K'
     tmp$IUPAC[tmp$A1 == 'A' & tmp$A2 =='C' | tmp$A1 == 'C' & tmp$A2 =='A']<-'M'
-    
+
     # Read in reference frequency data
     freq<-fread(paste0(tmp_folder,'/frq_files/',pop,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,'.frq'))
-    
+
     # The freq files have come from the reference files, so we can assume they are on the same strand
     freq_match<-merge(tmp, freq[,c('SNP','A1','A2','MAF'), with=F], by=c('SNP','A1','A2'))
     freq_swap<-merge(tmp, freq[,c('SNP','A1','A2','MAF'), with=F], by.x=c('SNP','A1','A2'), by.y=c('SNP','A2','A1'))
       freq_swap$MAF<-1-freq_swap$MAF
       tmp_freq<-rbind(freq_match, freq_swap)
       tmp_freq<-tmp_freq[match(tmp$SNP, tmp_freq$SNP),]
-      
+
       tmp[['REF.FRQ']]<-tmp_freq$MAF
 
     tmp<-tmp[,c("CHR","SNP","BP_GRCh36","BP_GRCh37","BP_GRCh38","A1","A2","IUPAC","REF.FRQ"), with=F]
@@ -197,11 +197,11 @@ for(chr in 1:22){
 
   # Merge all data.tables in the list by the keys
   rds_merge <- Reduce(function(x, y) merge(x, y, by = names(rds_list[[1]])[!(grepl('REF.FRQ', names(rds_list[[1]])))], all = TRUE), rds_list)
- 
+
   # Apply the function across REF.FRQ columns
-  rds_merge[, (paste0('REF.FRQ.', unique(pop_data$V5))) := 
-      lapply(.SD, function(x) flip_frq(x[1], x[2])), 
-    by = SNP, 
+  rds_merge[, (paste0('REF.FRQ.', unique(pop_data$V5))) :=
+      lapply(.SD, function(x) flip_frq(x[1], x[2])),
+    by = SNP,
     .SDcols = patterns('^REF.FRQ')]
 
   # Remove duplicate rows, keeping the first occurrence
