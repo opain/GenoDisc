@@ -9,7 +9,9 @@ rule install_fusion:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/gusevlab/fusion_twas.git {output}"
+    "git clone https://github.com/gusevlab/fusion_twas.git {output}; \
+    cd {output}; \
+    git reset --hard e1ba5f7f3907e6f586f7fb5bb115b35cc0d3c0c2"
 
 # Download plink2R
 rule download_plink2R:
@@ -20,12 +22,16 @@ rule download_plink2R:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; unzip resources/software/plink2R/master.zip -d resources/software/plink2R"
+    "rm -r resources/software/plink2R; \
+    mkdir -p resources/software/plink2R; \
+    wget -O resources/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; \
+    unzip resources/software/plink2R/master.zip -d resources/software/plink2R"
 
 # Install plink2R
 rule install_plink2R:
-  input: 
-    rules.download_plink2R.output
+  input:
+    rules.download_plink2R.output,
+    "envs/main.yaml"
   output:
     touch("resources/software/install_plink2R")
   conda:
@@ -40,7 +46,9 @@ rule install_snp_weight_pipe:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}"
+    "git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}; \
+    cd {output}; \
+    git reset --hard ab15a41e4568107f29bc5a538ea016a554d58589"
 
 ####
 # Dowload data for TWAS related analysis
@@ -56,16 +64,20 @@ rule download_psychENCODE_weights:
   conda:
     "../envs/main.yaml"
   shell:
-    "mkdir -p resources/data/fusion_snp_weights/psychencode; wget -O resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; mkdir -p resources/data/fusion_snp_weights/psychencode/psychencode; tar xvzf resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C resources/data/fusion_snp_weights/psychencode/psychencode; rm resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz"
-    
+    "mkdir -p resources/data/fusion_snp_weights/psychencode; \
+    wget -O resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; \
+    mkdir -p resources/data/fusion_snp_weights/psychencode/psychencode; \
+    tar xvzf resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C resources/data/fusion_snp_weights/psychencode/psychencode; \
+    rm resources/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz"
+
 # Format PsychENCODE SNP-weights
 rule format_psychencode:
   input:
-    psychencode_data=rules.download_psychENCODE_weights.output, 
+    psychencode_data=rules.download_psychENCODE_weights.output,
     weights_pipe=rules.install_snp_weight_pipe.output
   output:
     "resources/data/format_psychencode.done"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "Rscript scripts/format_psychENCODE.R"
@@ -127,7 +139,7 @@ rule insert_n_nongtex_all_panel:
 rule download_glist:
   output:
     "resources/data/glist-hg19"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "wget -P resources/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19"
@@ -142,7 +154,9 @@ rule install_twas_gsea:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/opain/TWAS-GSEA.git {output}"
+    "git clone https://github.com/opain/TWAS-GSEA.git {output}; \
+    cd {output}; \
+    git reset --hard d9b98a670121bcf686448b5d65c8d3bc443ba494"
 
 ####
 # Download FeaturePred
@@ -154,7 +168,9 @@ rule install_feature_pred:
   conda:
     "../envs/main.yaml"
   shell:
-    "git clone https://github.com/opain/Predicting-TWAS-features.git {output}"
+    "git clone https://github.com/opain/Predicting-TWAS-features.git {output}; \
+    cd {output}; \
+    git reset --hard b9defcf3c96145ab86f605629c48e0d29daebe0c"
 
 ####
 # Download pigz
@@ -178,7 +194,7 @@ if config["external_weights"] == "T":
   external_weights_path_list=[os.path.dirname(x) for x in external_weights_list]
   external_weights_id_list=[os.path.basename(x) for x in external_weights_list]
   external_weights_id_list=[re.sub(".pos", "", x) for x in external_weights_id_list]
-  
+
   import os
   for x in list(range(0, len(external_weights_path_list))):
     if not os.path.isdir("".join(["resources/data/fusion_snp_weights/",external_weights_id_list[x]])):
@@ -197,14 +213,14 @@ if config["twas_panel_psychencode"] == "T":
 if config["external_weights"] == "T":
   weights=weights + external_weights_id_list
 
-import copy  
+import copy
 weights_nosplice=copy.copy(weights)
 if "CMC.BRAIN.RNASEQ_SPLICING" in weights_nosplice:
     weights_nosplice.remove("CMC.BRAIN.RNASEQ_SPLICING")
 
 # Modify panel column in .pos file
 rule feature_pred:
-  resources: 
+  resources:
     mem_mb=50000,
     cpus=5
   input:
@@ -250,12 +266,14 @@ rule format_pred:
 # Note the version of conda was not working in R 4.0.2
 
 rule install_lme4qtl:
+  input:
+    "envs/main.yaml"
   output:
     touch("resources/software/install_lme4qtl.done")
   conda:
     "../envs/main.yaml"
   shell:
-    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\")'"
+    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\", ref = \"0.1.10\")'"
 
 ####
 # Format ROSMAP and Banner PWAS data
@@ -297,7 +315,7 @@ rule run_twas:
     rules.insert_n_nongtex_all_panel.input,
   output:
     "{outdir}/results/{gwas}/twas/{weights}/{gwas}_twas_{weights}_chr{chr}"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
@@ -311,31 +329,33 @@ rule run_twas:
     --GWASN ${{N}}"
 
 rule twas_all_chr:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23), outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done")
 
 rule twas_all_panel:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done", gwas=w.gwas, weight=weights, outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/twas_all_panel.done")
 
 # Combine TWAS results
+# Delete conditional results folder to avoid conflicts during reruns
 checkpoint combine_twas_res:
   input:
     "{outdir}/results/{gwas}/checks/twas_all_panel.done"
   output:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
-  conda: 
+  conda:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
   shell:
     "Rscript scripts/combine_twas.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file}; \
+      rm -r {outdir}/results/{wildcards.gwas}/twas/conditional"
 
 # Identify chromosomes with significant associations
 from pathlib import Path
@@ -351,14 +371,14 @@ def get_mem_mb_cond(wildcards, attempt):
 
 # Run conditional analysis
 rule run_conditional:
-  resources: 
-    mem_mb=get_mem_mb_cond 
+  resources:
+    mem_mb=get_mem_mb_cond
   input:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
     rules.download_glist.output
   output:
     touch("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done")
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript resources/software/fusion/FUSION.post_process.R \
@@ -373,14 +393,14 @@ rule run_conditional:
       --locus_win 500000"
 
 rule conditional:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done", gwas=w.gwas, chr=sig_chr_munge("{}".format(w.gwas)), outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/conditional_all_chr.done")
 
 # Process conditional results
 rule process_conditional:
-  input: 
+  input:
     "{outdir}/results/{gwas}/checks/conditional_all_chr.done"
   output:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv"
@@ -399,7 +419,7 @@ rule process_conditional:
 
 # Run twas using ROSMAP SNP-weights
 rule run_rosmap_pwas:
-  resources: mem_mb=20000 
+  resources: mem_mb=20000
   input:
     sumstats="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
     neff_txt="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
@@ -409,7 +429,7 @@ rule run_rosmap_pwas:
     prep_1kg=rules.prep_1kg.output
   output:
     "{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
@@ -423,14 +443,14 @@ rule run_rosmap_pwas:
     --GWASN ${{N}}"
 
 rule rosmap_pwas_all_chr:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done")
 
 # Run twas using Banner SNP-weights
 rule run_banner_pwas:
-  resources: mem_mb=20000 
+  resources: mem_mb=20000
   input:
     sumstats="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
     neff_txt="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
@@ -440,7 +460,7 @@ rule run_banner_pwas:
     prep_1kg=rules.prep_1kg.output
   output:
     "{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
@@ -454,9 +474,9 @@ rule run_banner_pwas:
     --GWASN ${{N}}"
 
 rule banner_pwas_all_chr:
-    input: 
-      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23))
-    output: 
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+    output:
       touch("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done")
 
 #######
@@ -470,14 +490,14 @@ rule format_drug_targetor_for_twas_gsea:
     rules.download_magma_gene_loc.output
   output:
     "resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
-  conda: 
+  conda:
     "../envs/main.yaml"
   shell:
     "Rscript scripts/format_drug_targetor_for_twas_gsea.R"
 
 # Run TWAS-GSEA
 rule run_twas_gsea_drug_targetor:
-  resources: 
+  resources:
     mem_mb=50000,
     cpus=5
   input:
@@ -506,7 +526,7 @@ rule run_twas_gsea_drug_targetor:
     	--qqplot F \
     	--directional T \
     	--output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight}"
-    	
+
 # Format the output
 rule format_twas_gsea_drugtargetor_results:
   input:
@@ -514,7 +534,7 @@ rule format_twas_gsea_drugtargetor_results:
     rules.download_atc.output
   output:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
-  conda: 
+  conda:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
@@ -523,10 +543,10 @@ rule format_twas_gsea_drugtargetor_results:
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --config_file {params.config_file}"
-    
+
 rule format_twas_gsea_drugtargetor_results_all_panel:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice, outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
 

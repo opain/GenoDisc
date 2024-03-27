@@ -1,0 +1,2 @@
+name path population n sampling prevalence mean sd label
+COAD01 test_data/reference/gwas_sumstats/COAD01.gz EUR NA 0.33 0.03 NA NA "Coronary Artery Disease"

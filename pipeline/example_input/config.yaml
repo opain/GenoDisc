@@ -1,0 +1,85 @@
+############
+# Provide relevent paths
+############
+
+# Specify output directory
+outdir: test_data/output/test1
+
+# Location of this config file
+config_file: example_input/config.yaml
+
+# Specify location of gwas_list file
+gwas_list: example_input/gwas_list_example.txt
+
+# Specify location of rosmap and banner data for PWAS and SMR
+# These files can be downloaded from here: https://www.synapse.org/#!Synapse:syn23627957
+rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip
+banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip
+rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt
+
+############
+# Specify desired output
+############
+
+# Identify independent significant SNPs using clumping
+clump: T
+
+# Perform COJO analysis
+cojo: T
+
+# Perform SNP finemapping analysis
+finemap: T
+
+# Estimate SNP-heritability and intercept using LD score regression
+ldsc: T
+
+# MAGMA gene associations analysis
+magma_gene: T
+
+# MAGMA gene set enrichment analysis using DrugTargetor sets
+magma_drugtargetor: T
+
+# TWAS using FUSION and PsychENCODE panel
+twas_panel_psychencode: T
+
+# TWAS using FUSION panels
+twas_panel_fusion: T
+
+# Specify TWAS FUSION GTEx panels
+gtex_weights: ["Brain_Frontal_Cortex_BA9","Artery_Coronary","Lung","Spleen","Ovary"]
+
+# Specify TWAS FUSION non-GTEx panels
+non_gtex_weights: ["CMC.BRAIN.RNASEQ"]
+
+# Specify external TWAS panels in FUSION format
+external_weights: F
+external_weights_pos_path: []
+
+# Conditional analyss of TWAS results
+twas_conditional: T
+
+# TWAS-GSEA gene property association analysis using DrugTargetor
+twas_gsea_drugtargetor: T
+
+# Run SMR using below panels
+smr_expression_panel_psychencode: T
+smr_expression_panel_metabrain_basalganglia: F
+smr_expression_panel_metabrain_cerebellum: F
+smr_expression_panel_metabrain_cortex: T
+smr_expression_panel_metabrain_hippocampus: F
+smr_expression_panel_metabrain_spinalcord: F
+smr_expression_panel_eqtlgen: T
+
+# Run PWAS using FUSION using below panels
+pwas_panel_rosmap: T
+pwas_panel_banner: F
+
+# Run SMR using pQTL data from ROSMAP
+smr_protein_panel_rosmap: T
+
+# Run GCSC drug enrichment analysis
+gcsc: T
+gcsc_tissues: ["Artery_Coronary"]
+
+# MAGMA tissue enrichment
+tissue_magma: T

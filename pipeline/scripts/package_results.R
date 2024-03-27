@@ -191,6 +191,24 @@ for(gwas_i in gwas_list$name){
 
   tx$atc$twas_gsea<-read_twas_gsea_atc(config=config, gwas=gwas_i)
 
+  #################
+  # Tissue Enrichment
+  #################
+
+  tissue<-list()
+
+  ######
+  # Tissue-specific
+  ######
+
+  tissue$specific<-read_magma_tissue(config=config, gwas=gwas_i, type='specific')
+
+  ######
+  # Tissue-groups
+  ######
+
+  tissue$group<-read_magma_tissue(config=config, gwas=gwas_i, type='group')
+
   ################
   # Package results
   ################
@@ -198,7 +216,8 @@ for(gwas_i in gwas_list$name){
   output[[gwas_i]]<-list( gwas_qc=gwas_qc,
                           snp_assoc=snp_assoc,
                           mol_assoc=mol_assoc,
-                          tx=tx)
+                          tx=tx,
+                          tissue=tissue)
 
 }
 

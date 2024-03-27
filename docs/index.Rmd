@@ -1,5 +1,5 @@
 ---
-title: "GenoDiscover: Genomic Discovery Platform"
+title: "GenoDisc: Genomic Discovery Platform"
 output: html_document
 ---
 
@@ -15,7 +15,7 @@ Welcome! This website documents research regarding the analysis of GWAS summary 
 
 ### Projects:
 
-* [GenoDiscover - Pipeline: A drug target and drug repurposing pipeline](https://github.com/opain/GenoDiscover/tree/main/pipeline)
+* [GenoDisc - Pipeline: A drug target and drug repurposing pipeline](https://github.com/opain/GenoDisc/tree/main/pipeline)
 
 ***
 

@@ -5,9 +5,6 @@ channels:
   - defaults
 dependencies:
   - python=3.8
-  - pip
-  - pip:
-    - argparse
-    - pandas==1.5.3
-    - scipy
-    - numpy
+  - pandas=1.4.0
+  - scipy
+  - numpy

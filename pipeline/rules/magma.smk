@@ -8,7 +8,10 @@ rule download_magma:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/software/magma.zip https://ctg.cncr.nl/software/MAGMA/prog/magma_v1.10.zip; unzip resources/software/magma.zip -d resources/software/magma; rm resources/software/magma.zip"
+    "rm -r resources/software/magma; \
+    wget -O resources/software/magma.zip https://vu.data.surfsara.nl/index.php/s/zkKbNeNOZAhFXZB/download; \
+    unzip resources/software/magma.zip -d resources/software/magma; \
+    rm resources/software/magma.zip"
 
 ####
 # Download MAGMA gene locations
@@ -20,7 +23,10 @@ rule download_magma_gene_loc:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/aux_files/NCBI37.3.zip; unzip resources/data/magma.zip -d resources/data/magma; rm resources/data/magma.zip"
+    "rm -r resources/data/magma; \
+    wget -O resources/data/magma.zip https://vu.data.surfsara.nl/index.php/s/Pj2orwuF2JYyKxq/download; \
+    unzip resources/data/magma.zip -d resources/data/magma; \
+    rm resources/data/magma.zip"
 
 ####
 # Download MAGMA reference
@@ -32,7 +38,10 @@ rule download_magma_ref:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/data/magma.zip https://ctg.cncr.nl/software/MAGMA/ref_data/g1000_eur.zip; unzip resources/data/magma.zip -d resources/data/magma_ref; rm resources/data/magma.zip"
+    "rm -r resources/data/magma_ref; \
+    wget -O resources/data/magma.zip https://vu.data.surfsara.nl/index.php/s/VZNByNwpD8qqINe/download; \
+    unzip resources/data/magma.zip -d resources/data/magma_ref; \
+    rm resources/data/magma.zip"
 
 ####
 # Create MAGMA annotation file
@@ -64,7 +73,11 @@ rule download_atc:
   conda:
     "../envs/main.yaml"
   shell:
-    "wget -O resources/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; mkdir -p resources/data/atc; unzip resources/data/2022-02-01-v3extracts.zip -d resources/data/atc; rm resources/data/2022-02-01-v3extracts.zip"
+    "rm -r resources/data/atc; \
+    wget -O resources/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; \
+    mkdir -p resources/data/atc; \
+    unzip resources/data/2022-02-01-v3extracts.zip -d resources/data/atc; \
+    rm resources/data/2022-02-01-v3extracts.zip"
 
 ####
 # Download and format DrugTargetor database
@@ -76,7 +89,8 @@ rule download_drug_targetor:
   conda:
     "../envs/main.yaml"
   shell:
-    "mkdir -p resources/data/drug_targetor/ ; wget -O resources/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
+    "mkdir -p resources/data/drug_targetor/; \
+    wget -O resources/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
 
 rule format_drug_targetor:
   input:
@@ -88,6 +102,21 @@ rule format_drug_targetor:
     "../envs/main.yaml"
   shell:
     "Rscript scripts/format_drug_targetor.R"
+
+####
+# Download and format GTEx TPM data
+####
+
+rule prep_tissue_exp:
+  input:
+    rules.download_magma_gene_loc.output,
+    "scripts/prep_tissue_exp.R"
+  output:
+    "resources/data/gtex/GTEx_v8_group.tsv"
+  conda:
+    "../envs/main.yaml"
+  shell:
+    "Rscript scripts/prep_tissue_exp.R"
 
 ##########
 # Analyse GWAS summary statistics
@@ -107,7 +136,8 @@ rule magma_gene_level:
   conda: 
     "../envs/main.yaml"
   shell:
-    "gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; resources/software/magma/magma \
+    "gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; \
+    resources/software/magma/magma \
       --bfile resources/data/magma_ref/g1000_eur \
       --pval {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
       --gene-annot resources/data/magma/NCBI37.3.genes.annot \
@@ -175,6 +205,53 @@ rule comp_magma_gsea_twas_results:
       --gwas {wildcards.gwas} \
       --config_file {params.config_file}"
 
+# Perform tissue specific enrichment analysis
+rule magma_tissue_spec:
+  input:
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
+    "resources/data/gtex/GTEx_v8_group.tsv"
+  output:
+    "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out"
+  conda: 
+    "../envs/main.yaml"
+  shell:
+    "resources/software/magma/magma \
+      --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
+      --gene-covar resources/data/gtex/GTEx_v8_tissue.tsv \
+      --model direction-covar=greater condition-hide=Average \
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_spec"
+
+# Perform tissue group enrichment analysis
+rule magma_tissue_group:
+  input:
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
+    "resources/data/gtex/GTEx_v8_group.tsv"
+  output:
+    "{outdir}/results/{gwas}/magma/magma_tissue_group.gsa.out"
+  conda: 
+    "../envs/main.yaml"
+  shell:
+    "resources/software/magma/magma \
+      --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
+      --gene-covar resources/data/gtex/GTEx_v8_group.tsv \
+      --model direction-covar=greater condition-hide=Average \
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_group"
+
+# Perform conditional analysis of tissues
+rule magma_tissue_conditional:
+  input:
+    "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out",
+    "scripts/magma_tissue_conditional.R"
+  output:
+    touch("{outdir}/results/{gwas}/magma/magma_property_conditional.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file= config['config_file']
+  shell:
+    "Rscript scripts/magma_tissue_conditional.R \
+      --config_file {params.config_file} \
+      --gwas {wildcards.gwas}"
 
 
 

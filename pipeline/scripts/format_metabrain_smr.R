@@ -25,14 +25,7 @@ Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensemb
 
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]
 
-# Read in snakefile to find cofgi file
-snakefile<-readLines('Snakefile')
-
 # Read in config file
-configfile<-snakefile[grepl('config', snakefile)]
-configfile<-gsub('\"','',gsub('.* \\"','',configfile))
-config<-readLines(configfile)
-
 smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
 smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
 smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"

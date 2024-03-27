@@ -1,4 +1,4 @@
-# GenoDiscover: Genomic Discovery Platform
+# GenoDisc: Genomic Discovery Platform
 
 This is a snakemake pipeline for running a range of genome-wide association study (GWAS) summary statistic-based analyses. Analyses can be split into three parts:
 
@@ -20,7 +20,7 @@ Part 3: Drug finding analyses
   * Identify drugs that reverse diseases gene expression
   * Identify enriched ATC classifications
 
-The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoDiscovery/example_report.html).
+The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoDiscy/example_report.html).
 
 ### Using the pipeline
 
@@ -39,8 +39,8 @@ Alternatively, users can download the pipeline and run analyses [locally](#local
 #### Step 1: Clone the repository.
 
 ```bash
-git clone https://github.com/opain/GenoDiscover.git
-cd GenoDiscover/pipeline
+git clone https://github.com/opain/GenoDisc.git
+cd GenoDisc/pipeline
 ```
 
 #### Step 2: Install [Anaconda](https://conda.io/en/latest/miniconda.html).
@@ -51,13 +51,14 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 sh Miniconda3-latest-Linux-x86_64.sh
 ```
 
-Install Python 3.8, Snakemake 5.32, and the basic project dependencies. Note. I am installing these packages in an environment called 'base', if you already have an environment called 'base', you may need to create a new environment to avoid conflicts.
+Install Python 3.8, Snakemake 7.6.2, and the basic project dependencies. Note. I am installing these packages in an environment called 'base', if you already have an environment called 'base', you may need to create a new environment to avoid conflicts.
 
 ```bash
 conda activate base
 conda install python=3.8
 conda install -c conda-forge mamba
-mamba install -c bioconda -c conda-forge snakemake-minimal==5.32.2
+mamba install -c bioconda -c conda-forge snakemake=7.6.2
+mamba install 'tabulate=0.8.10'
 mamba install pandas
 ```
 
@@ -76,15 +77,15 @@ tar -xf test_data.tar.gz
 rm test_data.tar.gz
 ```
 
-#### Step 5: Run pipeline for Coronary Artery Disease GWAS (COAD01).
+#### Step 5: Run pipeline
 
 ```bash
-snakemake --profile slurm --use-conda results/COAD01/reports/COAD01_report.html
+snakemake --restart-times 3 --profile slurm --use-conda --conda-frontend mamba run_package_results
 ```
 
 > Note. If you receive an error saying 'MissingOutputException', you should try adding '--latency-wait 20' to the snakemake command, which tells the pipeline to wait 20 seconds between steps, thereby allowing filesystem latency.
 
-> Note. Please be patient when running the pipeline for the first time. Expect the 'downloading and installing remote packages' to take ~1 hour. It has to create the conda environment in first instance, which involves installing python and R and many packages. Expect this to take ~1 hour.
+> Note. Please be patient when running the pipeline for the first time. Expect the 'downloading and installing remote packages' to take ~1 hour. It has to create the conda environment in first instance, which involves installing python and R and many packages.
 
 ### Running pipeline using your own data
 
