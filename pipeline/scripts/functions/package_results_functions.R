@@ -496,7 +496,7 @@ read_twas_gsea_drug<-function(config, gwas){
 
   dat<-NULL
 
-  if(twas_gsea_drugtargetor_logical<-config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
+  if(config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
 
     atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
     names(atc)<-c('Code','Name')
