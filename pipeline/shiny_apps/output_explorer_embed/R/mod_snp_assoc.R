@@ -1,0 +1,126 @@
+#' SNP Associations module UI
+#'
+#' @param id Module namespace id
+#' @return UI elements for the SNP Associations tab
+snpAssocUI <- function(id) {
+  ns <- NS(id)
+
+  tabPanel(
+    title = "SNP Associations",
+    br(),
+    p("This tab shows SNP association results. Select the Lead variant tab below to view information for independent lead variants identified by either LD-based clumping or COJO. Select the Fine-mapping tab below to view SuSiE Finemaping results."),
+    hr(),
+    tabsetPanel(
+      tabPanel(
+        title = "Lead variants",
+        br(),
+        fluidPage(
+          sidebarPanel(
+            radioButtons(ns("clumping_type"), "Select method:",
+                         choices = c("COJO" = "cojo_analysis",
+                                     "LD-based clumping" = "ld_clumping"),
+                         selected = "cojo_analysis"),
+            radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
+                         choices = c("Genome-wide significance (p < 5e-8)" = 5e-8,
+                                     "Suggestive significance (p < 1e-5)" = 1e-5),
+                         selected = 5e-8),
+            width = 3
+          ),
+
+          mainPanel(
+            dataTableOutput(ns("snp_assoc_lead_table")),
+            width = 9
+          )
+        )
+      ),
+      tabPanel(
+        title = "Fine-mapping",
+        br(),
+        fluidPage(
+          sidebarPanel(
+            radioButtons(ns("l_param"), "Select L parameter:",
+                         choices = c("L1" = "L1",
+                                     "L10" = "L10"),
+                         selected = "L1"),
+            width = 3
+          ),
+
+          mainPanel(
+            dataTableOutput(ns("snp_assoc_finemap_table")),
+            width = 6
+          )
+        )
+      )
+    )
+  )
+}
+
+#' SNP Associations module server
+#'
+#' @param id Module namespace id
+#' @param gwas_data Reactive returning the loaded GWAS data list
+#' @param selected_gwas Reactive returning the currently selected GWAS name
+snpAssocServer <- function(id, gwas_data, selected_gwas) {
+  moduleServer(id, function(input, output, session) {
+
+    snp_assoc_lead_data <- reactive({
+      if (input$clumping_type == "ld_clumping") {
+        snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$clump
+      }
+
+      if (input$clumping_type == "cojo_analysis") {
+        snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$cojo
+      }
+
+      snp_assoc_lead <- snp_assoc_lead[, names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","NearestGene"), with = F]
+
+      snp_assoc_lead$P <- as.numeric(snp_assoc_lead$P)
+
+      snp_assoc_lead <- snp_assoc_lead[snp_assoc_lead$P < as.numeric(input$pvalue_threshold), ]
+
+      snp_assoc_lead$BETA <- round(snp_assoc_lead$BETA, 2)
+      snp_assoc_lead$SE <- round(snp_assoc_lead$SE, 2)
+
+      snp_assoc_lead <- snp_assoc_lead[order(snp_assoc_lead$CHR, snp_assoc_lead$BP), ]
+
+      return(snp_assoc_lead)
+    })
+
+    output$snp_assoc_lead_table <- renderDataTable({
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[7];",
+        "  $('td:eq(7)', row).html(x.toExponential(2));",
+        "}"
+      )
+
+      datatable(snp_assoc_lead_data(), rownames = F, width = 7, options = list(
+        rowCallback = JS(js),
+        columnDefs = list(list(className = 'dt-center', targets = 0:7),
+                          list(width = '60px', targets = 7),
+                          list(width = '600px', targets = 8))))
+    })
+
+    snp_assoc_finemap_data <- reactive({
+      if (input$l_param == "L1") {
+        snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L1
+      }
+
+      if (input$l_param == "L10") {
+        snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L10
+      }
+
+      snp_assoc_finemap$cs_log10bf <- NULL
+      snp_assoc_finemap$cs_avg_r2 <- NULL
+      snp_assoc_finemap$cs_min_r2 <- NULL
+      snp_assoc_finemap$TopPIP <- round(snp_assoc_finemap$TopPIP, 2)
+
+      return(snp_assoc_finemap)
+    })
+
+    output$snp_assoc_finemap_table <- renderDataTable({
+      datatable(snp_assoc_finemap_data(), rownames = F, width = 7, options = list(
+        columnDefs = list(list(className = 'dt-center', targets = 0:5))))
+    })
+  })
+}
