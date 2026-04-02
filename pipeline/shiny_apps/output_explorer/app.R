@@ -1893,6 +1893,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$drug$magma
+      if(is.null(tmp)) return(NULL)
       tmp$BETA<-round(tmp$BETA,3)
       tmp$SE<-round(tmp$SE,3)
 
@@ -1922,6 +1923,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
+      if(is.null(tmp)) return(NULL)
       tmp$Enrichment<-round(tmp$Enrichment, 3)
       tmp$SE<-round(tmp$SE, 3)
       tmp$Z<-round(tmp$Z, 3)
@@ -1952,6 +1954,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
+      if(is.null(tmp)) return(NULL)
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
 
@@ -1980,56 +1983,63 @@ server <- function(input, output, session) {
       ###
       magma_gs<-gwas_data()[[selected_gwas()]]$tx$drug$magma
 
-      # Convert one-sided p to a Z score
-      magma_gs$Z<--qnorm(magma_gs$P)
-      magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
-      magma_gs$Method<-'MAGMA'
-      magma_gs$Panel<-'MAGMA'
+      if(!is.null(magma_gs)){
+        # Convert one-sided p to a Z score
+        magma_gs$Z<--qnorm(magma_gs$P)
+        magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
+        magma_gs$Method<-'MAGMA'
+        magma_gs$Panel<-'MAGMA'
+      }
 
       ###
       # GCSC
       ###
       gcsc_gs<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
 
-      gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
-      gcsc_gs$Method<-'GCSC'
-      gcsc_gs$Panel<-'Brain and Blood'
+      if(!is.null(gcsc_gs)){
+        gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
+        gcsc_gs$Method<-'GCSC'
+        gcsc_gs$Panel<-'Brain and Blood'
+      }
 
       ###
       # TWAS-GSEA
       ###
 
       gsea_gs<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
-      gsea_gs$Method<-'TWAS-GSEA'
-      gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
-      gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
-      # Flip Z so >0 indicates reversal of GWAS outcome.
-      gsea_gs$Z<--gsea_gs$Z
 
-      # Insert missing values
-      gsea_gs_all<-gsea_gs
-      for(i in unique(gsea_gs_all$Panel)){
-        gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
-        gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
-        gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
-                                 Z=NA,
-                                 P=NA,
-                                 P.FDR=NA,
-                                 Method='TWAS-GSEA',
-                                 Panel=i,
-                                 ATC_Code=NA)
-        names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
+      if(!is.null(gsea_gs)){
+        gsea_gs$Method<-'TWAS-GSEA'
+        gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
+        gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
+        # Flip Z so >0 indicates reversal of GWAS outcome.
+        gsea_gs$Z<--gsea_gs$Z
 
-        gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+        # Insert missing values
+        gsea_gs_all<-gsea_gs
+        for(i in unique(gsea_gs_all$Panel)){
+          gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
+          gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
+          gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
+                                   Z=NA,
+                                   P=NA,
+                                   P.FDR=NA,
+                                   Method='TWAS-GSEA',
+                                   Panel=i,
+                                   ATC_Code=NA)
+          names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
 
+          gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+
+        }
+        gsea_gs<-gsea_gs_all
       }
-      gsea_gs<-gsea_gs_all
 
       ###
       # Combine results
       ###
 
-      all_gs<-do.call(rbind, list(magma_gs, gcsc_gs, gsea_gs))
+      all_gs<-do.call(rbind, Filter(Negate(is.null), list(magma_gs, gcsc_gs, gsea_gs)))
 
       return(all_gs)
     })
@@ -2285,6 +2295,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$magma
+      if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
 
@@ -2314,6 +2325,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
+      if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
 
@@ -2333,6 +2345,7 @@ server <- function(input, output, session) {
 
     output$tx_atc_twas_gsea_table<-renderDataTable({
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
+      if(is.null(tmp)) return(NULL)
 
       tmp$P.FDR_all<-p.adjust(tmp$P, method = 'fdr')
       tmp$P.FDR.onside_all<-p.adjust(tmp$P.oneside, method = 'fdr')
@@ -2382,14 +2395,16 @@ server <- function(input, output, session) {
 
       magma_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$magma
 
-      magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
-      magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
-      magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
-      magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
-      magma_gs_atc$Method<-'MAGMA'
-      magma_gs_atc$Panel<-'MAGMA'
+      if(!is.null(magma_gs_atc)){
+        magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
+        magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
+        magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
+        magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
+        magma_gs_atc$Method<-'MAGMA'
+        magma_gs_atc$Panel<-'MAGMA'
 
-      magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+        magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      }
 
       ###
       # GCSC
@@ -2397,14 +2412,16 @@ server <- function(input, output, session) {
 
       gcsc_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
 
-      gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
-      gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
-      gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
-      gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
-      gcsc_gs_atc$Method<-'GCSC'
-      gcsc_gs_atc$Panel<-'GCSC'
+      if(!is.null(gcsc_gs_atc)){
+        gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
+        gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
+        gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
+        gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
+        gcsc_gs_atc$Method<-'GCSC'
+        gcsc_gs_atc$Panel<-'GCSC'
 
-      gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+        gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      }
 
       ###
       # TWAS-GSEA
@@ -2412,37 +2429,39 @@ server <- function(input, output, session) {
 
       gsea_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
 
-      gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
-      gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
+      if(!is.null(gsea_gs_atc)){
+        gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
+        gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
 
-      gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
-      gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
-      gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
-      gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
-      gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
+        gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
+        gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
+        gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
+        gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
+        gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
 
-      gsea_gs_atc$Method<-'TWAS-GSEA'
+        gsea_gs_atc$Method<-'TWAS-GSEA'
 
-      gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+        gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
 
-      # Insert missing values
-      gsea_gs_atc_all<-gsea_gs_atc
-      for(i in unique(gsea_gs_atc_all$Panel)){
-        gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
-        gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
-        gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
-                                     Z =NA,
-                                     FDR_Sig=NA,
-                                     Nom_Sig=NA,
-                                     Method='TWAS-GSEA',
-                                     Panel=i)
+        # Insert missing values
+        gsea_gs_atc_all<-gsea_gs_atc
+        for(i in unique(gsea_gs_atc_all$Panel)){
+          gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
+          gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
+          gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
+                                       Z =NA,
+                                       FDR_Sig=NA,
+                                       Nom_Sig=NA,
+                                       Method='TWAS-GSEA',
+                                       Panel=i)
 
-        gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+          gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
 
+        }
+        gsea_gs_atc<-gsea_gs_atc_all
       }
-      gsea_gs_atc<-gsea_gs_atc_all
 
-      all_gs_atc<-do.call(rbind, list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc))
+      all_gs_atc<-do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc)))
 
       return(all_gs_atc)
     })

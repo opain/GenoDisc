@@ -74,7 +74,8 @@ rule download_psychENCODE_weights:
 rule format_psychencode:
   input:
     psychencode_data=rules.download_psychENCODE_weights.output,
-    weights_pipe=rules.install_snp_weight_pipe.output
+    weights_pipe=rules.install_snp_weight_pipe.output,
+    biomart=rules.download_biomart.output
   output:
     "resources/data/format_psychencode.done"
   conda:
@@ -97,7 +98,8 @@ rule download_gtex_weights:
 # Update GTEx v8 P0 and P1 to build GRCh 37
 rule update_gtex_coord:
   input:
-    "resources/data/download_fusion_gtex_{weight}_weights.done"
+    "resources/data/download_fusion_gtex_{weight}_weights.done",
+    rules.download_biomart.output
   output:
     touch("resources/data/update_gtex_coord_{weight}.done")
   conda:
@@ -123,7 +125,8 @@ rule download_non_gtex_weights:
 # Insert N into non-GTEX SNP-weights
 rule insert_n_nongtex:
   input:
-    "resources/data/download_non_gtex_{weight}_weights.done"
+    "resources/data/download_non_gtex_{weight}_weights.done",
+    rules.download_biomart.output
   output:
     touch("resources/data/insert_n_nongtex_{weight}.done")
   conda:
@@ -218,17 +221,27 @@ weights_nosplice=copy.copy(weights)
 if "CMC.BRAIN.RNASEQ_SPLICING" in weights_nosplice:
     weights_nosplice.remove("CMC.BRAIN.RNASEQ_SPLICING")
 
+def feature_pred_input(wildcards):
+    inputs = [
+        "resources/software/Predicting-TWAS-features/",
+        "resources/software/pigz/pigz/pigz"
+    ]
+    w = wildcards.weight
+    if w == "psychencode":
+        inputs.append("resources/data/format_psychencode.done")
+    elif w in gtex_weights:
+        inputs.append(f"resources/data/update_gtex_coord_{w}.done")
+    elif w in non_gtex_weights:
+        inputs.append(f"resources/data/insert_n_nongtex_{w}.done")
+    return inputs
+
 # Modify panel column in .pos file
 rule feature_pred:
   resources:
     mem_mb=50000,
     cpus=5
   input:
-    rules.install_feature_pred.output,
-    rules.format_psychencode.output,
-    rules.update_gtex_coord_all_panel.input,
-    rules.insert_n_nongtex_all_panel.input,
-    rules.install_pigz.output
+    feature_pred_input
   output:
     "resources/data/predicted_expression/{weight}/Reference_Expression/Reference_Expression_{weight}.txt.gz"
   conda:
@@ -344,7 +357,8 @@ rule twas_all_panel:
 # Delete conditional results folder to avoid conflicts during reruns
 checkpoint combine_twas_res:
   input:
-    "{outdir}/results/{gwas}/checks/twas_all_panel.done"
+    "{outdir}/results/{gwas}/checks/twas_all_panel.done",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   conda:
@@ -355,7 +369,7 @@ checkpoint combine_twas_res:
     "Rscript scripts/combine_twas.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file}; \
-      rm -r {outdir}/results/{wildcards.gwas}/twas/conditional"
+      rm -rf {outdir}/results/{wildcards.gwas}/twas/conditional"
 
 # Identify chromosomes with significant associations
 from pathlib import Path

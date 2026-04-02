@@ -24,10 +24,8 @@ outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
 
 # Read in gene locations
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('external_gene_name','chromosome_name','start_position','end_position'), mart = ensembl)
+biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+Genes<-biomart[,c('external_gene_name','chromosome_name','start_position','end_position')]
 
 # Use 10kb window to define gene window
 gene_window<-0

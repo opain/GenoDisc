@@ -36,7 +36,8 @@ rule finemap_all_chr:
 
 rule process_finemap:
   input:
-    "{outdir}/results/{gwas}/checks/finemap_all_chr.done"
+    "{outdir}/results/{gwas}/checks/finemap_all_chr.done",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
   conda:

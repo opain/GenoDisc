@@ -18,10 +18,9 @@ config<-readLines(opt$config_file)
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
+biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
+Genes<-Genes[!duplicated(Genes),]
 
 Genes<-Genes[!duplicated(Genes$external_gene_name),]
 

@@ -99,7 +99,8 @@ checkpoint prep_set_gcsc:
   input:
     "{outdir}/results/{gwas}/checks/gcsc_twas_all_panel.done",
     rules.download_drug_targetor.output,
-    rules.install_gcsc.output
+    rules.install_gcsc.output,
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/gcsc/drugtargetor_gcsc_sets.nset.txt"
   conda: 

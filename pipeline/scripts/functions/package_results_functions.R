@@ -3,7 +3,7 @@
 process_cleaner_log<-function(config, gwas){
 
   # Identify outdir
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   # Create empty list to store output
   dat<-list()
@@ -15,7 +15,7 @@ process_cleaner_log<-function(config, gwas){
   dat$val<-list()
 
   # Identify number of variants in original GWAS file
-  dat$val$n_var_orig<-as.numeric(gsub(' variants.','',gsub('GWAS contains ','',dat$log[grepl('GWAS contains ', dat$log)])))
+  dat$val$n_var_orig<-as.numeric(gsub(' variants.','',gsub('GWAS contains ','',dat$log[grepl('GWAS contains \\d+ variants\\.', dat$log)])))
 
   # Identify the genome build identified in the GWAS
   dat$val$build<-extract_build(dat$log)
@@ -27,19 +27,20 @@ process_cleaner_log<-function(config, gwas){
 }
 
 extract_build<-function(x){
-  build_match<-data.table(t(matrix(unlist(strsplit(x[grepl('match: ', x)], ' match: ')), nrow=2)))
-  build_match$V2<-as.numeric(gsub('%','',build_match$V2))/100
+  match_lines<-x[grepl('match: ', x)]
+  build_names<-gsub(' match:.*','',match_lines)
+  target_pct<-as.numeric(gsub('%.*','',gsub('.* match: ','',match_lines)))/100
 
   best_match<-list()
-  best_match$build<-build_match$V1[build_match$V2 == max(build_match$V2)]
-  best_match$overlap<-build_match$V2[build_match$V2 == max(build_match$V2)]
+  best_match$build<-build_names[which.max(target_pct)]
+  best_match$overlap<-max(target_pct)
 
   return(best_match)
 }
 
 process_focus_log<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-list()
 
@@ -55,11 +56,11 @@ process_focus_log<-function(config, gwas){
 
 process_ldsc_log<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('ldsc:',config)] == "ldsc: T"){
+  if(read_param(config = config, param = 'ldsc', return_obj = F) == "T"){
 
     dat<-list()
 
@@ -110,11 +111,11 @@ tidy_panel_names<-function(x){
 
 read_fusion_exp<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   # Check whether TWAS was performed
-  twas_panel_psychencode_logical<-config[grepl('twas_panel_psychencode:',config)] == "twas_panel_psychencode: T"
-  twas_panel_fusion_logical<-config[grepl('twas_panel_fusion:',config)] == "twas_panel_fusion: T"
+  twas_panel_psychencode_logical<-read_param(config = config, param = 'twas_panel_psychencode', return_obj = F) == "T"
+  twas_panel_fusion_logical<-read_param(config = config, param = 'twas_panel_fusion', return_obj = F) == "T"
   twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical)
 
   dat<-NULL
@@ -124,23 +125,19 @@ read_fusion_exp<-function(config, gwas){
     dat<-list()
 
     # Identify TWAS panels included
-    gtex_weights<-config[grepl('^gtex_weights', config)]
-    gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',gtex_weights))),','))
-
-    non_gtex_weights<-config[grepl('^non_gtex_weights', config)]
-    non_gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',non_gtex_weights))),','))
+    gtex_weights <- read_param(config = config, param = 'gtex_weights', return_obj = F)
+    non_gtex_weights <- read_param(config = config, param = 'non_gtex_weights', return_obj = F)
 
     twas_weights<-c(gtex_weights, non_gtex_weights)
 
-    psychencode_weights_log<-config[grepl('^twas_panel_psychencode:', config)]
-    if(psychencode_weights_log == "twas_panel_psychencode: T"){
+    if(twas_panel_psychencode_logical){
         twas_weights<-c(twas_weights, 'psychencode')
     }
 
-    external_weights_log<-config[grepl('^external_weights:', config)]
-    if(external_weights_log == "external_weights: T"){
-        external_weights<-config[grepl('^external_weights_pos_path', config)]
-        external_weights<-gsub('.pos','',basename(unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',external_weights))),','))))
+    external_weights_flag <- read_param(config = config, param = 'external_weights', return_obj = F)
+    if(external_weights_flag == "T"){
+        external_weights_pos_path <- read_param(config = config, param = 'external_weights_pos_path', return_obj = F)
+        external_weights <- gsub('.pos','',basename(external_weights_pos_path))
         twas_weights<-c(twas_weights, external_weights)
     }
 
@@ -218,10 +215,10 @@ read_pwas<-function(outdir, gwas, panel){
 
 read_fusion_protein<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
-  pwas_panel_rosmap_logical<-config[grepl('pwas_panel_rosmap:',config)] == "pwas_panel_rosmap: T"
-  pwas_panel_banner_logical<-config[grepl('pwas_panel_banner:',config)] == "pwas_panel_banner: T"
+  pwas_panel_rosmap_logical<-read_param(config = config, param = 'pwas_panel_rosmap', return_obj = F) == "T"
+  pwas_panel_banner_logical<-read_param(config = config, param = 'pwas_panel_banner', return_obj = F) == "T"
 
   dat<-NULL
 
@@ -265,18 +262,18 @@ read_fusion_protein<-function(config, gwas){
 
 read_smr_exp<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   # Check whether SMR with expression data was performed
-  smr_expression_panel_psychencode_logical<-config[grepl('smr_expression_panel_psychencode:',config)] == "smr_expression_panel_psychencode: T"
+  smr_expression_panel_psychencode_logical<-read_param(config = config, param = 'smr_expression_panel_psychencode', return_obj = F) == "T"
 
-  smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
-  smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
-  smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"
-  smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
-  smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
+  smr_expression_panel_metabrain_basalganglia_logical<-read_param(config = config, param = 'smr_expression_panel_metabrain_basalganglia', return_obj = F) == "T"
+  smr_expression_panel_metabrain_cerebellum_logical<-read_param(config = config, param = 'smr_expression_panel_metabrain_cerebellum', return_obj = F) == "T"
+  smr_expression_panel_metabrain_cortex_logical<-read_param(config = config, param = 'smr_expression_panel_metabrain_cortex', return_obj = F) == "T"
+  smr_expression_panel_metabrain_hippocampus_logical<-read_param(config = config, param = 'smr_expression_panel_metabrain_hippocampus', return_obj = F) == "T"
+  smr_expression_panel_metabrain_spinalcord_logical<-read_param(config = config, param = 'smr_expression_panel_metabrain_spinalcord', return_obj = F) == "T"
 
-  smr_expression_panel_eqtlgen_logical<-config[grepl('smr_expression_panel_eqtlgen:',config)] == "smr_expression_panel_eqtlgen: T"
+  smr_expression_panel_eqtlgen_logical<-read_param(config = config, param = 'smr_expression_panel_eqtlgen', return_obj = F) == "T"
 
   metabrain_logical<-any(smr_expression_panel_metabrain_basalganglia_logical,
                           smr_expression_panel_metabrain_cerebellum_logical,
@@ -426,11 +423,11 @@ read_smr_exp<-function(config, gwas){
 
 read_smr_protein<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('smr_protein_panel_rosmap:',config)] == "smr_protein_panel_rosmap: T"){
+  if(read_param(config = config, param = 'smr_protein_panel_rosmap', return_obj = F) == "T"){
     # Insert panel information
     dat$panels<-data.frame( Type='Protein',
                             Software='SMR',
@@ -457,11 +454,11 @@ read_smr_protein<-function(config, gwas){
 
 read_magma_gene<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('magma_gene:',config)] == "magma_gene: T"){
+  if(read_param(config = config, param = 'magma_gene', return_obj = F) == "T"){
     dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_gene_level.clean.csv'))
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
     dat<-dat[order(dat$CHR, dat$START),]
@@ -492,11 +489,11 @@ identify_nearest<-function(x){
 
 read_twas_gsea_drug<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
+  if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) == "T"){
 
     atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
     names(atc)<-c('Code','Name')
@@ -540,11 +537,11 @@ read_twas_gsea_drug<-function(config, gwas){
 
 read_twas_gsea_atc<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('twas_gsea_drugtargetor:',config)] == "twas_gsea_drugtargetor: T"){
+  if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) == "T"){
 
     weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
     weights<-weights[!grepl('SPLIC',weights)]
@@ -573,11 +570,11 @@ read_twas_gsea_atc<-function(config, gwas){
 
 read_magma_drug<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('magma_drugtargetor:',config)] == "magma_drugtargetor: T"){
+  if(read_param(config = config, param = 'magma_drugtargetor', return_obj = F) == "T"){
 
     atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
     names(atc)<-c('Code','Name')
@@ -615,11 +612,11 @@ insert_atc_desc <- function(x, replacement_df) {
 
 read_gcsc<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('gcsc:',config)] == "gcsc: T"){
+  if(read_param(config = config, param = 'gcsc', return_obj = F) == "T"){
 
     atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
     names(atc)<-c('Code','Name')
@@ -652,11 +649,11 @@ read_gcsc<-function(config, gwas){
 
 read_magma_drug_atc<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('magma_drugtargetor:',config)] == "magma_drugtargetor: T"){
+  if(read_param(config = config, param = 'magma_drugtargetor', return_obj = F) == "T"){
 
     dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_atc_res.csv'))
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
@@ -672,11 +669,11 @@ read_magma_drug_atc<-function(config, gwas){
 
 read_gcsc_atc<-function(config, gwas){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('gcsc:',config)] == "gcsc: T"){
+  if(read_param(config = config, param = 'gcsc', return_obj = F) == "T"){
 
     dat<-fread(paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res_atc.csv'))
 
@@ -693,11 +690,11 @@ read_gcsc_atc<-function(config, gwas){
 
 read_magma_tissue<-function(config, gwas, type){
 
-  outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(config[grepl('tissue_magma:',config)] == "tissue_magma: T"){
+  if(read_param(config = config, param = 'tissue_magma', return_obj = F) == "T"){
     dat<-list()
 
     if(type == 'specific'){

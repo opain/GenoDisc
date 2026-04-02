@@ -222,7 +222,8 @@ rule run_eqtlgen_smr_chr:
 # Format SMR eQTLGen results
 rule format_eqtlgen_smr:
   input:
-    "{outdir}/results/{gwas}/checks/eqtlgen_smr_all_chr.done"
+    "{outdir}/results/{gwas}/checks/eqtlgen_smr_all_chr.done",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz"
   conda: 
@@ -262,7 +263,8 @@ rule run_rosmap_smr_chr:
 # Format rosmap smr results
 rule process_rosmap_smr:
   input:
-    "{outdir}/results/{gwas}/checks/rosmap_smr_all_chr.done"
+    "{outdir}/results/{gwas}/checks/rosmap_smr_all_chr.done",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz"
   conda: 
@@ -355,7 +357,8 @@ if config["smr_expression_panel_metabrain_spinalcord"] == "T":
 rule format_metabrain_smr:
   input:
     metabrain_output,
-    "scripts/format_metabrain_smr.R"
+    "scripts/format_metabrain_smr.R",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"
   conda: 

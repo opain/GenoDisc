@@ -9,9 +9,9 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 # Read in gene locations from build GRCh37
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-Genes<-getBM(attributes=c('ensembl_gene_id','chromosome_name','start_position','end_position'), mart = ensembl)
+biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','chromosome_name','start_position','end_position')]
+Genes<-Genes[!duplicated(Genes),]
 
 library(data.table)
 

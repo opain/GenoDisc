@@ -5,10 +5,9 @@ IDs<-list.files('resources/data/fusion_snp_weights/psychencode/psychencode')
 IDs<-IDs[grepl('.wgt.RDat', IDs)]
 IDs<-gsub('.wgt.RDat','',IDs)
 
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('ensembl_gene_id','chromosome_name','start_position','end_position'), mart = ensembl)
+biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','chromosome_name','start_position','end_position')]
+Genes<-Genes[!duplicated(Genes),]
 Genes<-Genes[(Genes$ensembl_gene_id %in% IDs),]
 Genes$chromosome_name<-as.numeric(Genes$chromosome_name)
 Genes<-Genes[,c("chromosome_name","start_position","end_position","ensembl_gene_id")]

@@ -109,6 +109,11 @@ gwas_list_df = pd.read_table(config["gwas_list"], sep=' ')
 gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 
 rule sumstat_prep_i:
+  resources:
+    mem_mb=lambda wildcards, input: max(
+      4000,
+      int(15 * os.path.getsize(input[2]) / 1024**2)
+    )
   input:
     rules.prep_1kg.output,
     rules.install_genoutils.output,
@@ -221,7 +226,8 @@ rule clump_all_chr:
 
 rule process_clump:
   input:
-    "{outdir}/results/{gwas}/checks/clump_all_chr.done"
+    "{outdir}/results/{gwas}/checks/clump_all_chr.done",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   conda:
@@ -273,7 +279,8 @@ rule cojo_all_chr:
 
 rule process_cojo:
   input:
-    "{outdir}/results/{gwas}/checks/cojo_all_chr.done"
+    "{outdir}/results/{gwas}/checks/cojo_all_chr.done",
+    rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv"
   conda:

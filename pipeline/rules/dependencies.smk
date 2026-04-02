@@ -95,3 +95,15 @@ else:
             print("Proceeding with version update due to overwrite=true config.")
             write_last_version(current_major, current_minor)  # Update the stored version
 
+####
+# Download BioMart gene annotations
+####
+
+rule download_biomart:
+  output:
+    "resources/data/biomart/biomart_genes_grch37.tsv"
+  conda:
+    "../envs/main.yaml"
+  shell:
+    "Rscript scripts/download_biomart.R"
+

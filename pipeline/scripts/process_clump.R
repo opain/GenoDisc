@@ -41,10 +41,8 @@ col_order<-col_order[!is.na(col_order)]
 ss_subset<-ss_subset[,col_order,with=F]
 
 # Insert nearest gene information
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('external_gene_name','chromosome_name','start_position','end_position'), mart = ensembl)
+biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+Genes<-biomart[,c('external_gene_name','chromosome_name','start_position','end_position')]
 
 window<-50000
 

@@ -20,9 +20,8 @@ pos$PANEL<-opt$panel
 pos$N<-panels$N[panels$panel == opt$panel]
 
 # Convert IDs to ENSEMBL IDs
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name','external_synonym'), mart = ensembl)
+biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','external_gene_name','external_synonym')]
 
 pos_1<-merge(pos,Genes[,c('ensembl_gene_id','external_gene_name')], by.x='ID', by.y='external_gene_name')
 pos_2<-merge(pos,Genes[,c('ensembl_gene_id','external_synonym')], by.x='ID', by.y='external_synonym')
