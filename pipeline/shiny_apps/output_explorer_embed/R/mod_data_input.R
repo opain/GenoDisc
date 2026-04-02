@@ -38,7 +38,17 @@ dataInputServer <- function(id) {
 
     gwas_data <- reactive({
       req(rds_path() != '')
-      readRDS(rds_path())
+      rds <- tryCatch(readRDS(rds_path()), error = function(e) NULL)
+      if (is.null(rds)) {
+        showNotification("Could not read the uploaded file. Please ensure it is a valid .rds file.", type = "error")
+        req(FALSE)
+      }
+      err <- validate_rds(rds)
+      if (!is.null(err)) {
+        showNotification(err, type = "error")
+        req(FALSE)
+      }
+      rds
     })
 
     observeEvent(gwas_data(), {

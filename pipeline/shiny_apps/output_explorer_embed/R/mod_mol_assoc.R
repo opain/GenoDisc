@@ -11,25 +11,22 @@ molAssocUI <- function(id) {
     p("This tab shows molecular association results. Select the tabs below to see a summary of results across methods, or method-specific results tables."),
     hr(),
     tabsetPanel(
+      id = ns("mol_assoc_tabset"),
       tabPanel(
         title = "Summary",
         br(),
-
         fluidPage(
           sidebarPanel(
             selectInput(ns("selected_methods_mol"), "Select methods", "", multiple = T),
             selectInput(ns("selected_expr_panels_mol"), "Select expression panels", "", multiple = T),
             selectInput(ns("selected_protein_panels_mol"), "Select protein panels", "", multiple = T),
             radioButtons(ns("conf_only_mol"), "Show high-confidence only :",
-                         choices = c("True" = T,
-                                     "False" = F),
-                         selected = T),
+                         choices = c("True" = T, "False" = F), selected = T),
             textInput(ns("geneInput_mol"), "Enter gene symbols (whitespace- or comma-seperated):"),
             hr(),
             h5('Select high confidence criteria:'),
             selectInput(ns("selected_group_hc_mol"), "Select methods", "", multiple = T)
           ),
-
           mainPanel(
             uiOutput(ns("message_too_large_mol")),
             uiOutput(ns("message_no_genes_mol")),
@@ -37,83 +34,29 @@ molAssocUI <- function(id) {
           )
         )
       ),
-      tabPanel(
-        title = "MAGMA",
-        br(),
-        p("This tab shows MAGMA gene association results."),
-        hr(),
-        br(),
-        fluidRow(
-          column(width = 6,
-                 dataTableOutput(ns("mol_assoc_magma_table"))
-          )
-        ),
-        br()
+      tabPanel(title = "MAGMA", br(),
+        p("This tab shows MAGMA gene association results."), hr(), br(),
+        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))), br()
       ),
-      tabPanel(
-        title = "Expression - FUSION",
-        br(),
-        p("This tab shows differential expression association results from FUSION."),
-        hr(),
-        br(),
-        fluidRow(
-          column(width = 9,
-                 dataTableOutput(ns("mol_assoc_fusion_expr_table"))
-          )
-        ),
-        br()
+      tabPanel(title = "Expression - FUSION", br(),
+        p("This tab shows differential expression association results from FUSION."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))), br()
       ),
-      tabPanel(
-        title = "Protein - FUSION",
-        br(),
-        p("This tab shows differential protein level association results from FUSION."),
-        hr(),
-        br(),
-        fluidRow(
-          column(width = 9,
-                 dataTableOutput(ns("mol_assoc_fusion_protein_table"))
-          )
-        ),
-        br()
+      tabPanel(title = "Protein - FUSION", br(),
+        p("This tab shows differential protein level association results from FUSION."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))), br()
       ),
-      tabPanel(
-        title = "Expression - SMR",
-        br(),
-        p("This tab shows differential expression association results from SMR"),
-        hr(),
-        br(),
-        fluidRow(
-          column(width = 9,
-                 dataTableOutput(ns("mol_assoc_smr_expr_table"))
-          )
-        ),
-        br()
+      tabPanel(title = "Expression - SMR", br(),
+        p("This tab shows differential expression association results from SMR"), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))), br()
       ),
-      tabPanel(
-        title = "Protein - SMR",
-        br(),
-        p("This tab shows differential protein level association results from SMR"),
-        hr(),
-        br(),
-        fluidRow(
-          column(width = 9,
-                 dataTableOutput(ns("mol_assoc_smr_protein_table"))
-          )
-        ),
-        br()
+      tabPanel(title = "Protein - SMR", br(),
+        p("This tab shows differential protein level association results from SMR"), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))), br()
       ),
-      tabPanel(
-        title = "Panel Info.",
-        br(),
-        p("This tab shows the number of features and individuals for each panel."),
-        hr(),
-        br(),
-        fluidRow(
-          column(width = 7,
-                 dataTableOutput(ns("panel_info_table"))
-          )
-        ),
-        br()
+      tabPanel(title = "Panel Info.", br(),
+        p("This tab shows the number of features and individuals for each panel."), hr(), br(),
+        fluidRow(column(width = 7, dataTableOutput(ns("panel_info_table")))), br()
       )
     )
   )
@@ -127,12 +70,56 @@ molAssocUI <- function(id) {
 #' @param config_flags Reactive returning a list from parse_config_flags()
 molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
   moduleServer(id, function(input, output, session) {
+    ns <- session$ns
+
+    ########
+    # Show/hide tabs based on config
+    ########
+
+    observeEvent(config_flags(), {
+      cf <- config_flags()
+      tab_id <- "mol_assoc_tabset"
+      if (!cf$magma_gene) hideTab(tab_id, "MAGMA")
+      if (!cf$twas) hideTab(tab_id, "Expression - FUSION")
+      if (!any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) hideTab(tab_id, "Protein - FUSION")
+      if (!cf$smr_expression) hideTab(tab_id, "Expression - SMR")
+      if (!cf$smr_protein_panel_rosmap) hideTab(tab_id, "Protein - SMR")
+    })
+
+    ########
+    # Update selectInputs when summary data changes
+    ########
+
+    observe({
+      all_func_res <- mol_assoc_summary_data()
+      req(all_func_res)
+
+      methods <- unique(all_func_res$Method)
+      updateSelectInput(session, "selected_methods_mol", choices = methods, selected = methods)
+
+      expr_panels <- unique(all_func_res$Panel[all_func_res$Type == 'Expr.' | all_func_res$Type == 'Splice'])
+      updateSelectInput(session, "selected_expr_panels_mol", choices = expr_panels, selected = expr_panels)
+
+      protein_panels <- unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
+      updateSelectInput(session, "selected_protein_panels_mol", choices = protein_panels, selected = protein_panels)
+
+      res_group <- paste0(all_func_res$Method, '\n', all_func_res$Type)
+      res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
+      res_group[res_group == 'MAGMA\n'] <- 'MAGMA'
+      res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
+
+      hc_groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice', 'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein')
+      hc_groups <- hc_groups[hc_groups %in% res_group]
+
+      updateSelectInput(session, "selected_group_hc_mol", choices = hc_groups, selected = hc_groups)
+    })
 
     ########
     # Individual method tables
     ########
 
     output$mol_assoc_magma_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[4];",
@@ -150,6 +137,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$mol_assoc_fusion_expr_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -177,6 +165,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$mol_assoc_fusion_protein_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -204,6 +193,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$mol_assoc_smr_expr_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -233,6 +223,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$mol_assoc_smr_protein_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -266,6 +257,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     ########
 
     output$panel_info_table <- renderDataTable({
+      req(gwas_data(), selected_gwas(), config_flags())
       cf <- config_flags()
 
       all_panel_info <- NULL
@@ -304,155 +296,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     ########
 
     mol_assoc_summary_data <- reactive({
-      cf <- config_flags()
-
-      all_func_res <- NULL
-
-      if (cf$finemap) {
-
-        finemap_L1_tmp <- data.frame(Panel = "SuSie (L=1)",
-                                     ID = gwas_data()[[selected_gwas()]]$mol_assoc$finemap$L1,
-                                     Z = 1,
-                                     Sig = F,
-                                     Coloc = F,
-                                     Method = "SNP\nFine-mapping",
-                                     Type = '')
-
-        all_func_res <- rbind(all_func_res, finemap_L1_tmp)
-
-      }
-
-      if (cf$twas) {
-
-        twas_tmp <- data.table(Panel = gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$PANEL,
-                               ID = gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$`Gene Symbol`,
-                               Z = gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$TWAS.Z,
-                               Sig = gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$TWAS.P.FDR < 0.05,
-                               Coloc = gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res$COLOC_logical)
-
-        twas_tmp$Method <- 'FUSION'
-        twas_tmp$Type <- 'Expr.'
-        twas_tmp$Type[grepl('SPLIC', twas_tmp$Panel, ignore.case = T)] <- 'Splice'
-
-        # Retain only the most significant assoc for each gene within PANEL (only relevent for splice panel)
-        twas_tmp <- twas_tmp[order(-abs(twas_tmp$Z)), ]
-        twas_tmp <- twas_tmp[!duplicated(paste0(twas_tmp$Panel, twas_tmp$ID)), ]
-
-        twas_tmp$Type <- factor(twas_tmp$Type, levels = c('Expr.', 'Splice'))
-        twas_tmp <- twas_tmp[order(twas_tmp$Type), ]
-
-        all_func_res <- rbind(all_func_res, twas_tmp)
-      }
-
-      if (cf$smr_expression) {
-        # SMR expression
-        smr_expr_id <- gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$`Gene Symbol`
-        smr_expr_id[is.na(smr_expr_id)] <- gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$`Ensembl ID`[is.na(smr_expr_id)]
-        smr_expression_res_tmp <- data.table(Panel = gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$PANEL,
-                                             ID = smr_expr_id,
-                                             Z = gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$b_SMR / gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$se_SMR,
-                                             Sig = gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$p_SMR.FDR < 0.05,
-                                             Coloc = gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$p_HEIDI > 0.05)
-
-        smr_expression_res_tmp$Method <- 'SMR'
-        smr_expression_res_tmp$Type <- 'Expr.'
-
-        all_func_res <- rbind(all_func_res, smr_expression_res_tmp)
-      }
-
-      # PWAS
-      if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) {
-
-        pwas_tmp <- data.table(Panel = gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$PANEL,
-                               ID = gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$`Gene Symbol`,
-                               Z = gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$pwas_all.Z,
-                               Sig = gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$pwas_all.P.FDR < 0.05,
-                               Coloc = gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res$COLOC_logical)
-
-        pwas_tmp <- pwas_tmp[order(-abs(pwas_tmp$Z)), ]
-        pwas_tmp <- pwas_tmp[!duplicated(paste0(pwas_tmp$Panel, pwas_tmp$ID)), ]
-        pwas_tmp$Method <- 'FUSION'
-        pwas_tmp$Type <- 'Protein'
-
-        all_func_res <- rbind(all_func_res, pwas_tmp)
-      }
-
-      if (cf$smr_protein_panel_rosmap) {
-
-        # SMR protein
-        smr_protein_res_tmp <- data.table(Panel = gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$PANEL,
-                                          ID = gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$`Gene Symbol`,
-                                          Z = gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$b_SMR / gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$se_SMR,
-                                          Sig = gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$p_SMR.FDR < 0.05,
-                                          Coloc = gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res$p_HEIDI > 0.05)
-
-        smr_protein_res_tmp <- smr_protein_res_tmp[order(-abs(smr_protein_res_tmp$Z)), ]
-        smr_protein_res_tmp <- smr_protein_res_tmp[!duplicated(paste0(smr_protein_res_tmp$Panel, smr_protein_res_tmp$ID)), ]
-        smr_protein_res_tmp$Method <- 'SMR'
-        smr_protein_res_tmp$Type <- 'Protein'
-
-        all_func_res <- rbind(all_func_res, smr_protein_res_tmp)
-
-      }
-
-      if (cf$magma_gene) {
-
-        magma_tmp <- data.frame(Panel = 'MAGMA',
-                                ID = gwas_data()[[selected_gwas()]]$mol_assoc$magma$ID,
-                                Z = abs(qnorm(as.numeric(gwas_data()[[selected_gwas()]]$mol_assoc$magma$P))),
-                                Sig = as.numeric(gwas_data()[[selected_gwas()]]$mol_assoc$magma$P.FDR) < 0.05,
-                                Coloc = F,
-                                Method = 'MAGMA',
-                                Type = '')
-
-        all_func_res <- rbind(all_func_res, magma_tmp)
-
-      }
-
-      if (cf$clump) {
-
-        nearest_tmp <- data.frame(Panel = 'NearestGene',
-                                  ID = gwas_data()[[selected_gwas()]]$mol_assoc$nearest$clump,
-                                  Z = 1,
-                                  Sig = F,
-                                  Coloc = F,
-                                  Method = 'Nearest\nGene',
-                                  Type = '')
-
-        all_func_res <- rbind(all_func_res, nearest_tmp)
-
-      }
-
-      return(all_func_res)
-    })
-
-    ########
-    # Update selectInputs when summary data changes
-    ########
-
-    observeEvent(mol_assoc_summary_data(), {
-      all_func_res <- mol_assoc_summary_data()
-
-      methods <- unique(all_func_res$Method)
-      updateSelectInput(session, "selected_methods_mol", choices = methods, selected = methods)
-
-      expr_panels <- unique(all_func_res$Panel[all_func_res$Type == 'Expr.' | all_func_res$Type == 'Splice'])
-      updateSelectInput(session, "selected_expr_panels_mol", choices = expr_panels, selected = expr_panels)
-
-      protein_panels <- unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
-      updateSelectInput(session, "selected_protein_panels_mol", choices = protein_panels, selected = protein_panels)
-
-      # Select groups used to define high confidence genes
-      res_group <- paste0(all_func_res$Method, '\n', all_func_res$Type)
-      res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
-      res_group[res_group == 'MAGMA\n'] <- 'MAGMA'
-      res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
-
-      hc_groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice', 'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein')
-      hc_groups <- hc_groups[hc_groups %in% res_group]
-
-      updateSelectInput(session, "selected_group_hc_mol", choices = hc_groups[hc_groups %in% res_group], selected = hc_groups)
-
+      req(gwas_data(), selected_gwas(), config_flags())
+      build_mol_assoc_data(gwas_data()[[selected_gwas()]], config_flags())
     })
 
     ########
@@ -460,6 +305,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     ########
 
     mol_assoc_summary_data_filtered <- reactive({
+      req(mol_assoc_summary_data(), input$selected_methods_mol)
       all_func_res <- mol_assoc_summary_data()
 
       # Filter results table by user specified methods

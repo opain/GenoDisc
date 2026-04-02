@@ -34,6 +34,7 @@ parse_config_flags <- function(config) {
 
   smr_protein_panel_rosmap <- flag(config, "smr_protein_panel_rosmap")
 
+  gcsc <- flag(config, "gcsc")
   magma_drugtargetor <- flag(config, "magma_drugtargetor")
   twas_gsea_lincs <- flag(config, "twas_gsea_lincs")
   twas_so_lincs <- flag(config, "twas_so_lincs")
@@ -100,6 +101,7 @@ parse_config_flags <- function(config) {
     pwas_panel_rosmap = pwas_panel_rosmap,
     pwas_panel_banner = pwas_panel_banner,
     smr_protein_panel_rosmap = smr_protein_panel_rosmap,
+    gcsc = gcsc,
     magma_drugtargetor = magma_drugtargetor,
     twas_gsea_lincs = twas_gsea_lincs,
     twas_so_lincs = twas_so_lincs,

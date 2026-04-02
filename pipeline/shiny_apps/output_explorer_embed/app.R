@@ -63,7 +63,7 @@ server <- function(input, output, session) {
   gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list)
   snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas)
   molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
-  enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas)
+  enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags)
   referencesServer("references")
   configurationServer("configuration", shared$gwas_data)
 }

@@ -6,160 +6,123 @@ enrichmentUI <- function(id) {
     br(),
     p("This tab shows enrichment analysis results. Select the tabs below to see results for your desired gene annotations and methods"),
     hr(),
-    tabsetPanel(
-      tabPanel(
-        title="Drug",
-        br(),
-        tabsetPanel(
-          tabPanel(
-            title="Summary",
-            br(),
-
-            fluidPage(
-              sidebarPanel(
-                selectInput(ns("selected_methods_drug"), "Select methods", "", multiple=T),
-                selectInput(ns("selected_expr_panels_drug"), "Select expression panels", "", multiple=T),
-                radioButtons(ns("conf_only_drug"), "Show FDR significant only :",
-                             choices = c("True" = T,
-                                         "False" = F),
-                             selected = T),
-                textInput(ns("drugInput_drug"), "Search drug (whitespace- or comma-seperated):"),
-                textInput(ns("atcInput_drug"), "Search ATC Code (whitespace- or comma-seperated):"),
-                selectInput(ns("selected_sort_drug"), "Sort by:", '', multiple = F)
-
-              ),
-
-              mainPanel(
-                uiOutput(ns("message_too_large_drug")),
-                uiOutput(ns("message_no_drugs_drug")),
-                uiOutput(ns("tx_drug_plot.ui"))
-              )
-            )
-          ),
-          tabPanel(
-            title="MAGMA",
-            br(),
-            p("This tab shows MAGMA drug enrichment results."),
-            hr(),
-            br(),
-            fluidRow(
-              column(width=9,
-                     dataTableOutput(ns("tx_drug_magma_table")),
-              )
-            ),
-            br()
-          ),
-          tabPanel(
-            title="GCSC",
-            br(),
-            p("This tab shows GCSC drug enrichment results."),
-            hr(),
-            br(),
-            fluidRow(
-              column(width=9,
-                     dataTableOutput(ns("tx_drug_gcsc_table")),
-              )
-            ),
-            br()
-          ),
-          tabPanel(
-            title="TWAS-GSEA",
-            br(),
-            p("This tab shows TWAS-GSEA drug enrichment results."),
-            hr(),
-            br(),
-            fluidRow(
-              column(width=9,
-                     dataTableOutput(ns("tx_drug_twas_gsea_table")),
-              )
-            ),
-            br()
-          )
-        )
-      ),
-      tabPanel(
-        title="ATC",
-        br(),
-        tabsetPanel(
-          tabPanel(
-            title="Summary",
-            br(),
-
-            fluidPage(
-              sidebarPanel(
-                selectInput(ns("selected_methods_atc"), "Select methods", "", multiple=T),
-                selectInput(ns("selected_expr_panels_atc"), "Select expression panels", "", multiple=T),
-                radioButtons(ns("conf_only_atc"), "Show FDR significant only :",
-                             choices = c("True" = T,
-                                         "False" = F),
-                             selected = T),
-                textInput(ns("atcInput_atc"), "Search ATC Code (whitespace- or comma-seperated):"),
-                selectInput(ns("selected_sort_atc"), "Sort by:", '', multiple = F)
-
-              ),
-
-              mainPanel(
-                uiOutput(ns("message_too_large_atc")),
-                uiOutput(ns("message_no_atcs_atc")),
-                uiOutput(ns("tx_atc_plot.ui"))
-              )
-            )
-          ),
-          tabPanel(
-            title="MAGMA",
-            br(),
-            p("This tab shows MAGMA ATC enrichment results."),
-            hr(),
-            br(),
-            fluidRow(
-              column(width=6,
-                     dataTableOutput(ns("tx_atc_magma_table")),
-              )
-            ),
-            br()
-          ),
-          tabPanel(
-            title="GCSC",
-            br(),
-            p("This tab shows GCSC ATC enrichment results."),
-            hr(),
-            br(),
-            fluidRow(
-              column(width=6,
-                     dataTableOutput(ns("tx_atc_gcsc_table")),
-              )
-            ),
-            br()
-          ),
-          tabPanel(
-            title="TWAS-GSEA",
-            br(),
-            p("This tab shows TWAS-GSEA ATC enrichment results."),
-            hr(),
-            br(),
-            fluidRow(
-              column(width=8,
-                     dataTableOutput(ns("tx_atc_twas_gsea_table")),
-              )
-            ),
-            br()
-          )
-        )
-      )
-    )
+    uiOutput(ns("enrichment_tabs"))
   )
 }
 
-enrichmentServer <- function(id, gwas_data, selected_gwas) {
+enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    ########
+    # Dynamic tab rendering
+    ########
+
+    output$enrichment_tabs <- renderUI({
+      req(config_flags(), tx_drug_summary_data(), tx_atc_summary_data())
+      cf <- config_flags()
+
+      # Pre-compute Drug choices
+      drug_data <- tx_drug_summary_data()
+      drug_methods <- unique(drug_data$Method)
+      drug_expr_panels <- unique(drug_data$Panel[drug_data$Method == 'TWAS-GSEA'])
+
+      # Pre-compute ATC choices
+      atc_data <- tx_atc_summary_data()
+      atc_methods <- unique(atc_data$Method)
+      atc_expr_panels <- unique(atc_data$Panel[atc_data$Method == 'TWAS-GSEA'])
+
+      # Build Drug sub-tabs
+      drug_tabs <- list(
+        tabPanel(title="Summary", br(),
+          fluidPage(
+            sidebarPanel(
+              selectInput(ns("selected_methods_drug"), "Select methods", choices=drug_methods, selected=drug_methods, multiple=T),
+              selectInput(ns("selected_expr_panels_drug"), "Select expression panels", choices=drug_expr_panels, selected=drug_expr_panels, multiple=T),
+              radioButtons(ns("conf_only_drug"), "Show FDR significant only :",
+                           choices = c("True" = T, "False" = F), selected = T),
+              textInput(ns("drugInput_drug"), "Search drug (whitespace- or comma-seperated):"),
+              textInput(ns("atcInput_drug"), "Search ATC Code (whitespace- or comma-seperated):"),
+              selectInput(ns("selected_sort_drug"), "Sort by:", '', multiple = F)
+            ),
+            mainPanel(
+              uiOutput(ns("message_too_large_drug")),
+              uiOutput(ns("message_no_drugs_drug")),
+              uiOutput(ns("tx_drug_plot.ui"))
+            )
+          )
+        )
+      )
+      if (cf$magma_drugtargetor) {
+        drug_tabs <- c(drug_tabs, list(tabPanel(title="MAGMA", br(),
+          p("This tab shows MAGMA drug enrichment results."), hr(), br(),
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_magma_table")))), br()
+        )))
+      }
+      if (cf$gcsc) {
+        drug_tabs <- c(drug_tabs, list(tabPanel(title="GCSC", br(),
+          p("This tab shows GCSC drug enrichment results."), hr(), br(),
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_gcsc_table")))), br()
+        )))
+      }
+      if (cf$twas_gsea_drugtargetor) {
+        drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA", br(),
+          p("This tab shows TWAS-GSEA drug enrichment results."), hr(), br(),
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_table")))), br()
+        )))
+      }
+
+      # Build ATC sub-tabs
+      atc_tabs <- list(
+        tabPanel(title="Summary", br(),
+          fluidPage(
+            sidebarPanel(
+              selectInput(ns("selected_methods_atc"), "Select methods", choices=atc_methods, selected=atc_methods, multiple=T),
+              selectInput(ns("selected_expr_panels_atc"), "Select expression panels", choices=atc_expr_panels, selected=atc_expr_panels, multiple=T),
+              radioButtons(ns("conf_only_atc"), "Show FDR significant only :",
+                           choices = c("True" = T, "False" = F), selected = T),
+              textInput(ns("atcInput_atc"), "Search ATC Code (whitespace- or comma-seperated):"),
+              selectInput(ns("selected_sort_atc"), "Sort by:", '', multiple = F)
+            ),
+            mainPanel(
+              uiOutput(ns("message_too_large_atc")),
+              uiOutput(ns("message_no_atcs_atc")),
+              uiOutput(ns("tx_atc_plot.ui"))
+            )
+          )
+        )
+      )
+      if (cf$magma_drugtargetor) {
+        atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
+          p("This tab shows MAGMA ATC enrichment results."), hr(), br(),
+          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_magma_table")))), br()
+        )))
+      }
+      if (cf$gcsc) {
+        atc_tabs <- c(atc_tabs, list(tabPanel(title="GCSC", br(),
+          p("This tab shows GCSC ATC enrichment results."), hr(), br(),
+          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_gcsc_table")))), br()
+        )))
+      }
+      if (cf$twas_gsea_drugtargetor) {
+        atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA", br(),
+          p("This tab shows TWAS-GSEA ATC enrichment results."), hr(), br(),
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_table")))), br()
+        )))
+      }
+
+      tabsetPanel(
+        do.call(tabPanel, c(list(title="Drug", br()), list(do.call(tabsetPanel, drug_tabs)))),
+        do.call(tabPanel, c(list(title="ATC", br()), list(do.call(tabsetPanel, atc_tabs))))
+      )
+    })
 
     #######
     # Prepare data for drug-specific association tables
     #######
 
     output$tx_drug_magma_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[4];",
@@ -189,7 +152,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     })
 
     output$tx_drug_gcsc_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[4];",
@@ -220,7 +183,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     })
 
     output$tx_drug_twas_gsea_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[4];",
@@ -254,84 +217,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     #######
 
     tx_drug_summary_data <- reactive({
-
-      ###
-      # MAGMA
-      ###
-      magma_gs<-gwas_data()[[selected_gwas()]]$tx$drug$magma
-
-      if(!is.null(magma_gs)){
-        # Convert one-sided p to a Z score
-        magma_gs$Z<--qnorm(magma_gs$P)
-        magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
-        magma_gs$Method<-'MAGMA'
-        magma_gs$Panel<-'MAGMA'
-      }
-
-      ###
-      # GCSC
-      ###
-      gcsc_gs<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
-
-      if(!is.null(gcsc_gs)){
-        gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
-        gcsc_gs$Method<-'GCSC'
-        gcsc_gs$Panel<-'Brain and Blood'
-      }
-
-      ###
-      # TWAS-GSEA
-      ###
-
-      gsea_gs<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
-
-      if(!is.null(gsea_gs)){
-        gsea_gs$Method<-'TWAS-GSEA'
-        gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
-        gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
-        # Flip Z so >0 indicates reversal of GWAS outcome.
-        gsea_gs$Z<--gsea_gs$Z
-
-        # Insert missing values
-        gsea_gs_all<-gsea_gs
-        for(i in unique(gsea_gs_all$Panel)){
-          gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
-          gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
-          gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
-                                   Z=NA,
-                                   P=NA,
-                                   P.FDR=NA,
-                                   Method='TWAS-GSEA',
-                                   Panel=i,
-                                   ATC_Code=NA)
-          names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
-
-          gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
-
-        }
-        gsea_gs<-gsea_gs_all
-      }
-
-      ###
-      # Combine results
-      ###
-
-      all_gs<-do.call(rbind, Filter(Negate(is.null), list(magma_gs, gcsc_gs, gsea_gs)))
-
-      return(all_gs)
-    })
-
-    observeEvent(tx_drug_summary_data(), {
-      all_gs<-tx_drug_summary_data()
-
-      methods<-unique(all_gs$Method)
-      updateSelectInput(session, "selected_methods_drug", choices = methods, selected=methods)
-
-      expr_panels<-unique(all_gs$Panel[all_gs$Method == 'TWAS-GSEA'])
-      updateSelectInput(session, "selected_expr_panels_drug", choices = expr_panels, selected=expr_panels)
+      req(gwas_data(), selected_gwas())
+      build_drug_summary_data(gwas_data()[[selected_gwas()]])
     })
 
     tx_drug_summary_data_filtered<-reactive({
+      req(input$conf_only_drug, input$selected_methods_drug)
       all_gs<-tx_drug_summary_data()
 
       # Filter results table by user specified methods
@@ -564,7 +455,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     #######
 
     output$tx_atc_magma_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[2];",
@@ -594,7 +485,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     })
 
     output$tx_atc_gcsc_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[2];",
@@ -624,6 +515,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     })
 
     output$tx_atc_twas_gsea_table<-renderDataTable({
+      req(gwas_data(), selected_gwas())
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
       if(is.null(tmp)) return(NULL)
 
@@ -668,95 +560,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas) {
     #######
 
     tx_atc_summary_data <- reactive({
-
-      ###
-      # MAGMA
-      ###
-
-      magma_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$magma
-
-      if(!is.null(magma_gs_atc)){
-        magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
-        magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
-        magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
-        magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
-        magma_gs_atc$Method<-'MAGMA'
-        magma_gs_atc$Panel<-'MAGMA'
-
-        magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
-      }
-
-      ###
-      # GCSC
-      ###
-
-      gcsc_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
-
-      if(!is.null(gcsc_gs_atc)){
-        gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
-        gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
-        gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
-        gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
-        gcsc_gs_atc$Method<-'GCSC'
-        gcsc_gs_atc$Panel<-'GCSC'
-
-        gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
-      }
-
-      ###
-      # TWAS-GSEA
-      ###
-
-      gsea_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
-
-      if(!is.null(gsea_gs_atc)){
-        gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
-        gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
-
-        gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
-        gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
-        gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
-        gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
-        gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
-
-        gsea_gs_atc$Method<-'TWAS-GSEA'
-
-        gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
-
-        # Insert missing values
-        gsea_gs_atc_all<-gsea_gs_atc
-        for(i in unique(gsea_gs_atc_all$Panel)){
-          gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
-          gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
-          gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
-                                       Z =NA,
-                                       FDR_Sig=NA,
-                                       Nom_Sig=NA,
-                                       Method='TWAS-GSEA',
-                                       Panel=i)
-
-          gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
-
-        }
-        gsea_gs_atc<-gsea_gs_atc_all
-      }
-
-      all_gs_atc<-do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc)))
-
-      return(all_gs_atc)
-    })
-
-    observeEvent(tx_atc_summary_data(), {
-      all_gs<-tx_atc_summary_data()
-
-      methods<-unique(all_gs$Method)
-      updateSelectInput(session, "selected_methods_atc", choices = methods, selected=methods)
-
-      expr_panels<-unique(all_gs$Panel[all_gs$Method == 'TWAS-GSEA'])
-      updateSelectInput(session, "selected_expr_panels_atc", choices = expr_panels, selected=expr_panels)
+      req(gwas_data(), selected_gwas())
+      build_atc_summary_data(gwas_data()[[selected_gwas()]])
     })
 
     tx_atc_summary_data_filtered<-reactive({
+      req(input$conf_only_atc, input$selected_methods_atc)
       all_gs_atc<-tx_atc_summary_data()
 
       # Filter results table by user specified methods

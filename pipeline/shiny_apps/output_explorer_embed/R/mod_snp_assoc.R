@@ -64,6 +64,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas) {
   moduleServer(id, function(input, output, session) {
 
     snp_assoc_lead_data <- reactive({
+      req(gwas_data(), selected_gwas(), input$clumping_type)
       if (input$clumping_type == "ld_clumping") {
         snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$clump
       }
@@ -102,6 +103,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas) {
     })
 
     snp_assoc_finemap_data <- reactive({
+      req(gwas_data(), selected_gwas(), input$l_param)
       if (input$l_param == "L1") {
         snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L1
       }
