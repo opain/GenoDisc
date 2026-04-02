@@ -12,7 +12,7 @@ library(shinyjs)
 
 # Loads functions
 source('../../scripts/functions/sumstat_cleaner_functions.R')
-source('../output_explorer/functions.R')
+source('functions.R')
 
 options(shiny.maxRequestSize = 600 * 1024 * 1024)
 
@@ -1128,6 +1128,8 @@ server <- function(input, output, session) {
         x<-c(-max(abs(all_func_res_all$Z), na.rm=T),0,max(abs(all_func_res_all$Z), na.rm=T))
         x<-(x-min(x))/(max(x)-min(x))
 
+        all_func_res_all<-data.table(all_func_res_all)
+        
         # Create second version of the plot
         heatmap<-ggplot(data = all_func_res_all, aes(x = Panel, y = ID)) +
           theme_bw()	+
@@ -1142,6 +1144,9 @@ server <- function(input, output, session) {
           scale_y_discrete(limits= unique(rev(all_func_res_all$ID))) +
           theme(text = element_text(size = 14))
 
+        pb <- ggplot_build(heatmap)
+        print(pb$layout$layout)
+        
         gt = ggplot_gtable(ggplot_build(heatmap))
 
         for(i in 1:nrow(group_siz)){
