@@ -26,6 +26,7 @@ ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz
 # Read in gene locations
 biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
 Genes<-biomart[,c('external_gene_name','chromosome_name','start_position','end_position')]
+Genes<-Genes[!duplicated(Genes),]
 
 # Use 10kb window to define gene window
 gene_window<-0

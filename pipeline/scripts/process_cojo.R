@@ -43,6 +43,7 @@ ss_subset<-ss_subset[,col_order,with=F]
 # Insert nearest gene information
 biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
 Genes<-biomart[,c('external_gene_name','chromosome_name','start_position','end_position')]
+Genes<-Genes[!duplicated(Genes),]
 
 window<-50000
 
