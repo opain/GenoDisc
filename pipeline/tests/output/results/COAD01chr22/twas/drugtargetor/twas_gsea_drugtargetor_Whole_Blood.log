@@ -1,0 +1,106 @@
+Both probit_P_as_Z and directional equal TRUE. probit_P_as_Z will be set to FALSE.
+#################################################################
+# TWAS-based Gene Set Enrichment Analysis
+# V1.2 26/09/2018
+#################################################################
+
+Options are:
+$twas_results
+[1] "tests/output/results/COAD01chr22/twas/COAD01chr22_twas_Whole_Blood_GW_clean.txt.gz"
+
+$gmt_file
+[1] NA
+
+$prop_file
+[1] "resources/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
+
+$expression_ref
+[1] "resources/data/predicted_expression/Whole_Blood/Reference_Expression/Reference_Expression_Whole_Blood.txt.gz"
+
+$n_cores
+[1] 5
+
+$covar
+[1] "GeneLength" "NSNP"      
+
+$pos
+[1] "resources/data/fusion_snp_weights/Whole_Blood/Whole_Blood.pos"
+
+$weights
+[1] NA
+
+$use_alt_id
+[1] "ID"
+
+$cor_window
+[1] 5e+06
+
+$min_Ngenes
+[1] 2
+
+$qqplot
+[1] FALSE
+
+$probit_P_as_Z
+[1] FALSE
+
+$p_cor_method
+[1] "fdr"
+
+$directional
+[1] TRUE
+
+$outlier_threshold
+[1] -3  6
+
+$save_CorMat
+[1] FALSE
+
+$input_CorMat
+[1] NA
+
+$allow_duplicate_ID
+[1] FALSE
+
+$self_contained
+[1] FALSE
+
+$competitive
+[1] TRUE
+
+$max_r2
+[1] 1
+
+$min_r2
+[1] 0.01
+
+$linear_p_thresh
+[1] 1
+
+$output
+[1] "tests/output/results/COAD01chr22/twas/drugtargetor/twas_gsea_drugtargetor_Whole_Blood"
+
+$help
+[1] FALSE
+
+Analysis started at 2026-04-03 07:59:13 
+TWAS results file contains 295 rows.
+Positional information is available for 295 TWAS features.
+TWAS contains 295 unique features with non-missing TWAS.P values.
+Duplicate IDs removed, leaving 295 features.
+Gene property file contained 1763 properties.
+205 genes will be included in the gene property analysis.
+162 gene properties have a sufficient number of genes available with non-zero property in the TWAS.
+Performing competitive linear model... 10% 50% 20% 30% 60% 40% 70% 100% 80% 90% Done!
+Using a p-value threshold of 1  to select gene sets/properties for competitive mixed model analysis.
+Mixed model competitive analysis will be performed for 162 gene sets/properties.
+Gene expression values contain 7811 non-zero variance features and 503 individuals.
+205 features are available in both TWAS and gene expression data.
+The genes could be separated into 1 blocks.
+Creating correlation matrix... 100% Done!
+The correlation matrix of gene expression is 0% sparse.
+After pruning 205 features remain.
+Modelling random effects for competitive analysis... Done!
+Modelling fixed effects for competitive analysis... 10% 20% 30% 40% 50% 60% 70% 80% 90% 100% Done!
+Analysis finished at 2026-04-03 07:59:50 
+Analysis duration was 36.81 secs 

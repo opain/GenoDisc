@@ -81,7 +81,7 @@ rule run_twas_gcsc:
 
 rule twas_gcsc_all_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat", gwas=w.gwas, gcsc_tissue=w.gcsc_tissue, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat", gwas=w.gwas, gcsc_tissue=w.gcsc_tissue, chr=chromosomes, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/gcsc_twas_{gcsc_tissue}_all_chr.done")
 

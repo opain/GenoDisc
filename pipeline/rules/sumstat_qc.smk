@@ -216,7 +216,7 @@ rule clump:
 
 rule clump_all_chr:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/clump_all_chr.done")
 
@@ -269,7 +269,7 @@ rule cojo:
 
 rule cojo_all_chr:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/cojo_all_chr.done")
 

@@ -23,6 +23,13 @@ outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 # Read in all jointly significant associations
 temp = list.files(path=paste0(outdir,'/results/',opt$gwas,'/twas/conditional/'),pattern=glob2rx("*chr*.report"))
 
+if(length(temp) == 0){
+  # No conditional results — write empty novelty file and exit
+  gene_res <- data.frame(CHR=integer(), BP=character(), P0=integer(), P1=integer(), ID=character(), PANEL=character(), TWAS.Z=numeric(), TWAS.P=numeric(), BEST.GWAS.P=numeric(), TOP.SNP.COR=numeric(), Type=character(), Novel=character(), COLOC.PP3=numeric(), COLOC.PP4=numeric(), Colocalised=logical(), stringsAsFactors=FALSE)
+  write.csv(gene_res, paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_novelty.csv'), row.names=F, quote=T)
+  quit(save='no')
+}
+
 report<-do.call(rbind, lapply(temp, function(x) read.table(paste0(outdir,'/results/',opt$gwas,'/twas/conditional/',x), header=T,stringsAsFactors=F)))
 report$JOINT.ID<-NA
 report$MARGIN.ID<-NA

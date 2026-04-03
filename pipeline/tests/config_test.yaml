@@ -1,0 +1,68 @@
+############
+# Provide relevent paths
+############
+
+# Specify output directory
+outdir: tests/output
+
+# Location of this config file
+config_file: tests/config_test.yaml
+
+# Specify location of gwas_list file
+gwas_list: tests/gwas_list_test.txt
+
+# Specify location of rosmap and banner data for PWAS and SMR
+rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip
+rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt
+
+# Chromosomes to analyse
+chromosomes: [22]
+
+############
+# Specify desired output
+############
+
+# Identify independent significant SNPs using clumping
+clump: T
+
+# Perform COJO analysis
+cojo: T
+
+# Perform SNP finemapping analysis
+finemap: T
+
+# Estimate SNP-heritability and intercept using LD score regression
+ldsc: T
+
+# MAGMA gene associations analysis
+magma_gene: T
+
+# MAGMA gene set enrichment analysis using DrugTargetor sets
+magma_drugtargetor: T
+
+# TWAS using FUSION panels
+twas_panel_fusion: T
+
+# Specify TWAS FUSION GTEx panels (minimal for speed)
+gtex_weights: ['Whole_Blood']
+
+# Conditional analyss of TWAS results
+twas_conditional: T
+
+# TWAS-GSEA gene property association analysis using DrugTargetor
+twas_gsea_drugtargetor: T
+
+# Run SMR using below panels
+smr_expression_panel_psychencode: T
+
+# Run PWAS using FUSION using below panels (disabled - requires external Synapse data)
+pwas_panel_rosmap: T
+pwas_panel_banner: F
+
+# Run SMR using pQTL data from ROSMAP (disabled - requires external Synapse data)
+smr_protein_panel_rosmap: T
+
+# Run GCSC drug enrichment analysis
+gcsc: T
+gcsc_tissues: ["Whole_Blood"]
+

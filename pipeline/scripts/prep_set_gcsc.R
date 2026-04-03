@@ -44,10 +44,11 @@ for(i in 1:length(drugs)){
 
 # Remove sets with less than 2 genes present in each gene set and in the TWAS
 gcsc_tissues <- read_param(config = opt$config_file, param = 'gcsc_tissues', return_obj = F)
+chromosomes <- read_param(config = opt$config_file, param = 'chromosomes', return_obj = F)
 
 twas<-NULL
 for(weight_i in gcsc_tissues){
-  for(chr_i in 1:22){
+  for(chr_i in chromosomes){
     twas<-rbind(
       twas,
       fread(paste0(outdir,'/results/',opt$gwas,'/gcsc/twas/',weight_i,'/',opt$gwas,'_twas_',weight_i,'_chr',chr_i,'.dat')))

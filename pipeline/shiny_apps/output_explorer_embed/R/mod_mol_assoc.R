@@ -486,7 +486,9 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     output$mol_assoc_plot.ui <- renderUI({
       ns <- session$ns
-      if (plot_dim_mol()[['height']] < 10000 & nrow(mol_assoc_summary_data_filtered()) > 0) {
+      filtered <- mol_assoc_summary_data_filtered()
+      has_real_genes <- any(filtered$ID != 'Placeholder')
+      if (plot_dim_mol()[['height']] < 10000 & nrow(filtered) > 0 & has_real_genes) {
         plotOutput(ns("mol_assoc_plot"), height = plot_dim_mol()[['height']], width = plot_dim_mol()[['width']])
       } else {
         NULL
@@ -503,7 +505,17 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$message_no_genes_mol <- renderUI({
-      if (nrow(mol_assoc_summary_data_filtered()) == 0) {
+      filtered <- mol_assoc_summary_data_filtered()
+      real_genes <- filtered$ID[filtered$ID != 'Placeholder']
+      if (length(real_genes) == 0 && as.logical(input$conf_only_mol)) {
+        HTML(paste0(
+          "<div style='color: #666; font-style: italic; margin: 10px 0;'>",
+          "No high-confidence genes were identified. ",
+          "Set <b>Show high-confidence only</b> to <b>False</b>, ",
+          "and specify gene symbols using <b>Enter gene symbols</b> to visualise results for those genes.",
+          "</div>"
+        ))
+      } else if (nrow(filtered) == 0) {
         HTML(sprintf(
           "<div style='color: red;'>%s</div>",
           "No genes are present."

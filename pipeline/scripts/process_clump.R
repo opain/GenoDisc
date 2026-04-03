@@ -26,8 +26,8 @@ clumped_res<-NULL
 for(i in 1:22){
   if(file.exists(paste0(outdir,'/results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))){
     tmp<-fread(paste0(outdir,'/results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))
+    clumped_res<-rbind(clumped_res, tmp)
   }
-  clumped_res<-rbind(clumped_res, tmp) 
 }
 
 # Make table with original sumstats but containing only independent associations from clumping

@@ -40,6 +40,9 @@ if missing_or_invalid_config_params:
 # Set outdir parameter
 outdir=config['outdir']
 
+# Set chromosomes to analyse
+chromosomes = config.get("chromosomes", list(range(1, 23)))
+
 ########
 # Create required functions
 ########

@@ -1,0 +1,2 @@
+name path population n sampling prevalence mean sd label
+COAD01chr22 tests/data/COAD01_chr22.gz EUR NA 0.33 0.03 NA NA "CAD Chr22 Test"

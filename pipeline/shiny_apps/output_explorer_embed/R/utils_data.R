@@ -47,7 +47,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
 
   if (cf$finemap) {
     finemap_ids <- safe_access(gwas_results, "mol_assoc", "finemap", "L1")
-    if (!is.null(finemap_ids)) {
+    if (!is.null(finemap_ids) && length(finemap_ids) > 0) {
       all_func_res <- rbind(all_func_res, data.frame(
         Panel = "SuSie (L=1)", ID = finemap_ids, Z = 1, Sig = F, Coloc = F,
         Method = "SNP\nFine-mapping", Type = ''))
@@ -135,7 +135,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
 
   if (cf$clump) {
     nearest <- safe_access(gwas_results, "mol_assoc", "nearest", "clump")
-    if (!is.null(nearest)) {
+    if (!is.null(nearest) && length(nearest) > 0) {
       all_func_res <- rbind(all_func_res, data.frame(
         Panel = 'NearestGene', ID = nearest, Z = 1, Sig = F, Coloc = F,
         Method = 'Nearest\nGene', Type = ''))

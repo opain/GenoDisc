@@ -343,7 +343,7 @@ rule run_twas:
 
 rule twas_all_chr:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/twas/{weight}/{gwas}_twas_{weight}_chr{chr}", gwas=w.gwas, weight=w.weight, chr=chromosomes, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/twas_{weight}_all_chr.done")
 
@@ -458,7 +458,7 @@ rule run_rosmap_pwas:
 
 rule rosmap_pwas_all_chr:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done")
 
@@ -489,7 +489,7 @@ rule run_banner_pwas:
 
 rule banner_pwas_all_chr:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done")
 

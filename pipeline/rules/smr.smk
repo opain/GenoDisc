@@ -190,7 +190,7 @@ rule run_psychencode_smr:
 
 rule run_psychencode_smr_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/psychencode_smr_all_chr.done")
 
@@ -215,7 +215,7 @@ rule run_eqtlgen_smr:
 
 rule run_eqtlgen_smr_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/eqtlgen_smr_all_chr.done")
       
@@ -256,7 +256,7 @@ rule run_rosmap_smr:
 
 rule run_rosmap_smr_chr:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch("{outdir}/results/{gwas}/checks/rosmap_smr_all_chr.done")
 
@@ -302,37 +302,37 @@ rule smr_analysis_MetaBrain:
 
 rule run_smr_analysis_MetaBrain_Basalganglia:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Basalganglia/{gwas}_smr_metabrain_Basalganglia_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Basalganglia/{gwas}_smr_metabrain_Basalganglia_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_basalganglia_all_chr.done')
 
 rule run_smr_analysis_MetaBrain_Cerebellum:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Cerebellum/{gwas}_smr_metabrain_Cerebellum_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Cerebellum/{gwas}_smr_metabrain_Cerebellum_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_cerebellum_all_chr.done')
 
 rule run_smr_analysis_MetaBrain_Cortex:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Cortex/{gwas}_smr_metabrain_Cortex_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Cortex/{gwas}_smr_metabrain_Cortex_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_cortex_all_chr.done')
 
 rule run_smr_analysis_MetaBrain_Hippocampus:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Hippocampus/{gwas}_smr_metabrain_Hippocampus_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Hippocampus/{gwas}_smr_metabrain_Hippocampus_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_hippocampus_all_chr.done')
 
 rule run_smr_analysis_MetaBrain_Spinalcord:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Spinalcord/{gwas}_smr_metabrain_Spinalcord_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/Spinalcord/{gwas}_smr_metabrain_Spinalcord_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_spinalcord_all_chr.done')
       
 rule run_smr_analysis_MetaBrain_all_tissue:
     input: 
-      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr", gwas=w.gwas, chr=range(1, 23), tissue=['Basalganglia','Cerebellum','Cortex','Hippocampus','Spinalcord'], outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr", gwas=w.gwas, chr=chromosomes, tissue=['Basalganglia','Cerebellum','Cortex','Hippocampus','Spinalcord'], outdir={outdir})
     output: 
       touch('{outdir}/results/{gwas}/checks/metabrain_smr_all_tissue_all_chr.done')
 

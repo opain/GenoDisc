@@ -1,0 +1,1513 @@
+Welcome to MAGMA v1.10 (linux)
+Using flags:
+	--gene-results tests/output/results/COAD01chr22/magma/magma_gene_level.genes.raw
+	--set-annot resources/data/drug_targetor/wholedatabase_for_targetor.gmt
+	--out tests/output/results/COAD01chr22/magma/magma_drug_targetor
+
+Start time is 07:56:39, Friday 03 Apr 2026
+
+Reading file tests/output/results/COAD01chr22/magma/magma_gene_level.genes.raw... 
+	432 genes read from file
+Loading gene-set annotation...
+Reading file resources/data/drug_targetor/wholedatabase_for_targetor.gmt... 
+	WARNING: gene set ATC:B02AA01|NAME:AMINOCAPROIC contains no genes defined in genotype data
+	WARNING: gene set ATC:H05BX02|NAME:PARICALCITOL|CID:5281104 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AB05|NAME:RIFAPENTINE|CID:118797686 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AG04|NAME:VIGABATRIN|CID:5665 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11HA06|NAME:PYRIDOXAL contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AG03|NAME:AMINOBUTYRIC contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AF03|NAME:PHENELZINE|CID:3675 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AX02|NAME:PROBUCOL|CID:4912 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX03|NAME:ALTRETAMINE|CID:2123 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AA03|NAME:PRAVASTATIN|CID:54687 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BG03|NAME:GLAFENINE|CID:3474 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB12,S01BA13|NAME:RIMEXOLONE|CID:5311412,91810858 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AA27|NAME:FINGOLIMOD|CID:107970 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BC02|NAME:PANTOPRAZOLE|CID:4679 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AD01|NAME:CLOBETASOL|CID:5311051 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AA07|NAME:ROSUVASTATIN|CID:5282455,45114162 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02CA01|NAME:RITODRINE|CID:31728,33572 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AX01|NAME:NABUMETONE|CID:4409 contains no genes defined in genotype data
+	WARNING: gene set ATC:M02AA06|NAME:ETOFENAMATE|CID:35375 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA06|NAME:NIMODIPINE|CID:4497 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AX10,G04CB01|NAME:FINASTERIDE|CID:57363 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX02|NAME:REPAGLINIDE|CID:65981 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD08|NAME:MIDAZOLAM|CID:4192 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX23|NAME:MITOTANE|CID:4211 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AA06|NAME:IFOSFAMIDE|CID:3690 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AH04|NAME:QUETIAPINE|CID:5002 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01BE01|NAME:ARTEMISININ|CID:91746672 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BC02|NAME:METHADONE|CID:4095 contains no genes defined in genotype data
+	WARNING: gene set ATC:J02AC02|NAME:ITRACONAZOLE|CID:45039617,6917738 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AB02|NAME:CHLOROFORM|CID:6212 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AA02|NAME:CHLORAMBUCIL|CID:2708 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03DA01|NAME:SPIRONOLACTONE|CID:5833 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AC03,R06AX19,S01GX07|NAME:AZELASTINE|CID:2267 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX17|NAME:TOPOTECAN|CID:60700 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AD13,R03BA08|NAME:CICLESONIDE|CID:6918155 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX09|NAME:LAMOTRIGINE|CID:3878 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AC06|NAME:MELOXICAM|CID:54677470 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BB01|NAME:FLUTAMIDE|CID:3397 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AA01,D10AA02,H02AB04|NAME:METHYLPREDNISOLONE|CID:6741 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02AA02|NAME:RESERPINE|CID:5770 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX08|NAME:RISPERIDONE|CID:5073 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EA06,D07AC09,R01AD05,R03BA02|NAME:BUDESONIDE|CID:5281004,122130640,63006 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03AC01,G03DC02|NAME:NORETHISTERONE|CID:6230 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE04|NAME:YOHIMBIN|CID:8969 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03CA07,G03CC04|NAME:ESTRONE|CID:5870 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02AA01|NAME:RESCINNAMINE|CID:5280954 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX13|NAME:PALIPERIDONE|CID:115237 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX09|NAME:MILTEFOSINE|CID:3599 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03CA04,G03CC06|NAME:ESTRIOL|CID:5756 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AE08|NAME:ATAZANAVIR|CID:148192 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CF02|NAME:CLOXACILLIN|CID:6098 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA01|NAME:LOSARTAN|CID:3961 contains no genes defined in genotype data
+	WARNING: gene set ATC:J02AC04|NAME:POSACONAZOLE|CID:468595 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CF01|NAME:DICLOXACILLIN|CID:18381 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA02|NAME:CHLORDIAZEPOXIDE|CID:2712 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE10,L04AA18|NAME:EVEROLIMUS|CID:6442177 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX14|NAME:ILOPERIDONE|CID:71360 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01BC11|NAME:BROMFENAC|CID:60726 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KX03|NAME:SITAXENTAN|CID:216235 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03AC10|NAME:DROSPIRENONE|CID:68873 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AE05|NAME:AMPRENAVIR|CID:65016 contains no genes defined in genotype data
+	WARNING: gene set ATC:H03BB02|NAME:THIAMAZOLE|CID:1349907 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA03|NAME:ISRADIPINE|CID:3784 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE09|NAME:TEMSIROLIMUS|CID:6918289,101179914 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB07|NAME:GLIPIZIDE|CID:3478 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA04|NAME:IRBESARTAN|CID:3749 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DB09|NAME:VALRUBICIN|CID:454216,53486287 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DC02|NAME:PRANLUKAST|CID:4887 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX13|NAME:LORATADINE|CID:3957 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX06|NAME:NEFAZODONE|CID:4449 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01XE01|NAME:NITROFURANTOIN|CID:6604200 contains no genes defined in genotype data
+	WARNING: gene set ATC:M04AB02|NAME:SULFINPYRAZONE|CID:5342 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB12|NAME:GLIMEPIRIDE|CID:3476 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01XD02,P01AB02|NAME:TINIDAZOLE|CID:5479 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03FA02|NAME:CISAPRIDE|CID:13677779 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC07|NAME:DIPYRIDAMOLE|CID:3108 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FA15|NAME:TELITHROMYCIN|CID:122130735 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01EC01|NAME:SULFAMETHOXAZOLE|CID:5329 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA07|NAME:TELMISARTAN|CID:65999 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06AX01,D09AA02,J01XC01,S01AA13|NAME:FUSIDIC contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BG07|NAME:FLUPIRTINE|CID:53276 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AB08|NAME:FLUVOXAMINE|CID:5324346 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DC01|NAME:ZAFIRLUKAST|CID:5717 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CF05|NAME:FLUCLOXACILLIN|CID:21319 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AD02|NAME:DROTAVERINE|CID:1712095 contains no genes defined in genotype data
+	WARNING: gene set ATC:M04AB03|NAME:BENZBROMARONE|CID:2333 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FA09|NAME:CLARITHROMYCIN|CID:84029 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01CC02|NAME:CETRORELIX|CID:25074887 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03XA01|NAME:TOLVAPTAN|CID:216237 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AE02|NAME:INDINAVIR|CID:5362440 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AH02|NAME:PIMECROLIMUS|CID:6509979,126969212 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA01,S01AE01,S02AA16|NAME:OFLOXACIN|CID:4583 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AH05|NAME:ETORICOXIB|CID:123619 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB08|NAME:GLIQUIDONE|CID:91610 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KX01|NAME:BOSENTAN|CID:104865 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE11|NAME:PAZOPANIB|CID:10113978 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AD06|NAME:NIMUSTINE|CID:39214 contains no genes defined in genotype data
+	WARNING: gene set ATC:M04AB01|NAME:PROBENECID|CID:4911 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA16|NAME:DOSULEPIN|CID:5284550 contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AC03,A07EA02,C05AA01,D07AA02,D07XA01,H02AB09,S01BA02,S01CB03,S02BA01|NAME:HYDROCORTISONE|CID:5754 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CD01|NAME:METYRAPONE|CID:4174 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA01,S01AA19|NAME:AMPICILLIN|CID:6249 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02AE01|NAME:BUSERELIN|CID:50225 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB03,V04CA01|NAME:TOLBUTAMIDE|CID:5505 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB05|NAME:TOLAZAMIDE|CID:5503 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX03|NAME:NATEGLINIDE|CID:5311309 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB02|NAME:CHLORPROPAMIDE|CID:2727 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX08|NAME:MITIGLINIDE|CID:5478927 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB09|NAME:GLICLAZIDE|CID:3475 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB04|NAME:GLIBORNURIDE|CID:76973979 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BB11|NAME:GLISOXEPIDE|CID:32778 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03AC04|NAME:PERMETHRIN|CID:40326 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EC02|NAME:MESALAZINE|CID:4075 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX21|NAME:NAFTIDROFURYL|CID:4417 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AB03,D07XB01|NAME:FLUMETASONE|CID:16490 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AA08|NAME:CARBINOXAMINE|CID:2564 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CE01|NAME:AMRINONE|CID:3698 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AG01|NAME:LABETALOL|CID:3869 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DX11|NAME:TRAPIDIL|CID:5531 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BX03|NAME:PRIDINOL|CID:4904 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CF06|NAME:NAFCILLIN|CID:8982 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06AA01,J01AA01|NAME:DEMECLOCYCLINE|CID:54686764 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AX21|NAME:DIACEREIN|CID:26248 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BB02|NAME:NILUTAMIDE|CID:4493 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE06|NAME:BENOXAPROFEN|CID:39941 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA10|NAME:TRANDOLAPRIL|CID:5484727 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA08|NAME:CILAZAPRIL|CID:56330 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA12|NAME:DELAPRIL|CID:5362116 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA02|NAME:ENALAPRIL|CID:5388962 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA09|NAME:FOSINOPRIL|CID:45357796 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA15|NAME:ZOFENOPRIL|CID:92400 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA03|NAME:LISINOPRIL|CID:5362119 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA04|NAME:PERINDOPRIL|CID:107807 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA13|NAME:MOEXIPRIL|CID:91270 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA07|NAME:BENAZEPRIL|CID:5362124 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA06|NAME:QUINAPRIL|CID:54892 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA11|NAME:SPIRAPRIL|CID:5311447 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02AA05|NAME:DESERPIDINE|CID:8550 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08DA02|NAME:GALLOPAMIL|CID:1234 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09AA14|NAME:TEMOCAPRIL|CID:13854106 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EB03|NAME:ECOTHIOPATE|CID:10548 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06DA03|NAME:RIVASTIGMINE|CID:77991 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EB07|NAME:FLUOSTIGMINE|CID:5936 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07AA02|NAME:PYRIDOSTIGMINE|CID:4991 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06DA01|NAME:TACRINE|CID:1935 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06DA04|NAME:GALANTAMINE|CID:9651 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EB05,V03AB19|NAME:PHYSOSTIGMINE|CID:5983 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07AA01,S01EB06|NAME:NEOSTIGMINE|CID:4456 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06DA02|NAME:DONEPEZIL|CID:3152 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03AX03|NAME:MALATHION|CID:4004 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06DA05|NAME:IPIDACRINE|CID:604519 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB08|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:N07AA30|NAME:AMBENONIUM|CID:2131 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BA02|NAME:RANITIDINE|CID:3001055 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02BB01|NAME:METRIFONATE|CID:5853 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03CC12|NAME:BAMBUTEROL|CID:54766 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB04|NAME:PRALIDOXIME|CID:5359226 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EB09|NAME:ACETYLCHOLINE|CID:187 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03BX01|NAME:DIETHYLTOLUAMIDE|CID:4284 contains no genes defined in genotype data
+	WARNING: gene set ATC:B03BB01|NAME:FOLIC contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA18|NAME:DIMETACRINE|CID:94280 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AA02|NAME:TUBOCURARINE|CID:6000 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX07|NAME:MINAPRINE|CID:4199 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EB04|NAME:DEMECARIUM|CID:5966 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DB05|NAME:CEFADROXIL|CID:47965 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DB07|NAME:PROMEGESTONE|CID:36709 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AD02|NAME:HALCINONIDE|CID:443943 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AC07|NAME:FLUDROXYCORTIDE|CID:15209 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EA04,C05AA05,D07AC01,D07XC01,H02AB01,R01AD06,R03BA04,S01BA06,S01CB04,S02BA07,S03BA03|NAME:BETAMETHASONE|CID:9782 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EA01,C05AA04,D07AA03,D07XA02,H02AB06,R01AD02,S01BA04,S01CB02,S02BA03,S03BA02|NAME:PREDNISOLONE|CID:5755 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AA11,D06AX11|NAME:RIFAXIMIN|CID:101307877 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AA07|NAME:DIPHENYLPYRALINE|CID:3103 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AD04,D04AB02,N01BB06,S01HA06,S02DA04|NAME:CINCHOCAINE|CID:3025 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BC06|NAME:DIAMORPHINE|CID:5462328 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX08|NAME:PENTOSTATIN|CID:439693 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BB04|NAME:CLADRIBINE|CID:20279 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AD08|NAME:DROPERIDOL|CID:3168 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MB05|NAME:OXOLINIC contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AB04|NAME:SUCCINYLSULFATHIAZOLE|CID:5315 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DB01|NAME:CEFALEXIN|CID:27447 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03BA08|NAME:METOLAZONE|CID:4170 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AA04|NAME:ACEPROMAZINE|CID:6077 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AD03|NAME:THIETHYLPERAZINE|CID:5440 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DX10|NAME:DILAZEP|CID:3074 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB01|NAME:PRACTOLOL|CID:4883 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MB07|NAME:FLUMEQUINE|CID:3374 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DF01|NAME:AZTREONAM|CID:25322992 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AD06|NAME:OXETACAINE|CID:4621 contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AB23,J01AA08|NAME:MINOCYCLINE|CID:54675783 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB34|NAME:FOMEPIZOLE|CID:3406 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11CA02,D02BB01|NAME:BETACAROTENE|CID:5280489 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04CB02|NAME:DUTASTERIDE|CID:6918296 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA06|NAME:CANDESARTAN|CID:2541 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AE04,D09AA06|NAME:TRICLOSAN|CID:5564 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA01|NAME:AMLODIPINE|CID:2162 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB10,S01BA03|NAME:CORTISONE|CID:222786 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AG01|NAME:NEVIRAPINE|CID:4463 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA17|NAME:AMOXAPINE|CID:2170 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BA02,J01EB07|NAME:SULFATHIAZOLE|CID:5340 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE07,N04BC07|NAME:APOMORPHINE|CID:6005 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE12|NAME:VANDETANIB|CID:3081361 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DA10|NAME:BUFYLLINE|CID:21850 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BG01|NAME:MORACIZINE|CID:34633 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03CA03|NAME:PIRETANIDE|CID:4849 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04CA04|NAME:SILODOSIN|CID:5312125 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA27|NAME:DROXIDOPA|CID:92974,6999030 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AB01,V03AB36|NAME:PHENTOLAMINE|CID:5775 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AA05,R01AB07,S01GA04|NAME:OXYMETAZOLINE|CID:4636 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04CA01|NAME:ALFUZOSIN|CID:2092 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04CA03|NAME:TERAZOSIN|CID:5401 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02CA01|NAME:PRAZOSIN|CID:4893 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02CA06|NAME:URAPIDIL|CID:5639 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AD09|NAME:FLUANISONE|CID:15139 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AX10|NAME:ISOMETHEPTENE|CID:22297 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX03|NAME:MIANSERIN|CID:4184 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB06|NAME:BEVANTOLOL|CID:2372 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AB10|NAME:ESCITALOPRAM|CID:146570 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA17|NAME:MIDODRINE|CID:4195 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BD07|NAME:DRONEDARONE|CID:208898 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AE02|NAME:NICERGOLINE|CID:34040 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CA02|NAME:ERGOTAMINE|CID:8223 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CM06|NAME:PROPIOMAZINE|CID:4940 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AA08,R01AB02,S01GA01|NAME:NAPHAZOLINE|CID:4436 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA10|NAME:NORTRIPTYLINE|CID:4543 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EX02|NAME:DAPIPRAZOLE|CID:3033538 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA10|NAME:METHOXAMINE|CID:6082 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04CA02|NAME:TAMSULOSIN|CID:129211 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AA07,R01AB06,S01GA03|NAME:XYLOMETAZOLINE|CID:5709 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AE04|NAME:ZIPRASIDONE|CID:60854 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AH05|NAME:ASENAPINE|CID:46780481 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA09|NAME:METARAMINOL|CID:5906 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AB08|NAME:THIOPROPERAZINE|CID:9429 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01BA02|NAME:PSEUDOEPHEDRINE|CID:7028 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02AB03|NAME:ERGOMETRINE|CID:443884 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA12|NAME:DOXEPIN|CID:667477 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA01|NAME:AMFETAMINE|CID:3007 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX12|NAME:ARIPIPRAZOLE|CID:60795 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX05|NAME:TRAZODONE|CID:5533 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EA03|NAME:APRACLONIDINE|CID:2216 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA12|NAME:LISDEXAMFETAMINE|CID:11597698 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA07|NAME:MODAFINIL|CID:4236 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AC01|NAME:PERICIAZINE|CID:4747 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02CA02|NAME:INDORAMIN|CID:33625 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX11|NAME:MIRTAZAPINE|CID:4205 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AX21,S01EA05|NAME:BRIMONIDINE|CID:2435 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02AC02|NAME:GUANFACINE|CID:3519 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BC04|NAME:LOFEXIDINE|CID:30668 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CM18|NAME:DEXMEDETOMIDINE|CID:5311068 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03BA11|NAME:INDAPAMIDE|CID:3702 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AA09|NAME:TRAMAZOLINE|CID:5524 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02AC05|NAME:MOXONIDINE|CID:4810 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA07|NAME:DOBUTAMINE|CID:36811 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04BC04|NAME:ROPINIROLE|CID:5095 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02CB03,N04BC06|NAME:CABERGOLINE|CID:54746 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BX02|NAME:TIZANIDINE|CID:5487 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA19|NAME:FENOLDOPAM|CID:3341 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02CC01|NAME:BETANIDINE|CID:2368 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04BC05|NAME:PRAMIPEXOLE|CID:119570 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04BC09|NAME:ROTIGOTINE|CID:59227 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AX07|NAME:ETOMIDATE|CID:667484,6338045 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AE05|NAME:LURASIDONE|CID:213046 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA03|NAME:PINDOLOL|CID:4828 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA12|NAME:NADOLOL|CID:39147 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA23|NAME:PENBUTOLOL|CID:37464 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA15,S01ED05|NAME:CARTEOLOL|CID:2583 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB04|NAME:ACEBUTOLOL|CID:1978 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB05,S01ED02|NAME:BETAXOLOL|CID:2369 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01ED03|NAME:LEVOBUNOLOL|CID:39468 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA19|NAME:BUPRANOLOL|CID:2475 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB08|NAME:CELIPROLOL|CID:2663 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA01|NAME:ALPRENOLOL|CID:2119 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB09|NAME:ESMOLOL|CID:59768 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01ED06|NAME:BEFUNOLOL|CID:2309 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CX07|NAME:XAMOTEROL|CID:155774 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA22|NAME:ARBUTAMINE|CID:60789 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA17|NAME:BOPINDOLOL|CID:44112 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01ED04|NAME:METIPRANOLOL|CID:31477 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03AC08,R03CC07|NAME:PIRBUTEROL|CID:4845 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03AC18|NAME:INDACATEROL|CID:6918554 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03AC16,R03CC08|NAME:PROCATEROL|CID:688563 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03AC19|NAME:OLODATEROL|CID:11504295 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01AX10|NAME:FUMAGILLIN|CID:71317005,6917655 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA01|NAME:ETILEFRINE|CID:3306 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03DB02|NAME:TRIAMTERENE|CID:5546 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX17,S01GX08|NAME:KETOTIFEN|CID:3827 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03AC11,R03CC11|NAME:TULOBUTEROL|CID:5606 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB17,M02AA09|NAME:BUFEXAMAC|CID:2466 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD12|NAME:MIRABEGRON|CID:9865528 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX45|NAME:CARFILZOMIB|CID:11556711 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05CA01|NAME:RUTOSIDE|CID:5280805 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE03|NAME:SILDENAFIL|CID:5212 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03DB01|NAME:AMILORIDE|CID:16231 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AX03|NAME:KETAMINE|CID:3821 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03CA01|NAME:FUROSEMIDE|CID:3440 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX18|NAME:REBOXETINE|CID:65856,10455311 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AF03,N05CA19|NAME:THIOPENTAL|CID:3000715 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA08|NAME:OLMESARTAN contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA02|NAME:EPROSARTAN|CID:5281037 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA05|NAME:TASOSARTAN|CID:60919 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA10|NAME:FIMASARTAN|CID:9870652 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09CA09|NAME:AZILSARTAN contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CH02|NAME:INDIGO contains no genes defined in genotype data
+	WARNING: gene set ATC:C05CA03|NAME:DIOSMIN|CID:5281613 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD07|NAME:TOLTERODINE|CID:443879 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BA05|NAME:SALICYLAMIDE|CID:5147 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AX11|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AA05|NAME:ATORVASTATIN|CID:60823 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BB02|NAME:MEXILETINE|CID:4178 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AA13|NAME:LEFLUNOMIDE|CID:3899 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11CC05|NAME:COLECALCIFEROL|CID:5280795 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AA01|NAME:ISOXSUPRINE|CID:3783 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AD07,D04AB07|NAME:PRAMOCAINE|CID:4886 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AA03|NAME:DESOXYCORTONE|CID:6166 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DC11|NAME:CEFORANIDE|CID:43507 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX07|NAME:VINCAMINE|CID:15376 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10XA01|NAME:TOLRESTAT|CID:53359 contains no genes defined in genotype data
+	WARNING: gene set ATC:M02AA24,N02BB05|NAME:NIFENAZONE|CID:4487 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AA02|NAME:PHENINDIONE|CID:4760 contains no genes defined in genotype data
+	WARNING: gene set ATC:D03AX10|NAME:ENOXOLONE|CID:10114 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD04|NAME:ESTAZOLAM|CID:3261 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AG04,M02AA18|NAME:MECLOFENAMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA01|NAME:DIAZEPAM|CID:3016 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AB04|NAME:PHENOLPHTHALEIN|CID:4764 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA22|NAME:CLOXAZOLAM|CID:2816 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA03|NAME:MEDAZEPAM|CID:4041 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD02|NAME:NITRAZEPAM|CID:4506 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DB01|NAME:DYDROGESTERONE|CID:9051 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB04|NAME:ZOMEPIRAC|CID:5733 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DB08|NAME:DIENOGEST|CID:68861 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AG01|NAME:MEFENAMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BB02|NAME:MERCAPTOPURINE|CID:667490 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AG02|NAME:TOLFENAMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:G03AC09|NAME:DESOGESTREL|CID:40973 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA08|NAME:BROMAZEPAM|CID:2441 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AX03|NAME:AZELAIC contains no genes defined in genotype data
+	WARNING: gene set ATC:C02BB01|NAME:MECAMYLAMINE|CID:4032 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CH03|NAME:PHENOLSULFONPHTHALEIN|CID:4766 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AX03|NAME:TEMOZOLOMIDE|CID:5394 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AD01|NAME:FOSCARNET|CID:3415 contains no genes defined in genotype data
+	WARNING: gene set ATC:B02BX04|NAME:ROMIPLOSTIM|CID:5329098 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XD04|NAME:AMINOLEVULINIC contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB09|NAME:DIMERCAPROL|CID:3080 contains no genes defined in genotype data
+	WARNING: gene set ATC:G01AF15|NAME:BUTOCONAZOLE|CID:47472 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AE08|NAME:FERRIC contains no genes defined in genotype data
+	WARNING: gene set ATC:A11CC03|NAME:ALFACALCIDOL|CID:53487908 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CC01|NAME:CHLORAL contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE28|NAME:CERITINIB|CID:57379345 contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AA01,A12CD01|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BB01,J05AB02,S01AD01|NAME:IDOXURIDINE|CID:5905 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02CB02|NAME:DIETHYLCARBAMAZINE|CID:3052 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE13|NAME:IBUPROXAM|CID:68704 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AE07|NAME:CETIRIZINE|CID:2678 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AA03|NAME:CALCIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EC04|NAME:BALSALAZIDE|CID:6335412 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02CE01|NAME:LEVAMISOLE|CID:26879 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AD05,N01BA02,S01HA05|NAME:PROCAINE|CID:4914 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AX07|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:B05BB03,B05XX02|NAME:TROMETAMOL|CID:6503 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX16|NAME:MITOGUAZONE|CID:5351154 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX07|NAME:TRIPROLIDINE|CID:5282443 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX17|NAME:VINBURNINE|CID:71203 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BF01|NAME:ACARBOSE|CID:444254,122172882,71312704 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AB06,S01AD09|NAME:GANCICLOVIR|CID:3454 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AX08,H03AA04|NAME:TIRATRICOL|CID:5803 contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AC01,C05AA12,D07AB09,D07XB02,H02AB08,R01AD11,R03BA06,S01BA05|NAME:TRIAMCINOLONE|CID:31307 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08DA06|NAME:PERFLUBUTANE contains no genes defined in genotype data
+	WARNING: gene set ATC:J01GB08|NAME:SISOMICIN|CID:36119 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AB11|NAME:S-ATENOLOL|CID:175540 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AK01|NAME:PYRAZINAMIDE|CID:1046 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AB03|NAME:IOXAGLIC contains no genes defined in genotype data
+	WARNING: gene set ATC:P02BA02|NAME:OXAMNIQUINE|CID:4612 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE10|NAME:INDOPROFEN|CID:3718 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AA08,D01BA01|NAME:GRISEOFULVIN|CID:441140 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AX04|NAME:DACARBAZINE|CID:5353562 contains no genes defined in genotype data
+	WARNING: gene set ATC:G01AG02|NAME:TERCONAZOLE|CID:441383 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX04|NAME:NOMIFENSINE|CID:4528 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BB03,J05AB01,S01AD03|NAME:ACICLOVIR|CID:2022 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE03,M02AA10|NAME:KETOPROFEN|CID:3825 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FA05|NAME:OLEANDOMYCIN|CID:122130511 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB03|NAME:EDETATES|CID:6049 contains no genes defined in genotype data
+	WARNING: gene set ATC:B06AC02|NAME:ICATIBANT|CID:6918173 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AC11|NAME:AMCINONIDE|CID:443958 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BA03|NAME:RALTITREXED|CID:104758 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AF04|NAME:TRANYLCYPROMINE|CID:441233 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BA04|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AX05|NAME:MEPTAZINOL|CID:41049 contains no genes defined in genotype data
+	WARNING: gene set ATC:M02AA08|NAME:FELBINAC|CID:3332 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AE21,J02AX01|NAME:FLUCYTOSINE|CID:3366 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AH01|NAME:LOXAPINE|CID:3964 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BA01|NAME:PHENFORMIN|CID:8249 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BC04|NAME:FLECAINIDE|CID:3356 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AA05|NAME:TRIFLUPROMAZINE|CID:5568 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04BD01|NAME:SELEGILINE|CID:26757 contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AB13,D06AA04,J01AA07,S01AA09,S02AA08,S03AA02|NAME:TETRACYCLINE|CID:54675776 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01BA01|NAME:CHLOROQUINE|CID:2719 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AB01|NAME:CYCLOSERINE|CID:6234 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA14|NAME:METAMPICILLIN|CID:6713928 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BD02|NAME:BRETYLIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AA10|NAME:TRIMETHOBENZAMIDE|CID:5577 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01AC01|NAME:DILOXANIDE|CID:11367 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DB05|NAME:PENTOXYVERINE|CID:2562 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BB01,C05AD01,D04AB01,N01BB02,R02AD02,S01HA07,S02DA01|NAME:LIDOCAINE|CID:3676 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA26,R01AA03,R01AB05,R03CA02,S01FB02|NAME:EPHEDRINE|CID:9294 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AX11|NAME:MIPOMERSEN|CID:71301230 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX05|NAME:FIPEXIDE|CID:3351 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA02|NAME:HYDROFLUMETHIAZIDE|CID:3647 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BE03|NAME:PHENACETIN|CID:4754 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MB06|NAME:CINOXACIN|CID:2762 contains no genes defined in genotype data
+	WARNING: gene set ATC:H03AA01|NAME:LEVOTHYROXINE contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AK02|NAME:ETHAMBUTOL|CID:14052 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FA08|NAME:TROLEANDOMYCIN|CID:45270772 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BA03|NAME:MAFENIDE|CID:3998 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AB06|NAME:ISOFLURANE|CID:3763 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07AB02|NAME:BETHANECHOL|CID:2370 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AC02|NAME:TENOXICAM|CID:54677971 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03BA02|NAME:QUINETHAZONE|CID:6307 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CA08,S01GA06|NAME:OXEDRINE|CID:7172 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07AX01,S01EB01|NAME:PILOCARPINE|CID:5910 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03BA09|NAME:METICRANE|CID:4165 contains no genes defined in genotype data
+	WARNING: gene set ATC:D04AB03,S01HA02|NAME:OXYBUPROCAINE|CID:4633 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01AA15|NAME:DIHYDROSTREPTOMYCIN|CID:44123450 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AB04|NAME:CHLORPHENAMINE|CID:2725 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AL03|NAME:TIAPRIDE|CID:5467 contains no genes defined in genotype data
+	WARNING: gene set ATC:A05AX02|NAME:HYMECROMONE|CID:5280567 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02CC04|NAME:DEBRISOQUINE|CID:2966 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AC04,R06AX05|NAME:ANTAZOLINE|CID:2200 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX18|NAME:VINPOCETINE|CID:443955 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11HA02|NAME:PYRIDOXINE contains no genes defined in genotype data
+	WARNING: gene set ATC:S01FA06|NAME:TROPICAMIDE|CID:5593 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AB08|NAME:SEVOFLURANE|CID:5206 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EC01|NAME:ACETAZOLAMIDE|CID:1986 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03BA01|NAME:FLUOXYMESTERONE|CID:6446 contains no genes defined in genotype data
+	WARNING: gene set ATC:A14AA02|NAME:STANOZOLOL|CID:25249 contains no genes defined in genotype data
+	WARNING: gene set ATC:A14AA05|NAME:OXYMETHOLONE|CID:5281034,122130441 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03BA02,G03EK01|NAME:METHYLTESTOSTERONE|CID:6010 contains no genes defined in genotype data
+	WARNING: gene set ATC:A14AA08|NAME:OXANDROLONE|CID:5878 contains no genes defined in genotype data
+	WARNING: gene set ATC:A14AB02|NAME:ETHYLESTRENOL|CID:13765 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BB04|NAME:ENZALUTAMIDE|CID:15951529 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03BX02|NAME:DIMETHYLPHTHALATE|CID:8554 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03HA01|NAME:CYPROTERONE|CID:5284537,5702275 contains no genes defined in genotype data
+	WARNING: gene set ATC:A14AB01,S01XA11|NAME:NANDROLONE|CID:9904 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX04|NAME:DEANOL|CID:7902 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB15|NAME:MEPREDNISONE|CID:5284587 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03BA04|NAME:TETRAMETHRIN|CID:83975 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AB07|NAME:ACETOPHENAZINE|CID:17676 contains no genes defined in genotype data
+	WARNING: gene set ATC:D09AA13|NAME:IODOFORM|CID:6374 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AA02|NAME:FLUDROCORTISONE|CID:31378 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AE06|NAME:BIPHENYLOL|CID:7017 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DA03|NAME:HYDROXYPROGESTERONE|CID:6238 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DC01|NAME:ALLYLESTRENOL|CID:70695647,235905 contains no genes defined in genotype data
+	WARNING: gene set ATC:R02AA12|NAME:HEXYLRESORCINOL|CID:3610 contains no genes defined in genotype data
+	WARNING: gene set ATC:A14AA01,G03BB02|NAME:ANDROSTANOLONE|CID:10635 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BA02|NAME:TOREMIFENE|CID:3005573 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01EB09|NAME:UBIDECARENONE|CID:5281915 contains no genes defined in genotype data
+	WARNING: gene set ATC:A09AB03,B05XA13|NAME:HYDROCHLORIC contains no genes defined in genotype data
+	WARNING: gene set ATC:S02AA03|NAME:BORIC contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB26|NAME:METHIONINE|CID:6137 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX28|NAME:IFENPRODIL|CID:3689 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AA09|NAME:DOXYLAMINE|CID:3162 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AD07|NAME:BENPERIDOL|CID:16363 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BA03|NAME:DISOPYRAMIDE|CID:3114 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AD06|NAME:BROMPERIDOL|CID:2448 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE12|NAME:OXAPROZIN|CID:4614 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE03|NAME:ERLOTINIB|CID:176870 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BA04|NAME:PEMETREXED|CID:446556 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BB04|NAME:NALTREXONE|CID:5360515 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04AA02|NAME:BIPERIDEN|CID:2381 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DC04|NAME:ETHISTERONE|CID:12016247 contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AD02,G02CC03,M01AX07,M02AA05|NAME:BENZYDAMINE|CID:12555 contains no genes defined in genotype data
+	WARNING: gene set ATC:B02BX01|NAME:ETAMSYLATE|CID:17506 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AF05|NAME:IPRONIAZIDE|CID:3748 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AA30|NAME:PIPERIDOLATE|CID:4839 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EC02|NAME:DICLOFENAMIDE|CID:3038 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FA06|NAME:ROXITHROMYCIN|CID:126969152 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AA06|NAME:PAROMOMYCIN|CID:165580 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01EB04|NAME:SULFAPYRIDINE|CID:5336 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01AA01|NAME:ACETYLDIGITOXIN|CID:5284512 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01AA07|NAME:DESLANOSIDE|CID:28620 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BA04|NAME:CHLOROPROCAINE|CID:8612 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA06|NAME:TRICHLORMETHIAZIDE|CID:5560 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01AB05|NAME:SULFAFENAZOL|CID:5335 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BG09|NAME:METHOXYFLURANE|CID:4116 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AB04|NAME:ENFLURANE|CID:3226 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AB07|NAME:DESFLURANE|CID:42113 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BC06|NAME:DEXLANSOPRAZOLE|CID:9578005 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BC04|NAME:RABEPRAZOLE|CID:5029 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AX01|NAME:MOROXYDINE|CID:71655 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AE05|NAME:MECLOZINE|CID:4034 contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BA04|NAME:ALENDRONIC contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BA05|NAME:TILUDRONIC contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BA01|NAME:ETIDRONIC contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX05|NAME:HYDROXYCARBAMIDE|CID:3657 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DH02|NAME:MEROPENEM|CID:441130 contains no genes defined in genotype data
+	WARNING: gene set ATC:R07AB05|NAME:BEMEGRIDE|CID:2310 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BB01|NAME:HYDROXYZINE|CID:3658 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01ED04|NAME:SULFAMETOXYDIAZINE|CID:5326 contains no genes defined in genotype data
+	WARNING: gene set ATC:M02AA22|NAME:SUXIBUZONE|CID:5362 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05CB05,V03AF01|NAME:MESNA|CID:23662354 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01XA03|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:H01BA06|NAME:ARGIPRESSIN|CID:644077 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01BA03|NAME:LYPRESSIN|CID:644076 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03XA02|NAME:CONIVAPTAN|CID:151171 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02CX01|NAME:ATOSIBAN|CID:5311010 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01BA02|NAME:DESMOPRESSIN|CID:5311065 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01BA04|NAME:TERLIPRESSIN|CID:72081 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA08|NAME:PIVMECILLINAM|CID:115163 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05CA03|NAME:GUAIFENESIN|CID:3516 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AF04|NAME:MECLOCYCLINE|CID:54676539 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AC01|NAME:THIOTEPA|CID:5453 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AX12|NAME:PHLOROGLUCINOL|CID:359 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AB12|NAME:CIDOFOVIR|CID:60613 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01CA03|NAME:VINDESINE|CID:40839 contains no genes defined in genotype data
+	WARNING: gene set ATC:B02AA02|NAME:TRANEXAMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AA01|NAME:DIATRIZOIC contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AX02,M02AA17|NAME:NIFLUMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:A11HA01|NAME:NICOTINAMIDE|CID:936 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AF05|NAME:AMIFOSTINE|CID:2141 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11HA04|NAME:RIBOFLAVIN contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DD01|NAME:CEFOTAXIME|CID:53850837 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03AC02|NAME:BIOALLETHRIN|CID:11442 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XA02|NAME:CARBOPLATIN|CID:122130863 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DA07|NAME:NOSCAPINE|CID:275196 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AB01|NAME:METRIZAMIDE|CID:49800036 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04AB01|NAME:ETANAUTINE|CID:3100 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AB01|NAME:SUXAMETHONIUM|CID:5314 contains no genes defined in genotype data
+	WARNING: gene set ATC:D04AA04,R06AC04|NAME:TRIPELENNAMINE|CID:5587 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC05|NAME:HEXAFLURONIUM|CID:3601 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB08|NAME:ETODOLAC|CID:3308 contains no genes defined in genotype data
+	WARNING: gene set ATC:B02BA01|NAME:PHYTOMENADIONE|CID:5284607 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX43|NAME:VISMODEGIB|CID:24776445 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BB10|NAME:IMIQUIMOD|CID:57469 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02AE03|NAME:GOSERELIN|CID:5311128 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX36|NAME:OBLIMERSEN|CID:118984457 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04BD02|NAME:RASAGILINE|CID:3052776 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02DA01,V03AH01|NAME:DIAZOXIDE|CID:3019 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE25|NAME:TRAMETINIB|CID:11707110 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AC03|NAME:MESORIDAZINE|CID:4078 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA04|NAME:METHYLPHENIDATE|CID:4158 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02AC01,A12AA04|NAME:CALCIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AA09|NAME:BENDAMUSTINE|CID:65628 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE15|NAME:VEMURAFENIB|CID:42611257 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE23|NAME:DABRAFENIB|CID:44462760 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AX04|NAME:AZAPROPAZONE|CID:26098 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11CA01|NAME:RETINOL contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE27|NAME:IBRUTINIB|CID:24821094 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BA03|NAME:METHOCARBAMOL|CID:4107 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX11|NAME:TOPIRAMATE|CID:5284627 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05CA08|NAME:CREOSOTE|CID:460 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA01|NAME:BENDROFLUMETHIAZIDE|CID:2315 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA04|NAME:CHLOROTHIAZIDE|CID:2720 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA09|NAME:CYCLOTHIAZIDE|CID:2910 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EC04|NAME:BRINZOLAMIDE|CID:68844 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA08|NAME:METHYCLOTHIAZIDE|CID:4121 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AX02,S01AX06|NAME:RESORCINOL|CID:5054 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX03|NAME:SULTIAME|CID:5356 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AB03|NAME:TIOXOLONE|CID:72139 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AH03|NAME:VALDECOXIB|CID:119607 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AD17,A06AG01,B05XA09|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:B05CB02|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX14|NAME:LEVETIRACETAM|CID:5284583 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BG08|NAME:ZICONOTIDE|CID:16135415 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA14|NAME:CILNIDIPINE|CID:5282138 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA16|NAME:CLEVIDIPINE|CID:153994 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA07|NAME:NISOLDIPINE|CID:4499 contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA10|NAME:NILVADIPINE|CID:4494 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BD05|NAME:IBUTILIDE|CID:60753 contains no genes defined in genotype data
+	WARNING: gene set ATC:B05CB04,B05XA02|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:C08CA13|NAME:LERCANIDIPINE|CID:65866 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX01|NAME:CYCLANDELATE|CID:2893 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BA08|NAME:LAFUTIDINE|CID:5282136 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BA04|NAME:NIZATIDINE|CID:3033637 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AX02|NAME:ANETHOLE contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC01|NAME:SUMATRIPTAN|CID:5358 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX05|NAME:PRAMLINTIDE|CID:71306803 contains no genes defined in genotype data
+	WARNING: gene set ATC:H05BA01|NAME:CALCITONIN contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BB04|NAME:APRINDINE|CID:2218 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA12|NAME:ALPRAZOLAM|CID:2118 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02AA04,G04BX01|NAME:MAGNESIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX06|NAME:CITICOLINE|CID:13804 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DB04|NAME:ACLARUBICIN|CID:123134262 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01CA04|NAME:VINORELBINE|CID:44424639 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01BE03|NAME:ARTESUNATE|CID:126963478 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DC03|NAME:MONTELUKAST|CID:5281040 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BB09|NAME:ROPIVACAINE|CID:175805 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA13|NAME:TROVAFLOXACIN|CID:62959 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01XA01|NAME:GUAIAZULEN|CID:3515 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07XX02|NAME:RILUZOLE|CID:5070 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06DX01|NAME:MEMANTINE|CID:4054 contains no genes defined in genotype data
+	WARNING: gene set ATC:B03BA05|NAME:MECOBALAMIN|CID:73415798 contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BA06|NAME:IBANDRONIC contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BB06|NAME:CLOFARABINE|CID:119182 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX12|NAME:BUPROPION|CID:444 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BB01|NAME:BUPIVACAINE|CID:2474 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DB06|NAME:IDARUBICIN|CID:42890 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AD16,B05BC01,B05CX04,R05CB16|NAME:MANNITOL|CID:6251 contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BA02|NAME:CLODRONIC contains no genes defined in genotype data
+	WARNING: gene set ATC:P01BA02|NAME:HYDROXYCHLOROQUINE|CID:3652 contains no genes defined in genotype data
+	WARNING: gene set ATC:B05XB02|NAME:ALANYL contains no genes defined in genotype data
+	WARNING: gene set ATC:H05BX01|NAME:CINACALCET|CID:156419 contains no genes defined in genotype data
+	WARNING: gene set ATC:D02BA02|NAME:OCTINOXATE|CID:5355130 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AE01|NAME:BENZOYL contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CC03|NAME:SINCALIDE|CID:9833444 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CC04|NAME:CERULETIDE|CID:16129675 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CG04|NAME:PENTAGASTRIN|CID:9853654 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AD15|NAME:MACROGOL|CID:174 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AH01,G01AC05,R02AA02|NAME:DEQUALINIUM|CID:2993 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AC02|NAME:DEFERIPRONE|CID:2972 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06AA03,G01AA07,J01AA06,S01AA04|NAME:OXYTETRACYCLINE|CID:54675779 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01AA12|NAME:TIGECYCLINE|CID:54686904 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01CX01|NAME:TRABECTEDIN|CID:108150 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AA31|NAME:TERIFLUNOMIDE|CID:54684141 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE33|NAME:PALBOCICLIB|CID:5330286 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AA01,M02AA01|NAME:PHENYLBUTAZONE|CID:4781 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AE01|NAME:HEXACHLOROPHENE|CID:3598 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BE01|NAME:BUSPIRONE|CID:2477 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA13|NAME:TICARCILLIN|CID:36921 contains no genes defined in genotype data
+	WARNING: gene set ATC:D04AA14,R06AA04|NAME:CLEMASTINE|CID:26987 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AX09|NAME:MARAVIROC|CID:3002977 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AC06|NAME:IOPANOIC contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AD03|NAME:ADAPALENE|CID:60164 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FG02|NAME:QUINUPRISTIN/DALFOPRISTIN|CID:71770713 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BX03|NAME:PIRENZEPINE|CID:4848 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC16|NAME:EPTIFIBATIDE|CID:448812,77906395 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AA08,J01GB04,S01AA24|NAME:KANAMYCIN|CID:6032 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AX04|NAME:TOSYLCHLORAMIDE contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE18|NAME:RUXOLITINIB|CID:25126798 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11HA07|NAME:INOSITOL|CID:892 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AC03|NAME:DEFERASIROX|CID:57404189 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AA32|NAME:APREMILAST|CID:11561674 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05CB03|NAME:CARBOCISTEINE|CID:193653 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BX08|NAME:CYCLOBENZAPRINE|CID:2895 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BC06|NAME:CAPECITABINE|CID:60953 contains no genes defined in genotype data
+	WARNING: gene set ATC:A05AA03|NAME:CHOLIC contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CE02|NAME:PHENOXYMETHYLPENICILLIN|CID:6869 contains no genes defined in genotype data
+	WARNING: gene set ATC:B03BA01|NAME:CYANOCOBALAMIN|CID:118701720 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX03|NAME:PIRACETAM|CID:4843 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BA04|NAME:SPARTEINE|CID:16212687 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AX08|NAME:ALVERINE|CID:3678 contains no genes defined in genotype data
+	WARNING: gene set ATC:R07AX02|NAME:IVACAFTOR|CID:16220172 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CE02|NAME:MILRINONE|CID:4197 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AX06|NAME:MIGLUSTAT|CID:51634 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AA01|NAME:ALCURONIUM|CID:101602193,21158560 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA04|NAME:BARBITAL|CID:2294 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB02|NAME:GLYCOPYRRONIUM|CID:11693 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07AX03|NAME:CEVIMELINE|CID:123603 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB10|NAME:HEXOCYCLIUM|CID:24199 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB05|NAME:PROPANTHELINE|CID:4934 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04AC01|NAME:BENZATROPINE|CID:1201549 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EB08|NAME:ACECLIDINE|CID:1979 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03BB04|NAME:TIOTROPIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB03|NAME:OXYPHENONIUM|CID:5749 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BH05|NAME:LINAGLIPTIN|CID:10096344 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AB01|NAME:BROMPHENIRAMINE|CID:6834 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BC01,R02AD03,S01HA01,S02DA02|NAME:COCAINE|CID:21635054 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD11|NAME:FESOTERODINE|CID:6918558 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD09|NAME:TROSPIUM|CID:5284632 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AA01|NAME:OXYPHENCYCLIMINE|CID:4642 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB07|NAME:METHANTHELINE|CID:4097 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AE01|NAME:BUCLIZINE|CID:6729 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD10|NAME:DARIFENACIN|CID:444031 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD08|NAME:SOLIFENACIN|CID:216457 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BD02|NAME:FLAVOXATE|CID:3354 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB08|NAME:TRIDIHEXETHYL|CID:20299 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB12|NAME:MEPENZOLATE|CID:4057 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04AA08|NAME:DEXETIMIDE|CID:24835791 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03BB03,S01FA03|NAME:METHYLSCOPOLAMINE|CID:49800047 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AA04|NAME:DIMETHYLTUBOCURARINE|CID:21233 contains no genes defined in genotype data
+	WARNING: gene set ATC:D04AA13,R06AB03|NAME:DIMETINDENE|CID:21855 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC01|NAME:PANCURONIUM|CID:441289 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC07|NAME:DOXACURIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC06|NAME:PIPECURONIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:R03BB05|NAME:ACLIDINIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AB09|NAME:ISOPROPAMIDE|CID:3775 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03BB07|NAME:UMECLIDINIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC10|NAME:MIVACURIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC11|NAME:CISATRACURIUM|CID:62886,62887 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC09|NAME:ROCURONIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC04|NAME:ATRACURIUM|CID:47319 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03AC03|NAME:VECURONIUM|CID:39765 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02BA01|NAME:TRIMETAPHAN|CID:23576 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BA01|NAME:NICOTINE|CID:89594 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DA09|NAME:DEXTROMETHORPHAN|CID:5360696 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BA03|NAME:VARENICLINE|CID:53315056 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BC03|NAME:LEVACETYLMETHADOL|CID:15130 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AA30|NAME:METHARBITAL|CID:4099 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA03|NAME:BUTOBARBITAL|CID:6473 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA07|NAME:TALBUTAL|CID:8275 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AA01|NAME:METHYLPHENOBARBITAL|CID:8271 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA02|NAME:AMOBARBITAL|CID:2164 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA11|NAME:HEPTABARBITAL|CID:10518 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA05|NAME:APROBARBITAL|CID:6464 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA06|NAME:SECOBARBITAL|CID:5193 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CA01|NAME:PENTOBARBITAL|CID:4737 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AF02,N05CA16|NAME:HEXOBARBITAL|CID:3608 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA15|NAME:TALAMPICILLIN|CID:71447 contains no genes defined in genotype data
+	WARNING: gene set ATC:H03BB01|NAME:CARBIMAZOLE|CID:31072 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AX03|NAME:LUBIPROSTONE|CID:157920 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AB04|NAME:MEPHENYTOIN|CID:4060 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AE12|NAME:BOCEPREVIR|CID:10324367 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AX01|NAME:RIMONABANT|CID:104850 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AD11|NAME:NABILONE|CID:5284592 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AX13|NAME:NITROUS contains no genes defined in genotype data
+	WARNING: gene set ATC:J01EA01|NAME:TRIMETHOPRIM|CID:5578 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DB08|NAME:CEFAPIRIN|CID:30699 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AC18|NAME:PREDNICARBATE|CID:6714002 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DC08|NAME:LORACARBEF|CID:45266920 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DB19|NAME:DROPROPIZINE|CID:3169 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AC14,G01AF19|NAME:SERTACONAZOLE|CID:65863 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AA05|NAME:CARGLUMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:C02CC02,S01EX01|NAME:GUANETHIDINE|CID:3518 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01AA01|NAME:CORTICOTROPIN|CID:16132265 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01XA03|NAME:TELAVANCIN|CID:3081362 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AC04|NAME:COLESEVELAM|CID:160051 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03DB04|NAME:NOMEGESTROL|CID:68783 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AA09,J01XA01|NAME:VANCOMYCIN|CID:14969 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB06|NAME:ALCLOFENAC|CID:30951 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AE06|NAME:BIVALIRUDIN|CID:16129704 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03CX01|NAME:TIBOLONE|CID:444008 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AF06|NAME:ABACAVIR|CID:441300 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01XX01|NAME:FOSFOMYCIN|CID:25244760 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DC01|NAME:BLEOMYCIN|CID:54608728 contains no genes defined in genotype data
+	WARNING: gene set ATC:L03AA14|NAME:LIPEGFILGRASTIM|CID:70683024 contains no genes defined in genotype data
+	WARNING: gene set ATC:L03AA13|NAME:PEGFILGRASTIM|CID:119525 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DD02|NAME:CEFTAZIDIME|CID:122200874 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AE11|NAME:TELAPREVIR|CID:3010818 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01BA06|NAME:AMODIAQUINE|CID:2165 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01AA04|NAME:LYMECYCLINE|CID:122130887 contains no genes defined in genotype data
+	WARNING: gene set ATC:A12AA01|NAME:CALCIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA04|NAME:AMOXICILLIN|CID:33613 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AE15,D01BA02|NAME:TERBINAFINE|CID:1549008 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AE01|NAME:CLONAZEPAM|CID:2802 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX27|NAME:DESLORATADINE|CID:124087 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AX05,J04BA02|NAME:DAPSONE|CID:2955 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB03,M02AA21|NAME:TOLMETIN|CID:5509 contains no genes defined in genotype data
+	WARNING: gene set ATC:L03AX16|NAME:PLERIXAFOR|CID:65015 contains no genes defined in genotype data
+	WARNING: gene set ATC:D09AA01,R01AX08,S01AA07|NAME:FRAMYCETIN|CID:8378 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AB01|NAME:HALOTHANE|CID:3562 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BG01|NAME:AMINOGLUTETHIMIDE|CID:2145 contains no genes defined in genotype data
+	WARNING: gene set ATC:A12BA01,B05XA01|NAME:POTASSIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BX03|NAME:ABIRATERONE|CID:132971 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BG03|NAME:ANASTROZOLE|CID:2187 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BG05|NAME:VOROZOLE|CID:6918191 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AG06|NAME:TIAGABINE|CID:60648 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BG02|NAME:FORMESTANE|CID:11273 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AC10|NAME:BIFONAZOLE|CID:2378 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AF02|NAME:OXCARBAZEPINE|CID:34312 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AC11,G01AF17|NAME:OXICONAZOLE|CID:5353853 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02CB02,N02CA07|NAME:LISURIDE|CID:28864 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AC06,P02CA02|NAME:TIABENDAZOLE|CID:5430 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03CA01|NAME:DANTROLENE|CID:6914273 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA04|NAME:ENOXACIN|CID:3229 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX17|NAME:STIRIPENTOL|CID:5311454 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04AB02|NAME:ORPHENADRINE contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC03|NAME:ZOLMITRIPTAN|CID:60857 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AA01|NAME:ONDANSETRON|CID:4595 contains no genes defined in genotype data
+	WARNING: gene set ATC:D05AD01,D05BA01|NAME:TRIOXYSALEN|CID:5585 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02CC02|NAME:OXANTEL|CID:5281087 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB11|NAME:ACEMETACIN|CID:1981 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02BA01|NAME:PRAZIQUANTEL|CID:4891 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11CC06|NAME:CALCIFEDIOL|CID:5283731 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BC03|NAME:TEGAFUR|CID:5386 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AG02|NAME:DELAVIRDINE|CID:5625 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AC15,J02AC01|NAME:FLUCONAZOLE|CID:3365 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03AC06,G03DA02,L02AB02|NAME:MEDROXYPROGESTERONE|CID:10631 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03CA04|NAME:TORASEMIDE|CID:41781 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AF08|NAME:ADEFOVIR contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX22|NAME:EBASTINE|CID:3191 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AX03|NAME:COBICISTAT|CID:25151504 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01EB05,S01AB02|NAME:SULFAFURAZOLE|CID:5344 contains no genes defined in genotype data
+	WARNING: gene set ATC:J02AC03|NAME:VORICONAZOLE|CID:71616 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AC07,G01AF08|NAME:TIOCONAZOLE|CID:5482 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX10,G04BE06|NAME:MOXISYLYTE|CID:4260 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB15,S01BC05|NAME:KETOROLAC|CID:3826 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AC07,R03BC03,S01GX04|NAME:NEDOCROMIL|CID:50294 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AF09|NAME:EMTRICITABINE|CID:60877 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05CA02,S01XA04,V03AB21|NAME:POTASSIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:C08EX01|NAME:LIDOFLAZINE|CID:3926 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BA05|NAME:PRALATREXATE|CID:148121 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AC05|NAME:USTEKINUMAB|CID:121750 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01AX07|NAME:TRIMETREXATE|CID:5583 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BC01|NAME:MEPROBAMATE|CID:4064 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01CA03|NAME:OXYCINCHOPHEN|CID:10239 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FA02|NAME:SPIRAMYCIN|CID:76324338 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AD04|NAME:STREPTOZOCIN|CID:29327 contains no genes defined in genotype data
+	WARNING: gene set ATC:G01AD02,S02AA10|NAME:ACETIC contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BH02|NAME:VILDAGLIPTIN|CID:6918537,24848920 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BH03|NAME:SAXAGLIPTIN|CID:98047158 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BH06|NAME:GEMIGLIPTIN|CID:11953153 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BH04|NAME:ALOGLIPTIN|CID:11450633 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BH01|NAME:SITAGLIPTIN|CID:4369359 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AF04|NAME:TIOTIXENE|CID:941651 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AC04|NAME:PIPOTIAZINE|CID:62867 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX16|NAME:BREXPIPRAZOLE|CID:11978813 contains no genes defined in genotype data
+	WARNING: gene set ATC:N04BC08|NAME:PIRIBEDIL|CID:4850 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AL05|NAME:AMISULPRIDE|CID:2159 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AE03|NAME:SERTINDOLE|CID:60149 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX15|NAME:CARIPRAZINE|CID:11154555 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AE02|NAME:MOLINDONE|CID:23897 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AL04|NAME:REMOXIPRIDE|CID:54477 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02CB04|NAME:QUINAGOLIDE|CID:3086401,22942549 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03FA04|NAME:BROMOPRIDE|CID:2446 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03FA05|NAME:ALIZAPRIDE|CID:43008 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07XX06|NAME:TETRABENAZINE|CID:6018 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BB02|NAME:CAPTODIAME|CID:10240 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02CX02|NAME:FLIBANSERIN|CID:6918248 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AA11,D07AC08|NAME:FLUOCINONIDE|CID:9642 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DA08,C05AE02|NAME:ISOSORBIDE contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KX02|NAME:AMBRISENTAN|CID:6918493 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KX04|NAME:MACITENTAN|CID:16004692 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE13|NAME:AFATINIB|CID:10184653 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XC06|NAME:CETUXIMAB|CID:85668777 contains no genes defined in genotype data
+	WARNING: gene set ATC:G02AD05|NAME:SULPROSTONE|CID:5312153 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BG06|NAME:NEFOPAM|CID:4450 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AE07|NAME:CHLORPHENESIN|CID:7697 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA06|NAME:BACAMPICILLIN|CID:441397 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01XX04|NAME:SPECTINOMYCIN|CID:15541 contains no genes defined in genotype data
+	WARNING: gene set ATC:P01CC01|NAME:NIFURTIMOX|CID:6842999 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03XC05|NAME:OSPEMIFENE|CID:3036505 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03CA01,L02AA03|NAME:ETHINYLESTRADIOL|CID:5991 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02AA04|NAME:FOSFESTROL|CID:3032325 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03XC03|NAME:LASOFOXIFENE|CID:216416 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BX12|NAME:PHENYL contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BX01|NAME:IPRIFLAVONE|CID:3747 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03AC03|NAME:PHENOTHRIN|CID:4767 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AX06|NAME:MEQUINOL|CID:9015 contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AB01,P02BX01|NAME:BITHIONOL|CID:2406 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03CB04|NAME:MOXESTROL|CID:11954041 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX11|NAME:ESTRAMUSTINE|CID:259331 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02CA01|NAME:TRILOSTANE|CID:656583 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03AC08|NAME:ETONOGESTREL|CID:6917715 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03CA06|NAME:CHLOROTRIANISENE|CID:11289 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AF02|NAME:APIXABAN|CID:10182969 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AF01|NAME:RIVAROXABAN|CID:9875401 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AX05|NAME:FONDAPARINUX|CID:5282448 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AE04|NAME:MELAGATRAN|CID:183797 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07BC02|NAME:KAOLIN|CID:56841936 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AE03|NAME:ARGATROBAN|CID:92722,123133837,445156 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AE01|NAME:DESIRUDIN|CID:16129703 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AE05|NAME:XIMELAGATRAN|CID:126968951 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AE07|NAME:DABIGATRAN contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA09|NAME:CLOBAZAM|CID:2789 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC26|NAME:VORAPAXAR|CID:10077130 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC25|NAME:CANGRELOR|CID:9854012 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01HA04|NAME:PROXYMETACAINE|CID:4935 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BB05,G01AX02,S01XA10|NAME:INOSINE|CID:6021 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC03|NAME:PICOTAMIDE|CID:4814 contains no genes defined in genotype data
+	WARNING: gene set ATC:M05BA07|NAME:RISEDRONIC contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XD03|NAME:METHYL contains no genes defined in genotype data
+	WARNING: gene set ATC:A01AD07,R03DX01|NAME:AMLEXANOX|CID:2161 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07CA01|NAME:BETAHISTINE|CID:2366 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE31|NAME:NINTEDANIB|CID:9809715 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE29|NAME:LENVATINIB|CID:9823820 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE22|NAME:MASITINIB|CID:10074640 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AH01,L04AD02|NAME:TACROLIMUS|CID:445643 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE32|NAME:CEDIRANIB|CID:9933475 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE34|NAME:TIVOZANIB|CID:9911830 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE26|NAME:CABOZANTINIB|CID:25102847 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX18|NAME:ACRIVASTINE|CID:5284514 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01AD05|NAME:FOTEMUSTINE|CID:104799 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03GA04|NAME:UROFOLLITROPIN|CID:75409771 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03BC01|NAME:MERSALYL|CID:23690449 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DX12|NAME:MOLSIDOMINE|CID:5353788 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB17,V04CG05|NAME:METHYLTHIONINIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BF02|NAME:MIGLITOL|CID:441314 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BF03|NAME:VOGLIBOSE|CID:444020 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AD04|NAME:CHLOROBUTANOL|CID:5284505 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AA01|NAME:DIETHYL contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AG05|NAME:PROGABIDE|CID:6850568 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA06|NAME:LORAZEPAM|CID:3958 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CF03|NAME:ZALEPLON|CID:5719 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CM08|NAME:ETHCHLORVYNOL|CID:5281077 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA11|NAME:PRAZEPAM|CID:4890 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB25|NAME:FLUMAZENIL|CID:3373 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA04|NAME:OXAZEPAM|CID:4616 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD10|NAME:QUAZEPAM|CID:4999 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CE02|NAME:METHYPRYLON|CID:4162 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CE01|NAME:GLUTETHIMIDE|CID:3487 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD07|NAME:TEMAZEPAM|CID:5391 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD05|NAME:TRIAZOLAM|CID:5556 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA13|NAME:HALAZEPAM|CID:31640 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CF02|NAME:ZOLPIDEM|CID:5732 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CD01|NAME:FLURAZEPAM|CID:3393 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BA02|NAME:CARISOPRODOL|CID:2576 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX10|NAME:FELBAMATE|CID:3331 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AF01,N05CA15|NAME:METHOHEXITAL|CID:9034 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01EB02|NAME:CAMPHORA|CID:2537 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BX05|NAME:THIOCOLCHICOSIDE|CID:9915886 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02CB01|NAME:PIPERAZINE|CID:4837 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AX10|NAME:ELIGLUSTAT|CID:23652731 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA16,S01AE06|NAME:GATIFLOXACIN|CID:5379 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE07|NAME:SUPROFEN|CID:5359 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB16,M02AA25|NAME:ACECLOFENAC|CID:71771 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01AC04,V04CD03|NAME:SERMORELIN|CID:121235530,16132413 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CD06|NAME:MACIMORELIN|CID:9804938 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01ED01|NAME:SULFADIMETHOXINE|CID:5323 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AB04|NAME:IOPAMIDOL|CID:65492 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BB02|NAME:METAMIZOLE contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EB01,D11AH03,R01AC01,R03BC01,S01GX01|NAME:CROMOGLICIC contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX13|NAME:ALBIGLUTIDE|CID:122173812 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX07|NAME:LIRAGLUTIDE|CID:16134956 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX04|NAME:EXENATIDE|CID:56927919,45588096 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX10|NAME:LIXISENATIDE|CID:90472060 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AX08|NAME:TEDUGLUTIDE|CID:16139605 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BX01|NAME:ABARELIX|CID:16131215 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02AE02|NAME:LEUPRORELIN|CID:657181 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01CC01|NAME:GANIRELIX|CID:16130957,23724914 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02BX02|NAME:DEGARELIX|CID:16136245 contains no genes defined in genotype data
+	WARNING: gene set ATC:L02AE04|NAME:TRIPTORELIN|CID:25074470 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01CA02|NAME:NAFARELIN|CID:25077405 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01CA01,V04CM01|NAME:GONADORELIN|CID:638793 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX22|NAME:PERAMPANEL|CID:9924495 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AX14|NAME:ESKETAMINE|CID:182137 contains no genes defined in genotype data
+	WARNING: gene set ATC:M03BC01|NAME:ORPHENADRINE contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AB02|NAME:PETHIDINE|CID:4058 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AB01|NAME:KETOBEMIDONE|CID:10101 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BB03|NAME:ACAMPROSATE|CID:71158 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX17|NAME:MILNACIPRAN|CID:65833 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA09|NAME:ATOMOXETINE|CID:54841 contains no genes defined in genotype data
+	WARNING: gene set ATC:B05CX03|NAME:GLYCINE|CID:750 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AF03|NAME:RUFINAMIDE|CID:129228 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01EC02|NAME:SULFADIAZINE|CID:5215 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KX05|NAME:RIOCIGUAT|CID:11304743 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DA14|NAME:ISOSORBIDE contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AX04|NAME:LINACLOTIDE|CID:16158208 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XD06|NAME:EFAPROXIRAL|CID:122335 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AA02|NAME:AMINOACRIDINE|CID:7019 contains no genes defined in genotype data
+	WARNING: gene set ATC:B03AA05|NAME:FERROUS contains no genes defined in genotype data
+	WARNING: gene set ATC:N07XX07|NAME:FAMPRIDINE|CID:1727 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AA08|NAME:PITAVASTATIN|CID:5282452 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05CA13|NAME:CINEOLE|CID:2758 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AX05|NAME:MEGLUTOL|CID:1662 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AF01|NAME:ISOCARBOXAZID|CID:3759 contains no genes defined in genotype data
+	WARNING: gene set ATC:J02AX04|NAME:CASPOFUNGIN|CID:25246317 contains no genes defined in genotype data
+	WARNING: gene set ATC:C04AX32|NAME:FASUDIL|CID:3547 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AX04|NAME:NITISINONE|CID:115355 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01GX11|NAME:ALCAFTADINE|CID:19371515 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AD04|NAME:METHDILAZINE|CID:14677 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AC08,S01GX09|NAME:OLOPATADINE|CID:5281071 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AE09|NAME:LEVOCETIRIZINE|CID:1549000 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01GX06|NAME:EMEDASTINE|CID:3219 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AB02|NAME:DEXCHLORPHENIRAMINE|CID:33036 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX29|NAME:BILASTINE|CID:185460 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX24,S01GX10|NAME:EPINASTINE|CID:3241 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX28|NAME:RUPATADINE|CID:133017 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AC02,S01GX02|NAME:LEVOCABASTINE|CID:54385 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX26|NAME:FEXOFENADINE|CID:3348 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AE03|NAME:CYCLIZINE|CID:6726 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX25|NAME:MIZOLASTINE|CID:65906 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AA01|NAME:BROMAZINE|CID:2444 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AB06|NAME:DEXBROMPHENIRAMINE|CID:16960 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DB10|NAME:CLOFEDANOL|CID:2795 contains no genes defined in genotype data
+	WARNING: gene set ATC:D04AA16,R06AB05|NAME:PHENIRAMINE|CID:4761 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AD07|NAME:MEQUITAZINE|CID:4066 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX09|NAME:AZATADINE|CID:19861 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX04|NAME:PHENINDAMINE|CID:11291 contains no genes defined in genotype data
+	WARNING: gene set ATC:D04AA22,R06AD09|NAME:ISOTHIPENDYL|CID:3781 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA15|NAME:BUTRIPTYLINE|CID:21772 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BA07|NAME:RANITIDINE contains no genes defined in genotype data
+	WARNING: gene set ATC:N07XX11|NAME:PITOLISANT|CID:9948102 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BX01|NAME:CARBENOXOLONE|CID:56965767 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX24|NAME:VILAZODONE|CID:6918314 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX26|NAME:VORTIOXETINE|CID:9966051 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07XX03|NAME:XALIPRODEN|CID:128919 contains no genes defined in genotype data
+	WARNING: gene set ATC:C07AA16|NAME:TERTATOLOL|CID:36920 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX19|NAME:GEPIRONE|CID:55191 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CA04|NAME:METHYSERGIDE|CID:9681 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC06|NAME:ELETRIPTAN|CID:77993 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC02|NAME:NARATRIPTAN|CID:4440 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC07|NAME:FROVATRIPTAN|CID:77992 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC04|NAME:RIZATRIPTAN|CID:5078 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02CC05|NAME:ALMOTRIPTAN|CID:123606 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AX11|NAME:ZOTEPINE|CID:5736 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX11|NAME:ANIRACETAM|CID:2196 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AA02|NAME:FENFLURAMINE|CID:3337 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AA11|NAME:LORCASERIN|CID:11658860 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX22|NAME:AGOMELATINE|CID:82148 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AA04|NAME:DEXFENFLURAMINE|CID:66265 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AE03|NAME:CILANSETRON|CID:6918107 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AA02|NAME:GRANISETRON|CID:3510,118701621 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AA04|NAME:DOLASETRON|CID:49800054 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AA03|NAME:TROPISETRON|CID:656665 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AA05|NAME:PALONOSETRON|CID:6337614 contains no genes defined in genotype data
+	WARNING: gene set ATC:A03AE01|NAME:ALOSETRON|CID:2099 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AX03|NAME:PROPANOL|CID:1031 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AX05|NAME:PRUCALOPRIDE|CID:3052762 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC21|NAME:TREPROSTINIL|CID:6918140 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AC04|NAME:ADIPIODONE|CID:3739 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AD03|NAME:ETHIONAMIDE|CID:2761171 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KC01|NAME:PARGYLINE|CID:4688 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA14,S01AE07|NAME:MOXIFLOXACIN|CID:152946 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08CA01|NAME:GADOPENTETIC contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BX05|NAME:BISMUTH contains no genes defined in genotype data
+	WARNING: gene set ATC:A10AE04|NAME:INSULIN contains no genes defined in genotype data
+	WARNING: gene set ATC:J01GB10|NAME:RIBOSTAMYCIN|CID:51035374 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BB01,G02AD06|NAME:MISOPROSTOL|CID:5282381 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01CB01|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AX05|NAME:GLUCOSAMINE|CID:439213 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MB02|NAME:NALIDIXIC contains no genes defined in genotype data
+	WARNING: gene set ATC:B05CA01,D08AJ03,D09AA07,R02AA06|NAME:CETYLPYRIDINIUM|CID:2683 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DC04|NAME:IBUDILAST|CID:3671 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AH01,N02AB03|NAME:FENTANYL|CID:3345 contains no genes defined in genotype data
+	WARNING: gene set ATC:A05BA03|NAME:SILYMARIN|CID:1548994 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BB03|NAME:TIOGUANINE|CID:2723601 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AD06|NAME:ACIPIMOX|CID:5310993 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10AE05|NAME:INSULIN contains no genes defined in genotype data
+	WARNING: gene set ATC:A10AB06|NAME:INSULIN contains no genes defined in genotype data
+	WARNING: gene set ATC:A10AB05,A10AD05|NAME:INSULIN contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC17|NAME:TIROFIBAN|CID:60947 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DA11|NAME:DIMEMORFAN|CID:3037918 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AA29|NAME:TOFACITINIB|CID:9926791 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BD06|NAME:TEDISAMIL|CID:65825 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BB03|NAME:MEPIVACAINE|CID:4062 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BD04|NAME:DOFETILIDE|CID:71329 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DB03|NAME:CLOBUTINOL|CID:26937 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AA06|NAME:CYAMEMAZINE|CID:62865 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA11|NAME:GREPAFLOXACIN|CID:72474 contains no genes defined in genotype data
+	WARNING: gene set ATC:R02AB30|NAME:GRAMICIDIN|CID:16170150 contains no genes defined in genotype data
+	WARNING: gene set ATC:R07AB01|NAME:DOXAPRAM|CID:3156 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX21|NAME:RETIGABINE|CID:121892 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DC09|NAME:CEFMETAZOLE|CID:42008 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AD04,A12CC02,B05XA05,D11AX05,V04CC02|NAME:MAGNESIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:J01AA09|NAME:ROLITETRACYCLINE|CID:54682938 contains no genes defined in genotype data
+	WARNING: gene set ATC:P03AX01|NAME:BENZYL contains no genes defined in genotype data
+	WARNING: gene set ATC:A07XA04|NAME:RACECADOTRIL|CID:107751 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AH04|NAME:PARECOXIB|CID:119828 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AG02|NAME:MOCLOBEMIDE|CID:4235 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AG03|NAME:TOLOXATONE|CID:34521 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AA01|NAME:PHENTERMINE|CID:4771 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AD18,A06AG07,B05CX02,V04CC01|NAME:SORBITOL|CID:5780 contains no genes defined in genotype data
+	WARNING: gene set ATC:D02BB02|NAME:AFAMELANOTIDE|CID:16154396 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01AA02|NAME:TETRACOSACTIDE|CID:16133802 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AH01|NAME:METHYLNALTREXONE contains no genes defined in genotype data
+	WARNING: gene set ATC:H03AA02|NAME:LIOTHYRONINE contains no genes defined in genotype data
+	WARNING: gene set ATC:C01EB13|NAME:ACADESINE|CID:17513 contains no genes defined in genotype data
+	WARNING: gene set ATC:B05XA04,G04BA01|NAME:AMMONIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AC07|NAME:IOCETAMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:J01XX07|NAME:NITROXOLINE|CID:19910 contains no genes defined in genotype data
+	WARNING: gene set ATC:A16AA04,S01XA21|NAME:MERCAPTAMINE|CID:6058 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BX03|NAME:ACETOHYDROXAMIC contains no genes defined in genotype data
+	WARNING: gene set ATC:D10AF06,S01AB04|NAME:SULFACETAMIDE|CID:5320 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04BA03|NAME:ALDESULFONE contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BA05,J01EB06|NAME:SULFANILAMIDE|CID:5333 contains no genes defined in genotype data
+	WARNING: gene set ATC:B02BX05|NAME:ELTROMBOPAG|CID:66583167 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DD15|NAME:CEFDINIR|CID:123133951 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XC10|NAME:OFATUMUMAB|CID:6918251 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CH03|NAME:TASIMELTEON|CID:10220503 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05CH02|NAME:RAMELTEON|CID:208902 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XE19|NAME:RIDAFOROLIMUS|CID:11520894,86289926,25199957 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AX12|NAME:LOMITAPIDE|CID:9853053 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01CB02|NAME:TENIPOSIDE|CID:452548,122172961 contains no genes defined in genotype data
+	WARNING: gene set ATC:V08AB07|NAME:IOVERSOL|CID:3741 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AH02|NAME:OSELTAMIVIR|CID:65028 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AH01|NAME:ZANAMIVIR|CID:60855 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01FF02|NAME:LINCOMYCIN|CID:3000540 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC18|NAME:TRIFLUSAL|CID:9458 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DD08|NAME:CEFIXIME|CID:5362065 contains no genes defined in genotype data
+	WARNING: gene set ATC:L04AD03|NAME:VOCLOSPORIN|CID:6918486 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB22|NAME:AMYL contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DX19|NAME:NESIRITIDE|CID:122412733 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01DA13|NAME:ERITRITYL contains no genes defined in genotype data
+	WARNING: gene set ATC:A05AA04|NAME:OBETICHOLIC contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AG05|NAME:RILPIVIRINE|CID:6451164 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AB11|NAME:HYDROCORTISONE contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AC21|NAME:ULOBETASOL|CID:6918178,48175 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AC03,D07XC02|NAME:DESOXIMETASONE|CID:5311067 contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AB02|NAME:HYDROCORTISONE contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AB08,S01BA11|NAME:DESONIDE|CID:5311066 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AA10,D07AC04,S01BA15,S02BA08|NAME:FLUOCINOLONE contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AC19|NAME:DIFLUPREDNATE|CID:443936 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB13|NAME:DEFLAZACORT|CID:189821 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB17|NAME:CORTIVAZOL|CID:66249 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB11|NAME:PREDNYLIDENE|CID:20055008 contains no genes defined in genotype data
+	WARNING: gene set ATC:R01AD12,R03BA09|NAME:FLUTICASONE contains no genes defined in genotype data
+	WARNING: gene set ATC:D07AB21|NAME:CLOCORTOLONE|CID:5311052 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01BA14|NAME:LOTEPREDNOL|CID:9865442 contains no genes defined in genotype data
+	WARNING: gene set ATC:H02AB05|NAME:PARAMETHASONE|CID:5875 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03DA03|NAME:CANRENONE|CID:13789 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AX16,P01CX03|NAME:EFLORNITHINE|CID:3009 contains no genes defined in genotype data
+	WARNING: gene set ATC:N07BB05|NAME:NALMEFENE|CID:5284594 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AF02|NAME:NALBUPHINE|CID:5311304 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DA03|NAME:HYDROCODONE|CID:5284569 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AF01|NAME:BUTORPHANOL|CID:5361092 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DA04|NAME:CODEINE|CID:5284371 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AH03|NAME:SUFENTANIL|CID:41693 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AH06|NAME:REMIFENTANIL|CID:60815 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AA03|NAME:HYDROMORPHONE|CID:5284570 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07DA01|NAME:DIPHENOXYLATE|CID:13505 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AC04|NAME:DEXTROPROPOXYPHENE|CID:10100 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AH02|NAME:ALVIMOPAN|CID:5488548 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AX03|NAME:DEZOCINE|CID:3033053 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AX02|NAME:NALFURAFINE|CID:6445230 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AB02|NAME:NALORPHINE|CID:5284595 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AD02|NAME:PHENAZOCINE|CID:14707 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AD01|NAME:PENTAZOCINE|CID:441278 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AH02|NAME:ALFENTANIL|CID:51263 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02AX06|NAME:TAPENTADOL|CID:9838022 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AH05|NAME:ANILERIDINE|CID:8944 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DA01,S01XA06|NAME:ETHYLMORPHINE|CID:5359271 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AH03|NAME:NALOXEGOL|CID:56959087 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01BB02|NAME:OXYTOCIN|CID:439302 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01BB03|NAME:CARBETOCIN|CID:53396010 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC24|NAME:TICAGRELOR|CID:9871419 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC04|NAME:CLOPIDOGREL|CID:60606 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC22|NAME:PRASUGREL|CID:6918456 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC09|NAME:EPOPROSTENOL|CID:49822698 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX46|NAME:OLAPARIB|CID:23725625 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05BA23|NAME:TOFISOPAM|CID:5502 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE08|NAME:TADALAFIL|CID:110635 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CE03|NAME:ENOXIMONE|CID:53708 contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DX07|NAME:ROFLUMILAST|CID:449193 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01CX08|NAME:LEVOSIMENDAN|CID:3033825 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE11|NAME:UDENAFIL|CID:6918523 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE10|NAME:AVANAFIL|CID:9869929 contains no genes defined in genotype data
+	WARNING: gene set ATC:G04BE09|NAME:VARDENAFIL|CID:110634 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01FA05|NAME:HOMATROPINE|CID:5702065 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03AD02,G03XB02|NAME:ULIPRISTAL|CID:13559281,57788673 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX47|NAME:IDELALISIB|CID:11625818 contains no genes defined in genotype data
+	WARNING: gene set ATC:B05CA04,D06BA04,J01EB02,S01AB01|NAME:SULFAMETHIZOLE|CID:5328 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01GB11|NAME:ISEPAMICIN|CID:122172993 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AD01|NAME:STREPTOKINASE|CID:9815560 contains no genes defined in genotype data
+	WARNING: gene set ATC:B02AB01|NAME:APROTININ|CID:53487898 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AF02|NAME:DIDANOSINE|CID:50599 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01BB07|NAME:NELARABINE|CID:3011155 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CA09|NAME:AZLOCILLIN|CID:122130242 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DB04|NAME:CEFAZOLIN|CID:33255 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01BC09|NAME:PRANOPROFEN|CID:4888 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BX12|NAME:ACETYLCARNITINE|CID:7045767 contains no genes defined in genotype data
+	WARNING: gene set ATC:A02BX06|NAME:PROGLUMIDE|CID:4922 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DD13|NAME:CEFPODOXIME|CID:23669317 contains no genes defined in genotype data
+	WARNING: gene set ATC:N05AL02|NAME:SULTOPRIDE|CID:5357 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05BB04|NAME:SODIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX50|NAME:IXAZOMIB|CID:25183872 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EE03|NAME:BIMATOPROST|CID:5311027 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01CE05|NAME:PHENETICILLIN|CID:272833 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EE04|NAME:TRAVOPROST|CID:5282226 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EE05|NAME:TAFLUPROST|CID:9868491 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01EE01|NAME:LATANOPROST|CID:5311221 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC27|NAME:SELEXIPAG|CID:9913767 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AC19|NAME:BERAPROST|CID:23663404 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01BC10|NAME:NEPAFENAC|CID:151075 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE18|NAME:NAPROXCINOD|CID:9884642 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BG04|NAME:FLOCTAFENINE|CID:3360 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BB03|NAME:AMINOPHENAZONE|CID:6009 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AE05|NAME:FENBUFEN|CID:3335 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BB01,S02DA03|NAME:PHENAZONE|CID:2206 contains no genes defined in genotype data
+	WARNING: gene set ATC:N02BA06|NAME:SALSALATE|CID:5161 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AC05|NAME:LORNOXICAM|CID:54690031 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AB13|NAME:OXAMETACIN|CID:33675 contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AH06|NAME:LUMIRACOXIB|CID:151166 contains no genes defined in genotype data
+	WARNING: gene set ATC:J05AX10|NAME:MARIBAVIR|CID:471161 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DB05|NAME:ZORUBICIN|CID:57164040 contains no genes defined in genotype data
+	WARNING: gene set ATC:D05BB01|NAME:ETRETINATE|CID:5282375 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DC02,S01AA27|NAME:CEFUROXIME|CID:5479529 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09XA01|NAME:REMIKIREN|CID:49787013 contains no genes defined in genotype data
+	WARNING: gene set ATC:C09XA02|NAME:ALISKIREN|CID:5493444 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02DB01|NAME:DIHYDRALAZINE|CID:10230 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03BA04|NAME:CHLORTALIDONE|CID:2732 contains no genes defined in genotype data
+	WARNING: gene set ATC:C05AD02,D04AB06,N01BA03,S01HA03|NAME:TETRACAINE|CID:5411 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DC05|NAME:CEFOTETAN|CID:53025 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01AA05|NAME:METACYCLINE|CID:54675785 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AD02|NAME:TIOCARLIDE|CID:3001386 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX07|NAME:PHENACEMIDE|CID:4753 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX18|NAME:LACOSAMIDE|CID:219078 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AF04|NAME:ESLICARBAZEPINE|CID:9881504 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01EB18|NAME:RANOLAZINE|CID:56959 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BB10|NAME:LEVOBUPIVACAINE|CID:92253 contains no genes defined in genotype data
+	WARNING: gene set ATC:N01BB07|NAME:ETIDOCAINE|CID:37497 contains no genes defined in genotype data
+	WARNING: gene set ATC:D08AE05|NAME:CHLOROXYLENOL|CID:2723 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BC08|NAME:ENCAINIDE|CID:48041 contains no genes defined in genotype data
+	WARNING: gene set ATC:R05DB01|NAME:BENZONATATE|CID:7699 contains no genes defined in genotype data
+	WARNING: gene set ATC:C01BB03|NAME:TOCAINIDE|CID:38945 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AB05|NAME:FOSPHENYTOIN|CID:56339 contains no genes defined in genotype data
+	WARNING: gene set ATC:C03AA05|NAME:POLYTHIAZIDE|CID:4870 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DB09|NAME:CEFRADINE|CID:38103 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01DD14|NAME:CEFTIBUTEN|CID:5282242 contains no genes defined in genotype data
+	WARNING: gene set ATC:P02BX02|NAME:NIRIDAZOLE|CID:6093 contains no genes defined in genotype data
+	WARNING: gene set ATC:M04AB05|NAME:LESINURAD|CID:53465279 contains no genes defined in genotype data
+	WARNING: gene set ATC:S01JA01|NAME:FLUORESCEIN|CID:16850 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CH30|NAME:AMINOHIPPURIC contains no genes defined in genotype data
+	WARNING: gene set ATC:M01AX22|NAME:MORNIFLUMATE|CID:72106 contains no genes defined in genotype data
+	WARNING: gene set ATC:G03GB01|NAME:CYCLOFENIL|CID:2898 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XB01|NAME:PROCARBAZINE|CID:4915 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CE02|NAME:SULFOBROMOPHTHALEIN|CID:102371197 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX12|NAME:EMPAGLIFLOZIN|CID:11949646 contains no genes defined in genotype data
+	WARNING: gene set ATC:A10BX09|NAME:DAPAGLIFLOZIN|CID:9887712 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX23|NAME:DESVENLAFAXINE|CID:125017 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AA05|NAME:MAZINDOL|CID:4020 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX09|NAME:VILOXAZINE|CID:5666 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AA07|NAME:LOFEPRAMINE|CID:3947 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX21|NAME:DULOXETINE|CID:60835 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA11|NAME:DEXMETHYLPHENIDATE|CID:154101 contains no genes defined in genotype data
+	WARNING: gene set ATC:A08AA03|NAME:AMFEPRAMONE|CID:7029 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA13|NAME:ARMODAFINIL|CID:9690109 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06BA06|NAME:FENCAMFAMIN|CID:14584 contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX14|NAME:TIANEPTINE|CID:68870 contains no genes defined in genotype data
+	WARNING: gene set ATC:J04AB03,S01AA16,S02AA12|NAME:RIFAMYCIN|CID:6324616 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX48|NAME:SONIDEGIB|CID:24775005 contains no genes defined in genotype data
+	WARNING: gene set ATC:A05BA04|NAME:CITIOLONE|CID:14520 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AD13|NAME:CASOPITANT|CID:9917021 contains no genes defined in genotype data
+	WARNING: gene set ATC:A04AD12|NAME:APREPITANT|CID:6918365 contains no genes defined in genotype data
+	WARNING: gene set ATC:D01AE23|NAME:BUTENAFINE|CID:2484 contains no genes defined in genotype data
+	WARNING: gene set ATC:H01CB03|NAME:LANREOTIDE|CID:122173799 contains no genes defined in genotype data
+	WARNING: gene set ATC:N03AX23|NAME:BRIVARACETAM|CID:9837243 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AF03|NAME:CALCIUM contains no genes defined in genotype data
+	WARNING: gene set ATC:R03DX06|NAME:SERATRODAST|CID:2449 contains no genes defined in genotype data
+	WARNING: gene set ATC:C02KB01|NAME:METIROSINE|CID:441350 contains no genes defined in genotype data
+	WARNING: gene set ATC:C10AX01|NAME:DEXTROTHYROXINE|CID:8730 contains no genes defined in genotype data
+	WARNING: gene set ATC:D06BB11|NAME:DOCOSANOL|CID:12620 contains no genes defined in genotype data
+	WARNING: gene set ATC:A06AD11|NAME:LACTULOSE|CID:122173797 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AA04,J01GA01|NAME:STREPTOMYCIN|CID:19649 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DB10|NAME:AMRUBICIN|CID:3035016 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MB01|NAME:ROSOXACIN|CID:287180 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA19|NAME:GARENOXACIN|CID:124093 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA08|NAME:FLEROXACIN|CID:3357 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA03|NAME:PEFLOXACIN|CID:51081 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA15|NAME:GEMIFLOXACIN|CID:9571107 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA12,S01AE05|NAME:LEVOFLOXACIN|CID:149096 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA07,S01AE04|NAME:LOMEFLOXACIN|CID:3948 contains no genes defined in genotype data
+	WARNING: gene set ATC:J01MA09|NAME:SPARFLOXACIN|CID:60464 contains no genes defined in genotype data
+	WARNING: gene set ATC:V03AF02|NAME:DEXRAZOXANE|CID:71384 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07EC03|NAME:OLSALAZINE|CID:6816262 contains no genes defined in genotype data
+	WARNING: gene set ATC:V04CJ02|NAME:PROTIRELIN|CID:638678 contains no genes defined in genotype data
+	WARNING: gene set ATC:D11AC08|NAME:SULFUR contains no genes defined in genotype data
+	WARNING: gene set ATC:N01AX15|NAME:XENON|CID:23991 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01DC04|NAME:IXABEPILONE|CID:6445540 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01CD04|NAME:CABAZITAXEL|CID:9854073 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01CA05|NAME:VINFLUNINE|CID:10629256 contains no genes defined in genotype data
+	WARNING: gene set ATC:L01XX41|NAME:ERIBULIN|CID:11354606 contains no genes defined in genotype data
+	WARNING: gene set ATC:D05AX02|NAME:CALCIPOTRIOL|CID:5288783 contains no genes defined in genotype data
+	WARNING: gene set ATC:H05BX03|NAME:DOXERCALCIFEROL|CID:5281107 contains no genes defined in genotype data
+	WARNING: gene set ATC:A11CC02|NAME:DIHYDROTACHYSTEROL|CID:46173763 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AA04|NAME:PHENPROCOUMON|CID:54680692 contains no genes defined in genotype data
+	WARNING: gene set ATC:B01AA07|NAME:ACENOCOUMAROL|CID:54676537 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07BA01|NAME:MEDICINAL contains no genes defined in genotype data
+	WARNING: gene set ATC:N06AX02|NAME:TRYPTOPHAN|CID:6305 contains no genes defined in genotype data
+	WARNING: gene set ATC:M04AA03|NAME:FEBUXOSTAT|CID:134018 contains no genes defined in genotype data
+	WARNING: gene set ATC:A07AA10,J01XB01|NAME:COLISTIN|CID:5311054 contains no genes defined in genotype data
+	WARNING: gene set ATC:R06AX15|NAME:MEBHYDROLIN|CID:22530 contains no genes defined in genotype data
+	1761 gene-set definitions read from file
+	found 523 gene sets containing genes defined in genotype data (containing a total of 345 unique genes)
+Preparing variables for analysis...
+	truncating Z-scores 3 points below zero or 6 standard deviations above the mean
+	WARNING: discarding gene set 'ATC:A07EA03,H02AB07|NAME:PREDNISONE|CID:5865' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:S01EA02|NAME:DIPIVEFRINE|CID:3105' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A02BC05|NAME:ESOMEPRAZOLE|CID:4594,9579578' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AX09|NAME:EZETIMIBE|CID:150311' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A02BC03|NAME:LANSOPRAZOLE|CID:3883' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AB01|NAME:CLOFIBRATE|CID:2796' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03AC03,R03CC03|NAME:TERBUTALINE|CID:5403' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AB05|NAME:FENOFIBRATE|CID:3339' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G03AC02,G03DC03|NAME:LYNESTRENOL|CID:5857' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A10BG03|NAME:PIOGLITAZONE|CID:4829' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:V04CG02|NAME:BETAZOLE|CID:7741' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03AC14,R03CC13|NAME:CLENBUTEROL|CID:2783' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AB04|NAME:GEMFIBROZIL|CID:3463' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03AB03,R03CB03|NAME:ORCIPRENALINE|CID:4086' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L04AX02|NAME:THALIDOMIDE|CID:5426' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01BC01|NAME:QUININE|CID:91971361' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05AF01|NAME:FLUPENTIXOL|CID:5281881,5281878' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R05CB12|NAME:TIOPRONIN|CID:5483' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C08CA05|NAME:NIFEDIPINE|CID:4485' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P03AB01|NAME:CLOFENOTANE|CID:3036' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D07AC17,R01AD08,R03BA05|NAME:FLUTICASONE|CID:122130768,5311101,62924' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01CA01|NAME:VINBLASTINE|CID:6710780,44417235' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A10BA02|NAME:METFORMIN|CID:4091' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01DB03|NAME:EPIRUBICIN|CID:41867' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05AD01|NAME:HALOPERIDOL|CID:3559' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:H02AA01|NAME:ALDOSTERONE|CID:5839' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J05AF04|NAME:STAVUDINE|CID:18283' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A07EA07,D07AC15,R01AD01,R03BA01|NAME:BECLOMETASONE|CID:20469' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C08CX01|NAME:MIBEFRADIL|CID:60663' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A03BA03|NAME:HYOSCYAMINE|CID:174174,5318386' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N04BX01|NAME:TOLCAPONE|CID:4659569' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D10AF02,J01FA01,S01AA17|NAME:ERYTHROMYCIN|CID:12560' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XE07|NAME:LAPATINIB|CID:208908' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G04BD04|NAME:OXYBUTYNIN|CID:4634' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C08CA04|NAME:NICARDIPINE|CID:4474' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C07AB03|NAME:ATENOLOL|CID:2249' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J04BA01|NAME:CLOFAZIMINE|CID:2794' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A05AA01|NAME:CHENODEOXYCHOLIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N07CA02|NAME:CINNARIZINE|CID:1547484' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01DC04|NAME:CEFACLOR|CID:51039' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G02CC02,M01AE02,M02AA12|NAME:NAPROXEN|CID:156391' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J05AE01|NAME:SAQUINAVIR|CID:441243' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:H01CB02|NAME:OCTREOTIDE|CID:122173801' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C08CA08|NAME:NITRENDIPINE|CID:4507' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AA06|NAME:CERIVASTATIN|CID:446156' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J05AE03|NAME:RITONAVIR|CID:392622' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J05AE04|NAME:NELFINAVIR|CID:64143' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N06AB05|NAME:PAROXETINE|CID:43815' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N06AB04|NAME:CITALOPRAM|CID:2771' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01MA02,S01AE03,S02AA15,S03AA07|NAME:CIPROFLOXACIN|CID:2764' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C05AD03,D04AB04,N01BA05,R02AD01|NAME:BENZOCAINE|CID:2337' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D07AC10|NAME:DIFLORASONE|CID:71415' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B03AA07,B03AD03|NAME:FERROUS' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A07EC01|NAME:SULFASALAZINE|CID:5359476,5384001' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L02BG06|NAME:EXEMESTANE|CID:60198' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R07AB03|NAME:PENTETRAZOL|CID:5917' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01AA03,M02AA04,S01BC02|NAME:OXYPHENBUTAZONE|CID:4641' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A11DA03|NAME:BENFOTIAMINE|CID:5282168' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XE21|NAME:REGORAFENIB|CID:11167602' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XE14|NAME:BOSUTINIB|CID:5328940' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XE24|NAME:PONATINIB|CID:24826799' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C05AA06,D07AB06,D07XB04,D10AA01,S01BA07,S01CB05|NAME:FLUOROMETHOLONE|CID:9878' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:H03BA02|NAME:PROPYLTHIOURACIL|CID:657298' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C02AC06|NAME:RILMENIDINE|CID:68712' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01BX01|NAME:HALOFANTRINE|CID:37393' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N07CA03|NAME:FLUNARIZINE|CID:941361' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B01AA01|NAME:DICOUMAROL|CID:54676038' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01CA18|NAME:OCTOPAMINE|CID:4581' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AA03|NAME:PRIMIDONE|CID:4909' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01DC07|NAME:CEFOTIAM|CID:43708' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:S01EB10|NAME:PARAOXON|CID:9395' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A16AX01|NAME:THIOCTIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A03FA06|NAME:CLEBOPRIDE|CID:2780' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A09AB04|NAME:CITRIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C05BB05,D08AE03,N01BX03,R02AA19|NAME:PHENOL|CID:996' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A03AD01,G04BE02|NAME:PAPAVERINE|CID:4680' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AB08|NAME:CIPROFIBRATE|CID:2763' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R01AD04,R03BA03|NAME:FLUNISOLIDE|CID:82153' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D07AB10,S01BA10|NAME:ALCLOMETASONE|CID:5311000' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J05AB04|NAME:RIBAVIRIN|CID:37542' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L02BG04|NAME:LETROZOLE|CID:3902' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03AC13|NAME:FORMOTEROL|CID:3083544' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C03DA04|NAME:EPLERENONE|CID:443872' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J05AF05|NAME:LAMIVUDINE|CID:60825' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A03FA03|NAME:DOMPERIDONE|CID:3151' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N04BB01|NAME:AMANTADINE|CID:2130' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A11HA31,D03AX04|NAME:CALCIUM' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A07XA03|NAME:CALCIUM' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P02CA03|NAME:ALBENDAZOLE|CID:2082' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A07AB02|NAME:PHTHALYLSULFATHIAZOLE|CID:4806' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01BD01|NAME:PYRIMETHAMINE|CID:4993' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N04AA01|NAME:TRIHEXYPHENIDYL|CID:5572' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A03AA07|NAME:DICYCLOVERINE|CID:3042' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D01AC05,G01AF07|NAME:ISOCONAZOLE|CID:3760' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D08AJ08|NAME:BENZETHONIUM' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D01AC09|NAME:SULCONAZOLE|CID:5318' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05AN01|NAME:LITHIUM|CID:3028194' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03DA05|NAME:AMINOPHYLLINE|CID:9433' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03DA02|NAME:CHOLINE' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03DA01|NAME:DIPROPHYLLINE|CID:3182' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01EB21|NAME:REGADENOSON|CID:219024' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N07AB01,S01EB02|NAME:CARBACHOL|CID:5831' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G03AC05,G03DB02,L02AB01|NAME:MEGESTROL|CID:59048345' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A01AD01,B02BC09,C01CA24,R01AA14,R03AA01,S01EA01|NAME:EPINEPHRINE|CID:5816' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01CA03|NAME:NOREPINEPHRINE|CID:439260' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N06AA21|NAME:MAPROTILINE|CID:4011' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R01BA01|NAME:PHENYLPROPANOLAMINE|CID:162265,26934' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05AA02|NAME:LEVOMEPROMAZINE|CID:72287' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05AA03|NAME:PROMAZINE|CID:4926' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N06BA02|NAME:DEXAMFETAMINE|CID:5826' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N06BA03|NAME:METAMFETAMINE|CID:10836' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C02AB01|NAME:METHYLDOPA' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C07AA06,S01ED01|NAME:TIMOLOL|CID:33624' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C07AB07|NAME:BISOPROLOL|CID:2405' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01BC03|NAME:PROPAFENONE|CID:4932' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C07AA07|NAME:SOTALOL|CID:5253' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C07AB12|NAME:NEBIVOLOL|CID:71301' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C07AA02|NAME:OXPRENOLOL|CID:4631' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R03AC12|NAME:SALMETEROL|CID:5152' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C05AX05,C05CX01|NAME:TRIBENOSIDE|CID:6713997' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D04AA09,R06AC03|NAME:CHLOROPYRAMINE|CID:25295' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L04AX01|NAME:AZATHIOPRINE|CID:2265' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C08CA15|NAME:BENIDIPINE|CID:656668' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D08AX05|NAME:ISOPROPANOL|CID:3776' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P03BX03|NAME:DIBUTYLPHTHALATE|CID:3026' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A06AB03|NAME:DANTRON|CID:2950' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XE04|NAME:SUNITINIB|CID:5329102' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N01AX10|NAME:PROPOFOL|CID:4943' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A10BX06|NAME:BENFLUOREX|CID:2318' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A01AB09,A07AC01,D01AC02,G01AF04,J02AB01,S02AA13|NAME:MICONAZOLE|CID:4189' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G01AD01|NAME:LACTIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05CD03|NAME:FLUNITRAZEPAM|CID:3380' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01AG03|NAME:FLUFENAMIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D01AE12,S01BC08|NAME:SALICYLIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N01BX02,R02AD04|NAME:DYCLONINE|CID:3180' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P03AA05|NAME:THIRAM|CID:5455' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D01AC03,G01AF05|NAME:ECONAZOLE|CID:3198' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M09AA01|NAME:HYDROQUININE|CID:45479755' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A16AA02|NAME:ADEMETIONINE|CID:34755' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:V03AF06|NAME:SODIUM' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:V08CA03|NAME:GADODIAMIDE|CID:60754' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01DA02,C05AE01|NAME:GLYCERYL' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XX10|NAME:MASOPROCOL|CID:71398' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01AX23|NAME:TENIDAP|CID:54704052' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D04AA02,R06AC01|NAME:MEPYRAMINE|CID:4992' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B01AA03|NAME:WARFARIN|CID:54678486' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M05BA03|NAME:PAMIDRONIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D06AX02,D10AF03,G01AA05,J01BA01,S01AA01,S02AA01,S03AA08|NAME:CHLORAMPHENICOL|CID:5959' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A01AB04,A07AA07,G01AA03,J02AA01|NAME:AMPHOTERICIN' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01MB04|NAME:PIPEMIDIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B01AC11|NAME:ILOPROST|CID:5311181,91746214' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01CE01,S01AA14|NAME:BENZYLPENICILLIN|CID:5904' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R06AC05|NAME:METHAPYRILENE|CID:4098' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N06AB02|NAME:ZIMELDINE|CID:5365247' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01FA07|NAME:JOSAMYCIN|CID:90657632' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A11HA05|NAME:BIOTIN|CID:171548' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R07AB04|NAME:ETAMIVAN|CID:9363' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N01BB04|NAME:PRILOCAINE|CID:4906' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A06AG04,A06AX01|NAME:GLYCEROL|CID:753' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01DD12|NAME:CEFOPERAZONE|CID:44187' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:S01FA04|NAME:CYCLOPENTOLATE|CID:2905' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01DD03|NAME:CEFSULODIN|CID:24776146' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G02CB06|NAME:TERGURIDE|CID:443951' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01AE11|NAME:TIAPROFENIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A03AB15|NAME:DIPHEMANIL|CID:6126' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01CC01|NAME:PENICILLAMINE|CID:5852' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C03CA02|NAME:BUMETANIDE|CID:2471' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C02KD01|NAME:KETANSERIN|CID:3822' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A02BA03|NAME:FAMOTIDINE|CID:5702160' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P03BA02|NAME:CYPERMETHRIN|CID:2912' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01AB01|NAME:BUSULFAN|CID:2478' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D08AK06|NAME:THIOMERSAL|CID:16684434' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A07AA02,D01AA01,G01AA01|NAME:NYSTATIN|CID:122130695' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A16AX03|NAME:SODIUM' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R06AX23|NAME:PIMETHIXENE|CID:4822' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R06AE04|NAME:CHLORCYCLIZINE|CID:2710' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G03XC02|NAME:BAZEDOXIFENE|CID:154257' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N04BA01|NAME:LEVODOPA|CID:6047' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G03CB01,G03CC02|NAME:DIENESTROL|CID:667476' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G02CB05|NAME:METERGOLINE|CID:28693' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01BG07|NAME:CIBENZOLINE|CID:2747' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01AX11|NAME:NITAZOXANIDE|CID:41684' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01MA06,S01AE02|NAME:NORFLOXACIN|CID:4539' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AB01|NAME:ETHOTOIN|CID:3292' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01BA02|NAME:PROCAINAMIDE|CID:4913' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01AA05|NAME:CHLORMETHINE|CID:4033' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D05AX05|NAME:TAZAROTENE|CID:5381' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B01AC23|NAME:CILOSTAZOL|CID:2754' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:D05BB02|NAME:ACITRETIN|CID:5284513' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XX07|NAME:LONIDAMINE|CID:39562' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01CD01|NAME:MELARSOPROL|CID:10311' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:H01CB05|NAME:PASIREOTIDE|CID:9941444' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AX15|NAME:ZONISAMIDE|CID:5734' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C03AA03|NAME:HYDROCHLOROTHIAZIDE|CID:3639' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AD03|NAME:MESUXIMIDE|CID:6476' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AC01|NAME:PARAMETHADIONE|CID:8280' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AC02|NAME:TRIMETHADIONE|CID:5576' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N03AD02|NAME:PHENSUXIMIDE|CID:6839' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05AG03|NAME:PENFLURIDOL|CID:33630' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A11CC01|NAME:ERGOCALCIFEROL|CID:5280793' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XX01|NAME:AMSACRINE|CID:2179' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01CX02|NAME:SURAMIN' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01BE05|NAME:ARTENIMOL|CID:11832956' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L04AX04|NAME:LENALIDOMIDE|CID:216326' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L04AX06|NAME:POMALIDOMIDE|CID:134780' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N02AX02|NAME:TRAMADOL|CID:33741' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N04AA04|NAME:PROCYCLIDINE|CID:4919' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N04BX02|NAME:ENTACAPONE|CID:5281081' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J01EB03|NAME:SULFADIMIDINE|CID:5327' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A16AA01|NAME:LEVOCARNITINE|CID:10917' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XE17|NAME:AXITINIB|CID:6450551' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M04AA01|NAME:ALLOPURINOL|CID:2094' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:G04BX06|NAME:PHENAZOPYRIDINE|CID:4756' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A06AX06|NAME:TEGASEROD|CID:5362436' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A08AA10|NAME:SIBUTRAMINE|CID:5210' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:P01BB01|NAME:PROGUANIL|CID:6178111' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:J04AC01|NAME:ISONIAZID|CID:3767' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C08CA11|NAME:MANIDIPINE|CID:4008' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C03CC02|NAME:TIENILIC' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:R06AE06|NAME:OXATOMIDE|CID:4615' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N02AE01,N07BC01|NAME:BUPRENORPHINE|CID:644073' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N02AA05|NAME:OXYCODONE|CID:5284603' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01AE04|NAME:FENOPROFEN|CID:3342' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B01AX04|NAME:DERMATAN' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L01XX35|NAME:ANAGRELIDE|CID:2182' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N02BA11|NAME:DIFLUNISAL|CID:3059' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C01DA05|NAME:PENTAERITHRITYL' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05CF04|NAME:ESZOPICLONE|CID:969472' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05BA05|NAME:POTASSIUM' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05CF01|NAME:ZOPICLONE|CID:5735' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M01CC02|NAME:BUCILLAMINE|CID:656604' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A11HA30,D03AX03,S01XA12|NAME:DEXPANTHENOL|CID:131204' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A11DA01|NAME:THIAMINE' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:L04AX05|NAME:PIRFENIDONE|CID:40632' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:C10AB11|NAME:CHOLINE' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:B01AB11|NAME:SULODEXIDE|CID:14366984' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:A10BX11|NAME:CANAGLIFLOZIN|CID:24812758' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:H01CB01|NAME:SOMATOSTATIN|CID:71308696' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:H01CB04|NAME:VAPREOTIDE|CID:70689318' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:M03BB02|NAME:CHLORMEZANONE|CID:2717' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05BA07|NAME:ADINAZOLAM|CID:37632' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	WARNING: discarding gene set 'ATC:N05BA10|NAME:KETAZOLAM|CID:33746' from file resources/data/drug_targetor/wholedatabase_for_targetor.gmt, variance is too low (set contains only one gene used in analysis)
+	truncating covariate values more than 5 standard deviations from the mean
+	total variables available for analysis: 281 gene sets
+
+Parsing model specifications...
+Inverting gene-gene correlation matrix...
+Performing regression analysis...
+	testing direction: one-sided, positive (sets), two-sided (covar)
+	conditioning on internal variables:
+		gene size, log(gene size)
+		gene density, log(gene density)
+		inverse mac, log(inverse mac)
+	analysing individual variables
+
+	analysing single-variable models (number of models: 281)
+	writing results to file tests/output/results/COAD01chr22/magma/magma_drug_targetor.gsa.out
+
+End time is 07:56:39, Friday 03 Apr 2026 (elapsed: 00:00:00)
