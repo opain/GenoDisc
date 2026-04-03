@@ -8,10 +8,12 @@ rule install_fusion:
     directory(f"{resdir}/software/fusion/")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_fusion.log"
   shell:
-    "git clone https://github.com/gusevlab/fusion_twas.git {output}; \
+    "(git clone https://github.com/gusevlab/fusion_twas.git {output}; \
     cd {output}; \
-    git reset --hard e1ba5f7f3907e6f586f7fb5bb115b35cc0d3c0c2"
+    git reset --hard e1ba5f7f3907e6f586f7fb5bb115b35cc0d3c0c2) > {log} 2>&1"
 
 # Download plink2R
 rule download_plink2R:
@@ -23,11 +25,13 @@ rule download_plink2R:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_plink2R.log"
   shell:
-    "rm -rf {params.resdir}/software/plink2R; \
+    "(rm -rf {params.resdir}/software/plink2R; \
     mkdir -p {params.resdir}/software/plink2R; \
     wget -O {params.resdir}/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; \
-    unzip {params.resdir}/software/plink2R/master.zip -d {params.resdir}/software/plink2R"
+    unzip {params.resdir}/software/plink2R/master.zip -d {params.resdir}/software/plink2R) > {log} 2>&1"
 
 # Install plink2R
 rule install_plink2R:
@@ -40,8 +44,10 @@ rule install_plink2R:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/install_plink2R.log"
   shell:
-    "Rscript -e 'install.packages(\"{params.resdir}/software/plink2R/plink2R-master/plink2R/\",repos=NULL)'"
+    "Rscript -e 'install.packages(\"{params.resdir}/software/plink2R/plink2R-master/plink2R/\",repos=NULL)' > {log} 2>&1"
 
 # Install SNP-weights pipeline repo
 rule install_snp_weight_pipe:
@@ -49,10 +55,12 @@ rule install_snp_weight_pipe:
     directory(f"{resdir}/software/Calculating-FUSION-TWAS-weights-pipeline/")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_snp_weight_pipe.log"
   shell:
-    "git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}; \
+    "(git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}; \
     cd {output}; \
-    git reset --hard ab15a41e4568107f29bc5a538ea016a554d58589"
+    git reset --hard ab15a41e4568107f29bc5a538ea016a554d58589) > {log} 2>&1"
 
 ####
 # Dowload data for TWAS related analysis
@@ -69,12 +77,14 @@ rule download_psychENCODE_weights:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_psychENCODE_weights.log"
   shell:
-    "mkdir -p {params.resdir}/data/fusion_snp_weights/psychencode; \
+    "(mkdir -p {params.resdir}/data/fusion_snp_weights/psychencode; \
     wget -O {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; \
     mkdir -p {params.resdir}/data/fusion_snp_weights/psychencode/psychencode; \
     tar xvzf {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C {params.resdir}/data/fusion_snp_weights/psychencode/psychencode; \
-    rm {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz"
+    rm {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz) > {log} 2>&1"
 
 # Format PsychENCODE SNP-weights
 rule format_psychencode:
@@ -86,8 +96,10 @@ rule format_psychencode:
     f"{resdir}/data/format_psychencode.done"
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/format_psychencode.log"
   shell:
-    "Rscript scripts/format_psychENCODE.R"
+    "Rscript scripts/format_psychENCODE.R > {log} 2>&1"
 
 # Download FUSION GTEx v8 EUR SNP-weights
 # I am using EUR instead of full sample to avoid LD mismatch
@@ -100,8 +112,10 @@ rule download_gtex_weights:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_gtex_weights-{{weight}}.log"
   shell:
-    "mkdir -p {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; wget -O {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz https://s3.us-west-1.amazonaws.com/gtex.v8.fusion/EUR/GTExv8.EUR.{wildcards.weight}.tar.gz; tar xf {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz -C {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; rm {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz; mv {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight}.pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos; mv {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight} {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}"
+    "(mkdir -p {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; wget -O {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz https://s3.us-west-1.amazonaws.com/gtex.v8.fusion/EUR/GTExv8.EUR.{wildcards.weight}.tar.gz; tar xf {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz -C {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; rm {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz; mv {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight}.pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos; mv {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight} {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}) > {log} 2>&1"
 
 # Update GTEx v8 P0 and P1 to build GRCh 37
 rule update_gtex_coord:
@@ -112,9 +126,11 @@ rule update_gtex_coord:
     touch(f"{resdir}/data/update_gtex_coord_{{weight}}.done")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/update_gtex_coord-{{weight}}.log"
   shell:
     "Rscript scripts/update_gtex_coord.R \
-      --panel {wildcards.weight}"
+      --panel {wildcards.weight} > {log} 2>&1"
 
 rule update_gtex_coord_all_panel:
     input: expand(f"{resdir}/data/update_gtex_coord_{{weight}}.done", weight=gtex_weights)
@@ -129,8 +145,10 @@ rule download_non_gtex_weights:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_non_gtex_weights-{{weight}}.log"
   shell:
-    "mkdir -p {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; wget --no-check-certificate -O {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 https://data.broadinstitute.org/alkesgroup/FUSION/WGT/{wildcards.weight}.tar.bz2; tar xvjf {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 -C {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; rm {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2"
+    "(mkdir -p {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; wget --no-check-certificate -O {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 https://data.broadinstitute.org/alkesgroup/FUSION/WGT/{wildcards.weight}.tar.bz2; tar xvjf {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 -C {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; rm {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2) > {log} 2>&1"
 
 # Insert N into non-GTEX SNP-weights
 rule insert_n_nongtex:
@@ -141,9 +159,11 @@ rule insert_n_nongtex:
     touch(f"{resdir}/data/insert_n_nongtex_{{weight}}.done")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/insert_n_nongtex-{{weight}}.log"
   shell:
     "Rscript scripts/insert_n_nongtex.R \
-      --panel {wildcards.weight}"
+      --panel {wildcards.weight} > {log} 2>&1"
 
 rule insert_n_nongtex_all_panel:
     input: expand(f"{resdir}/data/insert_n_nongtex_{{weight}}.done", weight=non_gtex_weights)
@@ -156,8 +176,10 @@ rule download_glist:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_glist.log"
   shell:
-    "wget -P {params.resdir}/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19"
+    "wget -P {params.resdir}/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19 > {log} 2>&1"
 
 ####
 # Download TWAS-GSEA
@@ -168,10 +190,12 @@ rule install_twas_gsea:
     directory(f"{resdir}/software/TWAS-GSEA/")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_twas_gsea.log"
   shell:
-    "git clone https://github.com/opain/TWAS-GSEA.git {output}; \
+    "(git clone https://github.com/opain/TWAS-GSEA.git {output}; \
     cd {output}; \
-    git reset --hard d9b98a670121bcf686448b5d65c8d3bc443ba494"
+    git reset --hard d9b98a670121bcf686448b5d65c8d3bc443ba494) > {log} 2>&1"
 
 ####
 # Download FeaturePred
@@ -182,10 +206,12 @@ rule install_feature_pred:
     directory(f"{resdir}/software/Predicting-TWAS-features/")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_feature_pred.log"
   shell:
-    "git clone https://github.com/opain/Predicting-TWAS-features.git {output}; \
+    "(git clone https://github.com/opain/Predicting-TWAS-features.git {output}; \
     cd {output}; \
-    git reset --hard b9defcf3c96145ab86f605629c48e0d29daebe0c"
+    git reset --hard b9defcf3c96145ab86f605629c48e0d29daebe0c) > {log} 2>&1"
 
 ####
 # Download pigz
@@ -198,8 +224,10 @@ rule install_pigz:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/install_pigz.log"
   shell:
-    "wget -O {params.resdir}/software/pigz.tar.gz https://zlib.net/pigz/pigz.tar.gz; mkdir -p {params.resdir}/software/pigz; tar xvzf {params.resdir}/software/pigz.tar.gz -C {params.resdir}/software/pigz; rm {params.resdir}/software/pigz.tar.gz; cd {params.resdir}/software/pigz/pigz; make"
+    "(wget -O {params.resdir}/software/pigz.tar.gz https://zlib.net/pigz/pigz.tar.gz; mkdir -p {params.resdir}/software/pigz; tar xvzf {params.resdir}/software/pigz.tar.gz -C {params.resdir}/software/pigz; rm {params.resdir}/software/pigz.tar.gz; cd {params.resdir}/software/pigz/pigz; make) > {log} 2>&1"
 
 ####
 # Format the external SNP-weights for TWAS
@@ -262,6 +290,8 @@ rule feature_pred:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/feature_pred-{{weight}}.log"
   shell:
     "Rscript {params.resdir}/software/Predicting-TWAS-features/FeaturePred.V2.0.R \
     	--PLINK_prefix_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
@@ -276,7 +306,7 @@ rule feature_pred:
     	--pigz {params.resdir}/software/pigz/pigz/pigz \
     	--memory 40000 \
       --n_cores 5 \
-    	--output {params.resdir}/data/predicted_expression/{wildcards.weight}"
+    	--output {params.resdir}/data/predicted_expression/{wildcards.weight} > {log} 2>&1"
 
 # Format expression data for TWAS-GSEA (i.e. remove PANEL from column names)
 rule format_pred:
@@ -288,8 +318,10 @@ rule format_pred:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/format_pred-{{weight}}.log"
   shell:
-    "zcat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz | sed -e s/{wildcards.weight}.//g | gzip > {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz; mv {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz"
+    "(zcat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz | sed -e s/{wildcards.weight}.//g | gzip > {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz; mv {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz) > {log} 2>&1"
 
 ####
 # Install lme4qtl
@@ -303,8 +335,10 @@ rule install_lme4qtl:
     touch(f"{resdir}/software/install_lme4qtl.done")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_lme4qtl.log"
   shell:
-    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\", ref = \"0.1.10\")'"
+    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\", ref = \"0.1.10\")' > {log} 2>&1"
 
 ####
 # Format ROSMAP and Banner PWAS data
@@ -318,10 +352,12 @@ rule format_pwas_data:
   params:
     rosmap_fusion= config["rosmap_fusion"],
     banner_fusion= config["banner_fusion"]
+  log:
+    f"{resdir}/logs/format_pwas_data.log"
   shell:
     "Rscript scripts/format_pwas_data.R \
       --rosmap {params.rosmap_fusion} \
-      --banner {params.banner_fusion}"
+      --banner {params.banner_fusion} > {log} 2>&1"
 
 ##########
 # Analyse GWAS summary statistics
@@ -350,8 +386,10 @@ rule run_twas:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/run_twas-{gwas}-{weights}-chr{chr}.log"
   shell:
-    "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weights} \
@@ -359,7 +397,7 @@ rule run_twas:
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 1e-3 \
-    --GWASN ${{N}}"
+    --GWASN ${{N}}) > {log} 2>&1"
 
 rule twas_all_chr:
     input:
@@ -385,11 +423,13 @@ checkpoint combine_twas_res:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
+  log:
+    "{outdir}/logs/combine_twas_res-{gwas}.log"
   shell:
-    "Rscript scripts/combine_twas.R \
+    "(Rscript scripts/combine_twas.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file}; \
-      rm -rf {outdir}/results/{wildcards.gwas}/twas/conditional"
+      rm -rf {outdir}/results/{wildcards.gwas}/twas/conditional) > {log} 2>&1"
 
 # Identify chromosomes with significant associations
 from pathlib import Path
@@ -416,8 +456,10 @@ rule run_conditional:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/run_conditional-{gwas}-chr{chr}.log"
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript {params.resdir}/software/fusion/FUSION.post_process.R \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript {params.resdir}/software/fusion/FUSION.post_process.R \
       --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
       --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
@@ -426,7 +468,7 @@ rule run_conditional:
       --chr {wildcards.chr} \
       --save_loci \
       --ldsc F \
-      --locus_win 500000"
+      --locus_win 500000) > {log} 2>&1"
 
 rule conditional:
     input:
@@ -444,10 +486,12 @@ rule process_conditional:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_conditional-{gwas}.log"
   shell:
     "Rscript scripts/process_conditional.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file} > {log} 2>&1"
 
 ###
 # Run PWAS
@@ -469,8 +513,10 @@ rule run_rosmap_pwas:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/run_rosmap_pwas-{gwas}-chr{chr}.log"
   shell:
-    "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
@@ -478,7 +524,7 @@ rule run_rosmap_pwas:
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
-    --GWASN ${{N}}"
+    --GWASN ${{N}}) > {log} 2>&1"
 
 rule rosmap_pwas_all_chr:
     input:
@@ -502,8 +548,10 @@ rule run_banner_pwas:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/run_banner_pwas-{gwas}-chr{chr}.log"
   shell:
-    "N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS \
@@ -511,7 +559,7 @@ rule run_banner_pwas:
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
-    --GWASN ${{N}}"
+    --GWASN ${{N}}) > {log} 2>&1"
 
 rule banner_pwas_all_chr:
     input:
@@ -532,8 +580,10 @@ rule format_drug_targetor_for_twas_gsea:
     f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/format_drug_targetor_for_twas_gsea.log"
   shell:
-    "Rscript scripts/format_drug_targetor_for_twas_gsea.R"
+    "Rscript scripts/format_drug_targetor_for_twas_gsea.R > {log} 2>&1"
 
 # Run TWAS-GSEA
 rule run_twas_gsea_drug_targetor:
@@ -552,6 +602,8 @@ rule run_twas_gsea_drug_targetor:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/run_twas_gsea_drug_targetor-{gwas}-{weight}.log"
   shell:
     "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
       --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
@@ -567,7 +619,7 @@ rule run_twas_gsea_drug_targetor:
     	--min_r2 0.01 \
     	--qqplot F \
     	--directional T \
-    	--output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight}"
+    	--output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight} > {log} 2>&1"
 
 # Format the output
 rule format_twas_gsea_drugtargetor_results:
@@ -580,11 +632,13 @@ rule format_twas_gsea_drugtargetor_results:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
+  log:
+    "{outdir}/logs/format_twas_gsea_drugtargetor_results-{gwas}-{weight}.log"
   shell:
     "Rscript scripts/format_twas_gsea_drugtargetor_results.R \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
-    --config_file {params.config_file}"
+    --config_file {params.config_file} > {log} 2>&1"
 
 rule format_twas_gsea_drugtargetor_results_all_panel:
     input:

@@ -6,8 +6,8 @@ def get_mem_mb_fine(wildcards, attempt):
     return attempt * 20000
     
 rule finemap:
-  resources: 
-    mem_mb=get_mem_mb_fine 
+  resources:
+    mem_mb=get_mem_mb_fine
   input:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
@@ -18,11 +18,13 @@ rule finemap:
   params:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     config_file=config['config_file']
+  log:
+    "{outdir}/logs/finemap-{gwas}-chr{chr}.log"
   shell:
     "Rscript scripts/finemap.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} \
-      --chr {wildcards.chr}"
+      --chr {wildcards.chr} > {log} 2>&1"
 
 rule finemap_all_chr:
     input: 
@@ -44,10 +46,12 @@ rule process_finemap:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_finemap-{gwas}.log"
   shell:
     "Rscript scripts/process_finemap.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file} > {log} 2>&1"
 
 
 

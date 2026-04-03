@@ -78,9 +78,11 @@ rule package_results:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
+  log:
+    "{outdir}/logs/package_results.log"
   shell:
     "Rscript scripts/package_results.R \
-    --config {params.config_file}"
+    --config {params.config_file} > {log} 2>&1"
 
 rule run_package_results:
   input: expand("{outdir}/results/results_package.rds", outdir={outdir})

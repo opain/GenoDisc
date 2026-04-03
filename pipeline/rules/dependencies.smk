@@ -114,6 +114,8 @@ rule download_biomart:
     resdir=resdir
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/download_biomart.log"
   shell:
-    "Rscript scripts/download_biomart.R --resdir {params.resdir}"
+    "Rscript scripts/download_biomart.R --resdir {params.resdir} > {log} 2>&1"
 

@@ -14,8 +14,10 @@ rule install_liftover:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/install_liftover.log"
   shell:
-    "mkdir -p {params.resdir}/software/liftover/; wget --no-check-certificate -O {params.resdir}/software/liftover/liftover https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver"
+    "(mkdir -p {params.resdir}/software/liftover/; wget --no-check-certificate -O {params.resdir}/software/liftover/liftover https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver) > {log} 2>&1"
 
 # Download liftover track
 rule download_liftover_track:
@@ -25,8 +27,10 @@ rule download_liftover_track:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_liftover_track.log"
   shell:
-    "mkdir -p {params.resdir}/data/liftover/; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz"
+    "(mkdir -p {params.resdir}/data/liftover/; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz) > {log} 2>&1"
 
 ####
 # Download and format 1000 Genomes reference data
@@ -42,8 +46,10 @@ rule prep_1kg:
     touch(f"{resdir}/data/prep_1kg.done")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/prep_1kg.log"
   shell:
-    "Rscript scripts/prep_1kg.R"
+    "Rscript scripts/prep_1kg.R > {log} 2>&1"
 
 ####
 # Download LDSC
@@ -55,10 +61,12 @@ rule install_ldsc:
     directory(f"{resdir}/software/ldsc/")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_ldsc.log"
   shell:
-    "git clone https://github.com/bulik/ldsc.git {output}; \
+    "(git clone https://github.com/bulik/ldsc.git {output}; \
     cd {output}; \
-    git reset --hard aa33296abac9569a6422ee6ba7eb4b902422cc74"
+    git reset --hard aa33296abac9569a6422ee6ba7eb4b902422cc74) > {log} 2>&1"
 
 # Download LDSC reference data
 rule download_ldsc_scores:
@@ -68,8 +76,10 @@ rule download_ldsc_scores:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_ldsc_scores.log"
   shell:
-    "mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz https://zenodo.org/record/8182036/files/eur_w_ld_chr.tar.gz?download=1; tar -xf {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz -C {params.resdir}/data/ldsc; rm {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz"
+    "(mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz https://zenodo.org/record/8182036/files/eur_w_ld_chr.tar.gz?download=1; tar -xf {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz -C {params.resdir}/data/ldsc; rm {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz) > {log} 2>&1"
 
 rule download_ldsc_hm3:
   output:
@@ -78,8 +88,10 @@ rule download_ldsc_hm3:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_ldsc_hm3.log"
   shell:
-    "mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d {params.resdir}/data/ldsc/w_hm3.snplist.gz"
+    "(mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d {params.resdir}/data/ldsc/w_hm3.snplist.gz) > {log} 2>&1"
 
 # Download GCTA
 rule download_gcta:
@@ -89,8 +101,10 @@ rule download_gcta:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_gcta.log"
   shell:
-    "mkdir -p {params.resdir}/software/gcta; wget -O {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d {params.resdir}/software/gcta; rm {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip"
+    "(mkdir -p {params.resdir}/software/gcta; wget -O {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d {params.resdir}/software/gcta; rm {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip) > {log} 2>&1"
 
 # Install GenoUtils
 rule install_genoutils:
@@ -100,8 +114,10 @@ rule install_genoutils:
     touch(f"{resdir}/software/install_genoutils.done")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_genoutils.log"
   shell:
-    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")'"
+    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")' > {log} 2>&1"
 
 ##########
 # Analyse GWAS summary statistics
@@ -139,15 +155,17 @@ rule sumstat_prep_i:
     n= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'n'].iloc[0],
     path= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0],
     resdir=resdir
+  log:
+    f"{outdir}/logs/sumstat_prep_i-{{gwas}}.log"
   shell:
     """
-    sumstat_cleaner_script=$(Rscript -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
+    (sumstat_cleaner_script=$(Rscript -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
     Rscript $sumstat_cleaner_script \
       --sumstats {params.path} \
       --n {params.n} \
       --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
-      --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned
+      --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
 
 rule sumstat_prep:
@@ -165,8 +183,10 @@ rule focus_munge:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
   conda:
     "../envs/focus.yaml"
+  log:
+    "{outdir}/logs/focus_munge-{gwas}.log"
   shell:
-    "focus munge {input.premunged} --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged"
+    "focus munge {input.premunged} --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged > {log} 2>&1"
 
 # Calculate median effective sample size
 # FUSION requires this parameter to be specified despite having the N column in the sumstats
@@ -177,8 +197,10 @@ rule retrieve_N:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt"
   conda:
     "../envs/main.yaml"
+  log:
+    "{outdir}/logs/retrieve_N-{gwas}.log"
   shell:
-    "Rscript scripts/median_n.R --munged {input} --out {output}"
+    "Rscript scripts/median_n.R --munged {input} --out {output} > {log} 2>&1"
 
 ###
 # Run LDSC
@@ -196,12 +218,14 @@ rule ldsc:
     "../envs/ldsc.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/ldsc-{gwas}.log"
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 {params.resdir}/software/ldsc/ldsc.py \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 {params.resdir}/software/ldsc/ldsc.py \
       --h2 {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
-      --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res"
+      --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res) > {log} 2>&1"
 
 ###
 # Run LD clumping
@@ -217,8 +241,10 @@ rule clump:
   params:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     resdir=resdir
+  log:
+    "{outdir}/logs/clump-{gwas}-chr{chr}.log"
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/clump; plink \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/clump; plink \
       --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
@@ -226,7 +252,7 @@ rule clump:
       --clump-p1 1e-5 \
       --clump-r2 0.1 \
       --clump-kb 500 \
-      --out {outdir}/results/{wildcards.gwas}/clump/{wildcards.gwas}_chr{wildcards.chr}"
+      --out {outdir}/results/{wildcards.gwas}/clump/{wildcards.gwas}_chr{wildcards.chr}) > {log} 2>&1"
 
 rule clump_all_chr:
     input:
@@ -248,10 +274,12 @@ rule process_clump:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_clump-{gwas}.log"
   shell:
     "Rscript scripts/process_clump.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file} > {log} 2>&1"
 
 ###
 # Run COJO
@@ -272,15 +300,17 @@ rule cojo:
   params:
     population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     resdir=resdir
+  log:
+    "{outdir}/logs/cojo-{gwas}-chr{chr}.log"
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/cojo; {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/cojo; {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
       --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
       --cojo-file {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
       --cojo-slct \
       --cojo-p 1e-5 \
-      --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}"
+      --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}) > {log} 2>&1"
 
 rule cojo_all_chr:
     input:
@@ -302,10 +332,12 @@ rule process_cojo:
     "../envs/main.yaml"
   params:
     config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_cojo-{gwas}.log"
   shell:
     "Rscript scripts/process_cojo.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file} > {log} 2>&1"
 
 
 

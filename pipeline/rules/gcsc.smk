@@ -7,10 +7,12 @@ rule install_gcsc:
     directory(f"{resdir}/software/GCSC/")
   conda:
     "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_gcsc.log"
   shell:
-    "git clone https://github.com/ksiewert/GCSC.git {output}; \
+    "(git clone https://github.com/ksiewert/GCSC.git {output}; \
      cd {output}; \
-     git reset --hard b10ea77b9a43399801b46ef70c80516599264123"
+     git reset --hard b10ea77b9a43399801b46ef70c80516599264123) > {log} 2>&1"
 
 ####
 # Download GCSC gene co-regulation scores
@@ -25,9 +27,11 @@ rule download_gcsc_coreg:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_gcsc_coreg-{{gcsc_tissue}}.log"
   shell:
-    "wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; \
-    wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt"
+    "(wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; \
+    wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt) > {log} 2>&1"
 
 rule download_gcsc_coreg_all_tissue:
     input: expand(f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt", gcsc_tissue=gcsc_tissues)
@@ -45,11 +49,13 @@ rule download_gcsc_twas_weights:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    f"{resdir}/logs/download_gcsc_twas_weights-{{gcsc_tissue}}.log"
   shell:
-    "mkdir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
+    "(mkdir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
     wget -O {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 http://gusevlab.org/projects/fusion/weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2; \
     tar xjvf {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 -C {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
-    rm {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2"
+    rm {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2) > {log} 2>&1"
 
 rule download_gcsc_twas_weights_all_tissue:
     input: expand(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01", gcsc_tissue=gcsc_tissues)
@@ -76,14 +82,16 @@ rule run_twas_gcsc:
     "../envs/main.yaml"
   params:
     resdir=resdir
+  log:
+    "{outdir}/logs/run_twas_gcsc-{gwas}-{gcsc_tissue}-chr{chr}.log"
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
     --weights_dir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
     --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
-    --chr {wildcards.chr}"
+    --chr {wildcards.chr}) > {log} 2>&1"
 
 rule twas_gcsc_all_chr:
     input: 
@@ -109,14 +117,16 @@ checkpoint prep_set_gcsc:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/gcsc/drugtargetor_gcsc_sets.nset.txt"
-  conda: 
+  conda:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
+  log:
+    "{outdir}/logs/prep_set_gcsc-{gwas}.log"
   shell:
     "Rscript scripts/prep_set_gcsc.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file} > {log} 2>&1"
 
 def n_chunk_gcsc(x):
     checkpoint_output = checkpoints.prep_set_gcsc.get(gwas=x, outdir=outdir).output[0]
@@ -141,14 +151,16 @@ rule run_gcsc_drugtargetor:
   params:
     gcsc_tissues= config["gcsc_tissues"],
     resdir=resdir
+  log:
+    "{outdir}/logs/run_gcsc_drugtargetor-{gwas}-{chunk}.log"
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python {params.resdir}/software/GCSC/gcsc.py \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python {params.resdir}/software/GCSC/gcsc.py \
 --geneSets {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor_gcsc_sets_{wildcards.chunk}.csv \
 --TWASdir {outdir}/results/{wildcards.gwas}/gcsc/twas/tissue \
 --N ${{N}} \
 --tissues {params.gcsc_tissues} \
 --coreg {params.resdir}/data/GCSC/coreg \
---out {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}"
+--out {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}) > {log} 2>&1"
 
 rule run_gcsc_all_chunk:
     input: 
@@ -165,13 +177,15 @@ rule combine_gcsc:
     "{outdir}/results/{gwas}/checks/run_gcsc_all_chunk.done"
   output:
     "{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv"
-  conda: 
+  conda:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
+  log:
+    "{outdir}/logs/combine_gcsc-{gwas}.log"
   shell:
     "Rscript scripts/combine_gcsc.R \
       --gwas {wildcards.gwas} \
-      --config_file {params.config_file}"
+      --config_file {params.config_file} > {log} 2>&1"
 
 
