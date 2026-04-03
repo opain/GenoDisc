@@ -1,0 +1,113 @@
+---
+title: "Metabolic"
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    toc_depth: 2
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+library(knitr)
+```
+
+```{r}
+a <- fread('/scratch/prj/ukbiobank/metabolomic/MORT01_munged.txt.gz')
+plot(a$FREQ[1:100000],a$FRQ[1:100000])
+```
+
+```{bash}
+zcat /scratch/prj/ukbiobank/metabolomic/MORT01_munged.txt.gz | \
+awk 'BEGIN{FS=OFS="\t"} 
+NR==1 {for (i=1;i<=NF;i++) if ($i=="FREQ") col=i}
+{ $col=""; $1=$1; print }' | gzip > /scratch/prj/ukbiobank/metabolomic/MORT01_noFREQ.txt.gz
+
+zcat /scratch/prj/ukbiobank/metabolomic/MILEAGE01_munged.txt.gz | \
+awk 'BEGIN{FS=OFS="\t"} 
+NR==1 {for (i=1;i<=NF;i++) if ($i=="FREQ") col=i}
+{ $col=""; $1=$1; print }' | gzip > /scratch/prj/ukbiobank/metabolomic/MILEAGE01_noFREQ.txt.gz
+
+```
+
+```{r}
+
+dir.create('/users/k1806347/oliverpainfel/Analyses/metabolic/config/', recursive = T)
+
+library(data.table)
+
+####
+# Create gwas_list
+####
+
+gwas_list <- NULL
+
+gwas_list <- rbind(
+  gwas_list,
+  data.table(
+    name = 'MILEAGE01',
+    path = '/scratch/prj/ukbiobank/metabolomic/MILEAGE01.txt.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'MILEAGE01'))
+
+gwas_list <- rbind(
+  gwas_list,
+  data.table(
+    name = 'MORT01',
+    path = '/scratch/prj/ukbiobank/metabolomic/MORT01.txt.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'MORT01'))
+
+write.table(gwas_list, '/users/k1806347/oliverpainfel/Analyses/metabolic/config/gwas_list.txt', row.names = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "outdir: /users/k1806347/oliverpainfel/Analyses/metabolic/output", 
+  "config_file: /users/k1806347/oliverpainfel/Analyses/metabolic/config/config.yaml", 
+  "gwas_list: /users/k1806347/oliverpainfel/Analyses/metabolic/config/gwas_list.txt", 
+  "clump: T", 
+  "cojo: T", 
+  "finemap: T", 
+  "ldsc: T", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T", 
+  "twas_panel_fusion: T", 
+  "gtex_weights: ['Whole_Blood']", 
+  "non_gtex_weights: ['NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']", 
+  "twas_conditional: T", 
+  "twas_gsea_drugtargetor: T", 
+  "smr_expression_panel_eqtlgen: T", 
+  "dgi_db_comp: T"
+)
+
+write.table(config, '/users/k1806347/oliverpainfel/Analyses/metabolic/config/config.yaml', col.names=F, row.names=F, quote=F)
+```
+
+```{bash}
+cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
+conda activate genodisc
+  
+snakemake \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/metabolic/config/config.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  --retries 3 \
+  -n
+
+```

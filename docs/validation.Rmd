@@ -1,0 +1,82 @@
+---
+title: "Metabolic"
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    toc_depth: 2
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+library(knitr)
+```
+
+```{r}
+
+dir.create('/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/', recursive = T)
+
+library(data.table)
+
+####
+# Create gwas_list
+####
+
+gwas_list <- NULL
+
+gwas_list <- rbind(
+  gwas_list,
+  data.table(
+    name = 'SCZ',
+    path = '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/SCZ/SCZ.original.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'SCZ'))
+
+write.table(gwas_list, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list.txt', row.names = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "outdir: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/output", 
+  "config_file: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config.yaml", 
+  "gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list.txt", 
+  "clump: T", 
+  "cojo: T", 
+  "finemap: T", 
+  "ldsc: T", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T", 
+  "twas_panel_fusion: T", 
+  "gtex_weights: ['Whole_Blood']", 
+  "non_gtex_weights: ['NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']", 
+  "twas_conditional: T", 
+  "twas_gsea_drugtargetor: T", 
+  "smr_expression_panel_eqtlgen: T", 
+  "dgi_db_comp: T"
+)
+
+write.table(config, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config.yaml', col.names=F, row.names=F, quote=F)
+```
+
+```{bash}
+cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
+conda activate genodisc
+  
+snakemake \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  --retries 3 \
+  -n
+
+```

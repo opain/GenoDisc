@@ -1,0 +1,3 @@
+"name" "path" "population" "n" "sampling" "prevalence" "mean" "sd" "label"
+"1" "als_mtag" "/users/k1806347/oliverpainfel/Misc/Hannah/sumstats/mtag/als_mtag_fuma.sumstat.gz" "EUR" 155091 NA NA NA NA "ALS MTAG"
+"2" "als_mtag_excl_edu_int_an" "/users/k1806347/oliverpainfel/Misc/Hannah/sumstats/mtag_excl_edu_int_an/als_mtag_fuma.sumstat.gz" "EUR" 126801 NA NA NA NA "ALS MTAG excl. edu, int, an"
