@@ -1,0 +1,6 @@
+"Tissue","Assay","n_samples","n_features","Study","Download_Link","Weight_ID"
+"Peripheral Blood","RNA array",1247,2454,"[1] NTR","https://data.broadinstitute.org/alkesgroup/FUSION/WGT/NTR.BLOOD.RNAARR.tar.bz2","NTR.BLOOD.RNAARR"
+"Whole blood","RNA array",1264,4701,"[2] YFS","https://data.broadinstitute.org/alkesgroup/FUSION/WGT/YFS.BLOOD.RNAARR.tar.bz2","YFS.BLOOD.RNAARR"
+"Adipose","RNA-seq",563,4671,"[3] METSIM","https://data.broadinstitute.org/alkesgroup/FUSION/WGT/METSIM.ADIPOSE.RNASEQ.tar.bz2","METSIM.ADIPOSE.RNASEQ"
+"Brain (DLPFC)","RNA-seq",452,5420,"[4] CMC","https://data.broadinstitute.org/alkesgroup/FUSION/WGT/CMC.BRAIN.RNASEQ.tar.bz2","CMC.BRAIN.RNASEQ"
+"Brain (DLPFC)","RNA-seq splicing",452,7772,"[4] CMC","https://data.broadinstitute.org/alkesgroup/FUSION/WGT/CMC.BRAIN.RNASEQ_SPLICING.tar.bz2","CMC.BRAIN.RNASEQ_SPLICING"

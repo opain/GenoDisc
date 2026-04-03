@@ -721,7 +721,7 @@ rule install_lme4qtl:
   log:
     f"{resdir}/logs/install_lme4qtl.log"
   shell:
-    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\", ref = \"0.1.10\")' > {log} 2>&1"
+    "Rscript -e 'devtools::install_github(\"variani/lme4qtl@0c173ea8d8386b205f62ad642698519a861650b4\")' > {log} 2>&1"
 
 ####
 # Format ROSMAP and Banner PWAS data
