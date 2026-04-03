@@ -119,3 +119,1006 @@ rule download_biomart:
   shell:
     "Rscript scripts/download_biomart.R --resdir {params.resdir} > {log} 2>&1"
 
+####
+# Download liftover and GRCh 37 to 38 and 36 track
+####
+
+# Download liftover
+rule install_liftover:
+  output:
+    touch(f"{resdir}/software/install_liftover.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/install_liftover.log"
+  shell:
+    "(mkdir -p {params.resdir}/software/liftover/; wget --no-check-certificate -O {params.resdir}/software/liftover/liftover https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver) > {log} 2>&1"
+
+# Download liftover track
+rule download_liftover_track:
+  output:
+    touch(f"{resdir}/software/download_liftover_track.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_liftover_track.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/liftover/; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz) > {log} 2>&1"
+
+####
+# Download and format 1000 Genomes reference data
+####
+
+rule prep_1kg:
+  input:
+    rules.install_liftover.output,
+    rules.download_liftover_track.output
+  resources:
+    mem_mb=20000
+  output:
+    touch(f"{resdir}/data/prep_1kg.done")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/prep_1kg.log"
+  shell:
+    "Rscript scripts/prep_1kg.R > {log} 2>&1"
+
+####
+# Download LDSC
+####
+
+# Install LDSC
+rule install_ldsc:
+  output:
+    directory(f"{resdir}/software/ldsc/")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_ldsc.log"
+  shell:
+    "(git clone https://github.com/bulik/ldsc.git {output}; \
+    cd {output}; \
+    git reset --hard aa33296abac9569a6422ee6ba7eb4b902422cc74) > {log} 2>&1"
+
+# Download LDSC reference data
+rule download_ldsc_scores:
+  output:
+    f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_ldsc_scores.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz https://zenodo.org/record/8182036/files/eur_w_ld_chr.tar.gz?download=1; tar -xf {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz -C {params.resdir}/data/ldsc; rm {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz) > {log} 2>&1"
+
+rule download_ldsc_hm3:
+  output:
+    f"{resdir}/data/ldsc/w_hm3.snplist"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_ldsc_hm3.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d {params.resdir}/data/ldsc/w_hm3.snplist.gz) > {log} 2>&1"
+
+# Download GCTA
+rule download_gcta:
+  output:
+    directory(f'{resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/')
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_gcta.log"
+  shell:
+    "(mkdir -p {params.resdir}/software/gcta; wget -O {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d {params.resdir}/software/gcta; rm {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip) > {log} 2>&1"
+
+# Install GenoUtils
+rule install_genoutils:
+  input:
+    "envs/main.yaml"
+  output:
+    touch(f"{resdir}/software/install_genoutils.done")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_genoutils.log"
+  shell:
+    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")' > {log} 2>&1"
+
+####
+# Download MAGMA
+####
+
+rule download_magma:
+  output:
+    f"{resdir}/software/magma/magma"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_magma.log"
+  shell:
+    "(rm -rf {params.resdir}/software/magma; \
+    wget -O {params.resdir}/software/magma.zip https://vu.data.surfsara.nl/index.php/s/zkKbNeNOZAhFXZB/download; \
+    unzip {params.resdir}/software/magma.zip -d {params.resdir}/software/magma; \
+    rm {params.resdir}/software/magma.zip) > {log} 2>&1"
+
+####
+# Download MAGMA gene locations
+####
+
+rule download_magma_gene_loc:
+  output:
+    f"{resdir}/data/magma/NCBI37.3.gene.loc"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_magma_gene_loc.log"
+  shell:
+    "(rm -rf {params.resdir}/data/magma; \
+    wget -O {params.resdir}/data/magma.zip https://vu.data.surfsara.nl/index.php/s/Pj2orwuF2JYyKxq/download; \
+    unzip {params.resdir}/data/magma.zip -d {params.resdir}/data/magma; \
+    rm {params.resdir}/data/magma.zip) > {log} 2>&1"
+
+####
+# Download MAGMA reference
+####
+
+rule download_magma_ref:
+  output:
+    f"{resdir}/data/magma_ref/g1000_eur.bed"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_magma_ref.log"
+  shell:
+    "(rm -rf {params.resdir}/data/magma_ref; \
+    wget -O {params.resdir}/data/magma.zip https://vu.data.surfsara.nl/index.php/s/VZNByNwpD8qqINe/download; \
+    unzip {params.resdir}/data/magma.zip -d {params.resdir}/data/magma_ref; \
+    rm {params.resdir}/data/magma.zip) > {log} 2>&1"
+
+####
+# Create MAGMA annotation file
+####
+
+rule magma_annot:
+  input:
+    rules.download_magma.output,
+    rules.download_magma_gene_loc.output,
+    rules.download_magma_ref.output
+  output:
+    f"{resdir}/data/magma/NCBI37.3.genes.annot"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/magma_annot.log"
+  shell:
+    "{params.resdir}/software/magma/magma \
+      --annotate window=35,10 \
+    	--snp-loc {params.resdir}/data/magma_ref/g1000_eur.bim \
+    	--gene-loc {params.resdir}/data/magma/NCBI37.3.gene.loc \
+    	--out {params.resdir}/data/magma/NCBI37.3 > {log} 2>&1"
+
+####
+# Download ATC codes
+####
+
+rule download_atc:
+  output:
+    f"{resdir}/data/atc/atc_20220201.txt"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_atc.log"
+  shell:
+    "(rm -rf {params.resdir}/data/atc; \
+    wget -O {params.resdir}/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; \
+    mkdir -p {params.resdir}/data/atc; \
+    unzip {params.resdir}/data/2022-02-01-v3extracts.zip -d {params.resdir}/data/atc; \
+    rm {params.resdir}/data/2022-02-01-v3extracts.zip) > {log} 2>&1"
+
+####
+# Download and format DrugTargetor database
+####
+
+rule download_drug_targetor:
+  output:
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_drug_targetor.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/drug_targetor/; \
+    wget -O {params.resdir}/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor) > {log} 2>&1"
+
+rule format_drug_targetor:
+  input:
+    rules.download_drug_targetor.output,
+    rules.download_magma_gene_loc.output
+  output:
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt"
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/format_drug_targetor.log"
+  shell:
+    "Rscript scripts/format_drug_targetor.R > {log} 2>&1"
+
+####
+# Download and format GTEx TPM data
+####
+
+rule prep_tissue_exp:
+  input:
+    rules.download_magma_gene_loc.output,
+    "scripts/prep_tissue_exp.R"
+  output:
+    f"{resdir}/data/gtex/GTEx_v8_group.tsv"
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/prep_tissue_exp.log"
+  shell:
+    "Rscript scripts/prep_tissue_exp.R > {log} 2>&1"
+
+####
+# Download software required for TWAS-related analysis
+####
+
+# Install fusion
+rule install_fusion:
+  output:
+    directory(f"{resdir}/software/fusion/")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_fusion.log"
+  shell:
+    "(git clone https://github.com/gusevlab/fusion_twas.git {output}; \
+    cd {output}; \
+    git reset --hard e1ba5f7f3907e6f586f7fb5bb115b35cc0d3c0c2) > {log} 2>&1"
+
+# Download plink2R
+rule download_plink2R:
+  input:
+    rules.install_fusion.output
+  output:
+    f"{resdir}/software/plink2R/plink2R-master/data.bed"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_plink2R.log"
+  shell:
+    "(rm -rf {params.resdir}/software/plink2R; \
+    mkdir -p {params.resdir}/software/plink2R; \
+    wget -O {params.resdir}/software/plink2R/master.zip https://github.com/gabraham/plink2R/archive/master.zip; \
+    unzip {params.resdir}/software/plink2R/master.zip -d {params.resdir}/software/plink2R) > {log} 2>&1"
+
+# Install plink2R
+rule install_plink2R:
+  input:
+    rules.download_plink2R.output,
+    "envs/main.yaml"
+  output:
+    touch(f"{resdir}/software/install_plink2R")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/install_plink2R.log"
+  shell:
+    "Rscript -e 'install.packages(\"{params.resdir}/software/plink2R/plink2R-master/plink2R/\",repos=NULL)' > {log} 2>&1"
+
+# Install SNP-weights pipeline repo
+rule install_snp_weight_pipe:
+  output:
+    directory(f"{resdir}/software/Calculating-FUSION-TWAS-weights-pipeline/")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_snp_weight_pipe.log"
+  shell:
+    "(git clone https://github.com/opain/Calculating-FUSION-TWAS-weights-pipeline.git {output}; \
+    cd {output}; \
+    git reset --hard ab15a41e4568107f29bc5a538ea016a554d58589) > {log} 2>&1"
+
+####
+# Download data for TWAS related analysis
+####
+
+# Download PsychENCODE SNP-weights
+rule download_psychENCODE_weights:
+  output:
+    touch(f"{resdir}/data/download_psychENCODE_weights.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_psychENCODE_weights.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/fusion_snp_weights/psychencode; \
+    wget -O {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz http://resource.psychencode.org/Datasets/Derived/PEC_TWAS_weights.tar.gz; \
+    mkdir -p {params.resdir}/data/fusion_snp_weights/psychencode/psychencode; \
+    tar xvzf {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz -C {params.resdir}/data/fusion_snp_weights/psychencode/psychencode; \
+    rm {params.resdir}/data/fusion_snp_weights/psychencode/PEC_TWAS_weights.tar.gz) > {log} 2>&1"
+
+# Format PsychENCODE SNP-weights
+rule format_psychencode:
+  input:
+    psychencode_data=rules.download_psychENCODE_weights.output,
+    weights_pipe=rules.install_snp_weight_pipe.output,
+    biomart=rules.download_biomart.output
+  output:
+    f"{resdir}/data/format_psychencode.done"
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/format_psychencode.log"
+  shell:
+    "Rscript scripts/format_psychENCODE.R > {log} 2>&1"
+
+# Download FUSION GTEx v8 EUR SNP-weights
+# I am using EUR instead of full sample to avoid LD mismatch
+gtex_weights=config["gtex_weights"]
+
+rule download_gtex_weights:
+  output:
+    touch(f"{resdir}/data/download_fusion_gtex_{{weight}}_weights.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_gtex_weights-{{weight}}.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; wget -O {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz https://s3.us-west-1.amazonaws.com/gtex.v8.fusion/EUR/GTExv8.EUR.{wildcards.weight}.tar.gz; tar xf {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz -C {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; rm {params.resdir}/data/fusion_snp_weights/GTExv8.EUR.{wildcards.weight}.tar.gz; mv {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight}.pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos; mv {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/GTExv8.EUR.{wildcards.weight} {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}) > {log} 2>&1"
+
+# Update GTEx v8 P0 and P1 to build GRCh 37
+rule update_gtex_coord:
+  input:
+    f"{resdir}/data/download_fusion_gtex_{{weight}}_weights.done",
+    rules.download_biomart.output
+  output:
+    touch(f"{resdir}/data/update_gtex_coord_{{weight}}.done")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/update_gtex_coord-{{weight}}.log"
+  shell:
+    "Rscript scripts/update_gtex_coord.R \
+      --panel {wildcards.weight} > {log} 2>&1"
+
+rule update_gtex_coord_all_panel:
+    input: expand(f"{resdir}/data/update_gtex_coord_{{weight}}.done", weight=gtex_weights)
+
+# Download FUSION non-GTEx SNP-weights
+non_gtex_weights=config["non_gtex_weights"]
+
+rule download_non_gtex_weights:
+  output:
+    touch(f"{resdir}/data/download_non_gtex_{{weight}}_weights.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_non_gtex_weights-{{weight}}.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; wget --no-check-certificate -O {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 https://data.broadinstitute.org/alkesgroup/FUSION/WGT/{wildcards.weight}.tar.bz2; tar xvjf {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2 -C {params.resdir}/data/fusion_snp_weights/{wildcards.weight}; rm {params.resdir}/data/fusion_snp_weights/{wildcards.weight}.tar.bz2) > {log} 2>&1"
+
+# Insert N into non-GTEX SNP-weights
+rule insert_n_nongtex:
+  input:
+    f"{resdir}/data/download_non_gtex_{{weight}}_weights.done",
+    rules.download_biomart.output
+  output:
+    touch(f"{resdir}/data/insert_n_nongtex_{{weight}}.done")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/insert_n_nongtex-{{weight}}.log"
+  shell:
+    "Rscript scripts/insert_n_nongtex.R \
+      --panel {wildcards.weight} > {log} 2>&1"
+
+rule insert_n_nongtex_all_panel:
+    input: expand(f"{resdir}/data/insert_n_nongtex_{{weight}}.done", weight=non_gtex_weights)
+
+# Download glist file
+rule download_glist:
+  output:
+    f"{resdir}/data/glist-hg19"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_glist.log"
+  shell:
+    "wget -P {params.resdir}/data/ https://www.cog-genomics.org/static/bin/plink/glist-hg19 > {log} 2>&1"
+
+####
+# Download TWAS-GSEA
+####
+
+rule install_twas_gsea:
+  output:
+    directory(f"{resdir}/software/TWAS-GSEA/")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_twas_gsea.log"
+  shell:
+    "(git clone https://github.com/opain/TWAS-GSEA.git {output}; \
+    cd {output}; \
+    git reset --hard d9b98a670121bcf686448b5d65c8d3bc443ba494) > {log} 2>&1"
+
+####
+# Download FeaturePred
+####
+
+rule install_feature_pred:
+  output:
+    directory(f"{resdir}/software/Predicting-TWAS-features/")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_feature_pred.log"
+  shell:
+    "(git clone https://github.com/opain/Predicting-TWAS-features.git {output}; \
+    cd {output}; \
+    git reset --hard b9defcf3c96145ab86f605629c48e0d29daebe0c) > {log} 2>&1"
+
+####
+# Download pigz
+####
+
+rule install_pigz:
+  output:
+    f"{resdir}/software/pigz/pigz/pigz"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/install_pigz.log"
+  shell:
+    "(wget -O {params.resdir}/software/pigz.tar.gz https://zlib.net/pigz/pigz.tar.gz; mkdir -p {params.resdir}/software/pigz; tar xvzf {params.resdir}/software/pigz.tar.gz -C {params.resdir}/software/pigz; rm {params.resdir}/software/pigz.tar.gz; cd {params.resdir}/software/pigz/pigz; make) > {log} 2>&1"
+
+####
+# Format the external SNP-weights for TWAS
+####
+
+if config["external_weights"] == "T":
+  external_weights_list=config["external_weights_pos_path"]
+  import os.path
+  external_weights_path_list=[os.path.dirname(x) for x in external_weights_list]
+  external_weights_id_list=[os.path.basename(x) for x in external_weights_list]
+  external_weights_id_list=[re.sub(".pos", "", x) for x in external_weights_id_list]
+
+  import os
+  for x in list(range(0, len(external_weights_path_list))):
+    if not os.path.isdir("".join([resdir, "/data/fusion_snp_weights/",external_weights_id_list[x]])):
+      os.system("".join(["mkdir ", resdir, "/data/fusion_snp_weights/",external_weights_id_list[x]]))
+      os.system("".join(["cp -r ",external_weights_path_list[x],"/* ", resdir, "/data/fusion_snp_weights/", external_weights_id_list[x],"/"]))
+
+####
+# Predict features into 1kg sample
+####
+
+# Make complete list of panels without Splicing
+weights=gtex_weights + non_gtex_weights
+if config["twas_panel_psychencode"] == "T":
+  weights.append("psychencode")
+
+if config["external_weights"] == "T":
+  weights=weights + external_weights_id_list
+
+import copy
+weights_nosplice=copy.copy(weights)
+if "CMC.BRAIN.RNASEQ_SPLICING" in weights_nosplice:
+    weights_nosplice.remove("CMC.BRAIN.RNASEQ_SPLICING")
+
+def feature_pred_input(wildcards):
+    inputs = [
+        f"{resdir}/software/Predicting-TWAS-features/",
+        f"{resdir}/software/pigz/pigz/pigz"
+    ]
+    w = wildcards.weight
+    if w == "psychencode":
+        inputs.append(f"{resdir}/data/format_psychencode.done")
+    elif w in gtex_weights:
+        inputs.append(f"{resdir}/data/update_gtex_coord_{w}.done")
+    elif w in non_gtex_weights:
+        inputs.append(f"{resdir}/data/insert_n_nongtex_{w}.done")
+    return inputs
+
+# Modify panel column in .pos file
+rule feature_pred:
+  resources:
+    mem_mb=50000,
+    cpus=5
+  input:
+    feature_pred_input
+  output:
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/Reference_Expression_{{weight}}.txt.gz"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/feature_pred-{{weight}}.log"
+  shell:
+    "Rscript {params.resdir}/software/Predicting-TWAS-features/FeaturePred.V2.0.R \
+    	--PLINK_prefix_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    	--weights {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+    	--weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weight} \
+    	--ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    	--targ_pred F \
+    	--save_ref_expr T \
+    	--save_score F \
+    	--plink plink \
+    	--ref_maf {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    	--pigz {params.resdir}/software/pigz/pigz/pigz \
+    	--memory 40000 \
+      --n_cores 5 \
+    	--output {params.resdir}/data/predicted_expression/{wildcards.weight} > {log} 2>&1"
+
+# Format expression data for TWAS-GSEA (i.e. remove PANEL from column names)
+rule format_pred:
+  input:
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/Reference_Expression_{{weight}}.txt.gz"
+  output:
+    touch(f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/format_pred-{{weight}}.log"
+  shell:
+    "(zcat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz | sed -e s/{wildcards.weight}.//g | gzip > {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz; mv {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}_mod.txt.gz {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz) > {log} 2>&1"
+
+####
+# Install lme4qtl
+####
+# Note the version of conda was not working in R 4.0.2
+
+rule install_lme4qtl:
+  input:
+    "envs/main.yaml"
+  output:
+    touch(f"{resdir}/software/install_lme4qtl.done")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_lme4qtl.log"
+  shell:
+    "Rscript -e 'devtools::install_github(\"variani/lme4qtl\", ref = \"0.1.10\")' > {log} 2>&1"
+
+####
+# Format ROSMAP and Banner PWAS data
+####
+
+rule format_pwas_data:
+  output:
+    f"{resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos"
+  conda:
+    "../envs/main.yaml"
+  params:
+    rosmap_fusion= config["rosmap_fusion"],
+    banner_fusion= config["banner_fusion"]
+  log:
+    f"{resdir}/logs/format_pwas_data.log"
+  shell:
+    "Rscript scripts/format_pwas_data.R \
+      --rosmap {params.rosmap_fusion} \
+      --banner {params.banner_fusion} > {log} 2>&1"
+
+# Format drugtargetor database for TWAS-GSEA
+rule format_drug_targetor_for_twas_gsea:
+  input:
+    rules.download_drug_targetor.output,
+    rules.download_magma_gene_loc.output
+  output:
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/format_drug_targetor_for_twas_gsea.log"
+  shell:
+    "Rscript scripts/format_drug_targetor_for_twas_gsea.R > {log} 2>&1"
+
+####
+# Download SMR
+####
+
+rule download_smr:
+  output:
+    f"{resdir}/software/smr/smr_linux_x86_64"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_smr.log"
+  shell:
+    "(rm -rf {params.resdir}/software/smr; \
+    mkdir -p {params.resdir}/software/smr; \
+    wget -O {params.resdir}/software/smr/smr_Linux.zip https://yanglab.westlake.edu.cn/software/smr/download/smr_Linux.zip; \
+    unzip {params.resdir}/software/smr/smr_Linux.zip -d {params.resdir}/software/smr; \
+    rm {params.resdir}/software/smr/smr_Linux.zip) > {log} 2>&1"
+
+####
+# Format ROSMAP SMR data
+####
+
+rule format_rosmap_smr_data:
+  input:
+    rules.download_smr.output,
+    rules.prep_1kg.output
+  output:
+    f"{resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
+  conda:
+    "../envs/main.yaml"
+  params:
+    rosmap_smr= config["rosmap_smr"],
+  log:
+    f"{resdir}/logs/format_rosmap_smr_data.log"
+  shell:
+    "Rscript scripts/format_rosmap_smr_data.R \
+      --rosmap {params.rosmap_smr} > {log} 2>&1"
+
+####
+# Download PsychENCODE data for SMR
+####
+
+rule download_psychencode_smr:
+  output:
+    directory(f"{resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_psychencode_smr.log"
+  shell:
+    "(rm -rf {params.resdir}/data/psychencode_smr; \
+    mkdir -p {params.resdir}/data/psychencode_smr; \
+    wget --no-check-certificate -O {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz; \
+    tar -xvzf {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz -C {params.resdir}/data/psychencode_smr; \
+    rm {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz) > {log} 2>&1"
+
+##
+# Download MetaBrain data in SMR format
+##
+
+# Basalganglia
+rule download_MetaBrain_Basalganglia:
+  output:
+    directory(f"{resdir}/data/MetaBrain/Basalganglia")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_MetaBrain_Basalganglia.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/MetaBrain/Basalganglia; \
+    wget -O {params.resdir}/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Basalganglia-EUR/2020-05-26-Basalganglia-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Basalganglia/ {params.resdir}/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip) > {log} 2>&1"
+
+# Cerebellum
+rule download_MetaBrain_Cerebellum:
+  output:
+    directory(f"{resdir}/data/MetaBrain/Cerebellum")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_MetaBrain_Cerebellum.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/MetaBrain/Cerebellum; \
+    wget -O {params.resdir}/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cerebellum-EUR/2020-05-26-Cerebellum-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Cerebellum/ {params.resdir}/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip) > {log} 2>&1"
+
+# Cortex
+rule download_MetaBrain_Cortex:
+  output:
+    directory(f"{resdir}/data/MetaBrain/Cortex")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_MetaBrain_Cortex.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/MetaBrain/Cortex; \
+    wget -O {params.resdir}/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cortex-EUR/2020-05-26-Cortex-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Cortex/ {params.resdir}/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip) > {log} 2>&1"
+
+# Hippocampus
+rule download_MetaBrain_Hippocampus:
+  output:
+    directory(f"{resdir}/data/MetaBrain/Hippocampus")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_MetaBrain_Hippocampus.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/MetaBrain/Hippocampus; \
+    wget -O {params.resdir}/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Hippocampus-EUR/2020-05-26-Hippocampus-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Hippocampus/ {params.resdir}/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip) > {log} 2>&1"
+
+# Spinalcord
+rule download_MetaBrain_Spinalcord:
+  output:
+    directory(f"{resdir}/data/MetaBrain/Spinalcord")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_MetaBrain_Spinalcord.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/MetaBrain/Spinalcord; \
+    wget -O {params.resdir}/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Spinalcord-EUR/2020-05-26-Spinalcord-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Spinalcord/ {params.resdir}/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip) > {log} 2>&1"
+
+rule download_MetaBrain_all:
+  input:
+    rules.download_MetaBrain_Basalganglia.output,
+    rules.download_MetaBrain_Cerebellum.output,
+    rules.download_MetaBrain_Cortex.output,
+    rules.download_MetaBrain_Hippocampus.output,
+    rules.download_MetaBrain_Spinalcord.output
+  output:
+    touch(f'{resdir}/data/MetaBrain_download.out')
+
+# Update variant IDs in MetaBrain SMR files
+rule format_metabrain_esi:
+  input:
+    f"{resdir}/data/MetaBrain_download.out"
+  output:
+    touch(f"{resdir}/data/MetaBrain/format_MetaBrain_esi.out")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/format_metabrain_esi.log"
+  shell:
+    "Rscript scripts/format_metabrain_esi.R > {log} 2>&1"
+
+# Download eQTLGen data in SMR format
+rule download_eqtlgen:
+  output:
+    touch(f"{resdir}/data/eqtlgen.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_eqtlgen.log"
+  shell:
+    "(rm -rf {params.resdir}/data/eqtlgen; \
+    mkdir {params.resdir}/data/eqtlgen; \
+    wget -O {params.resdir}/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz https://molgenis26.gcc.rug.nl/downloads/eqtlgen/cis-eqtl/SMR_formatted/cis-eQTL-SMR_20191212.tar.gz; \
+    tar -xvzf {params.resdir}/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz -C {params.resdir}/data/eqtlgen/; \
+    rm {params.resdir}/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz; \
+    gunzip {params.resdir}/data/eqtlgen/*) > {log} 2>&1"
+
+####
+# Download GCSC
+####
+
+rule install_gcsc:
+  output:
+    directory(f"{resdir}/software/GCSC/")
+  conda:
+    "../envs/main.yaml"
+  log:
+    f"{resdir}/logs/install_gcsc.log"
+  shell:
+    "(git clone https://github.com/ksiewert/GCSC.git {output}; \
+     cd {output}; \
+     git reset --hard b10ea77b9a43399801b46ef70c80516599264123) > {log} 2>&1"
+
+####
+# Download GCSC gene co-regulation scores
+####
+
+gcsc_tissues=config["gcsc_tissues"]
+
+rule download_gcsc_coreg:
+  output:
+    f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_gcsc_coreg-{{gcsc_tissue}}.log"
+  shell:
+    "(wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; \
+    wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt) > {log} 2>&1"
+
+rule download_gcsc_coreg_all_tissue:
+    input: expand(f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt", gcsc_tissue=gcsc_tissues)
+
+####
+# Download corresponding GTEx v7 TWAS weights
+####
+
+rule download_gcsc_twas_weights:
+  output:
+    directory(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_gcsc_twas_weights-{{gcsc_tissue}}.log"
+  shell:
+    "(mkdir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
+    wget -O {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 http://gusevlab.org/projects/fusion/weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2; \
+    tar xjvf {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 -C {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
+    rm {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2) > {log} 2>&1"
+
+rule download_gcsc_twas_weights_all_tissue:
+    input: expand(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01", gcsc_tissue=gcsc_tissues)
+
+####
+# Prepare all resources
+####
+
+resource_inputs = list()
+
+# Core infrastructure (always needed)
+resource_inputs.extend([
+    rules.install_liftover.output,
+    rules.download_liftover_track.output,
+    rules.prep_1kg.output,
+    rules.install_genoutils.output,
+    rules.download_biomart.output
+])
+
+# LDSC
+if config["ldsc"] == "T":
+    resource_inputs.extend([
+        rules.install_ldsc.output,
+        rules.download_ldsc_scores.output,
+        rules.download_ldsc_hm3.output
+    ])
+
+# COJO
+if config["cojo"] == "T":
+    resource_inputs.append(rules.download_gcta.output)
+
+# MAGMA
+if config["magma_gene"] == "T" or config["magma_drugtargetor"] == "T" or config["tissue_magma"] == "T":
+    resource_inputs.append(rules.magma_annot.output)
+
+if config["magma_drugtargetor"] == "T":
+    resource_inputs.extend([
+        rules.download_atc.output,
+        rules.format_drug_targetor.output
+    ])
+
+if config["tissue_magma"] == "T":
+    resource_inputs.append(rules.prep_tissue_exp.output)
+
+# TWAS
+if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
+    resource_inputs.extend([
+        rules.install_fusion.output,
+        rules.install_plink2R.output
+    ])
+
+if config["twas_panel_psychencode"] == "T":
+    resource_inputs.append(rules.format_psychencode.output)
+
+if config["twas_panel_fusion"] == "T":
+    resource_inputs.extend([
+        rules.update_gtex_coord_all_panel.input,
+        rules.insert_n_nongtex_all_panel.input
+    ])
+
+if config["twas_conditional"] == "T":
+    resource_inputs.append(rules.download_glist.output)
+
+# TWAS-GSEA
+if config["twas_gsea_drugtargetor"] == "T":
+    resource_inputs.extend([
+        rules.install_twas_gsea.output,
+        rules.install_feature_pred.output,
+        rules.install_pigz.output,
+        rules.install_lme4qtl.output,
+        rules.format_drug_targetor_for_twas_gsea.output,
+        expand(f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done", weight=weights_nosplice)
+    ])
+
+# PWAS
+if config["pwas_panel_rosmap"] == "T" or config["pwas_panel_banner"] == "T":
+    resource_inputs.append(rules.format_pwas_data.output)
+
+# SMR
+any_smr = any(config.get(k) == "T" for k in [
+    "smr_expression_panel_psychencode",
+    "smr_expression_panel_metabrain_basalganglia",
+    "smr_expression_panel_metabrain_cerebellum",
+    "smr_expression_panel_metabrain_cortex",
+    "smr_expression_panel_metabrain_hippocampus",
+    "smr_expression_panel_metabrain_spinalcord",
+    "smr_expression_panel_eqtlgen",
+    "smr_protein_panel_rosmap"
+])
+
+if any_smr:
+    resource_inputs.append(rules.download_smr.output)
+
+if config["smr_expression_panel_psychencode"] == "T":
+    resource_inputs.append(rules.download_psychencode_smr.output)
+
+any_metabrain = any(config.get(k) == "T" for k in [
+    "smr_expression_panel_metabrain_basalganglia",
+    "smr_expression_panel_metabrain_cerebellum",
+    "smr_expression_panel_metabrain_cortex",
+    "smr_expression_panel_metabrain_hippocampus",
+    "smr_expression_panel_metabrain_spinalcord"
+])
+
+if any_metabrain:
+    resource_inputs.append(rules.format_metabrain_esi.output)
+
+if config["smr_expression_panel_eqtlgen"] == "T":
+    resource_inputs.append(rules.download_eqtlgen.output)
+
+if config["smr_protein_panel_rosmap"] == "T":
+    resource_inputs.append(rules.format_rosmap_smr_data.output)
+
+# GCSC
+if config["gcsc"] == "T":
+    resource_inputs.extend([
+        rules.install_gcsc.output,
+        rules.download_gcsc_coreg_all_tissue.input,
+        rules.download_gcsc_twas_weights_all_tissue.input
+    ])
+
+rule prepare_resources:
+  input:
+    resource_inputs
+

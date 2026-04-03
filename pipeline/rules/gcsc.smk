@@ -1,66 +1,4 @@
 ####
-# Download GCSC
-####
-
-rule install_gcsc:
-  output:
-    directory(f"{resdir}/software/GCSC/")
-  conda:
-    "../envs/main.yaml"
-  log:
-    f"{resdir}/logs/install_gcsc.log"
-  shell:
-    "(git clone https://github.com/ksiewert/GCSC.git {output}; \
-     cd {output}; \
-     git reset --hard b10ea77b9a43399801b46ef70c80516599264123) > {log} 2>&1"
-
-####
-# Download GCSC gene co-regulation scores
-####
-
-gcsc_tissues=config["gcsc_tissues"]
-
-rule download_gcsc_coreg:
-  output:
-    f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt"
-  conda:
-    "../envs/main.yaml"
-  params:
-    resdir=resdir
-  log:
-    f"{resdir}/logs/download_gcsc_coreg-{{gcsc_tissue}}.log"
-  shell:
-    "(wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; \
-    wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt) > {log} 2>&1"
-
-rule download_gcsc_coreg_all_tissue:
-    input: expand(f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt", gcsc_tissue=gcsc_tissues)
-
-####
-# Download corresponding GTEx v7 TWAS weights
-####
-
-gcsc_tissues=config["gcsc_tissues"]
-
-rule download_gcsc_twas_weights:
-  output:
-    directory(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01")
-  conda:
-    "../envs/main.yaml"
-  params:
-    resdir=resdir
-  log:
-    f"{resdir}/logs/download_gcsc_twas_weights-{{gcsc_tissue}}.log"
-  shell:
-    "(mkdir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
-    wget -O {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 http://gusevlab.org/projects/fusion/weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2; \
-    tar xjvf {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 -C {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
-    rm {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2) > {log} 2>&1"
-
-rule download_gcsc_twas_weights_all_tissue:
-    input: expand(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01", gcsc_tissue=gcsc_tissues)
-
-####
 # Perform TWAS using GTEx v7 weights
 ####
 
@@ -94,17 +32,17 @@ rule run_twas_gcsc:
     --chr {wildcards.chr}) > {log} 2>&1"
 
 rule twas_gcsc_all_chr:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat", gwas=w.gwas, gcsc_tissue=w.gcsc_tissue, chr=chromosomes, outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/gcsc_twas_{gcsc_tissue}_all_chr.done")
 
 rule twas_gcsc_all_panel:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/checks/gcsc_twas_{gcsc_tissue}_all_chr.done", gwas=w.gwas, gcsc_tissue=gcsc_tissues, outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/gcsc_twas_all_panel.done")
-      
+
 ####
 # Prepare drug-gene interaction data
 ####
@@ -163,11 +101,11 @@ rule run_gcsc_drugtargetor:
 --out {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}) > {log} 2>&1"
 
 rule run_gcsc_all_chunk:
-    input: 
+    input:
       lambda w: expand("{outdir}/results/{gwas}/gcsc/drugtargetor/{chunk}/GCSCresults.txt", gwas=w.gwas, chunk=n_chunk_gcsc("{}".format(w.gwas)), outdir={outdir})
-    output: 
+    output:
       touch("{outdir}/results/{gwas}/checks/run_gcsc_all_chunk.done")
-      
+
 ####
 # Combine GCSC results
 ####
@@ -187,5 +125,3 @@ rule combine_gcsc:
     "Rscript scripts/combine_gcsc.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
-
-
