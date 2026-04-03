@@ -4,7 +4,7 @@
 
 rule install_gcsc:
   output:
-    directory("resources/software/GCSC/")
+    directory(f"{resdir}/software/GCSC/")
   conda:
     "../envs/main.yaml"
   shell:
@@ -20,15 +20,17 @@ gcsc_tissues=config["gcsc_tissues"]
 
 rule download_gcsc_coreg:
   output:
-    "resources/data/GCSC/coreg/{gcsc_tissue}_geneNames.txt"
+    f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "wget -O resources/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; \
-    wget -O resources/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt"
+    "wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_coregscores.npz https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_coregscores.npz; \
+    wget -O {params.resdir}/data/GCSC/coreg/{wildcards.gcsc_tissue}_geneNames.txt https://storage.googleapis.com/broad-alkesgroup-public/GCSC/Coreg_scores/{wildcards.gcsc_tissue}_geneNames.txt"
 
 rule download_gcsc_coreg_all_tissue:
-    input: expand("resources/data/GCSC/coreg/{gcsc_tissue}_geneNames.txt", gcsc_tissue=gcsc_tissues)
+    input: expand(f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt", gcsc_tissue=gcsc_tissues)
 
 ####
 # Download corresponding GTEx v7 TWAS weights
@@ -38,17 +40,19 @@ gcsc_tissues=config["gcsc_tissues"]
 
 rule download_gcsc_twas_weights:
   output:
-    directory("resources/data/GCSC/twas_weights/GTEx.{gcsc_tissue}.P01")
+    directory(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01")
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
-    wget -O resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 http://gusevlab.org/projects/fusion/weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2; \
-    tar xjvf resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 -C resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
-    rm resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2"
+    "mkdir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
+    wget -O {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 http://gusevlab.org/projects/fusion/weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2; \
+    tar xjvf {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2 -C {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01; \
+    rm {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01.tar.bz2"
 
 rule download_gcsc_twas_weights_all_tissue:
-    input: expand("resources/data/GCSC/twas_weights/GTEx.{gcsc_tissue}.P01", gcsc_tissue=gcsc_tissues)
+    input: expand(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01", gcsc_tissue=gcsc_tissues)
 
 ####
 # Perform TWAS using GTEx v7 weights
@@ -64,18 +68,20 @@ rule run_twas_gcsc:
     rules.install_fusion.output,
     rules.install_plink2R.output,
     rules.prep_1kg.output,
-    "resources/data/GCSC/coreg/{gcsc_tissue}_geneNames.txt",
-    "resources/data/GCSC/twas_weights/GTEx.{gcsc_tissue}.P01"
+    f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt",
+    f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01"
   output:
     "{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript resources/software/fusion/FUSION.assoc_test.R \
+    "mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
-    --weights resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
-    --weights_dir resources/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
-    --ref_ld_chr resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    --weights {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
+    --weights_dir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
+    --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr}"
 
@@ -133,14 +139,15 @@ rule run_gcsc_drugtargetor:
   conda:
     "../envs/gcsc.yaml"
   params:
-    gcsc_tissues= config["gcsc_tissues"]
+    gcsc_tissues= config["gcsc_tissues"],
+    resdir=resdir
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python resources/software/GCSC/gcsc.py \
+    "mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python {params.resdir}/software/GCSC/gcsc.py \
 --geneSets {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor_gcsc_sets_{wildcards.chunk}.csv \
 --TWASdir {outdir}/results/{wildcards.gwas}/gcsc/twas/tissue \
 --N ${{N}} \
 --tissues {params.gcsc_tissues} \
---coreg resources/data/GCSC/coreg \
+--coreg {params.resdir}/data/GCSC/coreg \
 --out {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}"
 
 rule run_gcsc_all_chunk:

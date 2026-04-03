@@ -9,20 +9,24 @@
 # Download liftover
 rule install_liftover:
   output:
-    touch("resources/software/install_liftover.done")
+    touch(f"{resdir}/software/install_liftover.done")
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p resources/software/liftover/; wget --no-check-certificate -O resources/software/liftover/liftover https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver"
+    "mkdir -p {params.resdir}/software/liftover/; wget --no-check-certificate -O {params.resdir}/software/liftover/liftover https://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64/liftOver"
 
 # Download liftover track
 rule download_liftover_track:
   output:
-    touch("resources/software/download_liftover_track.done")
+    touch(f"{resdir}/software/download_liftover_track.done")
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p resources/data/liftover/; wget --no-check-certificate -O resources/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O resources/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz"
+    "mkdir -p {params.resdir}/data/liftover/; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz"
 
 ####
 # Download and format 1000 Genomes reference data
@@ -35,7 +39,7 @@ rule prep_1kg:
   resources:
     mem_mb=20000
   output:
-    touch("resources/data/prep_1kg.done")
+    touch(f"{resdir}/data/prep_1kg.done")
   conda:
     "../envs/main.yaml"
   shell:
@@ -48,7 +52,7 @@ rule prep_1kg:
 # Install LDSC
 rule install_ldsc:
   output:
-    directory("resources/software/ldsc/")
+    directory(f"{resdir}/software/ldsc/")
   conda:
     "../envs/main.yaml"
   shell:
@@ -59,35 +63,41 @@ rule install_ldsc:
 # Download LDSC reference data
 rule download_ldsc_scores:
   output:
-    "resources/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
+    f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/eur_w_ld_chr.tar.gz https://zenodo.org/record/8182036/files/eur_w_ld_chr.tar.gz?download=1; tar -xf resources/data/ldsc/eur_w_ld_chr.tar.gz -C resources/data/ldsc; rm resources/data/ldsc/eur_w_ld_chr.tar.gz"
+    "mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz https://zenodo.org/record/8182036/files/eur_w_ld_chr.tar.gz?download=1; tar -xf {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz -C {params.resdir}/data/ldsc; rm {params.resdir}/data/ldsc/eur_w_ld_chr.tar.gz"
 
 rule download_ldsc_hm3:
   output:
-    "resources/data/ldsc/w_hm3.snplist"
+    f"{resdir}/data/ldsc/w_hm3.snplist"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p resources/data/ldsc; wget --no-check-certificate -O resources/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d resources/data/ldsc/w_hm3.snplist.gz"
+    "mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d {params.resdir}/data/ldsc/w_hm3.snplist.gz"
 
 # Download GCTA
 rule download_gcta:
   output:
-    directory('resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/')
+    directory(f'{resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/')
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p resources/software/gcta; wget -O resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d resources/software/gcta; rm resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip"
+    "mkdir -p {params.resdir}/software/gcta; wget -O {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d {params.resdir}/software/gcta; rm {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip"
 
 # Install GenoUtils
 rule install_genoutils:
   input:
     "envs/main.yaml"
   output:
-    touch("resources/software/install_genoutils.done")
+    touch(f"{resdir}/software/install_genoutils.done")
   conda:
     "../envs/main.yaml"
   shell:
@@ -127,14 +137,15 @@ rule sumstat_prep_i:
     config_file = config["config_file"],
     population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     n= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'n'].iloc[0],
-    path= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
+    path= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0],
+    resdir=resdir
   shell:
     """
     sumstat_cleaner_script=$(Rscript -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
     Rscript $sumstat_cleaner_script \
       --sumstats {params.path} \
       --n {params.n} \
-      --ref_chr resources/data/1kg/1KG.Phase3.MAF_001.chr \
+      --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
       --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned
     """
@@ -176,18 +187,20 @@ rule retrieve_N:
 rule ldsc:
   input:
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    "resources/software/ldsc/",
-    "resources/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
-    "resources/data/ldsc/w_hm3.snplist"
+    f"{resdir}/software/ldsc/",
+    f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
+    f"{resdir}/data/ldsc/w_hm3.snplist"
   output:
     "{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log"
   conda:
     "../envs/ldsc.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 resources/software/ldsc/ldsc.py \
+    "mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 {params.resdir}/software/ldsc/ldsc.py \
       --h2 {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
-      --ref-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
-      --w-ld-chr resources/data/ldsc/eur_w_ld_chr/ \
+      --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
+      --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res"
 
 ###
@@ -202,10 +215,11 @@ rule clump:
   conda:
     "../envs/main.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    resdir=resdir
   shell:
     "mkdir -p {outdir}/results/{wildcards.gwas}/clump; plink \
-      --bfile resources/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
+      --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
       --clump {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz \
@@ -256,10 +270,11 @@ rule cojo:
   conda:
     "../envs/ldsc.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    resdir=resdir
   shell:
-    "mkdir -p {outdir}/results/{wildcards.gwas}/cojo; resources/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
-      --bfile resources/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
+    "mkdir -p {outdir}/results/{wildcards.gwas}/cojo; {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
+      --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
       --cojo-file {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \

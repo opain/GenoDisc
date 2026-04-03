@@ -14,12 +14,14 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
+source('scripts/functions/utils_functions.R')
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in TWAS-GSEA results
 res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.txt'))
@@ -38,7 +40,7 @@ res<-res[order(res$P),]
 write.csv(res, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor_',opt$panel,'.competitive.clean.csv'), row.names=F)
 
 # Insert ATC codes
-atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
 names(atc)<-c('Code','Name')
 atc$Name<-tolower(atc$Name)
 

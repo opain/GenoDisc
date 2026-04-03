@@ -3,7 +3,8 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--panel", action="store", default=NA, type='character',
-              help="Panel ID [required]")
+              help="Panel ID [required]"),
+  make_option("--resdir", type="character", default="resources")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -15,12 +16,12 @@ panels<-data.frame(panel=panels,
 
 library(data.table)
 
-pos<-fread(paste0('resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'.pos'))
+pos<-fread(paste0(opt$resdir, '/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'.pos'))
 pos$PANEL<-opt$panel
 pos$N<-panels$N[panels$panel == opt$panel]
 
 # Convert IDs to ENSEMBL IDs
-biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+biomart<-read.delim(paste0(opt$resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
 Genes<-biomart[,c('ensembl_gene_id','external_gene_name','external_synonym')]
 
 pos_1<-merge(pos,Genes[,c('ensembl_gene_id','external_gene_name')], by.x='ID', by.y='external_gene_name')
@@ -33,4 +34,4 @@ pos_new$ID<-pos_new$ensembl_gene_id
 pos_new$ensembl_gene_id<-NULL
 
 pos_new<-pos_new[,c('PANEL','WGT','ID','CHR','P0','P1','N'), with=F]
-write.table(pos_new, paste0('resources/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'.pos'), quote=F, col.names=T, row.names=F)
+write.table(pos_new, paste0(opt$resdir, '/data/fusion_snp_weights/',opt$panel,'/',opt$panel,'.pos'), quote=F, col.names=T, row.names=F)

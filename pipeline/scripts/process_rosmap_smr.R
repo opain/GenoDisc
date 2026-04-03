@@ -11,14 +11,16 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
+source('scripts/functions/utils_functions.R')
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
-biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
 Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
 Genes<-Genes[!duplicated(Genes),]
 

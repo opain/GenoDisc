@@ -14,12 +14,14 @@ opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
 library(susieR)
+source('scripts/functions/utils_functions.R')
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in the sumstats
 ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
@@ -45,7 +47,7 @@ if(nrow(lead) == 0){
 lead$NearestGene<-NULL
 
 # Read in reference SNP data to match alleles
-bim<-fread(paste0('resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
+bim<-fread(paste0(resdir, '/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
 
 # Flip sumstat Z to match alleles across gwas and reference
 ss_bim_match<-merge(ss, bim, by.x=c('SNP','A1','A2'), by.y=c('V2','V5','V6'))
@@ -62,7 +64,7 @@ for(loc in 1:nrow(lead)){
   write.table(ss_subset$SNP, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt'), col.names=F, row.names=F, quote=F)
   
   # Calculate LD matrix for variants surrounding lead variants
-  system(paste0('plink --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
+  system(paste0('plink --bfile ',resdir,'/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
   
   ld<-as.matrix(fread(paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.ld')))
   dimnames(ld)<-list(ss_subset$SNP, ss_subset$SNP)

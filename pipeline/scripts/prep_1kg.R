@@ -1,5 +1,11 @@
 #!/usr/bin/Rscript
 library(data.table)
+library(optparse)
+
+option_list = list(
+  make_option("--resdir", type="character", default="resources")
+)
+opt = parse_args(OptionParser(option_list=option_list))
 
 # Create snp_modifyBuild_offline
 make_executable <- function(exe) {
@@ -35,7 +41,7 @@ snp_modifyBuild_offline<-function (info_snp, liftOver, chain, from = "hg18", to 
 # Based on instructions from Hannah Meyer https://cran.r-project.org/web/packages/plinkQC/vignettes/Genomes1000.pdf
 # With adaptations from Joni Coleman's reference resource
 
-output_dir<-'resources/data/1kg'
+output_dir<-paste0(opt$resdir, '/data/1kg')
 dir.create(output_dir, recursive = T)
 
 # Download the 1000Genomes data provided by PLINK (PLINK 2 format)
@@ -142,9 +148,9 @@ for(pop in unique(pop_data$V5)){
     ######
 
     # Liftover BP to GRCh38
-    ref[['GRCh38']]<-snp_modifyBuild_offline(ref[['GRCh37']], liftOver='resources/software/liftover/liftover', chain='resources/data/liftover/hg19ToHg38.over.chain.gz', from = "hg19", to = "hg38")
+    ref[['GRCh38']]<-snp_modifyBuild_offline(ref[['GRCh37']], liftOver=paste0(opt$resdir, '/software/liftover/liftover'), chain=paste0(opt$resdir, '/data/liftover/hg19ToHg38.over.chain.gz'), from = "hg19", to = "hg38")
     # Liftover BP to GRCh36
-    ref[['GRCh36']]<-snp_modifyBuild_offline(ref[['GRCh37']], liftOver='resources/software/liftover/liftover', chain='resources/data/liftover/hg19ToHg18.over.chain.gz', from = "hg19", to = "hg18")
+    ref[['GRCh36']]<-snp_modifyBuild_offline(ref[['GRCh37']], liftOver=paste0(opt$resdir, '/software/liftover/liftover'), chain=paste0(opt$resdir, '/data/liftover/hg19ToHg18.over.chain.gz'), from = "hg19", to = "hg18")
 
     # Combine the two builds
     tmp<-ref[['GRCh37']]

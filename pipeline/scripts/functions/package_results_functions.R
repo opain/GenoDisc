@@ -112,6 +112,7 @@ tidy_panel_names<-function(x){
 read_fusion_exp<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
 
   # Check whether TWAS was performed
   twas_panel_psychencode_logical<-read_param(config = config, param = 'twas_panel_psychencode', return_obj = F) == "T"
@@ -144,7 +145,7 @@ read_fusion_exp<-function(config, gwas){
     # Create table of TWAS panels included
     dat$panels<-NULL
     for(i in twas_weights){
-        pos<-fread(paste0('resources/data/fusion_snp_weights/',i,'/',i,'.pos'))
+        pos<-fread(paste0(resdir, '/data/fusion_snp_weights/',i,'/',i,'.pos'))
         dat$panels<-rbind(dat$panels, data.frame( Type='Expression',
                                                   Software='FUSION',
                                                   Panel=i,
@@ -490,12 +491,13 @@ identify_nearest<-function(x){
 read_twas_gsea_drug<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
 
   dat<-NULL
 
   if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) == "T"){
 
-    atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+    atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
     names(atc)<-c('Code','Name')
     atc$Name<-tolower(atc$Name)
 
@@ -571,12 +573,13 @@ read_twas_gsea_atc<-function(config, gwas){
 read_magma_drug<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
 
   dat<-NULL
 
   if(read_param(config = config, param = 'magma_drugtargetor', return_obj = F) == "T"){
 
-    atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+    atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
     names(atc)<-c('Code','Name')
     atc$Name<-tolower(atc$Name)
 
@@ -613,12 +616,13 @@ insert_atc_desc <- function(x, replacement_df) {
 read_gcsc<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
 
   dat<-NULL
 
   if(read_param(config = config, param = 'gcsc', return_obj = F) == "T"){
 
-    atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+    atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
     names(atc)<-c('Code','Name')
     atc$Name<-tolower(atc$Name)
 
@@ -691,6 +695,7 @@ read_gcsc_atc<-function(config, gwas){
 read_magma_tissue<-function(config, gwas, type){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
 
   dat<-NULL
 
@@ -711,7 +716,7 @@ read_magma_tissue<-function(config, gwas, type){
       property_enrich$P.FDR<-p.adjust(property_enrich$P, method = 'fdr')
 
       # Read in the tissue names
-      tissue_groups<-fread('resources/data/gtex/Tissue_labels.tsv')
+      tissue_groups<-fread(paste0(resdir, '/data/gtex/Tissue_labels.tsv'))
 
       # Insert original tissue names
       property_enrich<-merge(property_enrich, tissue_groups, by.x='FULL_NAME', by.y='new')

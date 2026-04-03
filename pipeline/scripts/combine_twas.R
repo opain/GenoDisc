@@ -16,6 +16,7 @@ source_all('scripts/functions')
 
 # Read in config parameters
 outdir <- read_param(config = opt$config_file, param = 'outdir', return_obj = F)
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 gtex_weights <- read_param(config = opt$config_file, param = 'gtex_weights', return_obj = F)
 non_gtex_weights <- read_param(config = opt$config_file, param = 'non_gtex_weights', return_obj = F)
@@ -38,7 +39,7 @@ if(external_weights_flag == "T"){
 write.table(weights, paste0(outdir,'/results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
 
 # Read in gene names from pre-downloaded biomart data
-biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
 Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
 Genes<-Genes[!duplicated(Genes),]
 

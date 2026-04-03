@@ -11,12 +11,14 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
+source('scripts/functions/utils_functions.R')
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 chunks<-fread(paste0(outdir,'/results/',opt$gwas,'/gcsc/drugtargetor_gcsc_sets.nset.txt'))$x
       
@@ -70,7 +72,7 @@ for(cat in unique(res_enrich$atc_cat)){
   }
 }
 
-atc<-fread('resources/data/atc/atc_20220201.txt', sep='!')
+atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
 names(atc)<-c('Code','Name')
 atc$Name<-tolower(atc$Name)
 

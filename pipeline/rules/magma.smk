@@ -4,14 +4,16 @@
 
 rule download_magma:
   output:
-    "resources/software/magma/magma"
+    f"{resdir}/software/magma/magma"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "rm -r resources/software/magma; \
-    wget -O resources/software/magma.zip https://vu.data.surfsara.nl/index.php/s/zkKbNeNOZAhFXZB/download; \
-    unzip resources/software/magma.zip -d resources/software/magma; \
-    rm resources/software/magma.zip"
+    "rm -rf {params.resdir}/software/magma; \
+    wget -O {params.resdir}/software/magma.zip https://vu.data.surfsara.nl/index.php/s/zkKbNeNOZAhFXZB/download; \
+    unzip {params.resdir}/software/magma.zip -d {params.resdir}/software/magma; \
+    rm {params.resdir}/software/magma.zip"
 
 ####
 # Download MAGMA gene locations
@@ -19,14 +21,16 @@ rule download_magma:
 
 rule download_magma_gene_loc:
   output:
-    "resources/data/magma/NCBI37.3.gene.loc"
+    f"{resdir}/data/magma/NCBI37.3.gene.loc"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "rm -r resources/data/magma; \
-    wget -O resources/data/magma.zip https://vu.data.surfsara.nl/index.php/s/Pj2orwuF2JYyKxq/download; \
-    unzip resources/data/magma.zip -d resources/data/magma; \
-    rm resources/data/magma.zip"
+    "rm -rf {params.resdir}/data/magma; \
+    wget -O {params.resdir}/data/magma.zip https://vu.data.surfsara.nl/index.php/s/Pj2orwuF2JYyKxq/download; \
+    unzip {params.resdir}/data/magma.zip -d {params.resdir}/data/magma; \
+    rm {params.resdir}/data/magma.zip"
 
 ####
 # Download MAGMA reference
@@ -34,14 +38,16 @@ rule download_magma_gene_loc:
 
 rule download_magma_ref:
   output:
-    "resources/data/magma_ref/g1000_eur.bed"
+    f"{resdir}/data/magma_ref/g1000_eur.bed"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "rm -r resources/data/magma_ref; \
-    wget -O resources/data/magma.zip https://vu.data.surfsara.nl/index.php/s/VZNByNwpD8qqINe/download; \
-    unzip resources/data/magma.zip -d resources/data/magma_ref; \
-    rm resources/data/magma.zip"
+    "rm -rf {params.resdir}/data/magma_ref; \
+    wget -O {params.resdir}/data/magma.zip https://vu.data.surfsara.nl/index.php/s/VZNByNwpD8qqINe/download; \
+    unzip {params.resdir}/data/magma.zip -d {params.resdir}/data/magma_ref; \
+    rm {params.resdir}/data/magma.zip"
 
 ####
 # Create MAGMA annotation file
@@ -53,15 +59,17 @@ rule magma_annot:
     rules.download_magma_gene_loc.output,
     rules.download_magma_ref.output
   output:
-    "resources/data/magma/NCBI37.3.genes.annot"
-  conda: 
+    f"{resdir}/data/magma/NCBI37.3.genes.annot"
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/magma/magma \
+    "{params.resdir}/software/magma/magma \
       --annotate window=35,10 \
-    	--snp-loc resources/data/magma_ref/g1000_eur.bim \
-    	--gene-loc resources/data/magma/NCBI37.3.gene.loc \
-    	--out resources/data/magma/NCBI37.3"
+    	--snp-loc {params.resdir}/data/magma_ref/g1000_eur.bim \
+    	--gene-loc {params.resdir}/data/magma/NCBI37.3.gene.loc \
+    	--out {params.resdir}/data/magma/NCBI37.3"
 
 ####
 # Download ATC codes
@@ -69,15 +77,17 @@ rule magma_annot:
 
 rule download_atc:
   output:
-    "resources/data/atc/atc_20220201.txt"
+    f"{resdir}/data/atc/atc_20220201.txt"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "rm -r resources/data/atc; \
-    wget -O resources/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; \
-    mkdir -p resources/data/atc; \
-    unzip resources/data/2022-02-01-v3extracts.zip -d resources/data/atc; \
-    rm resources/data/2022-02-01-v3extracts.zip"
+    "rm -rf {params.resdir}/data/atc; \
+    wget -O {params.resdir}/data/2022-02-01-v3extracts.zip https://www.pbs.gov.au/downloads/2022/02/2022-02-01-v3extracts.zip; \
+    mkdir -p {params.resdir}/data/atc; \
+    unzip {params.resdir}/data/2022-02-01-v3extracts.zip -d {params.resdir}/data/atc; \
+    rm {params.resdir}/data/2022-02-01-v3extracts.zip"
 
 ####
 # Download and format DrugTargetor database
@@ -85,19 +95,21 @@ rule download_atc:
 
 rule download_drug_targetor:
   output:
-    "resources/data/drug_targetor/wholedatabase_for_targetor"
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "mkdir -p resources/data/drug_targetor/; \
-    wget -O resources/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
+    "mkdir -p {params.resdir}/data/drug_targetor/; \
+    wget -O {params.resdir}/data/drug_targetor/wholedatabase_for_targetor https://github.com/hagax8/drugtargetor/raw/master/wholedatabase_for_targetor"
 
 rule format_drug_targetor:
   input:
     rules.download_drug_targetor.output,
     rules.download_magma_gene_loc.output
   output:
-    "resources/data/drug_targetor/wholedatabase_for_targetor.gmt"
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt"
   conda:
     "../envs/main.yaml"
   shell:
@@ -112,7 +124,7 @@ rule prep_tissue_exp:
     rules.download_magma_gene_loc.output,
     "scripts/prep_tissue_exp.R"
   output:
-    "resources/data/gtex/GTEx_v8_group.tsv"
+    f"{resdir}/data/gtex/GTEx_v8_group.tsv"
   conda:
     "../envs/main.yaml"
   shell:
@@ -133,14 +145,16 @@ rule magma_gene_level:
     rules.magma_annot.output
   output:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
     "gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; \
-    resources/software/magma/magma \
-      --bfile resources/data/magma_ref/g1000_eur \
+    {params.resdir}/software/magma/magma \
+      --bfile {params.resdir}/data/magma_ref/g1000_eur \
       --pval {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
-      --gene-annot resources/data/magma/NCBI37.3.genes.annot \
+      --gene-annot {params.resdir}/data/magma/NCBI37.3.genes.annot \
       --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned"
 
 # Format the MAGMA gene results 
@@ -162,15 +176,17 @@ rule format_magma_gene_results:
 rule magma_drug_targetor:
   input:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
-    "resources/data/drug_targetor/wholedatabase_for_targetor.gmt"
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt"
   output:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/magma/magma \
+    "{params.resdir}/software/magma/magma \
       --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
-      --set-annot resources/data/drug_targetor/wholedatabase_for_targetor.gmt \
+      --set-annot {params.resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt \
       --out {outdir}/results/{wildcards.gwas}/magma/magma_drug_targetor"
 
 # Format the MAGMA GSEA results 
@@ -209,15 +225,17 @@ rule comp_magma_gsea_twas_results:
 rule magma_tissue_spec:
   input:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
-    "resources/data/gtex/GTEx_v8_group.tsv"
+    f"{resdir}/data/gtex/GTEx_v8_group.tsv"
   output:
     "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/magma/magma \
+    "{params.resdir}/software/magma/magma \
       --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
-      --gene-covar resources/data/gtex/GTEx_v8_tissue.tsv \
+      --gene-covar {params.resdir}/data/gtex/GTEx_v8_tissue.tsv \
       --model direction-covar=greater condition-hide=Average \
       --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_spec"
 
@@ -225,15 +243,17 @@ rule magma_tissue_spec:
 rule magma_tissue_group:
   input:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
-    "resources/data/gtex/GTEx_v8_group.tsv"
+    f"{resdir}/data/gtex/GTEx_v8_group.tsv"
   output:
     "{outdir}/results/{gwas}/magma/magma_tissue_group.gsa.out"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/magma/magma \
+    "{params.resdir}/software/magma/magma \
       --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
-      --gene-covar resources/data/gtex/GTEx_v8_group.tsv \
+      --gene-covar {params.resdir}/data/gtex/GTEx_v8_group.tsv \
       --model direction-covar=greater condition-hide=Average \
       --out {outdir}/results/{wildcards.gwas}/magma/magma_tissue_group"
 

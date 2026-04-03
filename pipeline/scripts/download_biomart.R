@@ -5,8 +5,14 @@
 #   - biomart_genes_grch38.tsv (ensembl_gene_id, external_gene_name)
 
 library(biomaRt)
+library(optparse)
 
-outdir <- "resources/data/biomart"
+option_list = list(
+  make_option("--resdir", type="character", default="resources")
+)
+opt = parse_args(OptionParser(option_list=option_list))
+
+outdir <- paste0(opt$resdir, "/data/biomart")
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 # GRCh37

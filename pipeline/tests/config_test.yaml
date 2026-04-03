@@ -11,6 +11,9 @@ config_file: tests/config_test.yaml
 # Specify location of gwas_list file
 gwas_list: tests/gwas_list_test.txt
 
+# Specify resource directory (default: resources)
+resdir: NA
+
 # Specify location of rosmap and banner data for PWAS and SMR
 rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip
 rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt

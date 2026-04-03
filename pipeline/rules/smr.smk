@@ -4,15 +4,17 @@
 
 rule download_smr:
   output:
-    "resources/software/smr/smr_linux_x86_64"
+    f"{resdir}/software/smr/smr_linux_x86_64"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "rm -r  resources/software/smr; \
-    mkdir -p resources/software/smr; \
-    wget -O resources/software/smr/smr_Linux.zip https://yanglab.westlake.edu.cn/software/smr/download/smr_Linux.zip; \
-    unzip resources/software/smr/smr_Linux.zip -d resources/software/smr; \
-    rm resources/software/smr/smr_Linux.zip"
+    "rm -rf {params.resdir}/software/smr; \
+    mkdir -p {params.resdir}/software/smr; \
+    wget -O {params.resdir}/software/smr/smr_Linux.zip https://yanglab.westlake.edu.cn/software/smr/download/smr_Linux.zip; \
+    unzip {params.resdir}/software/smr/smr_Linux.zip -d {params.resdir}/software/smr; \
+    rm {params.resdir}/software/smr/smr_Linux.zip"
 
 ####
 # Format ROSMAP SMR data
@@ -23,7 +25,7 @@ rule format_rosmap_smr_data:
     rules.download_smr.output,
     rules.prep_1kg.output
   output:
-    "resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
+    f"{resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
   conda:
     "../envs/main.yaml"
   params:
@@ -38,15 +40,17 @@ rule format_rosmap_smr_data:
 
 rule download_psychencode_smr:
   output:
-    directory("resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/")
+    directory(f"{resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/")
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "rm -r resources/data/psychencode_smr; \
-    mkdir -p resources/data/psychencode_smr; \
-    wget --no-check-certificate -O resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz; \
-    tar -xvzf resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz -C resources/data/psychencode_smr; \
-    rm resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz"
+    "rm -rf {params.resdir}/data/psychencode_smr; \
+    mkdir -p {params.resdir}/data/psychencode_smr; \
+    wget --no-check-certificate -O {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz http://cnsgenomics.com/data/SMR/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz; \
+    tar -xvzf {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz -C {params.resdir}/data/psychencode_smr; \
+    rm {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary.tar.gz"
 
 ##
 # Download MetaBrain data in SMR format
@@ -54,63 +58,73 @@ rule download_psychencode_smr:
 
 # Basalganglia
 rule download_MetaBrain_Basalganglia:
-  output: 
-    directory("resources/data/MetaBrain/Basalganglia")
-  conda: 
+  output:
+    directory(f"{resdir}/data/MetaBrain/Basalganglia")
+  conda:
     "../envs/main.yaml"
-  shell: 
-    "mkdir -p resources/data/MetaBrain/Basalganglia; \
-    wget -O resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Basalganglia-EUR/2020-05-26-Basalganglia-EUR-smr.zip; \
-    unzip -d resources/data/MetaBrain/Basalganglia/ resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip; \
-    rm resources/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip"
+  params:
+    resdir=resdir
+  shell:
+    "mkdir -p {params.resdir}/data/MetaBrain/Basalganglia; \
+    wget -O {params.resdir}/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Basalganglia-EUR/2020-05-26-Basalganglia-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Basalganglia/ {params.resdir}/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Basalganglia/2020-05-26-Basalganglia-EUR-smr.zip"
 
 # Cerebellum
 rule download_MetaBrain_Cerebellum:
-  output: 
-    directory("resources/data/MetaBrain/Cerebellum")
-  conda: 
+  output:
+    directory(f"{resdir}/data/MetaBrain/Cerebellum")
+  conda:
     "../envs/main.yaml"
-  shell: 
-    "mkdir -p resources/data/MetaBrain/Cerebellum; \
-    wget -O resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cerebellum-EUR/2020-05-26-Cerebellum-EUR-smr.zip; \
-    unzip -d resources/data/MetaBrain/Cerebellum/ resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip; \
-    rm resources/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip"
+  params:
+    resdir=resdir
+  shell:
+    "mkdir -p {params.resdir}/data/MetaBrain/Cerebellum; \
+    wget -O {params.resdir}/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cerebellum-EUR/2020-05-26-Cerebellum-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Cerebellum/ {params.resdir}/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Cerebellum/2020-05-26-Cerebellum-EUR-smr.zip"
 
 # Cortex
 rule download_MetaBrain_Cortex:
-  output: 
-    directory("resources/data/MetaBrain/Cortex")
-  conda: 
+  output:
+    directory(f"{resdir}/data/MetaBrain/Cortex")
+  conda:
     "../envs/main.yaml"
-  shell: 
-    "mkdir -p resources/data/MetaBrain/Cortex; \
-    wget -O resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cortex-EUR/2020-05-26-Cortex-EUR-smr.zip; \
-    unzip -d resources/data/MetaBrain/Cortex/ resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip; \
-    rm resources/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip"
+  params:
+    resdir=resdir
+  shell:
+    "mkdir -p {params.resdir}/data/MetaBrain/Cortex; \
+    wget -O {params.resdir}/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Cortex-EUR/2020-05-26-Cortex-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Cortex/ {params.resdir}/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Cortex/2020-05-26-Cortex-EUR-smr.zip"
 
 # Hippocampus
 rule download_MetaBrain_Hippocampus:
-  output: 
-    directory("resources/data/MetaBrain/Hippocampus")
-  conda: 
+  output:
+    directory(f"{resdir}/data/MetaBrain/Hippocampus")
+  conda:
     "../envs/main.yaml"
-  shell: 
-    "mkdir -p resources/data/MetaBrain/Hippocampus; \
-    wget -O resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Hippocampus-EUR/2020-05-26-Hippocampus-EUR-smr.zip; \
-    unzip -d resources/data/MetaBrain/Hippocampus/ resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip; \
-    rm resources/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip"
+  params:
+    resdir=resdir
+  shell:
+    "mkdir -p {params.resdir}/data/MetaBrain/Hippocampus; \
+    wget -O {params.resdir}/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Hippocampus-EUR/2020-05-26-Hippocampus-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Hippocampus/ {params.resdir}/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Hippocampus/2020-05-26-Hippocampus-EUR-smr.zip"
 
 # Spinalcord
 rule download_MetaBrain_Spinalcord:
-  output: 
-    directory("resources/data/MetaBrain/Spinalcord")
-  conda: 
+  output:
+    directory(f"{resdir}/data/MetaBrain/Spinalcord")
+  conda:
     "../envs/main.yaml"
-  shell: 
-    "mkdir -p resources/data/MetaBrain/Spinalcord; \
-    wget -O resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Spinalcord-EUR/2020-05-26-Spinalcord-EUR-smr.zip; \
-    unzip -d resources/data/MetaBrain/Spinalcord/ resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip; \
-    rm resources/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip"
+  params:
+    resdir=resdir
+  shell:
+    "mkdir -p {params.resdir}/data/MetaBrain/Spinalcord; \
+    wget -O {params.resdir}/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip https://download.metabrain.nl/2020-05-26-release/2020-05-26-CisEQTLSummaryStats/2020-05-26-Spinalcord-EUR/2020-05-26-Spinalcord-EUR-smr.zip; \
+    unzip -d {params.resdir}/data/MetaBrain/Spinalcord/ {params.resdir}/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip; \
+    rm {params.resdir}/data/MetaBrain/Spinalcord/2020-05-26-Spinalcord-EUR-smr.zip"
 
 rule download_MetaBrain_all:
   input: 
@@ -120,32 +134,34 @@ rule download_MetaBrain_all:
     rules.download_MetaBrain_Hippocampus.output,
     rules.download_MetaBrain_Spinalcord.output
   output:
-    touch('resources/data/MetaBrain_download.out')
+    touch(f'{resdir}/data/MetaBrain_download.out')
 
 # Update variant IDs in MetaBrain SMR files
 rule format_metabrain_esi:
   input:
-    "resources/data/MetaBrain_download.out"
-  output: 
-    touch("resources/data/MetaBrain/format_MetaBrain_esi.out")
-  conda: 
+    f"{resdir}/data/MetaBrain_download.out"
+  output:
+    touch(f"{resdir}/data/MetaBrain/format_MetaBrain_esi.out")
+  conda:
     "../envs/main.yaml"
-  shell: 
+  shell:
     "Rscript scripts/format_metabrain_esi.R"
 
 # Download eQTLGen data in SMR format
 rule download_eqtlgen:
-  output: 
-    touch("resources/data/eqtlgen.done")
-  conda: 
+  output:
+    touch(f"{resdir}/data/eqtlgen.done")
+  conda:
     "../envs/main.yaml"
-  shell: 
-    "rm -r resources/data/eqtlgen; \
-    mkdir resources/data/eqtlgen; \
-    wget -O resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz https://molgenis26.gcc.rug.nl/downloads/eqtlgen/cis-eqtl/SMR_formatted/cis-eQTL-SMR_20191212.tar.gz; \
-    tar -xvzf resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz -C resources/data/eqtlgen/; \
-    rm resources/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz; \
-    gunzip resources/data/eqtlgen/*"
+  params:
+    resdir=resdir
+  shell:
+    "rm -rf {params.resdir}/data/eqtlgen; \
+    mkdir {params.resdir}/data/eqtlgen; \
+    wget -O {params.resdir}/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz https://molgenis26.gcc.rug.nl/downloads/eqtlgen/cis-eqtl/SMR_formatted/cis-eQTL-SMR_20191212.tar.gz; \
+    tar -xvzf {params.resdir}/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz -C {params.resdir}/data/eqtlgen/; \
+    rm {params.resdir}/data/eqtlgen/cis-eQTL-SMR_20191212.tar.gz; \
+    gunzip {params.resdir}/data/eqtlgen/*"
 
 ##########
 # Analyse GWAS summary statistics
@@ -179,13 +195,15 @@ rule run_psychencode_smr:
     rules.download_psychencode_smr.output
   output:
     "{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/smr/smr_linux_x86_64 \
-    --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    "{params.resdir}/software/smr/smr_linux_x86_64 \
+    --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
-    --beqtl-summary resources/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
+    --beqtl-summary {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
     --out {outdir}/results/{wildcards.gwas}/smr/psychencode/{wildcards.gwas}_smr_psychencode_chr{wildcards.chr}"
 
 rule run_psychencode_smr_chr:
@@ -204,13 +222,15 @@ rule run_eqtlgen_smr:
     rules.download_eqtlgen.output
   output:
     "{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/smr/smr_linux_x86_64 \
-    --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    "{params.resdir}/software/smr/smr_linux_x86_64 \
+    --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
-    --beqtl-summary resources/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
+    --beqtl-summary {params.resdir}/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
     --out {outdir}/results/{wildcards.gwas}/smr/eqtlgen/{wildcards.gwas}_smr_eqtlgen_chr{wildcards.chr}"
 
 rule run_eqtlgen_smr_chr:
@@ -245,13 +265,15 @@ rule run_rosmap_smr:
     rules.format_rosmap_smr_data.output
   output:
     "{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/smr/smr_linux_x86_64 \
-    --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    "{params.resdir}/software/smr/smr_linux_x86_64 \
+    --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
-    --beqtl-summary resources/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
+    --beqtl-summary {params.resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
     --out {outdir}/results/{wildcards.gwas}/smr/rosmap/{wildcards.gwas}_smr_rosmap_chr{wildcards.chr}"
 
 rule run_rosmap_smr_chr:
@@ -283,20 +305,22 @@ rule process_rosmap_smr:
 
 rule smr_analysis_MetaBrain:
   resources:
-    mem_mb=15000 
+    mem_mb=15000
   input:
     rules.prep_1kg.output,
     "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
     rules.format_metabrain_esi.output
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr"
-  conda: 
+  conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   shell:
-    "resources/software/smr/smr_linux_x86_64 \
-      --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    "{params.resdir}/software/smr/smr_linux_x86_64 \
+      --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
       --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
-      --beqtl-summary resources/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
+      --beqtl-summary {params.resdir}/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
       --out {outdir}/results/{wildcards.gwas}/smr/metabrain/{wildcards.tissue}/{wildcards.gwas}_smr_metabrain_{wildcards.tissue}_chr{wildcards.chr} \
       --thread-num 1"
 

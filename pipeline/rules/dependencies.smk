@@ -40,6 +40,11 @@ if missing_or_invalid_config_params:
 # Set outdir parameter
 outdir=config['outdir']
 
+# Set resource directory
+resdir = config.get('resdir', None)
+if resdir is None or resdir == 'NA':
+    resdir = 'resources'
+
 # Set chromosomes to analyse
 chromosomes = config.get("chromosomes", list(range(1, 23)))
 
@@ -74,8 +79,8 @@ def write_last_version(major, minor):
 # If there has been a change to the major or minor version numbers, we will rerun the entire pipeline
 
 # Define the path for storing the last known version
-os.makedirs("resources", exist_ok=True)
-last_version_file = "resources/last_version.txt"
+os.makedirs(resdir, exist_ok=True)
+last_version_file = f"{resdir}/last_version.txt"
 
 # Access overwrite flag from config
 overwrite = config.get("overwrite", "false").lower() == "true"
@@ -104,9 +109,11 @@ else:
 
 rule download_biomart:
   output:
-    "resources/data/biomart/biomart_genes_grch37.tsv"
+    f"{resdir}/data/biomart/biomart_genes_grch37.tsv"
+  params:
+    resdir=resdir
   conda:
     "../envs/main.yaml"
   shell:
-    "Rscript scripts/download_biomart.R"
+    "Rscript scripts/download_biomart.R --resdir {params.resdir}"
 

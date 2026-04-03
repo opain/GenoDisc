@@ -11,12 +11,14 @@ option_list = list(
 opt = parse_args(OptionParser(option_list=option_list))
 
 library(data.table)
+source('scripts/functions/utils_functions.R')
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in the sumstats
 ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
@@ -41,7 +43,7 @@ col_order<-col_order[!is.na(col_order)]
 ss_subset<-ss_subset[,col_order,with=F]
 
 # Insert nearest gene information
-biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
 Genes<-biomart[,c('external_gene_name','chromosome_name','start_position','end_position')]
 Genes<-Genes[!duplicated(Genes),]
 

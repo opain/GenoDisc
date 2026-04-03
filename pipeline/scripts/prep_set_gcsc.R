@@ -16,18 +16,19 @@ source_all('scripts/functions')
 
 # Read in config parameters
 outdir <- read_param(config = opt$config_file, param = 'outdir', return_obj = F)
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in database
-pathways<-fread('resources/data/drug_targetor/wholedatabase_for_targetor')
+pathways<-fread(paste0(resdir, '/data/drug_targetor/wholedatabase_for_targetor'))
 
 # Read in GCSC gene universe
-universe<-fread('resources/software/GCSC/gene_universe.txt', header=F)
+universe<-fread(paste0(resdir, '/software/GCSC/gene_universe.txt'), header=F)
 
 gene_id<-data.frame(universe)
 names(gene_id)<-'ID'
 
 # Read pre-downloaded BioMart gene IDs
-biomart<-read.delim('resources/data/biomart/biomart_genes_grch37.tsv', stringsAsFactors=FALSE)
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
 Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
 Genes<-Genes[!duplicated(Genes),]
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]

@@ -11,6 +11,9 @@ config_file: example_input/config.yaml
 # Specify location of gwas_list file
 gwas_list: example_input/gwas_list_example.txt
 
+# Specify resource directory (default: resources)
+resdir: NA
+
 # Specify location of rosmap and banner data for PWAS and SMR
 # These files can be downloaded from here: https://www.synapse.org/#!Synapse:syn23627957
 rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip
