@@ -9,16 +9,16 @@ gwasQcUI <- function(id) {
     fluidRow(
       # Left column: Summary table card
       column(
-        width = 4,
+        width = 6,
         div(
           class = "panel panel-default",
           div(class = "panel-heading", tags$strong("QC Summary")),
           div(class = "panel-body", dataTableOutput(ns("qc_table")))
         )
       ),
-      # Right column: MAF plot card
+      # Right column: Allele frequency plot card
       column(
-        width = 8,
+        width = 6,
         div(
           class = "panel panel-default",
           div(class = "panel-heading", tags$strong("Allele Frequency Plot")),
@@ -91,7 +91,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list) {
       if (!is.null(b64)) {
         tags$img(
           src = paste0("data:image/png;base64,", b64),
-          style = "max-width: 50%; height: auto;"
+          style = "max-height: 430px; width: auto;"
         )
       } else {
         div(
