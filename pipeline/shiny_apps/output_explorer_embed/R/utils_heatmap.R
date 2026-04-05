@@ -75,21 +75,38 @@ insert_placeholders <- function(df, id_col = "ID") {
 
 #' Calculate plot dimensions from data
 #'
-#' @param df Data frame with Panel, Method, Type columns and the id column
-#' @param id_col Character name of the ID column (default "ID")
-#' @return List with height and width
-calc_plot_dims <- function(df, id_col = "ID") {
-  if (nrow(df) > 0) {
-    num_row <- length(unique(df[[id_col]]))
-    plot_height <- (max(nchar(df$Panel)) * 3) + (num_row * 20) + 100
-    num_col <- length(unique(paste0(df$Panel, '_', df$Method, '_', df$Type)))
-    num_pan <- length(unique(df$Method))
-    plot_width <- 120 + (max(nchar(df[[id_col]]), na.rm = TRUE) * 4) + (num_col * 27) + (num_pan * 15)
-    plot_width <- max(plot_width, (length(unique(df$Method)) * 140))
-  } else {
-    plot_height <- 100
-    plot_width <- 100
+#' Computes height and width for faceted heatmap plots based on:
+#' - Height: number of y-axis items + x-axis label rotation space
+#' - Width: y-axis label space + per-facet width (based on x-category count and facet title length)
+#'
+#' @param df Data frame containing the plot data
+#' @param y_col Column used for y-axis labels (default "ID")
+#' @param x_col Column used for x-axis categories (default "Panel")
+#' @param facet_col Column used for facet_wrap (default "Method")
+#' @return List with height and width in pixels
+calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Method") {
+  if (nrow(df) == 0) {
+    return(list(height = 100, width = 100))
   }
+
+  # Height: x-label rotation space + rows + padding
+  num_row <- length(unique(df[[y_col]]))
+  plot_height <- (max(nchar(df[[x_col]]), na.rm = TRUE) * 3) + (num_row * 20) + 100
+
+  # Width: y-label margin + sum of per-facet widths
+  y_label_width <- max(nchar(df[[y_col]]), na.rm = TRUE) * 7
+  facets <- unique(df[[facet_col]])
+  total_facet_width <- 0
+  for (f in facets) {
+    n_x <- length(unique(df[[x_col]][df[[facet_col]] == f]))
+    # For multi-line facet titles (e.g. "FUSION\nExpr."), use widest line
+    facet_title_chars <- max(nchar(unlist(strsplit(f, "\n"))))
+    facet_title_width <- facet_title_chars * 12
+    facet_width <- max(n_x * 50, facet_title_width)
+    total_facet_width <- total_facet_width + facet_width
+  }
+  plot_width <- y_label_width + total_facet_width + 80
+
   list(height = plot_height, width = plot_width)
 }
 
@@ -108,10 +125,11 @@ calc_group_widths <- function(df, group_col = "Group", groups = NULL) {
     group_siz <- rbind(group_siz, data.frame(Group = i,
                                               Size = length(unique(df$Panel[df[[group_col]] == i]))))
   }
-  # Set minimum size to 2 to allow space for labels
-  group_siz$Size[group_siz$Size < 2] <- 2
+  # Set minimum size to 3 to allow space for labels
+  group_siz$Size[group_siz$Size < 3] <- 3
   group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
   group_siz$Width <- 4 * group_siz$Prop
+  print(group_siz)
   group_siz
 }
 

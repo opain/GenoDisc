@@ -285,21 +285,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Identify number of drugs
     plot_dim_drug<-reactive({
       all_gs<-tx_drug_summary_data_filtered()
-
-      if(nrow(all_gs) > 0){
-        num_row <- length(unique(all_gs$Name))
-        plot_height<-(max(nchar(all_gs$Panel))*3)+(num_row * 20)+100
-        num_col <- length(unique(paste0(all_gs$Panel,'_',all_gs$Method,'_')))
-        num_pan <- length(unique(all_gs$Method))
-        plot_width<-120+(max(nchar(all_gs$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
-        plot_width<-max(plot_width,(length(unique(all_gs$Method))*140))
-      } else {
-        plot_height<-100
-        plot_width<-100
-      }
-
-      return(list(height=plot_height,
-                  width=plot_width))
+      calc_plot_dims(all_gs, y_col = "Name", x_col = "Panel", facet_col = "Method")
     })
 
     observeEvent(tx_drug_summary_data_filtered(), {
@@ -387,7 +373,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
 
         # Set minimum size to 3 to allow space for labels
-        group_siz$Size[group_siz$Size < 2]<-2
+        group_siz$Size[group_siz$Size < 3]<-3
         group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
         group_siz$Width<-4*group_siz$Prop
 
@@ -615,21 +601,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Identify number of atcs
     plot_dim_atc<-reactive({
       all_gs_atc<-tx_atc_summary_data_filtered()
-
-      if(nrow(all_gs_atc) > 0){
-        num_row <- length(unique(all_gs_atc$Name))
-        plot_height<-(max(nchar(all_gs_atc$Panel))*4)+(num_row * 20)+100
-        num_col <- length(unique(paste0(all_gs_atc$Panel,'_',all_gs_atc$Method,'_')))
-        num_pan <- length(unique(all_gs_atc$Method))
-        plot_width<-120+(max(nchar(all_gs_atc$Name), na.rm=T)*4)+(num_col * 27) + (num_pan*15)
-        plot_width<-max(plot_width,(length(unique(all_gs_atc$Method))*140))
-      } else {
-        plot_height<-100
-        plot_width<-100
-      }
-
-      return(list(height=plot_height,
-                  width=plot_width))
+      calc_plot_dims(all_gs_atc, y_col = "Name", x_col = "Panel", facet_col = "Method")
     })
 
     observeEvent(tx_atc_summary_data_filtered(), {
@@ -726,7 +698,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
 
         # Set minimum size to 3 to allow space for labels
-        group_siz$Size[group_siz$Size < 2]<-2
+        group_siz$Size[group_siz$Size < 3]<-3
         group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
         group_siz$Width<-4*group_siz$Prop
 

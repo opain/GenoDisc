@@ -176,11 +176,14 @@ build_drug_summary_data <- function(gwas_results) {
     for (i in unique(gsea_gs_all$Panel)) {
       gsea_gs_i <- gsea_gs[gsea_gs$Panel == i, ]
       gsea_gs_other <- gsea_gs[gsea_gs$Panel != i, ]
-      gsea_gs_rest <- data.frame(
-        Name = unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
-        Z = NA, P = NA, P.FDR = NA, Method = 'TWAS-GSEA', Panel = i, ATC_Code = NA)
-      names(gsea_gs_rest) <- gsub('ATC_Code', 'ATC Code', names(gsea_gs_rest))
-      gsea_gs_all <- rbind(gsea_gs_all, gsea_gs_rest)
+      missing_names <- unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)])
+      if (length(missing_names) > 0) {
+        gsea_gs_rest <- data.frame(
+          Name = missing_names,
+          Z = NA, P = NA, P.FDR = NA, Method = 'TWAS-GSEA', Panel = i, ATC_Code = NA)
+        names(gsea_gs_rest) <- gsub('ATC_Code', 'ATC Code', names(gsea_gs_rest))
+        gsea_gs_all <- rbind(gsea_gs_all, gsea_gs_rest)
+      }
     }
     gsea_gs <- gsea_gs_all
   }
@@ -231,10 +234,13 @@ build_atc_summary_data <- function(gwas_results) {
     for (i in unique(gsea_gs_atc_all$Panel)) {
       gsea_gs_atc_i <- gsea_gs_atc[gsea_gs_atc$Panel == i, ]
       gsea_gs_atc_other <- gsea_gs_atc[gsea_gs_atc$Panel != i, ]
-      gsea_gs_atc_rest <- data.frame(
-        Name = unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
-        Z = NA, FDR_Sig = NA, Nom_Sig = NA, Method = 'TWAS-GSEA', Panel = i)
-      gsea_gs_atc_all <- rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+      missing_atc_names <- unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)])
+      if (length(missing_atc_names) > 0) {
+        gsea_gs_atc_rest <- data.frame(
+          Name = missing_atc_names,
+          Z = NA, FDR_Sig = NA, Nom_Sig = NA, Method = 'TWAS-GSEA', Panel = i)
+        gsea_gs_atc_all <- rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+      }
     }
     gsea_gs_atc <- gsea_gs_atc_all
   }

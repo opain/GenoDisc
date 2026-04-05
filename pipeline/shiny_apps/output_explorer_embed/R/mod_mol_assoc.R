@@ -361,21 +361,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     plot_dim_mol <- reactive({
       all_func_res <- mol_assoc_summary_data_filtered()
-
-      if (nrow(all_func_res) > 0) {
-        num_row <- length(unique(all_func_res$ID))
-        plot_height <- (max(nchar(all_func_res$Panel)) * 3) + (num_row * 20) + 100
-        num_col <- length(unique(paste0(all_func_res$Panel, '_', all_func_res$Method, '_', all_func_res$Type)))
-        num_pan <- length(unique(all_func_res$Method))
-        plot_width <- 120 + (max(nchar(all_func_res$ID), na.rm = T) * 4) + (num_col * 27) + (num_pan * 15)
-        plot_width <- max(plot_width, (length(unique(all_func_res$Method)) * 140))
-      } else {
-        plot_height <- 100
-        plot_width <- 100
-      }
-
-      return(list(height = plot_height,
-                  width = plot_width))
+      all_func_res$Group <- make_group_labels(all_func_res$Method, all_func_res$Type)
+      calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group")
     })
 
     ########
@@ -443,7 +430,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
 
         # Set minimum size to 2 to allow space for labels
-        group_siz$Size[group_siz$Size < 2] <- 2
+        group_siz$Size[group_siz$Size < 3] <- 3
         group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
         group_siz$Width <- 4 * group_siz$Prop
 
