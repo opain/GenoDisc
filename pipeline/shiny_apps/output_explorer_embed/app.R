@@ -30,7 +30,7 @@ ui <- fluidPage(
 
   theme = shinythemes::shinytheme("paper"),
 
-  tabsetPanel(
+  tabsetPanel(id = "main_tabs",
     dataInputUI("data_input"),
     gwasQcUI("gwas_qc"),
     snpAssocUI("snp_assoc"),
@@ -44,6 +44,14 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output, session) {
 
+  # Hide all tabs except Data Input on startup
+  observeEvent(session$clientData, {
+    for (tab in c("GWAS QC", "SNP Associations", "Molecular Associations",
+                   "Enrichment Analysis", "References", "Configuration")) {
+      hideTab("main_tabs", tab)
+    }
+  }, once = TRUE)
+
   # Data input module returns shared state
   shared <- dataInputServer("data_input")
 
@@ -56,6 +64,21 @@ server <- function(input, output, session) {
   gwas_list <- reactive({
     req(shared$gwas_data())
     shared$gwas_data()$configuration$gwas_list
+  })
+
+  # Show relevant tabs when data loads
+  observeEvent(config_flags(), {
+    cf <- config_flags()
+    showTab("main_tabs", "GWAS QC")
+    showTab("main_tabs", "References")
+    showTab("main_tabs", "Configuration")
+
+    toggle <- function(tab, cond) {
+      if (cond) showTab("main_tabs", tab) else hideTab("main_tabs", tab)
+    }
+    toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
+    toggle("Molecular Associations", cf$mol_assoc)
+    toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor))
   })
 
   # Wire up all modules
