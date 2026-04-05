@@ -23,7 +23,7 @@ rule sumstat_prep_i:
     rules.install_genoutils.output,
     lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
   output:
-    f"{outdir}/data/gwas_sumstat/{{gwas}}/{{gwas}}.cleaned.gz"
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz"
   conda:
     "../envs/main.yaml"
   params:
@@ -43,11 +43,11 @@ rule sumstat_prep_i:
       --n {params.n} \
       --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
-      --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned) > {log} 2>&1
+      --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
 
 rule sumstat_prep:
-  input: expand(f"{outdir}/data/gwas_sumstat/{{gwas}}/{{gwas}}.cleaned.gz", gwas=gwas_list_df_eur['name'])
+  input: expand(f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz", gwas=gwas_list_df_eur['name'])
 
 ###
 # Munge sumstats
@@ -56,23 +56,23 @@ rule sumstat_prep:
 # munge sumstats using FOCUS munge function
 rule focus_munge:
   input:
-    premunged="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
+    premunged="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
   output:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz"
   conda:
     "../envs/focus.yaml"
   log:
     "{outdir}/logs/focus_munge-{gwas}.log"
   shell:
-    "focus munge {input.premunged} --output {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged > {log} 2>&1"
+    "focus munge {input.premunged} --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged > {log} 2>&1"
 
 # Calculate median effective sample size
 # FUSION requires this parameter to be specified despite having the N column in the sumstats
 rule retrieve_N:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz"
   output:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt"
   conda:
     "../envs/main.yaml"
   log:
@@ -86,7 +86,7 @@ rule retrieve_N:
 
 rule ldsc:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
     f"{resdir}/software/ldsc/",
     f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
     f"{resdir}/data/ldsc/w_hm3.snplist"
@@ -100,7 +100,7 @@ rule ldsc:
     "{outdir}/logs/ldsc-{gwas}.log"
   shell:
     "(mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 {params.resdir}/software/ldsc/ldsc.py \
-      --h2 {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+      --h2 {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res) > {log} 2>&1"
@@ -111,7 +111,7 @@ rule ldsc:
 
 rule clump:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
   output:
     touch("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done")
   conda:
@@ -126,7 +126,7 @@ rule clump:
       --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
-      --clump {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz \
+      --clump {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz \
       --clump-p1 1e-5 \
       --clump-r2 0.1 \
       --clump-kb 500 \
@@ -170,7 +170,7 @@ rule process_clump:
 rule cojo:
   input:
     rules.download_gcta.output,
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo"
   output:
     touch("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done")
   conda:
@@ -185,7 +185,7 @@ rule cojo:
       --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
-      --cojo-file {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+      --cojo-file {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
       --cojo-slct \
       --cojo-p 1e-5 \
       --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}) > {log} 2>&1"

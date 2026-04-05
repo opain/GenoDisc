@@ -11,8 +11,8 @@ rule run_twas:
   resources:
     mem_mb=20000
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
     rules.install_fusion.output,
     rules.install_plink2R.output,
     rules.prep_1kg.output,
@@ -28,8 +28,8 @@ rule run_twas:
   log:
     "{outdir}/logs/run_twas-{gwas}-{weights}-chr{chr}.log"
   shell:
-    "(N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
-    --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weights} \
     --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
@@ -100,7 +100,7 @@ rule run_conditional:
   shell:
     "(mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript {params.resdir}/software/fusion/FUSION.post_process.R \
       --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
-      --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+      --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
       --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
       --out {outdir}/results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
@@ -140,8 +140,8 @@ rule process_conditional:
 rule run_rosmap_pwas:
   resources: mem_mb=20000
   input:
-    sumstats="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    neff_txt="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    sumstats="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    neff_txt="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
     fusion=rules.install_fusion.output,
     plink2R=rules.install_plink2R.output,
     format_psychencode=rules.format_pwas_data.output,
@@ -155,7 +155,7 @@ rule run_rosmap_pwas:
   log:
     "{outdir}/logs/run_rosmap_pwas-{gwas}-chr{chr}.log"
   shell:
-    "(N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
@@ -175,8 +175,8 @@ rule rosmap_pwas_all_chr:
 rule run_banner_pwas:
   resources: mem_mb=20000
   input:
-    sumstats="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    neff_txt="{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    sumstats="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    neff_txt="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
     fusion=rules.install_fusion.output,
     plink2R=rules.install_plink2R.output,
     format_psychencode=rules.format_pwas_data.output,
@@ -190,7 +190,7 @@ rule run_banner_pwas:
   log:
     "{outdir}/logs/run_banner_pwas-{gwas}-chr{chr}.log"
   shell:
-    "(N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS \

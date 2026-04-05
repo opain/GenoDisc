@@ -19,7 +19,7 @@ config<-readLines(opt$config_file)
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
-ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.gz'))
 
 if(all(names(ss) != 'BETA')){
   ss$BETA<-log(ss$OR)
@@ -32,5 +32,5 @@ if(any(names(ss) != 'FREQ')){
 ss<-ss[,c('SNP','A1','A2','FREQ','BETA','SE','P','N'),with=F]
 names(ss)<-c('SNP','A1','A2','freq','b','se','p','N')
 
-fwrite(ss, paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.cojo'), sep=' ', na='NA', quote=F)
+fwrite(ss, paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.cojo'), sep=' ', na='NA', quote=F)
 

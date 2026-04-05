@@ -8,9 +8,9 @@
 
 rule format_sumstats_smr:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
   output:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo"
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo"
   conda:
     "../envs/main.yaml"
   params:
@@ -28,7 +28,7 @@ rule format_sumstats_smr:
 
 rule run_psychencode_smr:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
     rules.download_psychencode_smr.output
   output:
     "{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr"
@@ -41,7 +41,7 @@ rule run_psychencode_smr:
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
     --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
-    --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+    --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
     --out {outdir}/results/{wildcards.gwas}/smr/psychencode/{wildcards.gwas}_smr_psychencode_chr{wildcards.chr} > {log} 2>&1"
 
@@ -57,7 +57,7 @@ rule run_psychencode_smr_chr:
 
 rule run_eqtlgen_smr:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
     rules.download_eqtlgen.output
   output:
     "{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr"
@@ -70,7 +70,7 @@ rule run_eqtlgen_smr:
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
     --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
-    --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+    --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
     --out {outdir}/results/{wildcards.gwas}/smr/eqtlgen/{wildcards.gwas}_smr_eqtlgen_chr{wildcards.chr} > {log} 2>&1"
 
@@ -104,7 +104,7 @@ rule format_eqtlgen_smr:
 
 rule run_rosmap_smr:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
     rules.format_rosmap_smr_data.output
   output:
     "{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr"
@@ -117,7 +117,7 @@ rule run_rosmap_smr:
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
     --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
-    --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+    --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
     --out {outdir}/results/{wildcards.gwas}/smr/rosmap/{wildcards.gwas}_smr_rosmap_chr{wildcards.chr} > {log} 2>&1"
 
@@ -155,7 +155,7 @@ rule smr_analysis_MetaBrain:
     mem_mb=15000
   input:
     rules.prep_1kg.output,
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.cojo",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
     rules.format_metabrain_esi.output
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr"
@@ -168,7 +168,7 @@ rule smr_analysis_MetaBrain:
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
       --bfile {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
-      --gwas-summary {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.cojo \
+      --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
       --beqtl-summary {params.resdir}/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
       --out {outdir}/results/{wildcards.gwas}/smr/metabrain/{wildcards.tissue}/{wildcards.gwas}_smr_metabrain_{wildcards.tissue}_chr{wildcards.chr} \
       --thread-num 1 > {log} 2>&1"

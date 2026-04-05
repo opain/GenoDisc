@@ -49,7 +49,7 @@ for(gwas_i in gwas_list$name){
   gwas_qc$ldsc_dat<-process_ldsc_log(config=opt$config, gwas=gwas_i)
 
   # Read MAF plot as base64 (if it exists)
-  maf_plot_path <- paste0(outdir, '/data/gwas_sumstat/', gwas_i, '/', gwas_i, '.cleaned.MAF_plot.png')
+  maf_plot_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.cleaned.MAF_plot.png')
   if (file.exists(maf_plot_path)) {
     gwas_qc$maf_plot_base64 <- base64enc::base64encode(maf_plot_path)
   } else {

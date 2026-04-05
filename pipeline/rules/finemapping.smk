@@ -9,7 +9,7 @@ rule finemap:
   resources:
     mem_mb=get_mem_mb_fine
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz",
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   output:
     "{outdir}/results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"

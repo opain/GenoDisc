@@ -9,7 +9,7 @@ process_cleaner_log<-function(config, gwas){
   dat<-list()
 
   # Read in log file
-  dat$log<-readLines(paste0(outdir,'/data/gwas_sumstat/',gwas,'/',gwas,'.cleaned.log'))
+  dat$log<-readLines(paste0(outdir,'/results/',gwas,'/gwas_sumstat/',gwas,'.cleaned.log'))
 
   # Create val list to store specific values of interest from the log file
   dat$val<-list()
@@ -44,7 +44,7 @@ process_focus_log<-function(config, gwas){
 
   dat<-list()
 
-  dat$log<-readLines(paste0(outdir,'/data/gwas_sumstat/',gwas,'/',gwas,'.cleaned.munged.log'))
+  dat$log<-readLines(paste0(outdir,'/results/',gwas,'/gwas_sumstat/',gwas,'.cleaned.munged.log'))
 
   dat$val<-list()
   dat$val$lambda_gc<-as.numeric(gsub('.*Lambda GC = ','',dat$log[grepl('Lambda GC', dat$log)]))

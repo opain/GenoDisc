@@ -7,8 +7,8 @@ rule run_twas_gcsc:
   resources:
     mem_mb=20000
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.sumstats.gz",
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.munged.median_N.txt",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
     rules.install_fusion.output,
     rules.install_plink2R.output,
     rules.prep_1kg.output,
@@ -23,8 +23,8 @@ rule run_twas_gcsc:
   log:
     "{outdir}/logs/run_twas_gcsc-{gwas}-{gcsc_tissue}-chr{chr}.log"
   shell:
-    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
-    --sumstats {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
     --weights_dir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
     --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
@@ -92,7 +92,7 @@ rule run_gcsc_drugtargetor:
   log:
     "{outdir}/logs/run_gcsc_drugtargetor-{gwas}-{chunk}.log"
   shell:
-    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.munged.median_N.txt); python {params.resdir}/software/GCSC/gcsc.py \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); python {params.resdir}/software/GCSC/gcsc.py \
 --geneSets {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor_gcsc_sets_{wildcards.chunk}.csv \
 --TWASdir {outdir}/results/{wildcards.gwas}/gcsc/twas/tissue \
 --N ${{N}} \

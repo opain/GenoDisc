@@ -9,7 +9,7 @@
 # Run gene level association analysis
 rule magma_gene_level:
   input:
-    "{outdir}/data/gwas_sumstat/{gwas}/{gwas}.cleaned.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz",
     rules.magma_annot.output
   output:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw"
@@ -20,12 +20,12 @@ rule magma_gene_level:
   log:
     "{outdir}/logs/magma_gene_level-{gwas}.log"
   shell:
-    "(gzip -f -d -c {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned.gz > {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned; \
+    "(gzip -f -d -c {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz > {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned; \
     {params.resdir}/software/magma/magma \
       --bfile {params.resdir}/data/magma_ref/g1000_eur \
-      --pval {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
+      --pval {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
       --gene-annot {params.resdir}/data/magma/NCBI37.3.genes.annot \
-      --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm {outdir}/data/gwas_sumstat/{wildcards.gwas}/{wildcards.gwas}.cleaned) > {log} 2>&1"
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1"
 
 # Format the MAGMA gene results
 rule format_magma_gene_results:

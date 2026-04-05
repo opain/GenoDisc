@@ -23,7 +23,7 @@ outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in the sumstats
-ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.gz'))
 
 # Read in gene locations
 biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
