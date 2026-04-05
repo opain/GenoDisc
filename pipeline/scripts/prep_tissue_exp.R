@@ -11,7 +11,7 @@ opt = parse_args(OptionParser(option_list=option_list))
 # Download the GTEx v8 TPM data
 dir.create(paste0(opt$resdir, '/data/gtex/'))
 system(paste0('wget -O ', opt$resdir, '/data/gtex/GTEx_v8_median_tpm.gct.gz https://storage.googleapis.com/adult-gtex/bulk-gex/v8/rna-seq/GTEx_Analysis_2017-06-05_v8_RNASeQCv1.1.9_gene_median_tpm.gct.gz'))
-system(paste0('wget -O ', opt$resdir, '/data/gtex/GTEx_v8_samp_att.txt https://storage.googleapis.com/adult-gtex/annotations/v8/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt'))
+system(paste0('wget -O ', opt$resdir, '/data/gtex/GTEx_v8_samp_att.txt https://storage.googleapis.com/adult-gtex/annotations/v8/metadata-files/GTEx_Analysis_v8_Annotations_SampleAttributesDS.txt'))
 
 #####
 # QC GTEx data

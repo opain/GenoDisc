@@ -26,7 +26,7 @@ library(data.table)
 
 gwas_list <- NULL
 
-gwas_list <- rbind(
+gwas_list_scz <- rbind(
   gwas_list,
   data.table(
     name = 'SCZ',
@@ -39,32 +39,59 @@ gwas_list <- rbind(
     sd = NA,
     label = 'SCZ'))
 
-write.table(gwas_list, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list.txt', row.names = F)
+write.table(gwas_list_scz, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_scz.txt', row.names = F)
+
+gwas_list <- NULL
+
+gwas_list_cad <- rbind(
+  gwas_list,
+  data.table(
+    name = 'CAD',
+    path = '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoFuncPipe_paper/CAD/GCST90132314.h.tsv.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'CAD'))
+
+write.table(gwas_list_cad, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_cad.txt', row.names = F)
 
 ####
 # Create config file
 ####
 
-config <- c(
+config_scz <- c(
   "outdir: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/output", 
-  "config_file: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config.yaml", 
-  "gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list.txt", 
-  "clump: T", 
-  "cojo: T", 
-  "finemap: T", 
+  "config_file: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_scz.yaml", 
+  "gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_scz.txt", 
   "ldsc: T", 
   "magma_gene: T", 
-  "magma_drugtargetor: T", 
+  "magma_drugtargetor: T",
+  "twas_panel_psychencode: T",
   "twas_panel_fusion: T", 
   "gtex_weights: ['Whole_Blood']", 
-  "non_gtex_weights: ['NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']", 
-  "twas_conditional: T", 
-  "twas_gsea_drugtargetor: T", 
-  "smr_expression_panel_eqtlgen: T", 
-  "dgi_db_comp: T"
+  "non_gtex_weights: ['CMC.BRAIN.RNASEQ']", 
+  "twas_gsea_drugtargetor: T"
 )
 
-write.table(config, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config.yaml', col.names=F, row.names=F, quote=F)
+write.table(config_scz, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_scz.yaml', col.names=F, row.names=F, quote=F)
+
+config_cad <- c(
+  "outdir: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_cad", 
+  "config_file: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_cad.yaml", 
+  "gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_cad.txt", 
+  "ldsc: T", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T",
+  "twas_panel_fusion: T", 
+  "gtex_weights: ['Whole_Blood']", 
+  "twas_gsea_drugtargetor: T"
+)
+
+write.table(config_cad, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_cad.yaml', col.names=F, row.names=F, quote=F)
+
 ```
 
 ```{bash}
@@ -76,7 +103,12 @@ snakemake \
   --use-conda \
   --profile slurm \
   run_package_results \
-  --retries 3 \
   -n
 
+snakemake \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_cad.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  -n
 ```

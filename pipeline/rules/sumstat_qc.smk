@@ -15,8 +15,8 @@ gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 rule sumstat_prep_i:
   resources:
     mem_mb=lambda wildcards, input: max(
-      4000,
-      int(15 * os.path.getsize(input[2]) / 1024**2)
+      8000,
+      int(4000 + (10 * os.path.getsize(input[2]) / 1024**2))
     )
   input:
     rules.prep_1kg.output,
