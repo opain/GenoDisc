@@ -11,7 +11,6 @@ library(R.utils)
 library(shinyjs)
 
 # Load functions and modules
-source('../../scripts/functions/sumstat_cleaner_functions.R')
 source('functions.R')
 for (f in list.files("R", full.names = TRUE, pattern = "\\.R$")) source(f)
 
