@@ -125,11 +125,10 @@ calc_group_widths <- function(df, group_col = "Group", groups = NULL) {
     group_siz <- rbind(group_siz, data.frame(Group = i,
                                               Size = length(unique(df$Panel[df[[group_col]] == i]))))
   }
-  # Set minimum size to 3 to allow space for labels
-  group_siz$Size[group_siz$Size < 3] <- 3
+  # Set minimum size to 2 to allow space for labels
+  group_siz$Size[group_siz$Size < 2] <- 2
   group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
   group_siz$Width <- 4 * group_siz$Prop
-  print(group_siz)
   group_siz
 }
 

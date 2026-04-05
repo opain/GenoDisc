@@ -430,7 +430,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
 
         # Set minimum size to 2 to allow space for labels
-        group_siz$Size[group_siz$Size < 3] <- 3
+        group_siz$Size[group_siz$Size < 2] <- 2
         group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
         group_siz$Width <- 4 * group_siz$Prop
 

@@ -373,7 +373,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
 
         # Set minimum size to 3 to allow space for labels
-        group_siz$Size[group_siz$Size < 3]<-3
+        group_siz$Size[group_siz$Size < 2]<-2
         group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
         group_siz$Width<-4*group_siz$Prop
 
@@ -601,6 +601,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Identify number of atcs
     plot_dim_atc<-reactive({
       all_gs_atc<-tx_atc_summary_data_filtered()
+      # Truncate long ATC names to match what the plot displays
+      long <- nchar(all_gs_atc$Name) > 30
+      all_gs_atc$Name[long] <- paste0(substr(all_gs_atc$Name[long], 1, 27), '...')
       calc_plot_dims(all_gs_atc, y_col = "Name", x_col = "Panel", facet_col = "Method")
     })
 
@@ -698,7 +701,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
 
         # Set minimum size to 3 to allow space for labels
-        group_siz$Size[group_siz$Size < 3]<-3
+        group_siz$Size[group_siz$Size < 2]<-2
         group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
         group_siz$Width<-4*group_siz$Prop
 
