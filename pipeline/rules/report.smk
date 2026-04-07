@@ -61,6 +61,9 @@ if config["smr_protein_panel_rosmap"] == "T":
 if config["twas_gsea_drugtargetor"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if config["twas_gsea_drugtargetor_nondirectional"] == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["tissue_magma"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_property_conditional.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

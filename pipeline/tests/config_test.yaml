@@ -52,8 +52,11 @@ gtex_weights: ['Whole_Blood']
 # Conditional analyss of TWAS results
 twas_conditional: T
 
-# TWAS-GSEA gene property association analysis using DrugTargetor
+# TWAS-GSEA gene property association analysis using DrugTargetor (directional)
 twas_gsea_drugtargetor: T
+
+# TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
+twas_gsea_drugtargetor_nondirectional: T
 
 # Run SMR using below panels
 smr_expression_panel_psychencode: T

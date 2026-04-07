@@ -359,7 +359,8 @@ rule format_drug_targetor:
     rules.download_drug_targetor.output,
     rules.download_magma_gene_loc.output
   output:
-    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt"
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt",
+    f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_symbols.gmt"
   conda:
     "../envs/main.yaml"
   log:

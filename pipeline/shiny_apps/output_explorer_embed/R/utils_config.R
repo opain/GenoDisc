@@ -40,6 +40,7 @@ parse_config_flags <- function(config) {
   twas_so_lincs <- flag(config, "twas_so_lincs")
   dgi_db_comp <- flag(config, "dgi_db_comp")
   twas_gsea_drugtargetor <- flag(config, "twas_gsea_drugtargetor")
+  twas_gsea_drugtargetor_nondirectional <- flag(config, "twas_gsea_drugtargetor_nondirectional")
 
   # Composite flags
   mol_assoc <- any(magma_gene,
@@ -79,7 +80,8 @@ parse_config_flags <- function(config) {
               magma_drugtargetor,
               twas_gsea_lincs,
               twas_so_lincs,
-              twas_gsea_drugtargetor)
+              twas_gsea_drugtargetor,
+              twas_gsea_drugtargetor_nondirectional)
 
   list(
     clump = clump,
@@ -107,6 +109,7 @@ parse_config_flags <- function(config) {
     twas_so_lincs = twas_so_lincs,
     dgi_db_comp = dgi_db_comp,
     twas_gsea_drugtargetor = twas_gsea_drugtargetor,
+    twas_gsea_drugtargetor_nondirectional = twas_gsea_drugtargetor_nondirectional,
     mol_assoc = mol_assoc,
     metabrain = metabrain,
     smr_expression = smr_expression,

@@ -165,30 +165,37 @@ build_drug_summary_data <- function(gwas_results) {
     gcsc_gs$Panel <- 'Brain and Blood'
   }
 
-  gsea_gs <- safe_access(gwas_results, "tx", "drug", "twas_gsea")
-  if (!is.null(gsea_gs)) {
-    gsea_gs$Method <- 'TWAS-GSEA'
-    gsea_gs$Z <- gsea_gs$Estimate / gsea_gs$SE
-    gsea_gs <- gsea_gs[, c('Name', 'Z', 'P', 'P.FDR', 'Method', 'Panel', 'ATC Code')]
-    gsea_gs$Z <- -gsea_gs$Z
+  build_gsea <- function(slot, method_label, negate_z) {
+    g <- safe_access(gwas_results, "tx", "drug", slot)
+    if (is.null(g)) return(NULL)
+    g$Method <- method_label
+    g$Z <- g$Estimate / g$SE
+    g <- g[, c('Name', 'Z', 'P', 'P.FDR', 'Method', 'Panel', 'ATC Code')]
+    # Directional TWAS-GSEA: negate so the colour scale reads "high red = drug
+    # reverses disease signature = candidate therapeutic". Non-directional:
+    # leave Z as-is (positive Z = drug-target genes carry more TWAS signal).
+    if (negate_z) g$Z <- -g$Z
 
-    gsea_gs_all <- gsea_gs
-    for (i in unique(gsea_gs_all$Panel)) {
-      gsea_gs_i <- gsea_gs[gsea_gs$Panel == i, ]
-      gsea_gs_other <- gsea_gs[gsea_gs$Panel != i, ]
-      missing_names <- unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)])
+    g_all <- g
+    for (i in unique(g_all$Panel)) {
+      g_i <- g[g$Panel == i, ]
+      g_other <- g[g$Panel != i, ]
+      missing_names <- unique(g_other$Name[!(g_other$Name %in% g_i$Name)])
       if (length(missing_names) > 0) {
-        gsea_gs_rest <- data.frame(
+        g_rest <- data.frame(
           Name = missing_names,
-          Z = NA, P = NA, P.FDR = NA, Method = 'TWAS-GSEA', Panel = i, ATC_Code = NA)
-        names(gsea_gs_rest) <- gsub('ATC_Code', 'ATC Code', names(gsea_gs_rest))
-        gsea_gs_all <- rbind(gsea_gs_all, gsea_gs_rest)
+          Z = NA, P = NA, P.FDR = NA, Method = method_label, Panel = i, ATC_Code = NA)
+        names(g_rest) <- gsub('ATC_Code', 'ATC Code', names(g_rest))
+        g_all <- rbind(g_all, g_rest)
       }
     }
-    gsea_gs <- gsea_gs_all
+    g_all
   }
 
-  do.call(rbind, Filter(Negate(is.null), list(magma_gs, gcsc_gs, gsea_gs)))
+  gsea_gs <- build_gsea("twas_gsea", "TWAS-GSEA", negate_z = TRUE)
+  gsea_gs_nondir <- build_gsea("twas_gsea_nondir", "TWAS-GSEA (non-dir)", negate_z = FALSE)
+
+  do.call(rbind, Filter(Negate(is.null), list(magma_gs, gcsc_gs, gsea_gs, gsea_gs_nondir)))
 }
 
 #' Build ATC enrichment summary data
@@ -218,32 +225,38 @@ build_atc_summary_data <- function(gwas_results) {
     gcsc_gs_atc <- gcsc_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
   }
 
-  gsea_gs_atc <- safe_access(gwas_results, "tx", "atc", "twas_gsea")
-  if (!is.null(gsea_gs_atc)) {
-    gsea_gs_atc$P.FDR_all <- p.adjust(gsea_gs_atc$P, method = 'fdr')
-    gsea_gs_atc$P.FDR.onside_all <- p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
-    gsea_gs_atc$Z <- -qnorm(gsea_gs_atc$P)
-    gsea_gs_atc$Z <- gsea_gs_atc$Z * sign(gsea_gs_atc$Estimate)
-    gsea_gs_atc$FDR_Sig <- gsea_gs_atc$P.FDR_all < 0.05
-    gsea_gs_atc$Nom_Sig <- gsea_gs_atc$P < 0.05
-    gsea_gs_atc$Name <- paste0(gsea_gs_atc$`ATC Code`, ': ', gsea_gs_atc$`ATC Description`)
-    gsea_gs_atc$Method <- 'TWAS-GSEA'
-    gsea_gs_atc <- gsea_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
+  build_gsea_atc <- function(slot, method_label, signed) {
+    g <- safe_access(gwas_results, "tx", "atc", slot)
+    if (is.null(g)) return(NULL)
+    g$P.FDR_all <- p.adjust(g$P, method = 'fdr')
+    g$P.FDR.onside_all <- p.adjust(g$P.oneside, method = 'fdr')
+    g$Z <- -qnorm(g$P)
+    # Directional: P is two-sided, so signed Z reflects the in-vs-out direction.
+    # Non-directional: P is already one-sided right-tail; positive Z = enrichment.
+    if (signed) g$Z <- g$Z * sign(g$Estimate)
+    g$FDR_Sig <- g$P.FDR_all < 0.05
+    g$Nom_Sig <- g$P < 0.05
+    g$Name <- paste0(g$`ATC Code`, ': ', g$`ATC Description`)
+    g$Method <- method_label
+    g <- g[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
 
-    gsea_gs_atc_all <- gsea_gs_atc
-    for (i in unique(gsea_gs_atc_all$Panel)) {
-      gsea_gs_atc_i <- gsea_gs_atc[gsea_gs_atc$Panel == i, ]
-      gsea_gs_atc_other <- gsea_gs_atc[gsea_gs_atc$Panel != i, ]
-      missing_atc_names <- unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)])
+    g_all <- g
+    for (i in unique(g_all$Panel)) {
+      g_i <- g[g$Panel == i, ]
+      g_other <- g[g$Panel != i, ]
+      missing_atc_names <- unique(g_other$Name[!(g_other$Name %in% g_i$Name)])
       if (length(missing_atc_names) > 0) {
-        gsea_gs_atc_rest <- data.frame(
+        g_rest <- data.frame(
           Name = missing_atc_names,
-          Z = NA, FDR_Sig = NA, Nom_Sig = NA, Method = 'TWAS-GSEA', Panel = i)
-        gsea_gs_atc_all <- rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+          Z = NA, FDR_Sig = NA, Nom_Sig = NA, Method = method_label, Panel = i)
+        g_all <- rbind(g_all, g_rest)
       }
     }
-    gsea_gs_atc <- gsea_gs_atc_all
+    g_all
   }
 
-  do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc)))
+  gsea_gs_atc <- build_gsea_atc("twas_gsea", "TWAS-GSEA", signed = TRUE)
+  gsea_gs_atc_nondir <- build_gsea_atc("twas_gsea_nondir", "TWAS-GSEA (non-dir)", signed = FALSE)
+
+  do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc, gsea_gs_atc_nondir)))
 }

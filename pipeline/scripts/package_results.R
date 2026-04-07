@@ -188,7 +188,8 @@ for(gwas_i in gwas_list$name){
   # TWAS-GSEA
   ###
 
-  tx$drug$twas_gsea<-read_twas_gsea_drug(config=opt$config, gwas=gwas_i)
+  tx$drug$twas_gsea<-read_twas_gsea_drug(config=opt$config, gwas=gwas_i, mode='directional')
+  tx$drug$twas_gsea_nondir<-read_twas_gsea_drug(config=opt$config, gwas=gwas_i, mode='nondirectional')
 
   ######
   # ATC
@@ -212,7 +213,8 @@ for(gwas_i in gwas_list$name){
   # TWAS-GSEA
   ###
 
-  tx$atc$twas_gsea<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i)
+  tx$atc$twas_gsea<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i, mode='directional')
+  tx$atc$twas_gsea_nondir<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i, mode='nondirectional')
 
   #################
   # Tissue Enrichment

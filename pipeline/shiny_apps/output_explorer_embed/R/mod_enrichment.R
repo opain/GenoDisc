@@ -25,12 +25,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Pre-compute Drug choices
       drug_data <- tx_drug_summary_data()
       drug_methods <- unique(drug_data$Method)
-      drug_expr_panels <- unique(drug_data$Panel[drug_data$Method == 'TWAS-GSEA'])
+      drug_expr_panels <- unique(drug_data$Panel[grepl('^TWAS-GSEA', drug_data$Method)])
 
       # Pre-compute ATC choices
       atc_data <- tx_atc_summary_data()
       atc_methods <- unique(atc_data$Method)
-      atc_expr_panels <- unique(atc_data$Panel[atc_data$Method == 'TWAS-GSEA'])
+      atc_expr_panels <- unique(atc_data$Panel[grepl('^TWAS-GSEA', atc_data$Method)])
 
       # Build Drug sub-tabs
       drug_tabs <- list(
@@ -71,6 +71,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_table")))), br()
         )))
       }
+      if (cf$twas_gsea_drugtargetor_nondirectional) {
+        drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
+          p("This tab shows TWAS-GSEA drug enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA)."), hr(), br(),
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_nondir_table")))), br()
+        )))
+      }
 
       # Build ATC sub-tabs
       atc_tabs <- list(
@@ -108,6 +114,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA", br(),
           p("This tab shows TWAS-GSEA ATC enrichment results."), hr(), br(),
           fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_table")))), br()
+        )))
+      }
+      if (cf$twas_gsea_drugtargetor_nondirectional) {
+        atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
+          p("This tab shows TWAS-GSEA ATC enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA)."), hr(), br(),
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), br()
         )))
       }
 
@@ -182,18 +194,18 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       )
     })
 
-    output$tx_drug_twas_gsea_table<-renderDataTable({
+    render_twas_gsea_drug_table <- function(slot){
       req(gwas_data(), selected_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[4];",
-        "  $('td:eq(4)', row).html(x.toExponential(2));",
-        "  var y = data[5];",
-        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "  var x = data[5];",
+        "  $('td:eq(5)', row).html(x.toExponential(2));",
+        "  var y = data[6];",
+        "  $('td:eq(6)', row).html(y.toExponential(2));",
         "}"
       )
 
-      tmp<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
+      tmp<-gwas_data()[[selected_gwas()]]$tx$drug[[slot]]
       if(is.null(tmp)) return(NULL)
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
@@ -201,16 +213,18 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       datatable(
         tmp,
         rownames = F,
-        options = list(# Apply javascript for P value column
+        options = list(
           rowCallback = JS(js),
-          # Centre column contents and fix width of Pvalue column
           columnDefs = list(
             list(className = 'dt-center', targets = '_all'),
-            list(width = '60px', targets = 4:5)
+            list(width = '60px', targets = 5:6)
           )),
         escape = FALSE
       )
-    })
+    }
+
+    output$tx_drug_twas_gsea_table<-renderDataTable({ render_twas_gsea_drug_table('twas_gsea') })
+    output$tx_drug_twas_gsea_nondir_table<-renderDataTable({ render_twas_gsea_drug_table('twas_gsea_nondir') })
 
     #######
     # Prepare data for drug enrichment plot
@@ -228,9 +242,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Filter results table by user specified methods
       all_gs<-all_gs[all_gs$Method %in% input$selected_methods_drug,]
 
-      # Filter results table by user specified expression
-      if(any(all_gs$Method == 'TWAS-GSEA')){
-        all_gs<-all_gs[!(all_gs$Method == 'TWAS-GSEA' & !(all_gs$Panel %in% input$selected_expr_panels_drug)),]
+      # Filter results table by user specified expression (applies to both directional and non-directional TWAS-GSEA)
+      gsea_rows <- grepl('^TWAS-GSEA', all_gs$Method)
+      if(any(gsea_rows)){
+        all_gs<-all_gs[!(gsea_rows & !(all_gs$Panel %in% input$selected_expr_panels_drug)),]
       }
 
       # Insert NA rows for all panels and methods so when filtering by drug, all selected panels and methods remain
@@ -248,6 +263,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         hc_drugs<-all_gs$Name[
           which(
             (all_gs$Method == 'TWAS-GSEA' & all_gs$P.FDR < 0.05) |
+              (all_gs$Method == 'TWAS-GSEA (non-dir)' & all_gs$P.FDR < 0.05 & all_gs$Z > 0) |
               (all_gs$Method == 'MAGMA' & all_gs$P.FDR < 0.05 & all_gs$Z > 0) |
               (all_gs$Method == 'GCSC' & all_gs$P.FDR < 0.05 & all_gs$Z > 0)
           )]
@@ -300,6 +316,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       if(any(tmp$Method == 'TWAS-GSEA')){
         choices<-c(choices, 'TWAS-GSEA - Z')
       }
+      if(any(tmp$Method == 'TWAS-GSEA (non-dir)')){
+        choices<-c(choices, 'TWAS-GSEA (non-dir) - Z')
+      }
       if(length(unique(tmp$Method)) == 1){
         choices<-choices[choices != 'All - Z']
       }
@@ -346,7 +365,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         # Now remove the NA rows
         all_gs_all<-all_gs_all[all_gs_all$Name != 'Placeholder',]
 
-        methods<-c('MAGMA','GCSC','TWAS-GSEA')[c('MAGMA','GCSC','TWAS-GSEA') %in% all_gs_all$Method]
+        methods<-c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')[c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)') %in% all_gs_all$Method]
         all_gs_all$Method<-factor(all_gs_all$Method, levels=methods)
 
         # Sort according to user input
@@ -358,6 +377,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
         if(input$selected_sort_drug == 'TWAS-GSEA - Z'){
           all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA'], na.last=F)]))))
+        }
+        if(input$selected_sort_drug == 'TWAS-GSEA (non-dir) - Z'){
+          all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA (non-dir)'], na.last=F)]))))
         }
         if(input$selected_sort_drug == 'MAGMA - Z'){
           all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'MAGMA'][order(all_gs_all$Z[all_gs_all$Method == 'MAGMA'], na.last=F)]))
@@ -377,20 +399,50 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
         group_siz$Width<-4*group_siz$Prop
 
-        x<-c(-max(abs(all_gs_all$Z), na.rm=T),0,max(abs(all_gs_all$Z), na.rm=T))
-        x<-(x-min(x))/(max(x)-min(x))
-
         # Convert to data.table before geom_point subsetting
         all_gs_all <- data.table(all_gs_all)
 
+        # Two palettes: directional TWAS-GSEA uses a diverging red-white-blue
+        # scale (red = drug reverses disease signature = candidate therapeutic).
+        # Everything else (MAGMA, GCSC, non-directional TWAS-GSEA) uses a
+        # sequential white-to-green scale (Z >= 0 only; green = enriched).
+        # Achieved by mapping the diverging series to `fill` (shape 21) and the
+        # sequential series to `colour` (shape 16) so the two scales coexist.
+        dir_data <- all_gs_all[Method == 'TWAS-GSEA']
+        pos_data <- all_gs_all[Method != 'TWAS-GSEA']
+
+        dir_max <- if(nrow(dir_data) > 0) max(abs(dir_data$Z), na.rm=T) else NA
+        pos_max <- if(nrow(pos_data) > 0) max(pos_data$Z, na.rm=T) else NA
+
         heatmap<-ggplot(data = all_gs_all, aes(x = Panel, y = Name)) +
-          theme_bw()	+
-          geom_point(data=all_gs_all, aes(x = Panel, y = Name, colour = Z), size=5) +
+          theme_bw()
+        if(nrow(dir_data) > 0){
+          heatmap <- heatmap +
+            geom_point(data=dir_data, aes(fill = Z), shape=21, stroke=0, size=5) +
+            scale_fill_gradientn(colours=c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
+                                 na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                 limits = c(-dir_max, dir_max))
+        }
+        if(nrow(pos_data) > 0){
+          heatmap <- heatmap +
+            geom_point(data=pos_data, aes(colour = Z), shape=16, size=5) +
+            scale_colour_gradientn(colours=c("#FFFFFF","#00CC66"),
+                                   na.value = NA, name = "Enrichment\nZ-score",
+                                   limits = c(0, pos_max))
+        }
+        # Sig overlays use the default filled shape, so they would otherwise
+        # cover the coloured point. Draw the coloured points again on top so
+        # only the outer ring of the sig overlay remains visible.
+        heatmap <- heatmap +
           geom_point(data=all_gs_all[which(all_gs_all$P < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
-          geom_point(data=all_gs_all[which(all_gs_all$P.FDR < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
-          geom_point(data=all_gs_all, aes(x = Panel, y = Name, colour = Z), size=5) +
-          # For reason, the factor-based sorted gets messed up with the Z point, but specifying twice fixes it?
-          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs_all$Z), na.rm=T), max(abs(all_gs_all$Z), na.rm=T)), values=x) +
+          geom_point(data=all_gs_all[which(all_gs_all$P.FDR < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15)
+        if(nrow(dir_data) > 0){
+          heatmap <- heatmap + geom_point(data=dir_data, aes(fill = Z), shape=21, stroke=0, size=5)
+        }
+        if(nrow(pos_data) > 0){
+          heatmap <- heatmap + geom_point(data=pos_data, aes(colour = Z), shape=16, size=5)
+        }
+        heatmap <- heatmap +
           theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
           labs(x='', y='') +
           facet_wrap(~ Method , nrow=1, scales = "free_x") +
@@ -412,7 +464,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     output$tx_drug_plot.ui <- renderUI({
       if(plot_dim_drug()[['height']] < 10000 & nrow(tx_drug_summary_data_filtered()) > 0){
-        plotOutput(ns("tx_drug_plot"), height = plot_dim_drug()[['height']], width=plot_dim_drug()[['width']])
+        tagList(
+          plotOutput(ns("tx_drug_plot"), height = plot_dim_drug()[['height']], width=plot_dim_drug()[['width']]),
+          tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
+            tags$b("Figure legend. "),
+            "Each point shows a drug-enrichment Z-score for one method/expression-panel combination. ",
+            tags$b("Directional TWAS-GSEA"), " uses a diverging palette: ",
+            tags$span(style = "color:#FF0000;", tags$b("red")), " indicates the drug-target signature is ",
+            tags$i("opposite"), " to the disease TWAS signature (candidate therapeutic effect), and ",
+            tags$span(style = "color:#0066FF;", tags$b("blue")), " indicates the drug-target signature ",
+            tags$i("matches"), " the disease signature (candidate to avoid). ",
+            tags$b("MAGMA, GCSC, and non-directional TWAS-GSEA"), " use a sequential white-to-",
+            tags$span(style = "color:#00CC66;", tags$b("green")),
+            " palette: green indicates that genes targeted by the drug are enriched for disease association signal (no direction-of-effect interpretation). ",
+            "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
+          )
+        )
       } else {
         NULL
       }
@@ -500,9 +567,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       )
     })
 
-    output$tx_atc_twas_gsea_table<-renderDataTable({
+    render_twas_gsea_atc_table <- function(slot){
       req(gwas_data(), selected_gwas())
-      tmp<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
+      tmp<-gwas_data()[[selected_gwas()]]$tx$atc[[slot]]
       if(is.null(tmp)) return(NULL)
 
       tmp$P.FDR_all<-p.adjust(tmp$P, method = 'fdr')
@@ -539,7 +606,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           )),
         escape = FALSE
       )
-    })
+    }
+
+    output$tx_atc_twas_gsea_table<-renderDataTable({ render_twas_gsea_atc_table('twas_gsea') })
+    output$tx_atc_twas_gsea_nondir_table<-renderDataTable({ render_twas_gsea_atc_table('twas_gsea_nondir') })
 
     #######
     # Prepare data for atc enrichment plot
@@ -558,8 +628,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       all_gs_atc<-all_gs_atc[all_gs_atc$Method %in% input$selected_methods_atc,]
 
       # Filter results table by user specified expression
-      if(any(all_gs_atc$Method == 'TWAS-GSEA')){
-        all_gs_atc<-all_gs_atc[!(all_gs_atc$Method == 'TWAS-GSEA' & !(all_gs_atc$Panel %in% input$selected_expr_panels_atc)),]
+      gsea_rows_atc <- grepl('^TWAS-GSEA', all_gs_atc$Method)
+      if(any(gsea_rows_atc)){
+        all_gs_atc<-all_gs_atc[!(gsea_rows_atc & !(all_gs_atc$Panel %in% input$selected_expr_panels_atc)),]
       }
 
       # Insert NA rows for all panels and methods so when filtering by atc, all selected panels and methods remain
@@ -576,6 +647,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         hc_atc<-all_gs_atc$Name[
           which(
             (all_gs_atc$Method == 'TWAS-GSEA' & all_gs_atc$FDR_Sig) |
+              (all_gs_atc$Method == 'TWAS-GSEA (non-dir)' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
               (all_gs_atc$Method == 'MAGMA' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
               (all_gs_atc$Method == 'GCSC' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0)
           )]
@@ -618,6 +690,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       }
       if(any(tmp$Method == 'TWAS-GSEA')){
         choices<-c(choices, 'TWAS-GSEA - Z')
+      }
+      if(any(tmp$Method == 'TWAS-GSEA (non-dir)')){
+        choices<-c(choices, 'TWAS-GSEA (non-dir) - Z')
       }
       if(length(unique(tmp$Method)) == 1){
         choices<-choices[choices != 'All - Z']
@@ -665,7 +740,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         # Now remove the NA rows
         all_gs_atc_all<-all_gs_atc_all[all_gs_atc_all$Name != 'Placeholder',]
 
-        methods<-c('MAGMA','GCSC','TWAS-GSEA')[c('MAGMA','GCSC','TWAS-GSEA') %in% all_gs_atc_all$Method]
+        methods<-c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')[c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)') %in% all_gs_atc_all$Method]
         all_gs_atc_all$Method<-factor(all_gs_atc_all$Method, levels=methods)
 
         # Shorten long ATC descriptions
@@ -687,6 +762,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         if(input$selected_sort_atc == 'TWAS-GSEA - Z'){
           all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA'], na.last=F)]))))
         }
+        if(input$selected_sort_atc == 'TWAS-GSEA (non-dir) - Z'){
+          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'], na.last=F)]))))
+        }
         if(input$selected_sort_atc == 'MAGMA - Z'){
           all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'MAGMA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'MAGMA'], na.last=F)]))
         }
@@ -705,19 +783,42 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
         group_siz$Width<-4*group_siz$Prop
 
-        x<-c(-max(abs(all_gs_atc_all$Z), na.rm=T),0,max(abs(all_gs_atc_all$Z), na.rm=T))
-        x<-(x-min(x))/(max(x)-min(x))
-
         # Convert to data.table before geom_point subsetting
         all_gs_atc_all <- data.table(all_gs_atc_all)
 
+        # See drug heatmap above for the two-palette rationale.
+        dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA']
+        pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA']
+
+        dir_max_atc <- if(nrow(dir_data_atc) > 0) max(abs(dir_data_atc$Z), na.rm=T) else NA
+        pos_max_atc <- if(nrow(pos_data_atc) > 0) max(pos_data_atc$Z, na.rm=T) else NA
+
         heatmap<-ggplot(data = all_gs_atc_all, aes(x = Panel, y = Name)) +
-          theme_bw() +
-          geom_point(data=all_gs_atc_all, aes(colour = Z), size=5) +
+          theme_bw()
+        if(nrow(dir_data_atc) > 0){
+          heatmap <- heatmap +
+            geom_point(data=dir_data_atc, aes(fill = Z), shape=21, stroke=0, size=5) +
+            scale_fill_gradientn(colours=c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
+                                 na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                 limits = c(-dir_max_atc, dir_max_atc))
+        }
+        if(nrow(pos_data_atc) > 0){
+          heatmap <- heatmap +
+            geom_point(data=pos_data_atc, aes(colour = Z), shape=16, size=5) +
+            scale_colour_gradientn(colours=c("#FFFFFF","#00CC66"),
+                                   na.value = NA, name = "Enrichment\nZ-score",
+                                   limits = c(0, pos_max_atc))
+        }
+        heatmap <- heatmap +
           geom_point(data=all_gs_atc_all[which(all_gs_atc_all$Nom_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
-          geom_point(data=all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15) +
-          geom_point(data=all_gs_atc_all, aes(colour = Z), size=5) +
-          scale_colour_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"), na.value = NA,name = "Z-score", limits = c(-max(abs(all_gs_atc_all$Z), na.rm=T), max(abs(all_gs_atc_all$Z), na.rm=T)), values=x) +
+          geom_point(data=all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15)
+        if(nrow(dir_data_atc) > 0){
+          heatmap <- heatmap + geom_point(data=dir_data_atc, aes(fill = Z), shape=21, stroke=0, size=5)
+        }
+        if(nrow(pos_data_atc) > 0){
+          heatmap <- heatmap + geom_point(data=pos_data_atc, aes(colour = Z), shape=16, size=5)
+        }
+        heatmap <- heatmap +
           theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
           labs(x='', y='') +
           facet_wrap(~ Method , nrow=1, scales = "free_x") +
@@ -740,7 +841,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     output$tx_atc_plot.ui <- renderUI({
       if(plot_dim_atc()[['height']] < 10000 & nrow(tx_atc_summary_data_filtered()) > 0){
-        plotOutput(ns("tx_atc_plot"), height = plot_dim_atc()[['height']], width=plot_dim_atc()[['width']])
+        tagList(
+          plotOutput(ns("tx_atc_plot"), height = plot_dim_atc()[['height']], width=plot_dim_atc()[['width']]),
+          tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
+            tags$b("Figure legend. "),
+            "Each point shows an ATC-class enrichment Z-score for one method/expression-panel combination. ",
+            tags$b("Directional TWAS-GSEA"), " uses a diverging palette: ",
+            tags$span(style = "color:#FF0000;", tags$b("red")), " indicates drugs in the ATC class collectively ",
+            tags$i("oppose"), " the disease TWAS signature (candidate therapeutic class), and ",
+            tags$span(style = "color:#0066FF;", tags$b("blue")), " indicates the class collectively ",
+            tags$i("matches"), " the disease signature (candidate class to avoid). ",
+            tags$b("MAGMA, GCSC, and non-directional TWAS-GSEA"), " use a sequential white-to-",
+            tags$span(style = "color:#00CC66;", tags$b("green")),
+            " palette: green indicates that drugs in the ATC class are enriched for disease association signal (no direction-of-effect interpretation). ",
+            "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
+          )
+        )
       } else {
         NULL
       }

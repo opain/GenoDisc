@@ -488,14 +488,17 @@ identify_nearest<-function(x){
 }
 
 
-read_twas_gsea_drug<-function(config, gwas){
+read_twas_gsea_drug<-function(config, gwas, mode = 'directional'){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
   resdir <- read_param(config = config, param = 'resdir', return_obj = F)
 
   dat<-NULL
 
-  if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) == "T"){
+  flag_param <- if(mode == 'nondirectional') 'twas_gsea_drugtargetor_nondirectional' else 'twas_gsea_drugtargetor'
+  suffix <- if(mode == 'nondirectional') '_nondir' else ''
+
+  if(read_param(config = config, param = flag_param, return_obj = F) == "T"){
 
     atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
     names(atc)<-c('Code','Name')
@@ -508,7 +511,7 @@ read_twas_gsea_drug<-function(config, gwas){
 
     dat<-NULL
     for(i in weights){
-      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_',i,'.competitive.clean.csv'))
+      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',i,'.competitive.clean.csv'))
       res$Panel<-i
       dat<-rbind(dat, res)
     }
@@ -528,8 +531,8 @@ read_twas_gsea_drug<-function(config, gwas){
 
     dat$Panel<-tidy_panel_names(dat$Panel)
 
-    dat<-dat[,c("NAME","Panel","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
-    names(dat)<-c('Name','Panel','Estimate','SE','P','P.FDR','ATC Code','ATC Description')
+    dat<-dat[,c("NAME","Panel","N_Mem_Avail","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
+    names(dat)<-c('Name','Panel','N Genes','Estimate','SE','P','P.FDR','ATC Code','ATC Description')
 
     dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
 
@@ -537,20 +540,23 @@ read_twas_gsea_drug<-function(config, gwas){
   return(dat)
 }
 
-read_twas_gsea_atc<-function(config, gwas){
+read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
 
   dat<-NULL
 
-  if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) == "T"){
+  flag_param <- if(mode == 'nondirectional') 'twas_gsea_drugtargetor_nondirectional' else 'twas_gsea_drugtargetor'
+  suffix <- if(mode == 'nondirectional') '_nondir' else ''
+
+  if(read_param(config = config, param = flag_param, return_obj = F) == "T"){
 
     weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
     weights<-weights[!grepl('SPLIC',weights)]
 
     dat<-NULL
     for(i in weights){
-      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_',i,'_res_atc_res.csv'))
+      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea',suffix,'_',i,'_res_atc_res.csv'))
       res$Panel<-i
       dat<-rbind(dat, res)
     }

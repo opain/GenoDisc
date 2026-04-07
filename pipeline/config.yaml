@@ -64,8 +64,11 @@ external_weights_pos_path: []
 # Conditional analyss of TWAS results
 twas_conditional: F
 
-# TWAS-GSEA gene property association analysis using DrugTargetor
+# TWAS-GSEA gene property association analysis using DrugTargetor (directional: signed TWAS Z x signed drug effect)
 twas_gsea_drugtargetor: F
+
+# TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
+twas_gsea_drugtargetor_nondirectional: F
 
 # Run SMR using below panels
 smr_expression_panel_psychencode: F
