@@ -578,7 +578,8 @@ rule install_twas_gsea:
   shell:
     "(git clone https://github.com/opain/TWAS-GSEA.git {output}; \
     cd {output}; \
-    git reset --hard d9b98a670121bcf686448b5d65c8d3bc443ba494) > {log} 2>&1"
+    git checkout optimisation; \
+    git reset --hard b47a3a36375b4420645de810c0c5ef782c8ad44d) > {log} 2>&1"
 
 ####
 # Download FeaturePred

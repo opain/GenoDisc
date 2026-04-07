@@ -210,17 +210,43 @@ rule banner_pwas_all_chr:
 # Run TWAS-GSEA using DrugTargetor sets
 #######
 
-# Run TWAS-GSEA
+# Pre-compute the gene-gene predicted-expression correlation matrix once per
+# weight panel. The result is reused across every (gwas, gene-set) call to
+# TWAS-GSEA-fast.R for that panel, so this rule has no {gwas} wildcard.
+rule build_twas_gsea_cormat:
+  resources:
+    mem_mb=50000,
+    cpus=5
+  input:
+    rules.install_twas_gsea.output,
+    f"{resdir}/data/fusion_snp_weights/{{weight}}/{{weight}}.pos",
+    f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done"
+  output:
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/build_twas_gsea_cormat-{{weight}}.log"
+  shell:
+    "Rscript {params.resdir}/software/TWAS-GSEA/build_cor_matrix.R \
+      --expression_ref {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
+      --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+      --min_r2 0.01 \
+      --n_cores 5 \
+      --output {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight} > {log} 2>&1"
+
+# Run TWAS-GSEA-fast.R against the precomputed cor matrix.
 rule run_twas_gsea_drug_targetor:
   resources:
     mem_mb=50000,
     cpus=5
   input:
     rules.install_twas_gsea.output,
-    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_{weight}_GW_clean.txt.gz",
     rules.format_drug_targetor_for_twas_gsea.output,
-    f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done",
-    rules.install_lme4qtl.output
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
   output:
     touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
   conda:
@@ -230,21 +256,17 @@ rule run_twas_gsea_drug_targetor:
   log:
     "{outdir}/logs/run_twas_gsea_drug_targetor-{gwas}-{weight}.log"
   shell:
-    "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA.V1.2.R \
+    "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
       --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
       --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
-    	--prop_file {params.resdir}/data/drug_targetor/wholedatabase_for_targetor_directional.prop \
-    	--expression_ref {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
-    	--n_cores 5 \
-    	--covar GeneLength,NSNP \
-    	--use_alt_id ID \
-    	--linear_p_thresh 1 \
-    	--min_Ngenes 2 \
-    	--save_CorMat F \
-    	--min_r2 0.01 \
-    	--qqplot F \
-    	--directional T \
-    	--output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight} > {log} 2>&1"
+      --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
+      --prop_file {params.resdir}/data/drug_targetor/wholedatabase_for_targetor_directional.prop \
+      --n_cores 5 \
+      --covar GeneLength,NSNP \
+      --use_alt_id ID \
+      --min_Ngenes 2 \
+      --directional T \
+      --output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight} > {log} 2>&1"
 
 # Format the output
 rule format_twas_gsea_drugtargetor_results:
