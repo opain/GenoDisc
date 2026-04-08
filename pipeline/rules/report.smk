@@ -64,6 +64,9 @@ if config["twas_gsea_drugtargetor"] == "T":
 if config["twas_gsea_drugtargetor_nondirectional"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if config["twas_gsea_cmap"] == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/run_twas_gsea_cmap_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["tissue_magma"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_property_conditional.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

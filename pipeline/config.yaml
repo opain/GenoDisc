@@ -70,6 +70,12 @@ twas_gsea_drugtargetor: F
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: F
 
+# TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
+# Set the flag to T and provide the path to the prop file produced by
+# DrugRepurposing/Code/Published/make_twas_gsea_prop.R
+twas_gsea_cmap: F
+cmap_level5_prop: NA
+
 # Run SMR using below panels
 smr_expression_panel_psychencode: F
 smr_expression_panel_metabrain_basalganglia: F

@@ -360,3 +360,50 @@ rule format_twas_gsea_drugtargetor_nondirectional_results_all_panel:
       lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_res.csv", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done")
+
+#######
+# Run TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
+#######
+
+# Same shape as run_twas_gsea_drug_targetor, but using a user-supplied prop file
+# generated from CMAP level5 (see DrugRepurposing/Code/Published/make_twas_gsea_prop.R).
+# The prop file is keyed on HGNC gene symbol to match the ID column produced by
+# scripts/combine_twas.R.
+rule run_twas_gsea_cmap:
+  wildcard_constraints:
+    weight="(?!nondir_).+"
+  resources:
+    mem_mb=100000,
+    cpus=8
+  input:
+    rules.install_twas_gsea.output,
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_{weight}_GW_clean.txt.gz",
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS",
+    config["cmap_level5_prop"] if config["twas_gsea_cmap"] == "T" else []
+  output:
+    touch("{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done")
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir,
+    prop=config["cmap_level5_prop"]
+  log:
+    "{outdir}/logs/run_twas_gsea_cmap-{gwas}-{weight}.log"
+  shell:
+    "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+      --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
+      --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+      --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
+      --prop_file {params.prop} \
+      --n_cores 8 \
+      --covar GeneLength,NSNP \
+      --use_alt_id ID \
+      --min_Ngenes 2 \
+      --directional T \
+      --output {outdir}/results/{wildcards.gwas}/twas/cmap/twas_gsea_cmap_{wildcards.weight} > {log} 2>&1"
+
+rule run_twas_gsea_cmap_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/run_twas_gsea_cmap_all_panel.done")
