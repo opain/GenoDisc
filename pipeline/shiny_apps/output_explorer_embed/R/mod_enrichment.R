@@ -123,10 +123,93 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         )))
       }
 
-      tabsetPanel(
+      # Build CMAP sub-tabs (per-signature drug heatmap + per-MOA heatmap +
+      # raw tables). Only assembled when the run produced CMAP results.
+      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data()[[selected_gwas()]]) else NULL
+      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data()[[selected_gwas()]])  else NULL
+      cmap_panels    <- unique(c(cmap_drug_data$Panel, cmap_moa_data$Panel))
+
+      cmap_core_cells <- c("A375", "HA1E", "HCC515", "HT29", "MCF7", "PC3", "VCAP", "HEPG2", "A549")
+
+      cmap_tab <- NULL
+      if (cf$twas_gsea_cmap && (!is.null(cmap_drug_data) || !is.null(cmap_moa_data))) {
+        cmap_inner <- list()
+
+        cmap_inner <- c(cmap_inner, list(tabPanel(
+          title="Drug",
+          br(),
+          fluidPage(
+            sidebarPanel(
+              selectInput(ns("selected_expr_panels_cmap_drug"), "Select expression panels", choices=cmap_panels, selected=cmap_panels, multiple=T),
+              selectInput(ns("selected_cell_lines_cmap_drug"), "Select cell lines",
+                          choices=unique(cmap_drug_data$cell_iname),
+                          selected=intersect(cmap_core_cells, unique(cmap_drug_data$cell_iname)),
+                          multiple=T),
+              radioButtons(ns("conf_only_cmap_drug"), "Show FDR significant only :",
+                           choices = c("True" = T, "False" = F), selected = T),
+              textInput(ns("drugInput_cmap_drug"), "Search drug (whitespace- or comma-separated):"),
+              textInput(ns("moaInput_cmap_drug"),  "Search MOA (whitespace- or comma-separated):"),
+              selectInput(ns("selected_sort_cmap_drug"), "Sort by:", c('Z (best panel)', 'Alphabetical'), selected='Z (best panel)')
+            ),
+            mainPanel(
+              uiOutput(ns("message_too_large_cmap_drug")),
+              uiOutput(ns("message_no_cmap_drug")),
+              uiOutput(ns("tx_cmap_drug_plot.ui"))
+            )
+          )
+        )))
+
+        cmap_inner <- c(cmap_inner, list(tabPanel(
+          title="MOA",
+          br(),
+          fluidPage(
+            sidebarPanel(
+              selectInput(ns("selected_expr_panels_cmap_moa"), "Select expression panels", choices=cmap_panels, selected=cmap_panels, multiple=T),
+              selectInput(ns("selected_cell_lines_cmap_moa"), "Select cell lines",
+                          choices=unique(cmap_moa_data$Cell_Line),
+                          selected=intersect(cmap_core_cells, unique(cmap_moa_data$Cell_Line)),
+                          multiple=T),
+              radioButtons(ns("conf_only_cmap_moa"), "Show FDR significant only :",
+                           choices = c("True" = T, "False" = F), selected = T),
+              textInput(ns("moaInput_cmap_moa"), "Search MOA (whitespace- or comma-separated):"),
+              selectInput(ns("selected_sort_cmap_moa"), "Sort by:", c('Z (best panel)', 'Alphabetical'), selected='Z (best panel)')
+            ),
+            mainPanel(
+              uiOutput(ns("message_too_large_cmap_moa")),
+              uiOutput(ns("message_no_cmap_moa")),
+              uiOutput(ns("tx_cmap_moa_plot.ui"))
+            )
+          )
+        )))
+
+        cmap_inner <- c(cmap_inner, list(tabPanel(
+          title="Drug table", br(),
+          p("All per-signature CMAP TWAS-GSEA results."), hr(), br(),
+          fluidRow(column(width=12, dataTableOutput(ns("tx_cmap_drug_table")))), br()
+        )))
+
+        cmap_inner <- c(cmap_inner, list(tabPanel(
+          title="MOA table", br(),
+          p("All per-MOA CMAP TWAS-GSEA enrichment results."), hr(), br(),
+          fluidRow(column(width=10, dataTableOutput(ns("tx_cmap_moa_table")))), br()
+        )))
+
+        cmap_tab <- do.call(tabPanel,
+                            c(list(title="CMAP", br(),
+                                   p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'.")),
+                              list(do.call(tabsetPanel, cmap_inner))))
+      }
+
+      drug_targetor_inner <- list(
         do.call(tabPanel, c(list(title="Drug", br()), list(do.call(tabsetPanel, drug_tabs)))),
-        do.call(tabPanel, c(list(title="ATC", br()), list(do.call(tabsetPanel, atc_tabs))))
+        do.call(tabPanel, c(list(title="ATC", br()),  list(do.call(tabsetPanel, atc_tabs))))
       )
+      outer_tabs <- list(
+        do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
+      )
+      if (!is.null(cmap_tab)) outer_tabs <- c(outer_tabs, list(cmap_tab))
+
+      do.call(tabsetPanel, outer_tabs)
     })
 
     #######
@@ -878,6 +961,201 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           "No ATC codes remain"
         ))
       }
+    })
+
+    #######
+    # CMAP TWAS-GSEA enrichment (per-signature drug + per-MOA)
+    #######
+
+    tx_cmap_drug_data <- reactive({
+      req(gwas_data(), selected_gwas())
+      build_cmap_drug_summary_data(gwas_data()[[selected_gwas()]])
+    })
+
+    tx_cmap_moa_data <- reactive({
+      req(gwas_data(), selected_gwas())
+      build_cmap_moa_summary_data(gwas_data()[[selected_gwas()]])
+    })
+
+    # ----- per-MOA -----
+    tx_cmap_moa_filtered <- reactive({
+      d <- tx_cmap_moa_data()
+      if(is.null(d) || nrow(d) == 0) return(d)
+      if(!is.null(input$selected_expr_panels_cmap_moa) && length(input$selected_expr_panels_cmap_moa) > 0)
+        d <- d[d$Panel %in% input$selected_expr_panels_cmap_moa, ]
+      if(!is.null(input$selected_cell_lines_cmap_moa) && length(input$selected_cell_lines_cmap_moa) > 0)
+        d <- d[d$Cell_Line %in% input$selected_cell_lines_cmap_moa, ]
+      if(isTRUE(as.logical(input$conf_only_cmap_moa))){
+        keep_names <- unique(d$Name[d$FDR_Sig %in% TRUE])
+        d <- d[d$Name %in% keep_names, ]
+      }
+      input_moas <- unlist(strsplit(input$moaInput_cmap_moa, "[, ]+"))
+      selected_moas <- input_moas[input_moas != ""]
+      if(length(selected_moas) > 0){
+        d <- d[grepl(paste(selected_moas, collapse='|'), d$Name, ignore.case = TRUE) & !is.na(d$Name), ]
+      }
+      d
+    }) %>% debounce(500)
+
+    plot_dim_cmap_moa <- reactive({
+      d <- tx_cmap_moa_filtered()
+      calc_plot_dims(d, y_col = "Name", x_col = "Panel", facet_col = "Cell_Line")
+    })
+
+    # ----- per-signature drug -----
+    tx_cmap_drug_filtered <- reactive({
+      d <- tx_cmap_drug_data()
+      if(is.null(d) || nrow(d) == 0) return(d)
+      if(!is.null(input$selected_expr_panels_cmap_drug) && length(input$selected_expr_panels_cmap_drug) > 0)
+        d <- d[d$Panel %in% input$selected_expr_panels_cmap_drug, ]
+      if(!is.null(input$selected_cell_lines_cmap_drug) && length(input$selected_cell_lines_cmap_drug) > 0)
+        d <- d[d$cell_iname %in% input$selected_cell_lines_cmap_drug, ]
+      if(isTRUE(as.logical(input$conf_only_cmap_drug))){
+        keep_names <- unique(d$Name[d$FDR_Sig %in% TRUE])
+        d <- d[d$Name %in% keep_names, ]
+      }
+      input_drugs <- unlist(strsplit(input$drugInput_cmap_drug, "[, ]+"))
+      selected_drugs <- input_drugs[input_drugs != ""]
+      if(length(selected_drugs) > 0){
+        d <- d[grepl(paste(selected_drugs, collapse='|'), d$Name, ignore.case = TRUE) & !is.na(d$Name), ]
+      }
+      input_moas <- unlist(strsplit(input$moaInput_cmap_drug, "[, ]+"))
+      selected_moas <- input_moas[input_moas != ""]
+      if(length(selected_moas) > 0){
+        d <- d[grepl(paste(selected_moas, collapse='|'), d$moa, ignore.case = TRUE) & !is.na(d$moa), ]
+      }
+      d
+    }) %>% debounce(500)
+
+    plot_dim_cmap_drug <- reactive({
+      d <- tx_cmap_drug_filtered()
+      calc_plot_dims(d, y_col = "Name", x_col = "Panel", facet_col = "cell_iname")
+    })
+
+    # Shared CMAP heatmap helper. Faceted by cell line, reuses the red/blue
+    # diverging palette + nominal/FDR overlays as the directional DrugTargetor
+    # TWAS-GSEA plot. Z is already negated upstream so red = drug reverses
+    # disease signature.
+    cmap_heatmap <- function(d, sort_choice, facet_col = NULL){
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      best_z <- tapply(d$Z, d$Name, function(x) max(x, na.rm = TRUE))
+      best_z[!is.finite(best_z)] <- NA
+      if(identical(sort_choice, 'Alphabetical')){
+        lvl <- sort(names(best_z), decreasing = TRUE)
+      } else {
+        lvl <- names(sort(best_z, decreasing = FALSE, na.last = FALSE))
+      }
+      d$Name <- factor(d$Name, levels = lvl)
+
+      z_max <- max(abs(d$Z), na.rm = TRUE)
+      if(!is.finite(z_max) || z_max == 0) z_max <- 1
+
+      p <- ggplot(d, aes(x = Panel, y = Name)) +
+        theme_bw() +
+        geom_point(aes(fill = Z), shape = 21, stroke = 0, size = 5) +
+        scale_fill_gradientn(colours = c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
+                             na.value = NA, name = "CMAP\nZ-score",
+                             limits = c(-z_max, z_max)) +
+        geom_point(data = d[d$Nom_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 6) +
+        geom_point(data = d[d$FDR_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 7, shape = 15) +
+        geom_point(aes(fill = Z), shape = 21, stroke = 0, size = 5) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title  = element_text(hjust = 0.5),
+              text        = element_text(size = 14)) +
+        labs(x = '', y = '')
+
+      if (!is.null(facet_col)) {
+        p <- p + facet_wrap(as.formula(paste("~", facet_col)), nrow = 1, scales = "free_x")
+      }
+      p
+    }
+
+    cmap_legend_div <- tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
+      tags$b("Figure legend. "),
+      "Each point shows a CMAP TWAS-GSEA Z-score for one expression panel. ",
+      tags$span(style = "color:#FF0000;", tags$b("Red")), " = drug signature is ", tags$i("opposite"),
+      " to the disease TWAS signature (candidate therapeutic). ",
+      tags$span(style = "color:#0066FF;", tags$b("Blue")), " = drug signature ", tags$i("matches"),
+      " disease (candidate to avoid). ",
+      "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
+    )
+
+    output$tx_cmap_moa_plot <- renderPlot({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_moa()[['height']] >= 10000) return(NULL)
+      cmap_heatmap(d, input$selected_sort_cmap_moa, facet_col = "Cell_Line")
+    })
+
+    output$tx_cmap_moa_plot.ui <- renderUI({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_moa()[['height']] >= 10000) return(NULL)
+      tagList(
+        plotOutput(ns("tx_cmap_moa_plot"),
+                   height = plot_dim_cmap_moa()[['height']],
+                   width  = plot_dim_cmap_moa()[['width']]),
+        cmap_legend_div
+      )
+    })
+
+    output$message_too_large_cmap_moa <- renderUI({
+      if(plot_dim_cmap_moa()[['height']] >= 10000)
+        HTML("<div style='color: red;'>Plot is too large. Restrict to FDR-significant MOAs or pick specific MOAs in the search box.</div>")
+    })
+
+    output$message_no_cmap_moa <- renderUI({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0)
+        HTML("<div style='color: red;'>No MOAs to display. Disable the FDR filter or check that twas_gsea_cmap was run.</div>")
+    })
+
+    output$tx_cmap_drug_plot <- renderPlot({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_drug()[['height']] >= 10000) return(NULL)
+      cmap_heatmap(d, input$selected_sort_cmap_drug, facet_col = "cell_iname")
+    })
+
+    output$tx_cmap_drug_plot.ui <- renderUI({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_drug()[['height']] >= 10000) return(NULL)
+      tagList(
+        plotOutput(ns("tx_cmap_drug_plot"),
+                   height = plot_dim_cmap_drug()[['height']],
+                   width  = plot_dim_cmap_drug()[['width']]),
+        cmap_legend_div
+      )
+    })
+
+    output$message_too_large_cmap_drug <- renderUI({
+      if(plot_dim_cmap_drug()[['height']] >= 10000)
+        HTML("<div style='color: red;'>Too many signatures to plot. Restrict to FDR-significant rows, or use the search boxes to pick specific drugs / MOAs.</div>")
+    })
+
+    output$message_no_cmap_drug <- renderUI({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0)
+        HTML("<div style='color: red;'>No drug signatures to display. Disable the FDR filter or check that twas_gsea_cmap was run.</div>")
+    })
+
+    output$tx_cmap_drug_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
+      d <- gwas_data()[[selected_gwas()]]$tx$cmap$drug
+      if(is.null(d)) return(NULL)
+      datatable(d, rownames = FALSE,
+                options = list(scrollX = TRUE,
+                               columnDefs = list(list(className = 'dt-center', targets = '_all'))))
+    })
+
+    output$tx_cmap_moa_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
+      d <- gwas_data()[[selected_gwas()]]$tx$cmap$moa
+      if(is.null(d)) return(NULL)
+      datatable(d, rownames = FALSE,
+                options = list(scrollX = TRUE,
+                               columnDefs = list(list(className = 'dt-center', targets = '_all'))))
     })
 
   })

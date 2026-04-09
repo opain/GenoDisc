@@ -576,6 +576,69 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
   return(dat)
 }
 
+read_twas_gsea_cmap_drug<-function(config, gwas){
+  # Per-signature CMAP TWAS-GSEA results, one row per
+  # (cmap_name x cell_iname x pert_itime x pert_idose x weight panel).
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+
+  dat<-NULL
+
+  if(read_param(config = config, param = 'twas_gsea_cmap', return_obj = F) == "T"){
+    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-weights[!grepl('SPLIC',weights)]
+
+    for(i in weights){
+      f <- paste0(outdir,'/results/',gwas,'/twas/cmap/twas_gsea_cmap_',i,'_drug_res.csv')
+      if(!file.exists(f)) next
+      res<-fread(f)
+      dat<-rbind(dat, res, fill = TRUE)
+    }
+    if(is.null(dat) || nrow(dat) == 0) return(NULL)
+
+    # FDR across all (signature x panel) rows for cross-panel ranking.
+    dat[, P.FDR_all := p.adjust(P, method = 'fdr')]
+    dat[, Panel := tidy_panel_names(Panel)]
+    dat[, Name := paste0(toupper(substr(cmap_name, 1, 1)), substr(cmap_name, 2, nchar(cmap_name)))]
+    setorder(dat, P)
+
+    dat <- dat[, .(Name, cmap_name, cell_iname, pert_itime, pert_idose, moa,
+                   Panel, N_Mem_Avail, Estimate, SE, Z, P,
+                   `P.FDR (per panel)` = P.FDR,
+                   P.FDR = P.FDR_all)]
+  }
+  return(dat)
+}
+
+read_twas_gsea_cmap_moa<-function(config, gwas){
+  # Per-MOA enrichment of CMAP TWAS-GSEA results.
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+
+  dat<-NULL
+
+  if(read_param(config = config, param = 'twas_gsea_cmap', return_obj = F) == "T"){
+    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-weights[!grepl('SPLIC',weights)]
+
+    for(i in weights){
+      f <- paste0(outdir,'/results/',gwas,'/twas/cmap/twas_gsea_cmap_',i,'_moa_res.csv')
+      if(!file.exists(f)) next
+      res<-fread(f)
+      dat<-rbind(dat, res, fill = TRUE)
+    }
+    if(is.null(dat) || nrow(dat) == 0) return(NULL)
+
+    dat[, P.FDR_all := p.adjust(P, method = 'fdr')]
+    dat[, Panel := tidy_panel_names(Panel)]
+    setorder(dat, P)
+
+    dat <- dat[, .(Panel, MOA, Cell_Line, `N Drugs` = N, Estimate,
+                   `Class Median T` = Class_Median,
+                   `Non-class Median T` = Non_Class_Median,
+                   P, P.FDR = P.FDR_all)]
+  }
+  return(dat)
+}
+
 read_magma_drug<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)

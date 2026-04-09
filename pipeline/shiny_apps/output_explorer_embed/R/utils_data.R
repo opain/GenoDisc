@@ -260,3 +260,35 @@ build_atc_summary_data <- function(gwas_results) {
 
   do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc, gsea_gs_atc_nondir)))
 }
+
+#' Build CMAP per-signature drug summary data
+#'
+#' One row per (cmap_name x cell_iname x pert_itime x pert_idose x weight panel).
+#' Z is negated so the same red = "drug reverses disease signature" convention
+#' as the directional DrugTargetor TWAS-GSEA plot applies.
+build_cmap_drug_summary_data <- function(gwas_results) {
+  d <- safe_access(gwas_results, "tx", "cmap", "drug")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)
+  d$Name    <- paste(d$cmap_name, d$pert_itime, d$pert_idose, sep = ' / ')
+  d$Z       <- -(d$Estimate / d$SE)
+  d$FDR_Sig <- !is.na(d$P.FDR) & d$P.FDR < 0.05
+  d$Nom_Sig <- !is.na(d$P) & d$P < 0.05
+  d$Method  <- 'CMAP'
+  d
+}
+
+#' Build CMAP per-MOA enrichment summary data
+build_cmap_moa_summary_data <- function(gwas_results) {
+  d <- safe_access(gwas_results, "tx", "cmap", "moa")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)
+  d$Name    <- d$MOA
+  # Wilcoxon Estimate sign already encodes direction; negate so red = MOA
+  # collectively reverses disease signature.
+  d$Z       <- -qnorm(d$P) * sign(-d$Estimate)
+  d$FDR_Sig <- !is.na(d$P.FDR) & d$P.FDR < 0.05
+  d$Nom_Sig <- !is.na(d$P) & d$P < 0.05
+  d$Method  <- 'CMAP'
+  d
+}
