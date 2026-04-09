@@ -216,6 +216,14 @@ for(gwas_i in gwas_list$name){
   tx$atc$twas_gsea<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i, mode='directional')
   tx$atc$twas_gsea_nondir<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i, mode='nondirectional')
 
+  ######
+  # CMAP TWAS-GSEA (per-signature drug + per-MOA enrichment)
+  ######
+
+  tx$cmap<-list()
+  tx$cmap$drug<-read_twas_gsea_cmap_drug(config=opt$config, gwas=gwas_i)
+  tx$cmap$moa<-read_twas_gsea_cmap_moa(config=opt$config, gwas=gwas_i)
+
   #################
   # Tissue Enrichment
   #################

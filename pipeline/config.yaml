@@ -73,8 +73,11 @@ twas_gsea_drugtargetor_nondirectional: F
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
 # Set the flag to T and provide the path to the prop file produced by
 # DrugRepurposing/Code/Published/make_twas_gsea_prop.R
+# cmap_compoundinfo points at compoundinfo_beta.txt (used for MOA enrichment of
+# the CMAP TWAS-GSEA results); the same file consumed by the DrugRepurposing repo.
 twas_gsea_cmap: F
 cmap_level5_prop: NA
+cmap_compoundinfo: NA
 
 # Run SMR using below panels
 smr_expression_panel_psychencode: F

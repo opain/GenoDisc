@@ -73,7 +73,8 @@ config_scz <- c(
   "twas_panel_fusion: T", 
   "gtex_weights: ['Whole_Blood']", 
   "non_gtex_weights: ['CMC.BRAIN.RNASEQ']", 
-  "twas_gsea_drugtargetor: T"
+  "twas_gsea_drugtargetor: T",
+  "twas_gsea_drugtargetor_nondirectional: T"
 )
 
 write.table(config_scz, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_scz.yaml', col.names=F, row.names=F, quote=F)
@@ -87,7 +88,11 @@ config_cad <- c(
   "magma_drugtargetor: T",
   "twas_panel_fusion: T", 
   "gtex_weights: ['Whole_Blood']", 
-  "twas_gsea_drugtargetor: T"
+  "twas_gsea_drugtargetor: T",
+  "twas_gsea_cmap: T",
+  "cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.tsv.gz",
+  "cmap_compoundinfo: /users/k1806347/oliverpainfel/Data/CMAP/compoundinfo_beta.txt",
+  "twas_gsea_drugtargetor_nondirectional: T"
 )
 
 write.table(config_cad, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_cad.yaml', col.names=F, row.names=F, quote=F)
@@ -99,7 +104,7 @@ cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
 conda activate genodisc
   
 snakemake \
-  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config.yaml \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_scz.yaml \
   --use-conda \
   --profile slurm \
   run_package_results \
@@ -111,4 +116,84 @@ snakemake \
   --profile slurm \
   run_package_results \
   -n
+
 ```
+
+```{r}
+# Explore CMAP results for CAD
+res<-fread('/users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_cad/results/CAD/twas/cmap/twas_gsea_cmap_Whole_Blood.competitive.txt')
+
+# Remove leading number from gene set name
+res[, GeneSet := str_remove(GeneSet, '^\\d+\\.')]
+
+library(tidyr)
+library(dplyr)
+
+res_clean <- res %>%
+  separate(GeneSet, into = c("drug", "cell_type", "time", "dose"), sep = "_") %>%
+  mutate(
+    time_h = as.numeric(sub("h$", "", time)),
+    dose_uM = as.numeric(sub("uM$", "", dose))
+  ) %>%
+  select(-time, -dose)
+
+
+library(dplyr)
+library(ggplot2)
+
+drug_to_plot <- "BRD-K08799867"
+
+plot_df <- res_clean %>%
+  filter(drug == drug_to_plot) %>%
+  mutate(
+    condition = paste0(time_h, "h_", dose_uM, "uM"),
+    neglog10_p = -log10(P),
+    sig = P.CORR < 0.05
+  )
+
+ggplot(plot_df, aes(x = condition, y = cell_type)) +
+  geom_point(aes(size = neglog10_p, colour = Estimate, shape = sig)) +
+  scale_colour_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  labs(
+    title = drug_to_plot,
+    x = "Condition",
+    y = "Cell type",
+    colour = "Estimate",
+    size = expression(-log[10](P)),
+    shape = "P.CORR < 0.05"
+  ) +
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+plot_df <- res_clean %>%
+  filter(drug == drug_to_plot) %>%
+  mutate(
+    sig = P.CORR < 0.05,
+    dose_uM = factor(dose_uM)
+  )
+
+ggplot(plot_df, aes(x = dose_uM, y = cell_type)) +
+  geom_point(aes(size = abs(Estimate), colour = Estimate, shape = sig)) +
+  facet_wrap(~ time_h, nrow = 1) +
+  scale_colour_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0) +
+  labs(
+    title = paste("Associations for", drug_to_plot),
+    x = "Dose (uM)",
+    y = "Cell type",
+    colour = "Estimate",
+    size = "|Estimate|",
+    shape = "P.CORR < 0.05"
+  ) +
+  theme_bw()
+```
+
+
+
+
+
+
+
+
+

@@ -407,3 +407,29 @@ rule run_twas_gsea_cmap_all_panel:
       lambda w: expand("{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/run_twas_gsea_cmap_all_panel.done")
+
+# Format the per-(gwas, weight) CMAP TWAS-GSEA output: parse signature names,
+# attach MOA from compoundinfo_beta.txt, and write per-signature + per-MOA CSVs.
+rule format_twas_gsea_cmap_results:
+  input:
+    "{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done"
+  output:
+    "{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}_drug_res.csv",
+    "{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}_moa_res.csv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/format_twas_gsea_cmap_results-{gwas}-{weight}.log"
+  shell:
+    "Rscript scripts/format_twas_gsea_cmap_results.R \
+    --twas {wildcards.gwas} \
+    --panel {wildcards.weight} \
+    --config_file {params.config_file} > {log} 2>&1"
+
+rule format_twas_gsea_cmap_results_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}_drug_res.csv", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/format_twas_gsea_cmap_results_all_panel.done")
