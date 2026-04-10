@@ -60,7 +60,7 @@ twas_gsea_drugtargetor_nondirectional: T
 
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures
 twas_gsea_cmap: T
-cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.A375_24h_10uM.tsv.gz
+cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.A375_24h_10uM.rds
 cmap_compoundinfo: /users/k1806347/oliverpainfel/Data/CMAP/compoundinfo_beta.txt
 
 # Run SMR using below panels
