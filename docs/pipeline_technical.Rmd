@@ -1,0 +1,280 @@
+---
+title: "GenoDisc Pipeline - Technical Details"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    css: styles/styles.css
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+library(knitr)
+library(data.table)
+```
+
+***
+
+This document describes the methods and tools used by the GenoDisc pipeline. For instructions on how to install and run the pipeline, see the [User Guide](pipeline_guide.html).
+
+***
+
+# Software and dependencies
+
+The pipeline relies on the following tools:
+
+```{r, eval=T, echo=F, results='asis'}
+tools <- list(
+  list(Tool = 'Snakemake', Purpose = 'Workflow management', Reference = '[Molder et al. 2021](https://doi.org/10.12688/f1000research.29032.2)'),
+  list(Tool = 'LDSC', Purpose = 'LD score regression for heritability and genetic correlation', Reference = '[Bulik-Sullivan et al. 2015](https://doi.org/10.1038/ng.3211)'),
+  list(Tool = 'PLINK 1.9', Purpose = 'LD clumping and general variant-level operations', Reference = '[Chang et al. 2015](https://doi.org/10.1186/s13742-015-0047-8)'),
+  list(Tool = 'GCTA-COJO', Purpose = 'Conditional and joint association analysis', Reference = '[Yang et al. 2012](https://doi.org/10.1038/ng.2213)'),
+  list(Tool = 'SuSiE', Purpose = 'Fine-mapping via Sum of Single Effects model', Reference = '[Wang et al. 2020](https://doi.org/10.1111/rssb.12388)'),
+  list(Tool = 'MAGMA', Purpose = 'Gene-level and gene set association analysis', Reference = '[de Leeuw et al. 2015](https://doi.org/10.1371/journal.pcbi.1004219)'),
+  list(Tool = 'FUSION', Purpose = 'Transcriptome-wide association study', Reference = '[Gusev et al. 2016](https://doi.org/10.1038/ng.3506)'),
+  list(Tool = 'SMR', Purpose = 'Summary-data-based Mendelian randomisation', Reference = '[Zhu et al. 2016](https://doi.org/10.1038/ng.3538)'),
+  list(Tool = 'TWAS-GSEA', Purpose = 'Gene set enrichment of TWAS results', Reference = '[Pain et al. 2023](https://doi.org/10.1101/2023.07.24.23293084)'),
+  list(Tool = 'DrugTargetor', Purpose = 'Drug-gene interaction database for enrichment', Reference = '[Gaspar et al. 2019](https://doi.org/10.1093/bioinformatics/bty742)'),
+  list(Tool = 'FOCUS', Purpose = 'Summary statistic munging', Reference = '[Mancuso et al. 2019](https://doi.org/10.1038/s41588-019-0367-1)'),
+  list(Tool = 'liftOver', Purpose = 'Genome build coordinate conversion', Reference = '[UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgLiftOver)')
+)
+
+df <- do.call(rbind, lapply(tools, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+***
+
+# Workflow overview
+
+The pipeline is implemented as a Snakemake workflow composed of eight rule modules:
+
+1. **`dependencies.smk`** - Downloads and prepares reference data (1000 Genomes, gene annotations, LD scores, TWAS weights, drug-gene databases)
+2. **`sumstat_qc.smk`** - Cleans, harmonises, and quality-controls GWAS summary statistics
+3. **`finemapping.smk`** - Performs fine-mapping of GWAS loci
+4. **`magma.smk`** - Runs gene-level and gene set association analyses
+5. **`twas_pwas.smk`** - Performs transcriptome- and proteome-wide association analyses
+6. **`smr.smk`** - Runs summary-data-based Mendelian randomisation
+7. **`gcsc.smk`** - Performs gene co-regulation-based drug scoring
+8. **`report.smk`** - Packages all results into a single `.rds` object
+
+Reference data and tool dependencies are downloaded automatically on the first pipeline run.
+
+***
+
+# Part 1: Descriptive analyses
+
+## Summary statistic QC {#summary-statistic-qc}
+
+GWAS summary statistics undergo a standardised cleaning procedure implemented in `scripts/sumstat_cleaner.R`:
+
+1. **Column name mapping**: The pipeline recognises a wide range of common column name variants and maps them to a standardised set of column names. For example, `PVALUE`, `PVAL`, `P_VALUE`, and `GC_PVALUE` are all mapped to `P`.
+
+2. **Allele harmonisation**: Alleles are harmonised against the 1000 Genomes reference panel. Strand-ambiguous variants are checked against reference allele frequencies and removed if they cannot be resolved.
+
+3. **Genome build detection and liftover**: If the summary statistics do not match the GRCh37/hg19 build, the pipeline attempts automatic coordinate liftover using the UCSC liftOver tool.
+
+4. **Quality filtering**: Variants are filtered based on:
+   - Allele frequency (if available): extreme frequency variants are flagged
+   - Imputation quality (INFO score, if available)
+   - Duplicate removal
+   - Multiallelic variant removal
+
+5. **Effect size conversion**: If only odds ratios are provided, they are converted to log-odds (BETA). Z-scores are converted to BETA and SE where possible.
+
+The cleaned summary statistics are stored in `{outdir}/results/{gwas}/gwas_sumstat/`.
+
+<details><summary>**Recognised column name variants**</summary>
+
+The pipeline accepts many common column name formats. Below are examples of recognised names for key columns:
+
+- **SNP**: SNP, RSID, MARKERNAME, SNPID, ID, VARIANT_ID, HM_RSID, ...
+- **CHR**: CHR, CHROMOSOME, CHROM, CHR_BUILD37, CHR_BUILD38, HM_CHROM, ...
+- **BP**: BP, POS, POSITION, PHYSPOS, POS_BUILD37, BASE_PAIR_LOCATION, HM_POS, ...
+- **A1**: A1, ALLELE1, EFFECT_ALLELE, EA, REF, RISK_ALLELE, HM_EFFECT_ALLELE, ...
+- **A2**: A2, ALLELE2, OTHER_ALLELE, NEA, ALT, NON_EFFECT_ALLELE, HM_OTHER_ALLELE, ...
+- **BETA**: BETA, EFFECT, B, SIGNED_SUMSTAT, EST, LOG_ODDS, HM_BETA, ...
+- **OR**: OR, ODDS_RATIO, ODDS-RATIO, OR(A1), HM_ODDS_RATIO, ...
+- **SE**: SE, STDERR, STDER, STANDARD_ERROR, OR_SE, ...
+- **P**: P, PVALUE, PVAL, P_VALUE, P-VALUE, WALD_P, P_BOLT_LMM, ...
+- **Z**: Z, ZSCORE, Z-SCORE, ZSTAT, GC_ZSCORE, ...
+- **N**: N, WEIGHT, TOTALSAMPLESIZE, SAMPLESIZE, N_TOTAL, N_ANALYZED, ...
+- **FREQ**: FRQ, FREQ, MAF, AF, EAF, EFFECT_ALLELE_FREQ, HM_EFFECT_ALLELE_FREQUENCY, ...
+- **INFO**: INFO, IMPINFO, IMPQUALITY, INFO_UKBB, ...
+
+</details>
+
+***
+
+## LD score regression
+
+[LDSC](https://github.com/bulik/ldsc) (LD Score Regression) is used to estimate:
+
+- **SNP-heritability** ($h^2_{SNP}$): the proportion of phenotypic variance explained by common SNPs
+- **LD score regression intercept**: an indicator of confounding or population stratification in the GWAS
+
+The pipeline uses pre-computed LD scores from the European 1000 Genomes reference panel. Summary statistics are first munged using the LDSC `munge_sumstats.py` script to ensure compatibility.
+
+Results are stored in `{outdir}/results/{gwas}/ldsc/`.
+
+***
+
+## LD clumping
+
+LD clumping is performed using PLINK to identify independent genome-wide significant associations. The procedure uses:
+
+- P-value threshold: 5 x 10^-8^
+- LD threshold ($r^2$): 0.1
+- Clumping window: 250 kb
+- Reference panel: 1000 Genomes European samples
+
+Results are stored in `{outdir}/results/{gwas}/clump/`.
+
+***
+
+## GCTA-COJO
+
+[GCTA-COJO](https://yanglab.westlake.edu.cn/software/gcta/) (Conditional and Joint analysis) performs stepwise conditional analysis to identify independently associated variants. Unlike simple LD clumping, COJO accounts for the joint effects of variants using summary statistics and an LD reference panel.
+
+Results are stored in `{outdir}/results/{gwas}/cojo/`.
+
+***
+
+# Part 2: Gene finding analyses
+
+## Fine-mapping (SuSiE)
+
+[SuSiE](https://stephenslab.github.io/susieR/) (Sum of Single Effects) is used for Bayesian fine-mapping. For each genome-wide significant locus, SuSiE identifies credible sets of causal variants. The analysis:
+
+1. Defines loci around genome-wide significant variants
+2. Computes LD matrices from the 1000 Genomes European reference panel
+3. Fits the SuSiE model allowing for up to L=1 causal variants per locus (configurable)
+4. Returns 95% credible sets with posterior inclusion probabilities (PIPs) for each variant
+
+Results are stored in `{outdir}/results/{gwas}/finemap/`.
+
+***
+
+## MAGMA gene-level association
+
+[MAGMA](https://ctg.cncr.nl/software/magma) performs gene-level association analysis by aggregating SNP-level association statistics within gene boundaries. The pipeline:
+
+1. Maps SNPs to genes using Ensembl gene annotations (with a configurable window)
+2. Computes gene-level test statistics accounting for LD between SNPs
+3. Provides gene-level p-values and effect sizes
+
+Results are stored in `{outdir}/results/{gwas}/magma/`.
+
+***
+
+## Transcriptome-wide association (TWAS)
+
+[FUSION](http://gusevlab.org/projects/fusion/) performs transcriptome-wide association studies by testing whether genetically predicted gene expression is associated with the GWAS phenotype. The pipeline supports multiple eQTL reference panels:
+
+- **GTEx panels**: Tissue-specific eQTL weights from the GTEx consortium (user-specified tissues)
+- **PsychENCODE**: Brain-specific eQTL weights from the PsychENCODE consortium
+- **Non-GTEx panels**: Additional eQTL panels (e.g. CMC brain RNA-seq)
+- **External panels**: User-provided TWAS weight panels in FUSION format
+
+For each panel, the pipeline:
+
+1. Runs TWAS per chromosome
+2. Combines results across chromosomes
+3. Identifies genome-wide significant gene-trait associations (Bonferroni-corrected)
+4. Performs conditional analysis on significant hits to identify independently associated genes
+
+Results are stored in `{outdir}/results/{gwas}/twas/`.
+
+***
+
+## Summary-data-based Mendelian randomisation (SMR)
+
+[SMR](https://yanglab.westlake.edu.cn/software/smr/) tests for causal or pleiotropic associations between gene expression and complex traits using summary-level data from GWAS and eQTL studies. The pipeline supports multiple eQTL/pQTL reference panels:
+
+- **PsychENCODE**: Brain eQTL data
+- **MetaBrain**: eQTL data from multiple brain regions (cortex, basal ganglia, cerebellum, hippocampus, spinal cord)
+- **eQTLGen**: Blood eQTL data
+- **ROSMAP**: Brain pQTL data
+
+The HEIDI (Heterogeneity in Dependent Instruments) test is used to distinguish causal/pleiotropic associations from linkage.
+
+Results are stored in `{outdir}/results/{gwas}/smr/`.
+
+***
+
+## Proteome-wide association (PWAS)
+
+PWAS extends the TWAS framework to protein levels, using pQTL weights to predict genetically determined protein expression. The pipeline supports:
+
+- **ROSMAP**: Brain pQTL weights (n=376)
+- **Banner**: Brain pQTL weights (n=152)
+
+PWAS uses the same FUSION framework as TWAS, with protein expression prediction models in place of gene expression models.
+
+Results are stored in `{outdir}/results/{gwas}/pwas/`.
+
+***
+
+# Part 3: Drug finding analyses
+
+## MAGMA DrugTargetor enrichment
+
+MAGMA gene set enrichment analysis is performed using [DrugTargetor](https://drugtargetor.com/) drug-gene interaction sets. This tests whether genes targeted by specific drugs are enriched for GWAS associations. The analysis also evaluates enrichment at the ATC (Anatomical Therapeutic Chemical) classification level.
+
+Results are stored in `{outdir}/results/{gwas}/magma/`.
+
+***
+
+## TWAS-GSEA DrugTargetor enrichment
+
+[TWAS-GSEA](https://github.com/opain/TWAS-GSEA) performs gene set enrichment analysis using TWAS results rather than SNP-level summary statistics. By leveraging gene expression prediction, TWAS-GSEA can detect drug-gene set enrichments that are not captured by traditional MAGMA-based approaches.
+
+Both directional and non-directional enrichment tests are available:
+
+- **Directional**: Tests whether disease-associated genes have expression changes in the same direction as drug effects
+- **Non-directional**: Tests for enrichment regardless of effect direction
+
+Results are aggregated across TWAS panels and stored alongside other enrichment results.
+
+***
+
+## TWAS-GSEA CMAP drug signatures
+
+In addition to DrugTargetor gene sets, TWAS-GSEA is also applied using reprocessed [CMAP](https://clue.io/) (Connectivity Map) level 5 drug expression signatures. This identifies drugs that reverse the disease-associated gene expression pattern, which is a key strategy in computational drug repurposing.
+
+The CMAP analysis tests each drug's expression signature against the TWAS results to identify compounds whose effects on gene expression oppose the disease-associated pattern. Results include enrichment statistics and drug annotations including mechanism of action (MOA).
+
+***
+
+## Gene co-regulation scoring (GCSC)
+
+GCSC (Gene Co-regulation-based Scoring) uses tissue-specific gene co-regulation networks from GTEx to score drug-gene interactions. Rather than testing individual gene associations, GCSC evaluates whether the co-regulation structure of drug target genes is associated with the GWAS phenotype.
+
+The analysis:
+
+1. Runs TWAS using GTEx v7 weights for specified tissues
+2. Prepares drug-gene interaction sets from DrugTargetor
+3. Computes co-regulation-based enrichment scores for each drug
+
+Results include drug-level scores and ATC classification enrichment, stored in `{outdir}/results/{gwas}/gcsc/`.
+
+***
+
+## MAGMA tissue enrichment
+
+MAGMA tissue enrichment analysis tests whether genes expressed in specific tissues are enriched for GWAS associations. This uses GTEx tissue expression profiles to identify tissues where GWAS-associated genes are preferentially expressed, and performs conditional analysis to identify independently enriched tissues.
+
+Results are stored in `{outdir}/results/{gwas}/magma/`.
+
+***
+
+# Results packaging
+
+The `package_results` rule (`rules/report.smk`) aggregates all analysis results into a single R list object saved as `results_package.rds`. This file is the primary output for downstream analysis and visualisation.
+
+The results package contains nested lists structured by GWAS and analysis type, and can be loaded directly into R or explored using the bundled [Shiny application](pipeline_guide.html#using-the-shiny-explorer).
+
+***
+
+For questions or issues, please contact Oliver Pain (oliver.pain@kcl.ac.uk) or open an issue on the [GitHub repository](https://github.com/opain/GenoDisc).

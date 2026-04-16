@@ -2,10 +2,22 @@ name: "GenoDisc"
 output_dir: "."
 navbar:
   title: "GenoDisc"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Pipeline"
+      menu:
+        - text: "User Guide"
+          href: pipeline_guide.html
+        - text: "Technical Details"
+          href: pipeline_technical.html
   right:
     - icon: fa-github fa-lg
       href: https://github.com/opain/GenoDisc
-html_document:
-    includes:
-      in_header: header.html
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    css: styles/styles.css
       
