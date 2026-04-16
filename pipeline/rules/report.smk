@@ -80,6 +80,8 @@ rule package_results:
     "scripts/functions/package_results_functions.R"
   output:
     "{outdir}/results/results_package.rds"
+  benchmark:
+    "{outdir}/benchmarks/package_results.tsv"
   conda:
     "../envs/main.yaml"
   params:

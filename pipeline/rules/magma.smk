@@ -13,6 +13,8 @@ rule magma_gene_level:
     rules.magma_annot.output
   output:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw"
+  benchmark:
+    "{outdir}/benchmarks/magma_gene_level_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -33,6 +35,8 @@ rule format_magma_gene_results:
     "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw"
   output:
     "{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_magma_gene_results_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -51,6 +55,8 @@ rule magma_drug_targetor:
     f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt"
   output:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out"
+  benchmark:
+    "{outdir}/benchmarks/magma_drug_targetor_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -70,6 +76,8 @@ rule format_magma_results:
     rules.download_atc.output
   output:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_magma_results_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -88,6 +96,8 @@ rule comp_magma_gsea_twas_results:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   output:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"
+  benchmark:
+    "{outdir}/benchmarks/comp_magma_gsea_twas_results_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -106,6 +116,8 @@ rule magma_tissue_spec:
     f"{resdir}/data/gtex/GTEx_v8_group.tsv"
   output:
     "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out"
+  benchmark:
+    "{outdir}/benchmarks/magma_tissue_spec_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -126,6 +138,8 @@ rule magma_tissue_group:
     f"{resdir}/data/gtex/GTEx_v8_group.tsv"
   output:
     "{outdir}/results/{gwas}/magma/magma_tissue_group.gsa.out"
+  benchmark:
+    "{outdir}/benchmarks/magma_tissue_group_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -146,6 +160,8 @@ rule magma_tissue_conditional:
     "scripts/magma_tissue_conditional.R"
   output:
     touch("{outdir}/results/{gwas}/magma/magma_property_conditional.done")
+  benchmark:
+    "{outdir}/benchmarks/magma_tissue_conditional_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:

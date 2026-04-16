@@ -24,6 +24,8 @@ rule sumstat_prep_i:
     lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
   output:
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz"
+  benchmark:
+    f"{outdir}/benchmarks/sumstat_prep_i_{{gwas}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -59,6 +61,8 @@ rule focus_munge:
     premunged="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
   output:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz"
+  benchmark:
+    "{outdir}/benchmarks/focus_munge_{gwas}.tsv"
   conda:
     "../envs/focus.yaml"
   log:
@@ -73,6 +77,8 @@ rule retrieve_N:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz"
   output:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt"
+  benchmark:
+    "{outdir}/benchmarks/retrieve_N_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -92,6 +98,8 @@ rule ldsc:
     f"{resdir}/data/ldsc/w_hm3.snplist"
   output:
     "{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log"
+  benchmark:
+    "{outdir}/benchmarks/ldsc_{gwas}.tsv"
   conda:
     "../envs/ldsc.yaml"
   params:
@@ -114,6 +122,8 @@ rule clump:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
   output:
     touch("{outdir}/results/{gwas}/checks/{gwas}_chr{chr}.clumped.done")
+  benchmark:
+    "{outdir}/benchmarks/clump_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -148,6 +158,8 @@ rule process_clump:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_clump_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -173,6 +185,8 @@ rule cojo:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo"
   output:
     touch("{outdir}/results/{gwas}/checks/{gwas}_cojo_chr{chr}.done")
+  benchmark:
+    "{outdir}/benchmarks/cojo_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/ldsc.yaml"
   params:
@@ -206,6 +220,8 @@ rule process_cojo:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_cojo_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:

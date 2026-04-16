@@ -16,6 +16,8 @@ rule run_twas_gcsc:
     f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01"
   output:
     "{outdir}/results/{gwas}/gcsc/twas/{gcsc_tissue}/{gwas}_twas_{gcsc_tissue}_chr{chr}.dat"
+  benchmark:
+    "{outdir}/benchmarks/run_twas_gcsc_{gwas}_{gcsc_tissue}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -55,6 +57,8 @@ checkpoint prep_set_gcsc:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/gcsc/drugtargetor_gcsc_sets.nset.txt"
+  benchmark:
+    "{outdir}/benchmarks/prep_set_gcsc_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -84,6 +88,8 @@ rule run_gcsc_drugtargetor:
     "{outdir}/results/{gwas}/gcsc/drugtargetor_gcsc_sets.nset.txt"
   output:
     "{outdir}/results/{gwas}/gcsc/drugtargetor/{chunk}/GCSCresults.txt"
+  benchmark:
+    "{outdir}/benchmarks/run_gcsc_drugtargetor_{gwas}_{chunk}.tsv"
   conda:
     "../envs/gcsc.yaml"
   params:
@@ -115,6 +121,8 @@ rule combine_gcsc:
     "{outdir}/results/{gwas}/checks/run_gcsc_all_chunk.done"
   output:
     "{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv"
+  benchmark:
+    "{outdir}/benchmarks/combine_gcsc_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:

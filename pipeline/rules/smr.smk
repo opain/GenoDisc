@@ -11,6 +11,8 @@ rule format_sumstats_smr:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
   output:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo"
+  benchmark:
+    "{outdir}/benchmarks/format_sumstats_smr_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -32,6 +34,8 @@ rule run_psychencode_smr:
     rules.download_psychencode_smr.output
   output:
     "{outdir}/results/{gwas}/smr/psychencode/{gwas}_smr_psychencode_chr{chr}.smr"
+  benchmark:
+    "{outdir}/benchmarks/run_psychencode_smr_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -61,6 +65,8 @@ rule run_eqtlgen_smr:
     rules.download_eqtlgen.output
   output:
     "{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_chr{chr}.smr"
+  benchmark:
+    "{outdir}/benchmarks/run_eqtlgen_smr_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -87,6 +93,8 @@ rule format_eqtlgen_smr:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz"
+  benchmark:
+    "{outdir}/benchmarks/format_eqtlgen_smr_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -108,6 +116,8 @@ rule run_rosmap_smr:
     rules.format_rosmap_smr_data.output
   output:
     "{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_chr{chr}.smr"
+  benchmark:
+    "{outdir}/benchmarks/run_rosmap_smr_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -134,6 +144,8 @@ rule process_rosmap_smr:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz"
+  benchmark:
+    "{outdir}/benchmarks/process_rosmap_smr_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -159,6 +171,8 @@ rule smr_analysis_MetaBrain:
     rules.format_metabrain_esi.output
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{tissue}/{gwas}_smr_metabrain_{tissue}_chr{chr}.smr"
+  benchmark:
+    "{outdir}/benchmarks/smr_analysis_MetaBrain_{gwas}_{tissue}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -234,6 +248,8 @@ rule format_metabrain_smr:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"
+  benchmark:
+    "{outdir}/benchmarks/format_metabrain_smr_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:

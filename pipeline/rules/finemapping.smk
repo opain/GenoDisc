@@ -13,6 +13,8 @@ rule finemap:
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"
   output:
     "{outdir}/results/{gwas}/checks/{gwas}.chr{chr}.finemap.done"
+  benchmark:
+    "{outdir}/benchmarks/finemap_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -42,6 +44,8 @@ rule process_finemap:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_finemap_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:

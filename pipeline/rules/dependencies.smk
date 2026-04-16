@@ -110,6 +110,8 @@ else:
 rule download_biomart:
   output:
     f"{resdir}/data/biomart/biomart_genes_grch37.tsv"
+  benchmark:
+    f"{resdir}/benchmarks/download_biomart.tsv"
   params:
     resdir=resdir
   conda:
@@ -127,6 +129,8 @@ rule download_biomart:
 rule install_liftover:
   output:
     touch(f"{resdir}/software/install_liftover.done")
+  benchmark:
+    f"{resdir}/benchmarks/install_liftover.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -140,6 +144,8 @@ rule install_liftover:
 rule download_liftover_track:
   output:
     touch(f"{resdir}/software/download_liftover_track.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_liftover_track.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -161,6 +167,8 @@ rule prep_1kg:
     mem_mb=20000
   output:
     touch(f"{resdir}/data/prep_1kg.done")
+  benchmark:
+    f"{resdir}/benchmarks/prep_1kg.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -176,6 +184,8 @@ rule prep_1kg:
 rule install_ldsc:
   output:
     directory(f"{resdir}/software/ldsc/")
+  benchmark:
+    f"{resdir}/benchmarks/install_ldsc.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -189,6 +199,8 @@ rule install_ldsc:
 rule download_ldsc_scores:
   output:
     f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
+  benchmark:
+    f"{resdir}/benchmarks/download_ldsc_scores.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -201,6 +213,8 @@ rule download_ldsc_scores:
 rule download_ldsc_hm3:
   output:
     f"{resdir}/data/ldsc/w_hm3.snplist"
+  benchmark:
+    f"{resdir}/benchmarks/download_ldsc_hm3.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -214,6 +228,8 @@ rule download_ldsc_hm3:
 rule download_gcta:
   output:
     directory(f'{resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/')
+  benchmark:
+    f"{resdir}/benchmarks/download_gcta.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -229,6 +245,8 @@ rule install_genoutils:
     "envs/main.yaml"
   output:
     touch(f"{resdir}/software/install_genoutils.done")
+  benchmark:
+    f"{resdir}/benchmarks/install_genoutils.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -243,6 +261,8 @@ rule install_genoutils:
 rule download_magma:
   output:
     f"{resdir}/software/magma/magma"
+  benchmark:
+    f"{resdir}/benchmarks/download_magma.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -262,6 +282,8 @@ rule download_magma:
 rule download_magma_gene_loc:
   output:
     f"{resdir}/data/magma/NCBI37.3.gene.loc"
+  benchmark:
+    f"{resdir}/benchmarks/download_magma_gene_loc.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -281,6 +303,8 @@ rule download_magma_gene_loc:
 rule download_magma_ref:
   output:
     f"{resdir}/data/magma_ref/g1000_eur.bed"
+  benchmark:
+    f"{resdir}/benchmarks/download_magma_ref.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -304,6 +328,8 @@ rule magma_annot:
     rules.download_magma_ref.output
   output:
     f"{resdir}/data/magma/NCBI37.3.genes.annot"
+  benchmark:
+    f"{resdir}/benchmarks/magma_annot.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -324,6 +350,8 @@ rule magma_annot:
 rule download_atc:
   output:
     f"{resdir}/data/atc/atc_20220201.txt"
+  benchmark:
+    f"{resdir}/benchmarks/download_atc.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -344,6 +372,8 @@ rule download_atc:
 rule download_drug_targetor:
   output:
     f"{resdir}/data/drug_targetor/wholedatabase_for_targetor"
+  benchmark:
+    f"{resdir}/benchmarks/download_drug_targetor.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -361,6 +391,8 @@ rule format_drug_targetor:
   output:
     f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt",
     f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_symbols.gmt"
+  benchmark:
+    f"{resdir}/benchmarks/format_drug_targetor.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -378,6 +410,8 @@ rule prep_tissue_exp:
     "scripts/prep_tissue_exp.R"
   output:
     f"{resdir}/data/gtex/GTEx_v8_group.tsv"
+  benchmark:
+    f"{resdir}/benchmarks/prep_tissue_exp.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -393,6 +427,8 @@ rule prep_tissue_exp:
 rule install_fusion:
   output:
     directory(f"{resdir}/software/fusion/")
+  benchmark:
+    f"{resdir}/benchmarks/install_fusion.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -408,6 +444,8 @@ rule download_plink2R:
     rules.install_fusion.output
   output:
     f"{resdir}/software/plink2R/plink2R-master/data.bed"
+  benchmark:
+    f"{resdir}/benchmarks/download_plink2R.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -427,6 +465,8 @@ rule install_plink2R:
     "envs/main.yaml"
   output:
     touch(f"{resdir}/software/install_plink2R")
+  benchmark:
+    f"{resdir}/benchmarks/install_plink2R.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -440,6 +480,8 @@ rule install_plink2R:
 rule install_snp_weight_pipe:
   output:
     directory(f"{resdir}/software/Calculating-FUSION-TWAS-weights-pipeline/")
+  benchmark:
+    f"{resdir}/benchmarks/install_snp_weight_pipe.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -457,6 +499,8 @@ rule install_snp_weight_pipe:
 rule download_psychENCODE_weights:
   output:
     touch(f"{resdir}/data/download_psychENCODE_weights.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_psychENCODE_weights.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -478,6 +522,8 @@ rule format_psychencode:
     biomart=rules.download_biomart.output
   output:
     f"{resdir}/data/format_psychencode.done"
+  benchmark:
+    f"{resdir}/benchmarks/format_psychencode.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -492,6 +538,8 @@ gtex_weights=config["gtex_weights"]
 rule download_gtex_weights:
   output:
     touch(f"{resdir}/data/download_fusion_gtex_{{weight}}_weights.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_gtex_weights_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -508,6 +556,8 @@ rule update_gtex_coord:
     rules.download_biomart.output
   output:
     touch(f"{resdir}/data/update_gtex_coord_{{weight}}.done")
+  benchmark:
+    f"{resdir}/benchmarks/update_gtex_coord_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -525,6 +575,8 @@ non_gtex_weights=config["non_gtex_weights"]
 rule download_non_gtex_weights:
   output:
     touch(f"{resdir}/data/download_non_gtex_{{weight}}_weights.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_non_gtex_weights_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -541,6 +593,8 @@ rule insert_n_nongtex:
     rules.download_biomart.output
   output:
     touch(f"{resdir}/data/insert_n_nongtex_{{weight}}.done")
+  benchmark:
+    f"{resdir}/benchmarks/insert_n_nongtex_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -556,6 +610,8 @@ rule insert_n_nongtex_all_panel:
 rule download_glist:
   output:
     f"{resdir}/data/glist-hg19"
+  benchmark:
+    f"{resdir}/benchmarks/download_glist.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -572,6 +628,8 @@ rule download_glist:
 rule install_twas_gsea:
   output:
     directory(f"{resdir}/software/TWAS-GSEA/")
+  benchmark:
+    f"{resdir}/benchmarks/install_twas_gsea.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -589,6 +647,8 @@ rule install_twas_gsea:
 rule install_feature_pred:
   output:
     directory(f"{resdir}/software/Predicting-TWAS-features/")
+  benchmark:
+    f"{resdir}/benchmarks/install_feature_pred.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -605,6 +665,8 @@ rule install_feature_pred:
 rule install_pigz:
   output:
     f"{resdir}/software/pigz/pigz/pigz"
+  benchmark:
+    f"{resdir}/benchmarks/install_pigz.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -671,6 +733,8 @@ rule feature_pred:
     feature_pred_input
   output:
     f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/Reference_Expression_{{weight}}.txt.gz"
+  benchmark:
+    f"{resdir}/benchmarks/feature_pred_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -699,6 +763,8 @@ rule format_pred:
     f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/Reference_Expression_{{weight}}.txt.gz"
   output:
     touch(f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done")
+  benchmark:
+    f"{resdir}/benchmarks/format_pred_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -718,6 +784,8 @@ rule install_lme4qtl:
     "envs/main.yaml"
   output:
     touch(f"{resdir}/software/install_lme4qtl.done")
+  benchmark:
+    f"{resdir}/benchmarks/install_lme4qtl.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -732,6 +800,8 @@ rule install_lme4qtl:
 rule format_pwas_data:
   output:
     f"{resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos"
+  benchmark:
+    f"{resdir}/benchmarks/format_pwas_data.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -751,6 +821,8 @@ rule format_drug_targetor_for_twas_gsea:
     rules.download_magma_gene_loc.output
   output:
     f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_directional.prop"
+  benchmark:
+    f"{resdir}/benchmarks/format_drug_targetor_for_twas_gsea.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -765,6 +837,8 @@ rule format_drug_targetor_for_twas_gsea:
 rule download_smr:
   output:
     f"{resdir}/software/smr/smr_linux_x86_64"
+  benchmark:
+    f"{resdir}/benchmarks/download_smr.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -788,6 +862,8 @@ rule format_rosmap_smr_data:
     rules.prep_1kg.output
   output:
     f"{resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
+  benchmark:
+    f"{resdir}/benchmarks/format_rosmap_smr_data.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -805,6 +881,8 @@ rule format_rosmap_smr_data:
 rule download_psychencode_smr:
   output:
     directory(f"{resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/")
+  benchmark:
+    f"{resdir}/benchmarks/download_psychencode_smr.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -826,6 +904,8 @@ rule download_psychencode_smr:
 rule download_MetaBrain_Basalganglia:
   output:
     directory(f"{resdir}/data/MetaBrain/Basalganglia")
+  benchmark:
+    f"{resdir}/benchmarks/download_MetaBrain_Basalganglia.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -842,6 +922,8 @@ rule download_MetaBrain_Basalganglia:
 rule download_MetaBrain_Cerebellum:
   output:
     directory(f"{resdir}/data/MetaBrain/Cerebellum")
+  benchmark:
+    f"{resdir}/benchmarks/download_MetaBrain_Cerebellum.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -858,6 +940,8 @@ rule download_MetaBrain_Cerebellum:
 rule download_MetaBrain_Cortex:
   output:
     directory(f"{resdir}/data/MetaBrain/Cortex")
+  benchmark:
+    f"{resdir}/benchmarks/download_MetaBrain_Cortex.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -874,6 +958,8 @@ rule download_MetaBrain_Cortex:
 rule download_MetaBrain_Hippocampus:
   output:
     directory(f"{resdir}/data/MetaBrain/Hippocampus")
+  benchmark:
+    f"{resdir}/benchmarks/download_MetaBrain_Hippocampus.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -890,6 +976,8 @@ rule download_MetaBrain_Hippocampus:
 rule download_MetaBrain_Spinalcord:
   output:
     directory(f"{resdir}/data/MetaBrain/Spinalcord")
+  benchmark:
+    f"{resdir}/benchmarks/download_MetaBrain_Spinalcord.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -918,6 +1006,8 @@ rule format_metabrain_esi:
     f"{resdir}/data/MetaBrain_download.out"
   output:
     touch(f"{resdir}/data/MetaBrain/format_MetaBrain_esi.out")
+  benchmark:
+    f"{resdir}/benchmarks/format_metabrain_esi.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -929,6 +1019,8 @@ rule format_metabrain_esi:
 rule download_eqtlgen:
   output:
     touch(f"{resdir}/data/eqtlgen.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_eqtlgen.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -950,6 +1042,8 @@ rule download_eqtlgen:
 rule install_gcsc:
   output:
     directory(f"{resdir}/software/GCSC/")
+  benchmark:
+    f"{resdir}/benchmarks/install_gcsc.tsv"
   conda:
     "../envs/main.yaml"
   log:
@@ -968,6 +1062,8 @@ gcsc_tissues=config["gcsc_tissues"]
 rule download_gcsc_coreg:
   output:
     f"{resdir}/data/GCSC/coreg/{{gcsc_tissue}}_geneNames.txt"
+  benchmark:
+    f"{resdir}/benchmarks/download_gcsc_coreg_{{gcsc_tissue}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -988,6 +1084,8 @@ rule download_gcsc_coreg_all_tissue:
 rule download_gcsc_twas_weights:
   output:
     directory(f"{resdir}/data/GCSC/twas_weights/GTEx.{{gcsc_tissue}}.P01")
+  benchmark:
+    f"{resdir}/benchmarks/download_gcsc_twas_weights_{{gcsc_tissue}}.tsv"
   conda:
     "../envs/main.yaml"
   params:

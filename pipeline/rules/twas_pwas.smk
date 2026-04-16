@@ -21,6 +21,8 @@ rule run_twas:
     rules.insert_n_nongtex_all_panel.input,
   output:
     "{outdir}/results/{gwas}/twas/{weights}/{gwas}_twas_{weights}_chr{chr}"
+  benchmark:
+    "{outdir}/benchmarks/run_twas_{gwas}_{weights}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -58,6 +60,8 @@ checkpoint combine_twas_res:
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
+  benchmark:
+    "{outdir}/benchmarks/combine_twas_res_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -91,6 +95,8 @@ rule run_conditional:
     rules.download_glist.output
   output:
     touch("{outdir}/results/{gwas}/checks/run_conditional_{gwas}_{chr}.done")
+  benchmark:
+    "{outdir}/benchmarks/run_conditional_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -121,6 +127,8 @@ rule process_conditional:
     "{outdir}/results/{gwas}/checks/conditional_all_chr.done"
   output:
     "{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_conditional_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -148,6 +156,8 @@ rule run_rosmap_pwas:
     prep_1kg=rules.prep_1kg.output
   output:
     "{outdir}/results/{gwas}/pwas/rosmap/{gwas}_pwas_rosmap_chr{chr}"
+  benchmark:
+    "{outdir}/benchmarks/run_rosmap_pwas_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -183,6 +193,8 @@ rule run_banner_pwas:
     prep_1kg=rules.prep_1kg.output
   output:
     "{outdir}/results/{gwas}/pwas/banner/{gwas}_pwas_banner_chr{chr}"
+  benchmark:
+    "{outdir}/benchmarks/run_banner_pwas_{gwas}_chr{chr}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -223,6 +235,8 @@ rule build_twas_gsea_cormat:
     f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done"
   output:
     f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
+  benchmark:
+    f"{resdir}/benchmarks/build_twas_gsea_cormat_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -251,6 +265,8 @@ rule run_twas_gsea_drug_targetor:
     f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
   output:
     touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
+  benchmark:
+    "{outdir}/benchmarks/run_twas_gsea_drug_targetor_{gwas}_{weight}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -279,6 +295,8 @@ rule format_twas_gsea_drugtargetor_results:
     rules.download_atc.output
   output:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_drugtargetor_results_{gwas}_{weight}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -316,6 +334,8 @@ rule run_twas_gsea_drug_targetor_nondirectional:
     f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
   output:
     touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_nondir_{weight}.done")
+  benchmark:
+    "{outdir}/benchmarks/run_twas_gsea_drug_targetor_nondirectional_{gwas}_{weight}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -342,6 +362,8 @@ rule format_twas_gsea_drugtargetor_nondirectional_results:
     rules.download_atc.output
   output:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_drugtargetor_nondirectional_results_{gwas}_{weight}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -382,6 +404,8 @@ rule run_twas_gsea_cmap:
     config["cmap_level5_prop"] if config["twas_gsea_cmap"] == "T" else []
   output:
     touch("{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}.done")
+  benchmark:
+    "{outdir}/benchmarks/run_twas_gsea_cmap_{gwas}_{weight}.tsv"
   conda:
     "../envs/main.yaml"
   params:
@@ -416,6 +440,8 @@ rule format_twas_gsea_cmap_results:
   output:
     "{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}_drug_res.csv",
     "{outdir}/results/{gwas}/twas/cmap/twas_gsea_cmap_{weight}_moa_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_cmap_results_{gwas}_{weight}.tsv"
   conda:
     "../envs/main.yaml"
   params:
