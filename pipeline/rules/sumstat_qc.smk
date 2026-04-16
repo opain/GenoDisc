@@ -16,7 +16,7 @@ rule sumstat_prep_i:
   resources:
     mem_mb=lambda wildcards, input: max(
       8000,
-      int(4000 + (10 * os.path.getsize(input[2]) / 1024**2))
+      int(3500 + (16 * os.path.getsize(input[2]) / 1024**2))
     )
   input:
     rules.prep_1kg.output,
