@@ -77,3 +77,6 @@ smr_protein_panel_rosmap: T
 gcsc: T
 gcsc_tissues: ["Whole_Blood"]
 
+# MAGMA tissue-specific + conditional tissue enrichment (GTEx v8)
+tissue_magma: T
+

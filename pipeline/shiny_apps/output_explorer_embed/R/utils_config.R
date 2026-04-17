@@ -43,6 +43,8 @@ parse_config_flags <- function(config) {
   twas_gsea_drugtargetor_nondirectional <- flag(config, "twas_gsea_drugtargetor_nondirectional")
   twas_gsea_cmap <- flag(config, "twas_gsea_cmap")
 
+  tissue_magma <- flag(config, "tissue_magma")
+
   # Composite flags
   mol_assoc <- any(magma_gene,
                    twas,
@@ -113,6 +115,7 @@ parse_config_flags <- function(config) {
     twas_gsea_drugtargetor = twas_gsea_drugtargetor,
     twas_gsea_drugtargetor_nondirectional = twas_gsea_drugtargetor_nondirectional,
     twas_gsea_cmap = twas_gsea_cmap,
+    tissue_magma = tissue_magma,
     mol_assoc = mol_assoc,
     metabrain = metabrain,
     smr_expression = smr_expression,

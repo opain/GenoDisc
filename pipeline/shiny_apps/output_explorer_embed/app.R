@@ -78,7 +78,7 @@ server <- function(input, output, session) {
     }
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
     toggle("Molecular Associations", cf$mol_assoc)
-    toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional))
+    toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma))
   })
 
   # Wire up all modules

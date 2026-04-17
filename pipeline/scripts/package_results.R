@@ -236,12 +236,6 @@ for(gwas_i in gwas_list$name){
 
   tissue$specific<-read_magma_tissue(config=opt$config, gwas=gwas_i, type='specific')
 
-  ######
-  # Tissue-groups
-  ######
-
-  tissue$group<-read_magma_tissue(config=opt$config, gwas=gwas_i, type='group')
-
   ################
   # Package results
   ################

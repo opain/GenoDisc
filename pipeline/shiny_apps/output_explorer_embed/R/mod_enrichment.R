@@ -19,16 +19,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     ########
 
     output$enrichment_tabs <- renderUI({
-      req(config_flags(), tx_drug_summary_data(), tx_atc_summary_data())
+      req(config_flags())
       cf <- config_flags()
 
-      # Pre-compute Drug choices
-      drug_data <- tx_drug_summary_data()
+      drug_targetor_available <- any(cf$magma_drugtargetor, cf$gcsc,
+                                     cf$twas_gsea_drugtargetor,
+                                     cf$twas_gsea_drugtargetor_nondirectional)
+
+      # Pre-compute Drug choices (may be NULL if no drug enrichment was run)
+      drug_data <- if (drug_targetor_available) tx_drug_summary_data() else NULL
       drug_methods <- unique(drug_data$Method)
       drug_expr_panels <- unique(drug_data$Panel[grepl('^TWAS-GSEA', drug_data$Method)])
 
       # Pre-compute ATC choices
-      atc_data <- tx_atc_summary_data()
+      atc_data <- if (drug_targetor_available) tx_atc_summary_data() else NULL
       atc_methods <- unique(atc_data$Method)
       atc_expr_panels <- unique(atc_data$Panel[grepl('^TWAS-GSEA', atc_data$Method)])
 
@@ -200,13 +204,43 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
                               list(do.call(tabsetPanel, cmap_inner))))
       }
 
-      drug_targetor_inner <- list(
-        do.call(tabPanel, c(list(title="Drug", br()), list(do.call(tabsetPanel, drug_tabs)))),
-        do.call(tabPanel, c(list(title="ATC", br()),  list(do.call(tabsetPanel, atc_tabs))))
-      )
-      outer_tabs <- list(
-        do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
-      )
+      # Build Tissue tab (MAGMA tissue-specific enrichment)
+      tissue_tab <- NULL
+      if (cf$tissue_magma) {
+        tissue_data <- build_tissue_data(gwas_data()[[selected_gwas()]])
+        if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
+          tissue_tab <- tabPanel(
+            title="Tissue", br(),
+            p("MAGMA tissue-specific enrichment across GTEx v8 tissues. Filled square = FDR-significant (P.FDR < 0.05); bold label with * = retained in the conditional analysis (still significant after conditioning on the other FDR-significant tissues)."),
+            hr(),
+            fluidPage(
+              sidebarPanel(
+                radioButtons(ns("conf_only_tissue"), "Show FDR significant only :",
+                             choices = c("True" = T, "False" = F), selected = F),
+                width = 3
+              ),
+              mainPanel(
+                plotOutput(ns("tx_tissue_plot"), height = "700px"),
+                br(),
+                dataTableOutput(ns("tx_tissue_table")),
+                width = 9
+              )
+            )
+          )
+        }
+      }
+
+      outer_tabs <- list()
+      if (!is.null(tissue_tab)) outer_tabs <- c(outer_tabs, list(tissue_tab))
+      if (drug_targetor_available) {
+        drug_targetor_inner <- list(
+          do.call(tabPanel, c(list(title="Drug", br()), list(do.call(tabsetPanel, drug_tabs)))),
+          do.call(tabPanel, c(list(title="ATC", br()),  list(do.call(tabsetPanel, atc_tabs))))
+        )
+        outer_tabs <- c(outer_tabs, list(
+          do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
+        ))
+      }
       if (!is.null(cmap_tab)) outer_tabs <- c(outer_tabs, list(cmap_tab))
 
       do.call(tabsetPanel, outer_tabs)
@@ -1156,6 +1190,83 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       datatable(d, rownames = FALSE,
                 options = list(scrollX = TRUE,
                                columnDefs = list(list(className = 'dt-center', targets = '_all'))))
+    })
+
+    #######
+    # Tissue-specific enrichment (MAGMA tissue_spec + conditional retention)
+    #######
+
+    tx_tissue_data <- reactive({
+      req(gwas_data(), selected_gwas())
+      build_tissue_data(gwas_data()[[selected_gwas()]])
+    })
+
+    tx_tissue_data_filtered <- reactive({
+      d <- tx_tissue_data()
+      if (is.null(d)) return(NULL)
+      if (isTRUE(as.logical(input$conf_only_tissue))) {
+        d <- d[which(d$FDR_Sig), ]
+      }
+      d
+    })
+
+    output$tx_tissue_plot <- renderPlot({
+      d <- tx_tissue_data_filtered()
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+
+      d <- d[order(d$negLog10P), ]
+      d$Label <- ifelse(d$Retained, paste0(d$Tissue, " *"), d$Tissue)
+      d$Label <- factor(d$Label, levels = d$Label)
+      face_vec <- ifelse(d$Retained, "bold", "plain")
+
+      n_tissues <- nrow(tx_tissue_data())
+      nom_line  <- -log10(0.05)
+      bonf_line <- -log10(0.05 / n_tissues)
+
+      ggplot(d, aes(x = negLog10P, y = Label)) +
+        geom_segment(aes(x = 0, xend = negLog10P, yend = Label), colour = "grey60") +
+        geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey50") +
+        geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey30") +
+        geom_point(aes(shape = FDR_Sig, fill = FDR_Sig), size = 3, colour = "black") +
+        scale_shape_manual(values = c(`FALSE` = 21, `TRUE` = 22),
+                           labels = c(`FALSE` = "Not FDR-sig", `TRUE` = "FDR-sig"),
+                           name = NULL) +
+        scale_fill_manual(values = c(`FALSE` = "white", `TRUE` = "black"),
+                          labels = c(`FALSE` = "Not FDR-sig", `TRUE` = "FDR-sig"),
+                          name = NULL) +
+        labs(x = expression(-log[10](italic(P))), y = NULL) +
+        theme_bw(base_size = 12) +
+        theme(axis.text.y = element_text(face = face_vec),
+              legend.position = "top",
+              panel.grid.major.y = element_blank())
+    })
+
+    output$tx_tissue_table <- renderDataTable({
+      d <- tx_tissue_data_filtered()
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+      js <- c(
+        "function(row, data, displayNum, index){",
+        "  var x = data[4];",
+        "  $('td:eq(4)', row).html(x.toExponential(2));",
+        "  var y = data[5];",
+        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "}"
+      )
+      tmp <- d[, c("Tissue", "N Gene", "BETA", "SE", "P", "P.FDR", "Retained")]
+      tmp$BETA <- round(tmp$BETA, 3)
+      tmp$SE   <- round(tmp$SE, 3)
+      datatable(
+        tmp,
+        rownames = FALSE,
+        options = list(
+          rowCallback = JS(js),
+          columnDefs = list(
+            list(className = 'dt-center', targets = '_all'),
+            list(width = '60px', targets = 4:5)
+          )
+        ),
+        escape = FALSE
+      )
     })
 
   })

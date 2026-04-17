@@ -278,6 +278,26 @@ build_cmap_drug_summary_data <- function(gwas_results) {
   d
 }
 
+#' Build tissue-specific enrichment summary data
+#'
+#' Reads MAGMA tissue-specific results (already FDR-adjusted and relabelled in
+#' the packaging step). Adds a Retained flag indicating whether the tissue
+#' survived the upstream conditional analysis.
+#'
+#' @param gwas_results The per-GWAS results list
+#' @return data.frame ordered by P, or NULL if tissue data absent
+build_tissue_data <- function(gwas_results) {
+  spec <- safe_access(gwas_results, "tissue", "specific")
+  if (is.null(spec) || is.null(spec$res) || nrow(spec$res) == 0) return(NULL)
+  d <- as.data.frame(spec$res)
+  keep <- if (is.null(spec$keep)) character(0) else spec$keep
+  d$Retained  <- d$Tissue %in% keep
+  d$FDR_Sig   <- d$P.FDR < 0.05
+  d$Nom_Sig   <- d$P     < 0.05
+  d$negLog10P <- -log10(d$P)
+  d[order(d$P), ]
+}
+
 #' Build CMAP per-MOA enrichment summary data
 build_cmap_moa_summary_data <- function(gwas_results) {
   d <- safe_access(gwas_results, "tx", "cmap", "moa")

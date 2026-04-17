@@ -172,3 +172,6 @@ rule magma_tissue_conditional:
     "Rscript scripts/magma_tissue_conditional.R \
       --config_file {params.config_file} \
       --gwas {wildcards.gwas} > {log} 2>&1"
+
+rule magma_tissue_conditional_all:
+  input: expand(f"{outdir}/results/{{gwas}}/magma/magma_property_conditional.done", gwas=gwas_list_df_eur['name'])

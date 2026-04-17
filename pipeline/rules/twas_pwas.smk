@@ -59,7 +59,9 @@ checkpoint combine_twas_res:
     "{outdir}/results/{gwas}/checks/twas_all_panel.done",
     rules.download_biomart.output
   output:
-    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz",
+    expand("{{outdir}}/results/{{gwas}}/twas/{{gwas}}_twas_{weight}_GW_clean.txt.gz",
+           weight=weights_nosplice)
   benchmark:
     "{outdir}/benchmarks/combine_twas_res_{gwas}.tsv"
   conda:

@@ -796,33 +796,17 @@ read_magma_tissue<-function(config, gwas, type){
 
       dat$res<-property_enrich
 
-      # Read in list of retained tissues
-      property_keep<-fread(paste0(outdir,"/results/",gwas,'/magma/magma_tissue_conditional.indep.txt'), header=F)$V1
-      property_keep<-tissue_groups$Tissue[tissue_groups$new %in% property_keep]
-
-      dat$keep<-property_keep
-
-    }
-
-    if(type == 'group'){
-
-      # Read in the MAGMA gene property enrichment results
-      property_enrich<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",gwas,'/magma/magma_tissue_group.gsa.out'))
-
-      # Insert FULL_NAME column if not present
-      if(all(names(property_enrich) != 'FULL_NAME')){
-          property_enrich$FULL_NAME<-property_enrich$VARIABLE
+      # Read in list of retained tissues (file is only written when >=1
+      # tissue is FDR-significant; treat absence as "no retained tissues")
+      indep_file<-paste0(outdir,"/results/",gwas,'/magma/magma_tissue_conditional.indep.txt')
+      if(file.exists(indep_file)){
+        property_keep<-fread(indep_file, header=F)$V1
+        property_keep<-tissue_groups$Tissue[tissue_groups$new %in% property_keep]
+      } else {
+        property_keep<-character(0)
       }
 
-      # Calculate FDR-corrected p-value
-      property_enrich$P.FDR<-p.adjust(property_enrich$P, method = 'fdr')
-      property_enrich$Group<-gsub('_',' ', property_enrich$FULL_NAME)
-
-      # Remove unwanted columns
-      property_enrich<-property_enrich[, c('Group','NGENES','BETA','SE','P','P.FDR'), with=F]
-      names(property_enrich)<-c('Group','N Gene','BETA','SE','P','P.FDR')
-
-      dat$res<-property_enrich
+      dat$keep<-property_keep
 
     }
   }
