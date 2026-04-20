@@ -479,6 +479,107 @@ names(results)
 
 ***
 
+## Structure of the results package
+
+`results_package.rds` loads as a list with one entry per GWAS (keyed by the
+`name` column of the GWAS list file) plus a top-level `configuration` entry.
+Any element gated by a config flag that was not enabled is `NULL`, so the tree
+below is a maximum — individual runs will have fewer populated leaves.
+
+The per-GWAS list (`results$<gwas>`) is organised as follows:
+
+```
+<gwas>/
+  gwas_qc/                      # GWAS summary-statistic QC
+    cleaner_dat                 # sumstat cleaner log + parsed values
+    focus_dat                   # FOCUS log + lambda_GC / max_chi2 / N sig SNPs
+    ldsc_dat                    # NULL unless ldsc: T
+    maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
+
+  snp_assoc/                    # SNP-level associations
+    clump                       # data.frame; NULL unless clump: T
+    cojo                        # data.frame; NULL unless cojo: T
+    susie/                      # NULL unless finemap: T
+      L1                        # SuSiE fine-mapping with L=1
+      L10                       # SuSiE fine-mapping with L=10
+
+  mol_assoc/                    # Molecular (gene-level) associations
+    exp/                        # Expression
+      fusion                    # list(panels, res); NULL unless any
+                                # twas_panel_* flag is T
+      smr                       # list(panels, results); NULL unless any
+                                # smr_expression_panel_* flag is T
+    protein/                    # Protein
+      fusion                    # list(panels, results); NULL unless any
+                                # pwas_panel_* flag is T
+      smr                       # list(panels, results); NULL unless
+                                # smr_protein_panel_rosmap: T
+    magma                       # data.frame; NULL unless magma_gene: T
+    nearest/                    # Nearest genes to clump / cojo lead SNPs
+      clump                     # character vector; present if clump: T
+      cojo                      # character vector; present if cojo: T
+    finemap/                    # Genes overlapping SuSiE credible sets
+      L1                        # character vector; present if finemap: T
+      L10                       # character vector; present if finemap: T
+
+  tx/                           # Drug repurposing / enrichment
+    drug/                       # Per-drug results
+      magma                     # NULL unless magma_drugtargetor: T
+      gcsc                      # NULL unless gcsc: T
+      twas_gsea                 # directional; NULL unless
+                                # twas_gsea_drugtargetor: T
+      twas_gsea_nondir          # non-directional; NULL unless
+                                # twas_gsea_drugtargetor_nondirectional: T
+    atc/                        # ATC-class aggregations of the same four
+      magma                     # sources (same gating flags as tx$drug)
+      gcsc
+      twas_gsea
+      twas_gsea_nondir
+    cmap/                       # NULL unless twas_gsea_cmap: T
+      drug                      # per-signature x panel results
+      moa                       # per-MOA enrichment
+
+  tissue/                       # Tissue enrichment
+    specific/                   # NULL unless tissue_magma: T
+      res                       # data.frame of MAGMA tissue results
+      keep                      # character vector: tissues retained after
+                                # the conditional step
+```
+
+The top-level `configuration` entry captures the provenance of the run:
+
+```
+configuration/
+  repo/
+    remote                      # git remote URL
+    branch                      # git branch at time of run
+    commit                      # git describe --tags --always output
+  config                        # character vector: full merged config as
+                                # "key: value" strings
+  gwas_list                     # data.frame: the parsed gwas_list file
+```
+
+A few leaf tables worth flagging:
+
+- `mol_assoc$exp$fusion$res` — one row per TWAS gene x panel, with `TWAS.Z`,
+  `TWAS.P`, `TWAS.P.FDR`, `COLOC.PP3`, `COLOC.PP4`, and a derived
+  `COLOC_logical` (`(PP4 - PP3) / PP4 > 0.8`).
+- `tx$cmap$drug` — one row per (CMAP signature x TWAS panel). Columns include
+  `cmap_name`, `cell_iname`, `pert_itime`, `pert_idose`, `moa`, `Panel`,
+  `Estimate`, `SE`, `Z`, `P`. `P.FDR` is pooled across all panels for
+  cross-panel ranking, and `P.FDR (per panel)` preserves the within-panel FDR.
+  This table's row count scales as signatures x panels and can dominate the
+  rds size; use the `cmap_cell_iname`, `cmap_pert_itime`, and `cmap_pert_idose`
+  config options to restrict signatures before packaging.
+- `tissue$specific$keep` — a character vector (not a data.frame) listing the
+  tissues that survived the conditional-analysis step.
+
+The exact columns of every leaf data.frame can be inspected directly, e.g.
+`str(results$<gwas>$tx, max.level = 2)` or
+`names(results$<gwas>$mol_assoc$exp$fusion$res)`.
+
+***
+
 ## Using the Shiny explorer
 
 GenoDisc includes an interactive Shiny application for exploring results. The app is located at `shiny_apps/output_explorer_embed/`.
