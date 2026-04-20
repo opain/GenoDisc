@@ -29,7 +29,7 @@ outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in TWAS-GSEA results
-res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',opt$panel,'.competitive.txt'))
+res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',opt$panel,'.competitive.txt'), sep = ' ')
 
 if(opt$mode == 'directional'){
   # Both signs of T are interpretable (drug mimics vs reverses disease signature),
@@ -43,6 +43,8 @@ if(opt$mode == 'directional'){
 }
 
 res$P.CORR<-p.adjust(res$P, method='fdr')
+
+res$GeneSet <- gsub('[[:punct:]]', '.', res$GeneSet)
 
 res$ATC<-gsub('ATC.','',gsub('\\.NAME.*','',res$GeneSet))
 res$NAME<-tolower(gsub('\\.CID\\..*','',gsub('.*NAME\\.','',res$GeneSet)))
@@ -58,16 +60,16 @@ names(atc)<-c('Code','Name')
 atc$Name<-tolower(atc$Name)
 
 res_atc<-merge(res, atc, by.x='NAME', by.y='Name')
-res_atc$atc_cat<-substr(res_atc$Code, 1, 4) 
+res_atc$atc_cat<-substr(res_atc$Code, 1, 4)
 
 # Test for enrichment for each ATC catagory
 atc_enrich<-NULL
 for(cat in unique(res_atc$atc_cat)){
   class_bin<-rep(0, nrow(res_atc))
   class_bin[res_atc$atc_cat == cat]<-1
-  
+
   if(sum(class_bin == 1) > 5){
-    
+
     # Use wilcoxon test
     if(opt$mode == 'directional'){
       # Preserve historical Estimate sign convention (group1 = out-class, group2 = in-class).
@@ -79,7 +81,7 @@ for(cat in unique(res_atc$atc_cat)){
       out_T <- rank(res_atc$T)[class_bin == 0]
       wil_cox_res<-wilcox.test(in_T, out_T, conf.int =T, alternative = 'greater')
     }
-    
+
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
                                              Class_Median=median(res_atc$Estimate[class_bin == 1]),
@@ -96,14 +98,14 @@ atc_enrich<-atc_enrich[order(atc_enrich$P),]
 write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res.csv'), row.names=F)
 
 # Test for enrichment for each level 4 ATC category
-res_atc$atc_cat_2<-substr(res_atc$Code, 1, 5) 
+res_atc$atc_cat_2<-substr(res_atc$Code, 1, 5)
 atc_enrich_2<-NULL
 for(cat in unique(res_atc$atc_cat_2)){
   class_bin<-rep(0, nrow(res_atc))
   class_bin[res_atc$atc_cat_2 == cat]<-1
-  
+
   if(sum(class_bin == 1) > 2){
-    
+
     # Use wilcoxon test
     if(opt$mode == 'directional'){
       # Preserve historical Estimate sign convention (group1 = out-class, group2 = in-class).
@@ -115,7 +117,7 @@ for(cat in unique(res_atc$atc_cat_2)){
       out_T <- rank(res_atc$T)[class_bin == 0]
       wil_cox_res<-wilcox.test(in_T, out_T, conf.int =T, alternative = 'greater')
     }
-    
+
     atc_enrich_2<-rbind(atc_enrich_2, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
                                              Class_Median=median(res_atc$Estimate[class_bin == 1]),
