@@ -69,6 +69,27 @@ if(!('cmap_name' %in% names(cmpd)) || !('moa' %in% names(cmpd))) {
 cmpd <- unique(cmpd[, .(cmap_name_lc = tolower(cmap_name), moa)])
 res$moa <- cmpd$moa[match(tolower(res$cmap_name), cmpd$cmap_name_lc)]
 
+# Restrict to user-specified cell lines / times / doses (empty = keep all).
+apply_cmap_filter <- function(dat, column, keep) {
+  if(is.null(keep) || length(keep) == 0) return(dat)
+  n_before <- nrow(dat)
+  dat <- dat[dat[[column]] %in% keep, ]
+  message('CMAP filter on ', column, ': kept ', nrow(dat), ' of ', n_before, ' rows.')
+  dat
+}
+filter_cell <- unlist(read_param(config = opt$config_file, param = 'cmap_cell_iname', return_obj = FALSE, quiet = TRUE))
+filter_time <- unlist(read_param(config = opt$config_file, param = 'cmap_pert_itime', return_obj = FALSE, quiet = TRUE))
+filter_dose <- unlist(read_param(config = opt$config_file, param = 'cmap_pert_idose', return_obj = FALSE, quiet = TRUE))
+res <- apply_cmap_filter(res, 'cell_iname', filter_cell)
+res <- apply_cmap_filter(res, 'pert_itime', filter_time)
+res <- apply_cmap_filter(res, 'pert_idose', filter_dose)
+
+# Recompute per-panel FDR over the retained subset so P.FDR reflects the
+# multiple-testing burden within the user's signature scope.
+if(length(filter_cell) > 0 || length(filter_time) > 0 || length(filter_dose) > 0) {
+  res$P.FDR <- p.adjust(res$P, method = 'fdr')
+}
+
 # ---- Per-signature CSV --------------------------------------------------
 drug_out <- res[, .(cmap_name, cell_iname, pert_itime, pert_idose, moa,
                     N_Mem_Avail, Estimate, SE, Z, P, P.FDR, Panel)]

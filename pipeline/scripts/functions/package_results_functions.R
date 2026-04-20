@@ -97,16 +97,74 @@ process_susie<-function(outdir, gwas, L){
 
 tidy_panel_names<-function(x){
 
-  panel_names<-data.table(t(matrix(c("CMC.BRAIN.RNASEQ_SPLICING","Brain - DLPFC - Splice (CMC)","Brain_Anterior_cingulate_cortex_BA24","Brain - Anterior cingulate cortex BA24 (GTEx)","psychencode","Brain - DLPFC (PsychENCODE)","Brain_Cerebellar_Hemisphere","Brain - Cerebellar hemisphere (GTEx)","NTR.BLOOD.RNAARR","Blood (NTR)","Brain_Cortex","Brain - Cortex (GTEx)","Brain_Caudate_basal_ganglia","Brain - Caudate basal ganglia (GTEx)","YFS.BLOOD.RNAARR","Blood (YFS)","Brain_Hippocampus","Brain - Hippocampus (GTEx)","Brain_Substantia_nigra","Brain - Substantia nigra (GTEx)","Brain_Nucleus_accumbens_basal_ganglia","Brain - Nucleus accumbens basal ganglia (GTEx)","Brain_Putamen_basal_ganglia","Brain - Putamen basal ganglia (GTEx)","Brain_Frontal_Cortex_BA9","Brain - Frontal cortex BA9 (GTEx)","Whole_Blood","Blood (GTEx)","CMC.BRAIN.RNASEQ","Brain - DLPFC (CMC)","Brain_Cerebellum","Brain - Cerebellum (GTEx)","Brain_Spinal_cord_cervical_c-1","Brain - Spinal cord vervical c-1 (GTEx)","Brain_Hypothalamus","Brain - Hypothalamus (GTEx)","kcl_brainbank_motor_cortex","Brain - Motor cortex (KCL Brain Bank)","Brain_Amygdala","Brain - Amygdala (GTEx)"), nrow=2)))
+  # Mapping from raw panel names to display-friendly labels. Any panel not in
+  # this lookup falls through to its original name so new / unknown panels are
+  # not silently dropped.
+  panel_map <- c(
+    # GTEx v8 tissues (FUSION panels named after the GTEx tissue)
+    "Adipose_Subcutaneous"                  = "Adipose - Subcutaneous (GTEx)",
+    "Adipose_Visceral_Omentum"              = "Adipose - Visceral omentum (GTEx)",
+    "Adrenal_Gland"                         = "Adrenal gland (GTEx)",
+    "Artery_Aorta"                          = "Artery - Aorta (GTEx)",
+    "Artery_Coronary"                       = "Artery - Coronary (GTEx)",
+    "Artery_Tibial"                         = "Artery - Tibial (GTEx)",
+    "Brain_Amygdala"                        = "Brain - Amygdala (GTEx)",
+    "Brain_Anterior_cingulate_cortex_BA24"  = "Brain - Anterior cingulate cortex BA24 (GTEx)",
+    "Brain_Caudate_basal_ganglia"           = "Brain - Caudate basal ganglia (GTEx)",
+    "Brain_Cerebellar_Hemisphere"           = "Brain - Cerebellar hemisphere (GTEx)",
+    "Brain_Cerebellum"                      = "Brain - Cerebellum (GTEx)",
+    "Brain_Cortex"                          = "Brain - Cortex (GTEx)",
+    "Brain_Frontal_Cortex_BA9"              = "Brain - Frontal cortex BA9 (GTEx)",
+    "Brain_Hippocampus"                     = "Brain - Hippocampus (GTEx)",
+    "Brain_Hypothalamus"                    = "Brain - Hypothalamus (GTEx)",
+    "Brain_Nucleus_accumbens_basal_ganglia" = "Brain - Nucleus accumbens basal ganglia (GTEx)",
+    "Brain_Putamen_basal_ganglia"           = "Brain - Putamen basal ganglia (GTEx)",
+    "Brain_Spinal_cord_cervical_c-1"        = "Brain - Spinal cord cervical c-1 (GTEx)",
+    "Brain_Substantia_nigra"                = "Brain - Substantia nigra (GTEx)",
+    "Breast_Mammary_Tissue"                 = "Breast - Mammary tissue (GTEx)",
+    "Cells_EBV-transformed_lymphocytes"     = "Cells - EBV-transformed lymphocytes (GTEx)",
+    "Colon_Sigmoid"                         = "Colon - Sigmoid (GTEx)",
+    "Colon_Transverse"                      = "Colon - Transverse (GTEx)",
+    "Esophagus_Gastroesophageal_Junction"   = "Esophagus - Gastroesophageal junction (GTEx)",
+    "Esophagus_Mucosa"                      = "Esophagus - Mucosa (GTEx)",
+    "Esophagus_Muscularis"                  = "Esophagus - Muscularis (GTEx)",
+    "Heart_Atrial_Appendage"                = "Heart - Atrial appendage (GTEx)",
+    "Heart_Left_Ventricle"                  = "Heart - Left ventricle (GTEx)",
+    "Liver"                                 = "Liver (GTEx)",
+    "Lung"                                  = "Lung (GTEx)",
+    "Minor_Salivary_Gland"                  = "Minor salivary gland (GTEx)",
+    "Muscle_Skeletal"                       = "Muscle - Skeletal (GTEx)",
+    "Nerve_Tibial"                          = "Nerve - Tibial (GTEx)",
+    "Ovary"                                 = "Ovary (GTEx)",
+    "Pancreas"                              = "Pancreas (GTEx)",
+    "Pituitary"                             = "Pituitary (GTEx)",
+    "Prostate"                              = "Prostate (GTEx)",
+    "Skin_Not_Sun_Exposed_Suprapubic"       = "Skin - Not sun exposed suprapubic (GTEx)",
+    "Skin_Sun_Exposed_Lower_leg"            = "Skin - Sun exposed lower leg (GTEx)",
+    "Small_Intestine_Terminal_Ileum"        = "Small intestine - Terminal ileum (GTEx)",
+    "Spleen"                                = "Spleen (GTEx)",
+    "Stomach"                               = "Stomach (GTEx)",
+    "Testis"                                = "Testis (GTEx)",
+    "Thyroid"                               = "Thyroid (GTEx)",
+    "Uterus"                                = "Uterus (GTEx)",
+    "Vagina"                                = "Vagina (GTEx)",
+    "Whole_Blood"                           = "Blood (GTEx)",
+    # Non-GTEx FUSION panels
+    "CMC.BRAIN.RNASEQ"                      = "Brain - DLPFC (CMC)",
+    "CMC.BRAIN.RNASEQ_SPLICING"             = "Brain - DLPFC - Splice (CMC)",
+    "METSIM.ADIPOSE.RNASEQ"                 = "Adipose (METSIM)",
+    "NTR.BLOOD.RNAARR"                      = "Blood (NTR)",
+    "YFS.BLOOD.RNAARR"                      = "Blood (YFS)",
+    "psychencode"                           = "Brain - DLPFC (PsychENCODE)",
+    "kcl_brainbank_motor_cortex"            = "Brain - Motor cortex (KCL Brain Bank)"
+  )
 
-  names(panel_names)<-c('original','clean')
-  x_tab<-data.table(original=x)
-
-  x_tab<-merge(x_tab, panel_names, by='original')
-  x_tab<-x_tab[match(x, x_tab$original),]
-
-  return(x_tab$clean)
-
+  mapped <- unname(panel_map[x])
+  # Fall back to the original name for any unknown panel; leave pre-existing
+  # NAs in x untouched.
+  fallback <- is.na(mapped) & !is.na(x)
+  mapped[fallback] <- x[fallback]
+  mapped
 }
 
 read_fusion_exp<-function(config, gwas){

@@ -79,6 +79,13 @@ twas_gsea_cmap: F
 cmap_level5_prop: NA
 cmap_compoundinfo: NA
 
+# Restrict CMAP TWAS-GSEA output to a subset of signatures. Each list filters
+# the per-signature CSV and MOA enrichment by the named column; empty list
+# means all values are retained. GSEA still runs on the full prop file.
+cmap_cell_iname: []
+cmap_pert_itime: []
+cmap_pert_idose: []
+
 # Run SMR using below panels
 smr_expression_panel_psychencode: F
 smr_expression_panel_metabrain_basalganglia: F
