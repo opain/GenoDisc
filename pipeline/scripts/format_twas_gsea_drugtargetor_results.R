@@ -48,6 +48,7 @@ res$GeneSet <- gsub('[[:punct:]]', '.', res$GeneSet)
 
 res$ATC<-gsub('ATC.','',gsub('\\.NAME.*','',res$GeneSet))
 res$NAME<-tolower(gsub('\\.CID\\..*','',gsub('.*NAME\\.','',res$GeneSet)))
+res$NAME<-gsub('_', ' ', res$NAME)
 
 # Sort by p-value
 res<-res[order(res$P),]

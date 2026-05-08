@@ -98,13 +98,23 @@ rule run_gcsc_drugtargetor:
   log:
     "{outdir}/logs/run_gcsc_drugtargetor-{gwas}-{chunk}.log"
   shell:
-    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}; N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); python {params.resdir}/software/GCSC/gcsc.py \
---geneSets {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor_gcsc_sets_{wildcards.chunk}.csv \
---TWASdir {outdir}/results/{wildcards.gwas}/gcsc/twas/tissue \
---N ${{N}} \
---tissues {params.gcsc_tissues} \
---coreg {params.resdir}/data/GCSC/coreg \
---out {outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}) > {log} 2>&1"
+    """
+      (
+      mkdir -p {wildcards.outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk};
+
+      # Read the value and round to the nearest integer using printf
+      RAW_N=$(cat {wildcards.outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt);
+      N=$(printf "%.0f" "$RAW_N");
+
+      python {params.resdir}/software/GCSC/gcsc.py \
+          --geneSets {wildcards.outdir}/results/{wildcards.gwas}/gcsc/drugtargetor_gcsc_sets_{wildcards.chunk}.csv \
+          --TWASdir {wildcards.outdir}/results/{wildcards.gwas}/gcsc/twas/tissue \
+          --N ${{N}} \
+          --tissues {params.gcsc_tissues} \
+          --coreg {params.resdir}/data/GCSC/coreg \
+          --out {wildcards.outdir}/results/{wildcards.gwas}/gcsc/drugtargetor/{wildcards.chunk}
+      ) > {log} 2>&1
+    """
 
 rule run_gcsc_all_chunk:
     input:

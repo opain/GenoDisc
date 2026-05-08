@@ -1,5 +1,5 @@
 ---
-title: "Metabolic"
+title: "Validation"
 output: 
   html_document:
     theme: cosmo
@@ -13,6 +13,10 @@ output:
 knitr::opts_chunk$set(eval = FALSE)
 library(knitr)
 ```
+
+***
+
+# Initial test
 
 ```{r}
 
@@ -90,7 +94,7 @@ config_cad <- c(
   "gtex_weights: ['Whole_Blood']", 
   "twas_gsea_drugtargetor: T",
   "twas_gsea_cmap: T",
-  "cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.tsv.gz",
+  "cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.rds",
   "cmap_compoundinfo: /users/k1806347/oliverpainfel/Data/CMAP/compoundinfo_beta.txt",
   "twas_gsea_drugtargetor_nondirectional: T"
 )
@@ -189,11 +193,75 @@ ggplot(plot_df, aes(x = dose_uM, y = cell_type)) +
   theme_bw()
 ```
 
+***
+
+# Anqi
+
+```{r}
+dir.create('/scratch/prj/neurohackpain/anqi/genodisc_validation/config/', recursive = T)
+
+library(data.table)
+
+# Anqi has created the gwas_lists already
+
+####
+# Create config file
+####
+
+traits <- list.files('/scratch/prj/neurohackpain/anqi/DiseasesGwas/', full.names = F)
+
+config_list <- list()
+for(i in traits){
+  config_list[[i]] <- c(
+    paste0("outdir: /scratch/prj/neurohackpain/anqi/genodisc_validation/output/", i), 
+    paste0("config_file: /scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_", i, ".yaml"), 
+    paste0("gwas_list: /scratch/prj/neurohackpain/anqi/DiseasesGwas/", i, "/gwas_list.txt"), 
+    "ldsc: T", 
+    "magma_gene: T", 
+    "magma_drugtargetor: T",
+    "twas_panel_psychencode: T",
+    "twas_panel_fusion: T", 
+    "gtex_weights: ['Adipose_Subcutaneous','Adipose_Visceral_Omentum','Adrenal_Gland','Artery_Aorta','Artery_Coronary','Artery_Tibial','Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Breast_Mammary_Tissue','Cells_EBV-transformed_lymphocytes','Colon_Sigmoid','Colon_Transverse','Esophagus_Gastroesophageal_Junction','Esophagus_Mucosa','Esophagus_Muscularis','Heart_Atrial_Appendage','Heart_Left_Ventricle','Liver','Lung','Minor_Salivary_Gland','Muscle_Skeletal','Nerve_Tibial','Ovary','Pancreas','Pituitary','Prostate','Skin_Not_Sun_Exposed_Suprapubic','Skin_Sun_Exposed_Lower_leg','Small_Intestine_Terminal_Ileum','Spleen','Stomach','Testis','Thyroid','Uterus','Vagina','Whole_Blood']", 
+    "non_gtex_weights: ['METSIM.ADIPOSE.RNASEQ','CMC.BRAIN.RNASEQ','NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']",
+    "twas_gsea_cmap: T",
+    "cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.rds",
+    "cmap_compoundinfo: /users/k1806347/oliverpainfel/Data/CMAP/compoundinfo_beta.txt",
+    "cmap_cell_iname: ['HT29','A549','HA1E','A375','VCAP','PC3','MCF7']",
+    "cmap_pert_itime: ['24h']",
+    "cmap_pert_idose: ['10uM']",
+    "twas_gsea_drugtargetor_nondirectional: T",
+    "twas_gsea_drugtargetor: T",
+    "tissue_magma: T"
+  )
+}
 
 
+for(i in traits){
+  write.table(config_list[[i]], 
+              paste0('/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_', i, '.yaml'), 
+              col.names=F, row.names=F, quote=F)
+}
 
+```
 
+```{bash}
+# Ensure you are in the right place and environment
+cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
+conda activate genodisc
 
+for CONFIG in /scratch/prj/neurohackpain/anqi/genodisc_validation/config/*.yaml; do
+    TRAIT=$(basename "$CONFIG" .yaml)
 
+    sbatch --job-name="smk_$TRAIT" \
+           --mem=2G \
+           -p neurohack_cpu \
+           --wrap="snakemake --configfile=$CONFIG --use-conda --profile slurm run_package_results"
+done
+
+snakemake --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Type2_diabetes_mellitus.yaml --use-conda --profile slurm run_package_results -n
+snakemake --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Hypertension.yaml --use-conda --profile slurm run_package_results -n
+snakemake --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Myocardial_infarction.yaml --use-conda --profile slurm run_package_results -n
+
+```
 
 
