@@ -313,12 +313,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     render_twas_gsea_drug_table <- function(slot){
       req(gwas_data(), selected_gwas())
+      # Column order (0-indexed for the JS callback): Name, Panel, N Genes,
+      # Estimate, SE, Direction, P, P.FDR, ATC Code, ATC Description, ChEMBL.
+      # P (6) and P.FDR (7) are rendered in scientific notation.
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[5];",
-        "  $('td:eq(5)', row).html(x.toExponential(2));",
-        "  var y = data[6];",
-        "  $('td:eq(6)', row).html(y.toExponential(2));",
+        "  var x = data[6];",
+        "  $('td:eq(6)', row).html(x.toExponential(2));",
+        "  var y = data[7];",
+        "  $('td:eq(7)', row).html(y.toExponential(2));",
         "}"
       )
 
@@ -327,6 +330,14 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
 
+      # Explicit column selection: show Direction alongside Estimate, hide
+      # Reversal_Z (used for plotting only; Direction conveys the same info
+      # in a more human-readable form).
+      keep <- intersect(c('Name','Panel','N Genes','Estimate','SE','Direction',
+                          'P','P.FDR','ATC Code','ATC Description','ChEMBL'),
+                        names(tmp))
+      tmp <- tmp[, keep, with = FALSE]
+
       datatable(
         tmp,
         rownames = F,
@@ -334,7 +345,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           rowCallback = JS(js),
           columnDefs = list(
             list(className = 'dt-center', targets = '_all'),
-            list(width = '60px', targets = 5:6)
+            list(width = '60px', targets = 6:7)
           )),
         escape = FALSE
       )
@@ -536,7 +547,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         if(nrow(dir_data) > 0){
           heatmap <- heatmap +
             geom_point(data=dir_data, aes(fill = Z), shape=21, stroke=0, size=5) +
-            scale_fill_gradientn(colours=c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
+            scale_fill_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
                                  na.value = NA, name = "TWAS-GSEA\nZ-score",
                                  limits = c(-dir_max, dir_max))
         }
@@ -689,37 +700,33 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc[[slot]]
       if(is.null(tmp)) return(NULL)
 
-      tmp$P.FDR_all<-p.adjust(tmp$P, method = 'fdr')
-      tmp$P.FDR.onside_all<-p.adjust(tmp$P.oneside, method = 'fdr')
-
-      tmp$Z<--qnorm(tmp$P)
-      tmp$Z<-tmp$Z*sign(tmp$Estimate)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
-
       tmp$Estimate<-round(tmp$Estimate,3)
 
-      tmp<-tmp[,c("Name","Panel","N Drugs", "Estimate","P","P.FDR_all"), with=F]
-      names(tmp)<-c("Name","Panel","N Drugs","Estimate","P","P.FDR")
+      # Column order: Name, Panel, N Drugs, Estimate, Direction, P, P.FDR.
+      # Direction is supplied by the read function (Direction = "Opposes
+      # disease" / "Matches disease" / NA). Reversal_Z is used by the heatmap
+      # only and is dropped from this table to keep it scannable.
+      tmp<-tmp[,c("Name","Panel","N Drugs","Estimate","Direction","P","P.FDR"), with=F]
 
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      # JS callback: P (5) and P.FDR (6) in scientific notation.
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[4];",
-        "  $('td:eq(4)', row).html(x.toExponential(2));",
-        "  var y = data[5];",
-        "  $('td:eq(5)', row).html(y.toExponential(2));",
+        "  var x = data[5];",
+        "  $('td:eq(5)', row).html(x.toExponential(2));",
+        "  var y = data[6];",
+        "  $('td:eq(6)', row).html(y.toExponential(2));",
         "}"
       )
 
       datatable(
         tmp,
         rownames = F,
-        options = list(# Apply javascript for P value column
+        options = list(
           rowCallback = JS(js),
-          # Centre column contents and fix width of Pvalue column
           columnDefs = list(
             list(className = 'dt-center', targets = '_all'),
-            list(width = '60px', targets = 4:5)
+            list(width = '60px', targets = 5:6)
           )),
         escape = FALSE
       )
@@ -915,7 +922,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         if(nrow(dir_data_atc) > 0){
           heatmap <- heatmap +
             geom_point(data=dir_data_atc, aes(fill = Z), shape=21, stroke=0, size=5) +
-            scale_fill_gradientn(colours=c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
+            scale_fill_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
                                  na.value = NA, name = "TWAS-GSEA\nZ-score",
                                  limits = c(-dir_max_atc, dir_max_atc))
         }
@@ -1087,7 +1094,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       p <- ggplot(d, aes(x = Panel, y = Name)) +
         theme_bw() +
         geom_point(aes(fill = Z), shape = 21, stroke = 0, size = 5) +
-        scale_fill_gradientn(colours = c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
+        scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
                              na.value = NA, name = "CMAP\nZ-score",
                              limits = c(-z_max, z_max)) +
         geom_point(data = d[d$Nom_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 6) +
@@ -1178,18 +1185,24 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       req(gwas_data(), selected_gwas())
       d <- gwas_data()[[selected_gwas()]]$tx$cmap$drug
       if(is.null(d)) return(NULL)
+      # Hide Reversal_Z from the table (it is used by the heatmap; Direction
+      # column conveys the same information in human-readable form).
+      hide_idx <- which(names(d) == 'Reversal_Z') - 1L
+      cdefs <- list(list(className = 'dt-center', targets = '_all'))
+      if(length(hide_idx) == 1L) cdefs <- c(cdefs, list(list(visible = FALSE, targets = hide_idx)))
       datatable(d, rownames = FALSE,
-                options = list(scrollX = TRUE,
-                               columnDefs = list(list(className = 'dt-center', targets = '_all'))))
+                options = list(scrollX = TRUE, columnDefs = cdefs))
     })
 
     output$tx_cmap_moa_table <- renderDataTable({
       req(gwas_data(), selected_gwas())
       d <- gwas_data()[[selected_gwas()]]$tx$cmap$moa
       if(is.null(d)) return(NULL)
+      hide_idx <- which(names(d) == 'Reversal_Z') - 1L
+      cdefs <- list(list(className = 'dt-center', targets = '_all'))
+      if(length(hide_idx) == 1L) cdefs <- c(cdefs, list(list(visible = FALSE, targets = hide_idx)))
       datatable(d, rownames = FALSE,
-                options = list(scrollX = TRUE,
-                               columnDefs = list(list(className = 'dt-center', targets = '_all'))))
+                options = list(scrollX = TRUE, columnDefs = cdefs))
     })
 
     #######

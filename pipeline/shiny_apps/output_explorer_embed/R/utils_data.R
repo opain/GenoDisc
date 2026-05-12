@@ -165,16 +165,16 @@ build_drug_summary_data <- function(gwas_results) {
     gcsc_gs$Panel <- 'Brain and Blood'
   }
 
-  build_gsea <- function(slot, method_label, negate_z) {
+  build_gsea <- function(slot, method_label) {
     g <- safe_access(gwas_results, "tx", "drug", slot)
     if (is.null(g)) return(NULL)
     g$Method <- method_label
-    g$Z <- g$Estimate / g$SE
+    # Reversal_Z is positive when the drug opposes the disease TWAS signature
+    # (candidate therapeutic direction). For directional and non-directional
+    # variants alike this is set by the format script / read function, so the
+    # Shiny app no longer applies any sign flips here.
+    g$Z <- g$Reversal_Z
     g <- g[, c('Name', 'Z', 'P', 'P.FDR', 'Method', 'Panel', 'ATC Code')]
-    # Directional TWAS-GSEA: negate so the colour scale reads "high red = drug
-    # reverses disease signature = candidate therapeutic". Non-directional:
-    # leave Z as-is (positive Z = drug-target genes carry more TWAS signal).
-    if (negate_z) g$Z <- -g$Z
 
     g_all <- g
     for (i in unique(g_all$Panel)) {
@@ -192,8 +192,8 @@ build_drug_summary_data <- function(gwas_results) {
     g_all
   }
 
-  gsea_gs <- build_gsea("twas_gsea", "TWAS-GSEA", negate_z = TRUE)
-  gsea_gs_nondir <- build_gsea("twas_gsea_nondir", "TWAS-GSEA (non-dir)", negate_z = FALSE)
+  gsea_gs <- build_gsea("twas_gsea", "TWAS-GSEA")
+  gsea_gs_nondir <- build_gsea("twas_gsea_nondir", "TWAS-GSEA (non-dir)")
 
   do.call(rbind, Filter(Negate(is.null), list(magma_gs, gcsc_gs, gsea_gs, gsea_gs_nondir)))
 }
@@ -225,16 +225,13 @@ build_atc_summary_data <- function(gwas_results) {
     gcsc_gs_atc <- gcsc_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
   }
 
-  build_gsea_atc <- function(slot, method_label, signed) {
+  build_gsea_atc <- function(slot, method_label) {
     g <- safe_access(gwas_results, "tx", "atc", slot)
     if (is.null(g)) return(NULL)
-    g$P.FDR_all <- p.adjust(g$P, method = 'fdr')
-    g$P.FDR.onside_all <- p.adjust(g$P.oneside, method = 'fdr')
-    g$Z <- -qnorm(g$P)
-    # Directional: P is two-sided, so signed Z reflects the in-vs-out direction.
-    # Non-directional: P is already one-sided right-tail; positive Z = enrichment.
-    if (signed) g$Z <- g$Z * sign(g$Estimate)
-    g$FDR_Sig <- g$P.FDR_all < 0.05
+    # P.FDR is already computed in the RDS (per-panel by the read function);
+    # Reversal_Z is positive when the class opposes the disease TWAS signature.
+    g$Z <- g$Reversal_Z
+    g$FDR_Sig <- g$P.FDR < 0.05
     g$Nom_Sig <- g$P < 0.05
     g$Name <- paste0(g$`ATC Code`, ': ', g$`ATC Description`)
     g$Method <- method_label
@@ -255,8 +252,8 @@ build_atc_summary_data <- function(gwas_results) {
     g_all
   }
 
-  gsea_gs_atc <- build_gsea_atc("twas_gsea", "TWAS-GSEA", signed = TRUE)
-  gsea_gs_atc_nondir <- build_gsea_atc("twas_gsea_nondir", "TWAS-GSEA (non-dir)", signed = FALSE)
+  gsea_gs_atc <- build_gsea_atc("twas_gsea", "TWAS-GSEA")
+  gsea_gs_atc_nondir <- build_gsea_atc("twas_gsea_nondir", "TWAS-GSEA (non-dir)")
 
   do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc, gsea_gs_atc_nondir)))
 }
@@ -264,14 +261,15 @@ build_atc_summary_data <- function(gwas_results) {
 #' Build CMAP per-signature drug summary data
 #'
 #' One row per (cmap_name x cell_iname x pert_itime x pert_idose x weight panel).
-#' Z is negated so the same red = "drug reverses disease signature" convention
-#' as the directional DrugTargetor TWAS-GSEA plot applies.
+#' Reversal_Z is positive when the perturbation opposes the disease TWAS
+#' signature (candidate therapeutic). Used directly as the colour aesthetic
+#' for the heatmap.
 build_cmap_drug_summary_data <- function(gwas_results) {
   d <- safe_access(gwas_results, "tx", "cmap", "drug")
   if (is.null(d) || nrow(d) == 0) return(NULL)
   d <- as.data.frame(d)
   d$Name    <- paste(d$cmap_name, d$pert_itime, d$pert_idose, sep = ' / ')
-  d$Z       <- -(d$Estimate / d$SE)
+  d$Z       <- d$Reversal_Z
   d$FDR_Sig <- !is.na(d$P.FDR) & d$P.FDR < 0.05
   d$Nom_Sig <- !is.na(d$P) & d$P < 0.05
   d$Method  <- 'CMAP'
@@ -304,9 +302,11 @@ build_cmap_moa_summary_data <- function(gwas_results) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
   d <- as.data.frame(d)
   d$Name    <- d$MOA
-  # Wilcoxon Estimate sign already encodes direction; negate so red = MOA
-  # collectively reverses disease signature.
-  d$Z       <- -qnorm(d$P) * sign(-d$Estimate)
+  # Reversal_Z is positive when the MOA opposes the disease TWAS signature.
+  # The MOA Wilcoxon's HL = in - out (opposite to the DrugTargetor ATC HL =
+  # out - in), but the sign convention is normalised at the format / read
+  # layer, so no flipping is needed here.
+  d$Z       <- d$Reversal_Z
   d$FDR_Sig <- !is.na(d$P.FDR) & d$P.FDR < 0.05
   d$Nom_Sig <- !is.na(d$P) & d$P < 0.05
   d$Method  <- 'CMAP'

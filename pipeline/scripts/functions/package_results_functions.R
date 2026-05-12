@@ -589,8 +589,31 @@ read_twas_gsea_drug<-function(config, gwas, mode = 'directional'){
 
     dat$Panel<-tidy_panel_names(dat$Panel)
 
-    dat<-dat[,c("NAME","Panel","N_Mem_Avail","Estimate","SE","P","P.FDR","ATC_code","ATC_desc") , with=F]
-    names(dat)<-c('Name','Panel','N Genes','Estimate','SE','P','P.FDR','ATC Code','ATC Description')
+    # Backward-compat synthesis: older CSVs do not carry Direction and
+    # Reversal_Z. Reconstruct them from existing columns using the same
+    # recipe as the format script.
+    if(!('Direction' %in% names(dat))){
+      if(mode == 'directional'){
+        dat$Direction <- ifelse(dat$T < 0, 'Opposes disease',
+                         ifelse(dat$T > 0, 'Matches disease', NA_character_))
+      } else {
+        dat$Direction <- NA_character_
+      }
+    }
+    if(!('Reversal_Z' %in% names(dat))){
+      if(mode == 'directional'){
+        # Drug-level T is signed (T = Estimate/SE). Reversal_Z = -T means
+        # positive Reversal_Z when the drug opposes disease (T < 0).
+        dat$Reversal_Z <- -dat$T
+      } else {
+        # Non-directional P is one-sided right-tail; the one-sided Z is
+        # qnorm(1-P), always >= 0 for P <= 1.
+        dat$Reversal_Z <- qnorm(1 - dat$P)
+      }
+    }
+
+    dat<-dat[,c("NAME","Panel","N_Mem_Avail","Estimate","SE","P","P.FDR","Direction","Reversal_Z","ATC_code","ATC_desc") , with=F]
+    names(dat)<-c('Name','Panel','N Genes','Estimate','SE','P','P.FDR','Direction','Reversal_Z','ATC Code','ATC Description')
 
     dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
 
@@ -621,8 +644,31 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
 
     dat$P.FDR_all<-p.adjust(dat$P, method = 'fdr')
 
-    dat<-dat[,c('Panel','ATC','Name','N','Estimate','Class_Median','Non_Class_Median','P','P.FDR_all'),with=T]
-    names(dat)<-c('Panel','ATC Code','ATC Description','N Drugs','Estimate','Class Median T','Non-class Median T','P','P.FDR')
+    # Backward-compat synthesis: older CSVs do not carry Direction and
+    # Reversal_Z. Reconstruct from Estimate sign (the directional ATC Wilcoxon
+    # uses the formula form, HL = out - in, so Estimate > 0 = opposes disease).
+    if(!('Direction' %in% names(dat))){
+      if(mode == 'directional'){
+        dat$Direction <- ifelse(dat$Estimate > 0, 'Opposes disease',
+                         ifelse(dat$Estimate < 0, 'Matches disease', NA_character_))
+      } else {
+        dat$Direction <- NA_character_
+      }
+    }
+    if(!('Reversal_Z' %in% names(dat))){
+      if(mode == 'directional'){
+        # Magnitude is the one-sided Z corresponding to the two-sided Wilcoxon
+        # P; sign tracks the Estimate so positive Reversal_Z always agrees
+        # with Direction.
+        dat$Reversal_Z <- qnorm(1 - dat$P/2) * sign(dat$Estimate)
+      } else {
+        # Non-directional ATC P is one-sided right-tail (in > out).
+        dat$Reversal_Z <- qnorm(1 - dat$P)
+      }
+    }
+
+    dat<-dat[,c('Panel','ATC','Name','N','Estimate','Class_Median','Non_Class_Median','P','P.FDR_all','Direction','Reversal_Z'),with=T]
+    names(dat)<-c('Panel','ATC Code','ATC Description','N Drugs','Estimate','Class Median T','Non-class Median T','P','P.FDR','Direction','Reversal_Z')
 
     dat<-dat[order(dat$P),]
 
@@ -659,10 +705,21 @@ read_twas_gsea_cmap_drug<-function(config, gwas){
     dat[, Name := paste0(toupper(substr(cmap_name, 1, 1)), substr(cmap_name, 2, nchar(cmap_name)))]
     setorder(dat, P)
 
+    # Backward-compat synthesis from Z (= Estimate/SE): Z > 0 = matches disease,
+    # Z < 0 = opposes. Reversal_Z = -Z.
+    if(!('Direction' %in% names(dat))){
+      dat[, Direction := fifelse(Z < 0, 'Opposes disease',
+                          fifelse(Z > 0, 'Matches disease', NA_character_))]
+    }
+    if(!('Reversal_Z' %in% names(dat))){
+      dat[, Reversal_Z := -Z]
+    }
+
     dat <- dat[, .(Name, cmap_name, cell_iname, pert_itime, pert_idose, moa,
                    Panel, N_Mem_Avail, Estimate, SE, Z, P,
                    `P.FDR (per panel)` = P.FDR,
-                   P.FDR = P.FDR_all)]
+                   P.FDR = P.FDR_all,
+                   Direction, Reversal_Z)]
   }
   return(dat)
 }
@@ -689,10 +746,26 @@ read_twas_gsea_cmap_moa<-function(config, gwas){
     dat[, Panel := tidy_panel_names(Panel)]
     setorder(dat, P)
 
+    # Backward-compat synthesis: the MOA Wilcoxon uses the two-vector form
+    # (HL = in - out), so Estimate > 0 = matches disease (mimics-enriched MOA),
+    # Estimate < 0 = opposes disease. This is the OPPOSITE sign convention
+    # from the DrugTargetor ATC Wilcoxon (formula form, HL = out - in).
+    if(!('Direction' %in% names(dat))){
+      dat[, Direction := fifelse(Estimate < 0, 'Opposes disease',
+                          fifelse(Estimate > 0, 'Matches disease', NA_character_))]
+    }
+    if(!('Reversal_Z' %in% names(dat))){
+      # MOA two-vector Wilcoxon: Estimate > 0 = matches disease. Magnitude is
+      # the one-sided Z from the two-sided P; sign tracks sign(-Estimate) so
+      # positive Reversal_Z = opposes disease.
+      dat[, Reversal_Z := qnorm(1 - P/2) * sign(-Estimate)]
+    }
+
     dat <- dat[, .(Panel, MOA, Cell_Line, `N Drugs` = N, Estimate,
                    `Class Median T` = Class_Median,
                    `Non-class Median T` = Non_Class_Median,
-                   P, P.FDR = P.FDR_all)]
+                   P, P.FDR = P.FDR_all,
+                   Direction, Reversal_Z)]
   }
   return(dat)
 }

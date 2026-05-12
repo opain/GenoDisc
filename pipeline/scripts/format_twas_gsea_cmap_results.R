@@ -90,9 +90,20 @@ if(length(filter_cell) > 0 || length(filter_time) > 0 || length(filter_dose) > 0
   res$P.FDR <- p.adjust(res$P, method = 'fdr')
 }
 
+# Direction-of-effect columns at per-signature level. Same convention as the
+# DrugTargetor drug-level: Z = Estimate/SE = T is signed; T > 0 means the CMAP
+# perturbation gene-set direction matches disease TWAS-Z (mimics), T < 0 means
+# it opposes (reversal / repurposing direction). Reversal_Z is positive when
+# the signature opposes disease, regardless of which Wilcoxon convention is
+# applied downstream.
+res[, Direction := fifelse(Z < 0, 'Opposes disease',
+                    fifelse(Z > 0, 'Matches disease', NA_character_))]
+res[, Reversal_Z := -Z]
+
 # ---- Per-signature CSV --------------------------------------------------
 drug_out <- res[, .(cmap_name, cell_iname, pert_itime, pert_idose, moa,
-                    N_Mem_Avail, Estimate, SE, Z, P, P.FDR, Panel)]
+                    N_Mem_Avail, Estimate, SE, Z, P, P.FDR,
+                    Direction, Reversal_Z, Panel)]
 setorder(drug_out, P)
 drug_out_path <- paste0(outdir, '/results/', opt$twas, '/twas/cmap/twas_gsea_cmap_', opt$panel, '_drug_res.csv')
 fwrite(drug_out, drug_out_path)
@@ -138,6 +149,18 @@ moa_enrich <- rbindlist(moa_enrich_all[seq_len(idx)])
 if(nrow(moa_enrich) > 0) {
   moa_enrich[, P.FDR := p.adjust(P, method = 'fdr')]
   setorder(moa_enrich, P)
+  # Direction-of-effect columns at per-MOA level. The Wilcoxon call above is
+  # wilcox.test(ranked_T[in_idx], ranked_T[out_idx]) which uses the two-vector
+  # form (HL = in - out). Therefore Estimate > 0 means in-class drugs have
+  # HIGHER T = the MOA is enriched for the matches-disease direction.
+  # NOTE: this is the OPPOSITE sign convention from the DrugTargetor ATC
+  # Wilcoxon (which uses the formula form, HL = out - in).
+  moa_enrich[, Direction := fifelse(Estimate < 0, 'Opposes disease',
+                            fifelse(Estimate > 0, 'Matches disease', NA_character_))]
+  # Magnitude is the one-sided Z corresponding to the two-sided Wilcoxon P;
+  # sign tracks sign(-Estimate) so positive Reversal_Z always means opposes
+  # disease, regardless of P magnitude.
+  moa_enrich[, Reversal_Z := qnorm(1 - P/2) * sign(-Estimate)]
 }
 moa_out_path <- paste0(outdir, '/results/', opt$twas, '/twas/cmap/twas_gsea_cmap_', opt$panel, '_moa_res.csv')
 fwrite(moa_enrich, moa_out_path)

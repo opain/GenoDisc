@@ -35,8 +35,13 @@ if(external_weights_flag == "T"){
   weights<-c(weights, external_weights)
 }
 
-# Write out this list of SNP-weights as this might be useful elsewhere
-write.table(weights, paste0(outdir,'/results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
+# Write out this list of SNP-weights as this might be useful elsewhere.
+# Use writeLines so each panel is on its own line; downstream readers
+# (e.g., read_twas_gsea_* in package_results_functions.R) parse this file with
+# read.table(file)$V1, which only picks up the first space-separated token of
+# each row -- so a single-line space-separated file would silently drop all
+# but the first panel.
+writeLines(as.character(weights), paste0(outdir,'/results/',opt$gwas,'/twas/list_of_weights.txt'))
 
 # Read in gene names from pre-downloaded biomart data
 biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)

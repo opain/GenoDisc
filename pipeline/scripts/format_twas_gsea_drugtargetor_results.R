@@ -50,6 +50,23 @@ res$ATC<-gsub('ATC.','',gsub('\\.NAME.*','',res$GeneSet))
 res$NAME<-tolower(gsub('\\.CID\\..*','',gsub('.*NAME\\.','',res$GeneSet)))
 res$NAME<-gsub('_', ' ', res$NAME)
 
+# Direction-of-effect columns.
+# Directional: T is signed (T = Estimate/SE). T > 0 = drug-target gene-set
+# direction matches disease TWAS-Z = mimics. T < 0 = opposes (reversal,
+# repurposing direction). Reversal_Z is positive when the drug opposes disease,
+# so any downstream consumer can use it directly without sign flips.
+# Non-directional: P is one-sided right-tail enrichment, sign of T is not
+# interpretable as mimics/opposes; Direction is NA and Reversal_Z = -qnorm(P)
+# (positive = enriched, no direction).
+if(opt$mode == 'directional'){
+  res$Direction <- ifelse(res$T < 0, 'Opposes disease',
+                   ifelse(res$T > 0, 'Matches disease', NA_character_))
+  res$Reversal_Z <- -res$T
+} else {
+  res$Direction  <- NA_character_
+  res$Reversal_Z <- -qnorm(res$P)
+}
+
 # Sort by p-value
 res<-res[order(res$P),]
 
@@ -96,6 +113,27 @@ atc_labels<-atc[nchar(atc$Code) == 4,]
 atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
+# Direction-of-effect columns at ATC level.
+# Directional: Wilcoxon HL is on rank(T) ~ class_bin via the formula form, so
+# R takes class_bin==0 (out-class) as x and class_bin==1 (in-class) as y, giving
+# HL(out - in). Therefore Estimate > 0 means in-class drugs have LOWER T = the
+# class is enriched for the opposes-disease direction. Estimate < 0 means the
+# class is enriched for the matches-disease direction.
+# Non-directional: P is one-sided right-tail (in > out), Direction is NA.
+if(opt$mode == 'directional'){
+  atc_enrich$Direction <- ifelse(atc_enrich$Estimate > 0, 'Opposes disease',
+                          ifelse(atc_enrich$Estimate < 0, 'Matches disease', NA_character_))
+  # Magnitude is the one-sided Z corresponding to the two-sided Wilcoxon P;
+  # sign tracks the Estimate (and therefore Direction). qnorm(1-P/2) is always
+  # >= 0 for P <= 1, so sign(Reversal_Z) always agrees with Direction.
+  atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P/2) * sign(atc_enrich$Estimate)
+} else {
+  atc_enrich$Direction  <- NA_character_
+  # Non-directional P is one-sided right-tail (in > out). qnorm(1-P) is the
+  # one-sided Z magnitude; always >= 0 for P <= 1.
+  atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P)
+}
+
 write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res.csv'), row.names=F)
 
 # Test for enrichment for each level 4 ATC category
@@ -131,6 +169,16 @@ for(cat in unique(res_atc$atc_cat_2)){
 atc_labels<-atc[nchar(atc$Code) == 5,]
 atc_enrich_2<-merge(atc_enrich_2, atc_labels, by.x='ATC', by.y='Code')
 atc_enrich_2<-atc_enrich_2[order(atc_enrich_2$P),]
+
+# Direction-of-effect columns at level-4 ATC. Same convention as atc_enrich.
+if(opt$mode == 'directional'){
+  atc_enrich_2$Direction <- ifelse(atc_enrich_2$Estimate > 0, 'Opposes disease',
+                            ifelse(atc_enrich_2$Estimate < 0, 'Matches disease', NA_character_))
+  atc_enrich_2$Reversal_Z <- qnorm(1 - atc_enrich_2$P/2) * sign(atc_enrich_2$Estimate)
+} else {
+  atc_enrich_2$Direction  <- NA_character_
+  atc_enrich_2$Reversal_Z <- qnorm(1 - atc_enrich_2$P)
+}
 
 write.csv(atc_enrich_2, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res_level4.csv'), row.names=F)
 
