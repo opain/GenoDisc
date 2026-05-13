@@ -11,7 +11,7 @@
 
 
 
-<title>GenoDisc: Genomic Discovery Platform</title>
+<title>GenoDisc - Homepage</title>
 
 <script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -29,14 +29,87 @@
        h6 {font-size: 12px;}
        code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
        pre:not([class]) { background-color: white }</style>
-<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
-<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
-<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
 <link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link rel="shortcut icon" href="Images/logo/favicon.ico">
+
+<link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
+
+<script>
+function toggleNightMode() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (stylesheet.disabled) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+}
+</script>
+
+<label class="switch">
+  <input type="checkbox" id="toggleNightMode" checked>
+  <span class="slider round"></span>
+</label>
+
+<script>
+document.getElementById('toggleNightMode').addEventListener('change', function() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (this.checked) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+});
+</script>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YR18ZB3PR3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-YR18ZB3PR3');
+</script>
+
+<!-- Osano Cookie Consent -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"></script>
+<script>
+window.addEventListener("load", function(){
+  window.cookieconsent.initialise({
+    palette: {
+      popup: { background: "#000" },
+      button: { background: "#f1d600" }
+    },
+    theme: "classic",
+    position: "bottom-right",
+    content: {
+      message: "We use a cookie for Google Analytics to understand how people use this site. This helps us improve GenoDisc and demonstrate its impact. Please click 'Accept' to help us with this.",
+      dismiss: "Accept",
+      link: "Google's privacy info",
+      href: "https://policies.google.com/technologies/partner-sites"
+    },
+    onStatusChange: function(status) {
+      if (status === 'allow') {
+        // Now load Google Analytics only if user consents
+        var gtagScript = document.createElement('script');
+        gtagScript.setAttribute('async', '');
+        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-YR18ZB3PR3';
+        document.head.appendChild(gtagScript);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-YR18ZB3PR3');
+      }
+    }
+  });
+});
+</script>
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -225,69 +298,6 @@ $(document).ready(function () {
 
 
 
-<style type="text/css">
-
-#TOC {
-  margin: 25px 0px 20px 0px;
-}
-@media (max-width: 768px) {
-#TOC {
-  position: relative;
-  width: 100%;
-}
-}
-
-@media print {
-.toc-content {
-  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
-  float: right;
-}
-}
-
-.toc-content {
-  padding-left: 30px;
-  padding-right: 40px;
-}
-
-div.main-container {
-  max-width: 1200px;
-}
-
-div.tocify {
-  width: 20%;
-  max-width: 260px;
-  max-height: 85%;
-}
-
-@media (min-width: 768px) and (max-width: 991px) {
-  div.tocify {
-    width: 25%;
-  }
-}
-
-@media (max-width: 767px) {
-  div.tocify {
-    width: 100%;
-    max-width: none;
-  }
-}
-
-.tocify ul, .tocify li {
-  line-height: 20px;
-}
-
-.tocify-subheader .tocify-item {
-  font-size: 0.90em;
-}
-
-.tocify .list-group-item {
-  border-radius: 0px;
-}
-
-
-</style>
-
-
 
 </head>
 
@@ -295,16 +305,6 @@ div.tocify {
 
 
 <div class="container-fluid main-container">
-
-
-<!-- setup 3col/9col grid for toc_float and main content  -->
-<div class="row">
-<div class="col-xs-12 col-sm-4 col-md-3">
-<div id="TOC" class="tocify">
-</div>
-</div>
-
-<div class="toc-content col-xs-12 col-sm-8 col-md-9">
 
 
 
@@ -317,7 +317,7 @@ div.tocify {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">GenoDisc</a>
+      <a class="navbar-brand" href="index.html"><img class="logo-img" src="Images/logo/Horizontal_white.png" style="height: 42px;" /></a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -356,33 +356,49 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">GenoDisc: Genomic Discovery Platform</h1>
+<h1 class="title toc-ignore">GenoDisc - Homepage</h1>
 
 </div>
 
 
-<hr />
-<p>Welcome! This website documents research regarding the analysis of
-GWAS summary statistics for novel mechanistic and therapeutic
-insights.</p>
-<hr />
-<div id="projects" class="section level3">
-<h3>Projects:</h3>
-<ul>
-<li><a
-href="https://github.com/opain/GenoDisc/tree/main/pipeline">GenoDisc -
-Pipeline: A drug target and drug repurposing pipeline</a></li>
-</ul>
-<hr />
+<style>
+h1.title {
+  display: none;
+}
+</style>
+<div style="text-align: center;">
+<p><img src="Images/logo/homepage.png" style="max-width: 1000px; width: 100%; height: auto; flex: 0 0 auto;"/></p>
+</div>
+<p><br/></p>
+<div id="what-is-genodisc" class="section level1">
+<h1>What is GenoDisc?</h1>
+<p>GenoDisc is a research programme based at King’s College London that
+focuses on key issues relating to the clinical utility of polygenic
+scores, investigating polygenic scoring research questions, and
+developing tools that implement current best practises.</p>
+<p><br/></p>
+</div>
+<div id="the-pipeline" class="section level1">
+<h1>The Pipeline</h1>
+<p>We have implemented a range of post-GWAS analyses into our GenoPred
+pipeline - An easy-to-use and robust software pipeline.</p>
+<p><a href="pipeline_guide.html" class="button">Learn More</a></p>
+<p><br/></p>
 <p>Please contact Oliver Pain (<a href="mailto:oliver.pain@kcl.ac.uk"
 class="email">oliver.pain@kcl.ac.uk</a>) for any questions or
 comments.</p>
 </div>
 
+<!-- footer.html -->
+<hr/>
 
-
+<div class="centered-container">
+<div class="rounded-image-container" style="width: 500px;">
+<img src="Images/logo/sponsors.png">
 </div>
 </div>
+
+
 
 </div>
 
@@ -415,35 +431,6 @@ $(document).ready(function () {
 
 <!-- code folding -->
 
-<script>
-$(document).ready(function ()  {
-
-    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
-    $('.unlisted.unnumbered').addClass('toc-ignore')
-
-    // move toc-ignore selectors from section div to header
-    $('div.section.toc-ignore')
-        .removeClass('toc-ignore')
-        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
-
-    // establish options
-    var options = {
-      selectors: "h1,h2,h3",
-      theme: "bootstrap3",
-      context: '.toc-content',
-      hashGenerator: function (text) {
-        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
-      },
-      ignoreSelector: ".toc-ignore",
-      scrollTo: 0
-    };
-    options.showAndHide = true;
-    options.smoothScroll = true;
-
-    // tocify
-    var toc = $("#TOC").tocify(options).data("toc-tocify");
-});
-</script>
 
 <!-- dynamically load mathjax for compatibility with self-contained -->
 <script>

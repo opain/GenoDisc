@@ -37,6 +37,82 @@
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
 <link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
 <link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link rel="shortcut icon" href="Images/logo/favicon.ico">
+
+<link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
+
+<script>
+function toggleNightMode() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (stylesheet.disabled) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+}
+</script>
+
+<label class="switch">
+  <input type="checkbox" id="toggleNightMode" checked>
+  <span class="slider round"></span>
+</label>
+
+<script>
+document.getElementById('toggleNightMode').addEventListener('change', function() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (this.checked) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+});
+</script>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YR18ZB3PR3"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-YR18ZB3PR3');
+</script>
+
+<!-- Osano Cookie Consent -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"></script>
+<script>
+window.addEventListener("load", function(){
+  window.cookieconsent.initialise({
+    palette: {
+      popup: { background: "#000" },
+      button: { background: "#f1d600" }
+    },
+    theme: "classic",
+    position: "bottom-right",
+    content: {
+      message: "We use a cookie for Google Analytics to understand how people use this site. This helps us improve GenoDisc and demonstrate its impact. Please click 'Accept' to help us with this.",
+      dismiss: "Accept",
+      link: "Google's privacy info",
+      href: "https://policies.google.com/technologies/partner-sites"
+    },
+    onStatusChange: function(status) {
+      if (status === 'allow') {
+        // Now load Google Analytics only if user consents
+        var gtagScript = document.createElement('script');
+        gtagScript.setAttribute('async', '');
+        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-YR18ZB3PR3';
+        document.head.appendChild(gtagScript);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-YR18ZB3PR3');
+      }
+    }
+  });
+});
+</script>
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -317,7 +393,7 @@ div.tocify {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">GenoDisc</a>
+      <a class="navbar-brand" href="index.html"><img class="logo-img" src="Images/logo/Horizontal_white.png" style="height: 42px;" /></a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -798,6 +874,14 @@ class="email">oliver.pain@kcl.ac.uk</a>) or open an issue on the <a
 href="https://github.com/opain/GenoDisc">GitHub repository</a>.</p>
 </div>
 
+<!-- footer.html -->
+<hr/>
+
+<div class="centered-container">
+<div class="rounded-image-container" style="width: 500px;">
+<img src="Images/logo/sponsors.png">
+</div>
+</div>
 
 
 </div>
@@ -847,7 +931,7 @@ $(document).ready(function ()  {
 
     // establish options
     var options = {
-      selectors: "h1,h2,h3",
+      selectors: "h1,h2",
       theme: "bootstrap3",
       context: '.toc-content',
       hashGenerator: function (text) {

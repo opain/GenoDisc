@@ -1,7 +1,7 @@
 name: "GenoDisc"
 output_dir: "."
 navbar:
-  title: "GenoDisc"
+  title: "<img class=\"logo-img\" src=\"Images/logo/Horizontal_white.png\" style=\"height: 42px;\" />"
   left:
     - text: "Home"
       href: index.html
@@ -14,10 +14,4 @@ navbar:
   right:
     - icon: fa-github fa-lg
       href: https://github.com/opain/GenoDisc
-output:
-  html_document:
-    theme: cosmo
-    toc: true
-    toc_float: true
-    css: styles/styles.css
-      
+css: styles/styles.css

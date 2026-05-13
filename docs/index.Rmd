@@ -1,23 +1,40 @@
 ---
-title: "GenoDisc: Genomic Discovery Platform"
-output: html_document
+title: GenoDisc - Homepage
+output: 
+  html_document:
+    theme: cosmo
+    css: 
+      styles/styles.css
+    includes:
+      in_header: header.html
+      after_body: footer.html
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+<style>
+h1.title {
+  display: none;
+}
+</style>
 
-***
+<div style="text-align: center;">
+<img src="Images/logo/homepage.png" style="max-width: 1000px; width: 100%; height: auto; flex: 0 0 auto;"/>
+</div>
 
-Welcome! This website documents research regarding the analysis of GWAS summary statistics for novel mechanistic and therapeutic insights.
+<br/>
 
-***
+# What is GenoDisc?
 
-### Projects:
+GenoDisc is a research programme based at King’s College London that focuses on key issues relating to the clinical utility of polygenic scores, investigating polygenic scoring research questions, and developing tools that implement current best practises.
 
-* [GenoDisc - Pipeline: A drug target and drug repurposing pipeline](https://github.com/opain/GenoDisc/tree/main/pipeline)
+<br/>
 
-***
+# The Pipeline
+
+We have implemented a range of post-GWAS analyses into our GenoPred pipeline - An easy-to-use and robust software pipeline.
+
+<a href="pipeline_guide.html" class="button">Learn More</a>
+
+<br/>
 
 Please contact Oliver Pain (oliver.pain@kcl.ac.uk) for any questions or comments.
 
