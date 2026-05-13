@@ -564,7 +564,7 @@ read_twas_gsea_drug<-function(config, gwas, mode = 'directional'){
 
     atc_labels<-atc[nchar(atc$Code) == 4,]
 
-    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     dat<-NULL
@@ -632,7 +632,7 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
 
   if(read_param(config = config, param = flag_param, return_obj = F) == "T"){
 
-    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     dat<-NULL
@@ -688,7 +688,7 @@ read_twas_gsea_cmap_drug<-function(config, gwas){
   dat<-NULL
 
   if(read_param(config = config, param = 'twas_gsea_cmap', return_obj = F) == "T"){
-    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     for(i in weights){
@@ -731,7 +731,7 @@ read_twas_gsea_cmap_moa<-function(config, gwas){
   dat<-NULL
 
   if(read_param(config = config, param = 'twas_gsea_cmap', return_obj = F) == "T"){
-    weights<-read.table(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'))$V1
+    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     for(i in weights){
