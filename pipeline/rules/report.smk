@@ -89,7 +89,7 @@ rule package_results:
   log:
     "{outdir}/logs/package_results.log"
   shell:
-    "Rscript --vanilla scripts/package_results.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/package_results.R --pipeline_dir {workflow.basedir} \
     --config {params.config_file} > {log} 2>&1"
 
 rule run_package_results:

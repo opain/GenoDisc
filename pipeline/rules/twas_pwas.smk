@@ -71,7 +71,7 @@ checkpoint combine_twas_res:
   log:
     "{outdir}/logs/combine_twas_res-{gwas}.log"
   shell:
-    "(Rscript --vanilla scripts/combine_twas.R \
+    "(Rscript --vanilla {workflow.basedir}/scripts/combine_twas.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file}; \
       rm -rf {outdir}/results/{wildcards.gwas}/twas/conditional) > {log} 2>&1"
@@ -138,7 +138,7 @@ rule process_conditional:
   log:
     "{outdir}/logs/process_conditional-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/process_conditional.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/process_conditional.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -306,7 +306,7 @@ rule format_twas_gsea_drugtargetor_results:
   log:
     "{outdir}/logs/format_twas_gsea_drugtargetor_results-{gwas}-{weight}.log"
   shell:
-    "Rscript --vanilla scripts/format_twas_gsea_drugtargetor_results.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_drugtargetor_results.R --pipeline_dir {workflow.basedir} \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --config_file {params.config_file} > {log} 2>&1"
@@ -373,7 +373,7 @@ rule format_twas_gsea_drugtargetor_nondirectional_results:
   log:
     "{outdir}/logs/format_twas_gsea_drugtargetor_nondirectional_results-{gwas}-{weight}.log"
   shell:
-    "Rscript --vanilla scripts/format_twas_gsea_drugtargetor_results.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_drugtargetor_results.R --pipeline_dir {workflow.basedir} \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --mode nondirectional \
@@ -451,7 +451,7 @@ rule format_twas_gsea_cmap_results:
   log:
     "{outdir}/logs/format_twas_gsea_cmap_results-{gwas}-{weight}.log"
   shell:
-    "Rscript --vanilla scripts/format_twas_gsea_cmap_results.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_cmap_results.R --pipeline_dir {workflow.basedir} \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --config_file {params.config_file} > {log} 2>&1"

@@ -23,7 +23,7 @@ rule finemap:
   log:
     "{outdir}/logs/finemap-{gwas}-chr{chr}.log"
   shell:
-    "Rscript --vanilla scripts/finemap.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/finemap.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} \
       --chr {wildcards.chr} > {log} 2>&1"
@@ -53,7 +53,7 @@ rule process_finemap:
   log:
     "{outdir}/logs/process_finemap-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/process_finemap.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/process_finemap.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 

@@ -84,7 +84,7 @@ rule retrieve_N:
   log:
     "{outdir}/logs/retrieve_N-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/median_n.R --munged {input} --out {output} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/median_n.R --pipeline_dir {workflow.basedir} --munged {input} --out {output} > {log} 2>&1"
 
 ###
 # Run LDSC
@@ -167,7 +167,7 @@ rule process_clump:
   log:
     "{outdir}/logs/process_clump-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/process_clump.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/process_clump.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -229,6 +229,6 @@ rule process_cojo:
   log:
     "{outdir}/logs/process_cojo-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/process_cojo.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/process_cojo.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"

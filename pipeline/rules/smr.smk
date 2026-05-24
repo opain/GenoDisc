@@ -20,7 +20,7 @@ rule format_sumstats_smr:
   log:
     "{outdir}/logs/format_sumstats_smr-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/format_sumstats_smr.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_sumstats_smr.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -102,7 +102,7 @@ rule format_eqtlgen_smr:
   log:
     "{outdir}/logs/format_eqtlgen_smr-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/format_eqtlgen_smr.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_eqtlgen_smr.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -153,7 +153,7 @@ rule process_rosmap_smr:
   log:
     "{outdir}/logs/process_rosmap_smr-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/process_rosmap_smr.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/process_rosmap_smr.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -257,6 +257,6 @@ rule format_metabrain_smr:
   log:
     "{outdir}/logs/format_metabrain_smr-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/format_metabrain_smr.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_metabrain_smr.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"

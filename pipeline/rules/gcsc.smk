@@ -66,7 +66,7 @@ checkpoint prep_set_gcsc:
   log:
     "{outdir}/logs/prep_set_gcsc-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/prep_set_gcsc.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_set_gcsc.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -140,6 +140,6 @@ rule combine_gcsc:
   log:
     "{outdir}/logs/combine_gcsc-{gwas}.log"
   shell:
-    "Rscript --vanilla scripts/combine_gcsc.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/combine_gcsc.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"

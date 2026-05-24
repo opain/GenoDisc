@@ -119,7 +119,7 @@ rule download_biomart:
   log:
     f"{resdir}/logs/download_biomart.log"
   shell:
-    "Rscript --vanilla scripts/download_biomart.R --resdir {params.resdir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/download_biomart.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download liftover and GRCh 37 to 38 and 36 track
@@ -174,7 +174,7 @@ rule prep_1kg:
   log:
     f"{resdir}/logs/prep_1kg.log"
   shell:
-    "Rscript --vanilla scripts/prep_1kg.R > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_1kg.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
 
 ####
 # Download LDSC
@@ -398,7 +398,7 @@ rule format_drug_targetor:
   log:
     f"{resdir}/logs/format_drug_targetor.log"
   shell:
-    "Rscript --vanilla scripts/format_drug_targetor.R > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
 
 ####
 # Download and format GTEx TPM data
@@ -417,7 +417,7 @@ rule prep_tissue_exp:
   log:
     f"{resdir}/logs/prep_tissue_exp.log"
   shell:
-    "Rscript --vanilla scripts/prep_tissue_exp.R > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_tissue_exp.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
 
 ####
 # Download software required for TWAS-related analysis
@@ -529,7 +529,7 @@ rule format_psychencode:
   log:
     f"{resdir}/logs/format_psychencode.log"
   shell:
-    "Rscript --vanilla scripts/format_psychENCODE.R > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_psychENCODE.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
 
 # Download FUSION GTEx v8 EUR SNP-weights
 # I am using EUR instead of full sample to avoid LD mismatch
@@ -563,7 +563,7 @@ rule update_gtex_coord:
   log:
     f"{resdir}/logs/update_gtex_coord-{{weight}}.log"
   shell:
-    "Rscript --vanilla scripts/update_gtex_coord.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/update_gtex_coord.R --pipeline_dir {workflow.basedir} \
       --panel {wildcards.weight} > {log} 2>&1"
 
 rule update_gtex_coord_all_panel:
@@ -600,7 +600,7 @@ rule insert_n_nongtex:
   log:
     f"{resdir}/logs/insert_n_nongtex-{{weight}}.log"
   shell:
-    "Rscript --vanilla scripts/insert_n_nongtex.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/insert_n_nongtex.R --pipeline_dir {workflow.basedir} \
       --panel {wildcards.weight} > {log} 2>&1"
 
 rule insert_n_nongtex_all_panel:
@@ -810,7 +810,7 @@ rule format_pwas_data:
   log:
     f"{resdir}/logs/format_pwas_data.log"
   shell:
-    "Rscript --vanilla scripts/format_pwas_data.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_pwas_data.R --pipeline_dir {workflow.basedir} \
       --rosmap {params.rosmap_fusion} \
       --banner {params.banner_fusion} > {log} 2>&1"
 
@@ -828,7 +828,7 @@ rule format_drug_targetor_for_twas_gsea:
   log:
     f"{resdir}/logs/format_drug_targetor_for_twas_gsea.log"
   shell:
-    "Rscript --vanilla scripts/format_drug_targetor_for_twas_gsea.R > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor_for_twas_gsea.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
 
 ####
 # Download SMR
@@ -871,7 +871,7 @@ rule format_rosmap_smr_data:
   log:
     f"{resdir}/logs/format_rosmap_smr_data.log"
   shell:
-    "Rscript --vanilla scripts/format_rosmap_smr_data.R \
+    "Rscript --vanilla {workflow.basedir}/scripts/format_rosmap_smr_data.R --pipeline_dir {workflow.basedir} \
       --rosmap {params.rosmap_smr} > {log} 2>&1"
 
 ####
@@ -1013,7 +1013,7 @@ rule format_metabrain_esi:
   log:
     f"{resdir}/logs/format_metabrain_esi.log"
   shell:
-    "Rscript --vanilla scripts/format_metabrain_esi.R > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_metabrain_esi.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
 
 # Download eQTLGen data in SMR format
 rule download_eqtlgen:
