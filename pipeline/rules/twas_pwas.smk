@@ -30,7 +30,7 @@ rule run_twas:
   log:
     "{outdir}/logs/run_twas-{gwas}-{weights}-chr{chr}.log"
   shell:
-    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript --vanilla {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weights} \
@@ -71,7 +71,7 @@ checkpoint combine_twas_res:
   log:
     "{outdir}/logs/combine_twas_res-{gwas}.log"
   shell:
-    "(Rscript scripts/combine_twas.R \
+    "(Rscript --vanilla scripts/combine_twas.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file}; \
       rm -rf {outdir}/results/{wildcards.gwas}/twas/conditional) > {log} 2>&1"
@@ -106,7 +106,7 @@ rule run_conditional:
   log:
     "{outdir}/logs/run_conditional-{gwas}-chr{chr}.log"
   shell:
-    "(mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript {params.resdir}/software/fusion/FUSION.post_process.R \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/twas/conditional; Rscript --vanilla {params.resdir}/software/fusion/FUSION.post_process.R \
       --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
       --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
@@ -138,7 +138,7 @@ rule process_conditional:
   log:
     "{outdir}/logs/process_conditional-{gwas}.log"
   shell:
-    "Rscript scripts/process_conditional.R \
+    "Rscript --vanilla scripts/process_conditional.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -167,7 +167,7 @@ rule run_rosmap_pwas:
   log:
     "{outdir}/logs/run_rosmap_pwas-{gwas}-chr{chr}.log"
   shell:
-    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript --vanilla {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
@@ -204,7 +204,7 @@ rule run_banner_pwas:
   log:
     "{outdir}/logs/run_banner_pwas-{gwas}-chr{chr}.log"
   shell:
-    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript --vanilla {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS \
@@ -246,7 +246,7 @@ rule build_twas_gsea_cormat:
   log:
     f"{resdir}/logs/build_twas_gsea_cormat-{{weight}}.log"
   shell:
-    "Rscript {params.resdir}/software/TWAS-GSEA/build_cor_matrix.R \
+    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/build_cor_matrix.R \
       --expression_ref {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
       --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
       --min_r2 0.01 \
@@ -276,7 +276,7 @@ rule run_twas_gsea_drug_targetor:
   log:
     "{outdir}/logs/run_twas_gsea_drug_targetor-{gwas}-{weight}.log"
   shell:
-    "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
       --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
       --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
       --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
@@ -306,7 +306,7 @@ rule format_twas_gsea_drugtargetor_results:
   log:
     "{outdir}/logs/format_twas_gsea_drugtargetor_results-{gwas}-{weight}.log"
   shell:
-    "Rscript scripts/format_twas_gsea_drugtargetor_results.R \
+    "Rscript --vanilla scripts/format_twas_gsea_drugtargetor_results.R \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --config_file {params.config_file} > {log} 2>&1"
@@ -345,7 +345,7 @@ rule run_twas_gsea_drug_targetor_nondirectional:
   log:
     "{outdir}/logs/run_twas_gsea_drug_targetor_nondirectional-{gwas}-{weight}.log"
   shell:
-    "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
       --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
       --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
       --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
@@ -373,7 +373,7 @@ rule format_twas_gsea_drugtargetor_nondirectional_results:
   log:
     "{outdir}/logs/format_twas_gsea_drugtargetor_nondirectional_results-{gwas}-{weight}.log"
   shell:
-    "Rscript scripts/format_twas_gsea_drugtargetor_results.R \
+    "Rscript --vanilla scripts/format_twas_gsea_drugtargetor_results.R \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --mode nondirectional \
@@ -416,7 +416,7 @@ rule run_twas_gsea_cmap:
   log:
     "{outdir}/logs/run_twas_gsea_cmap-{gwas}-{weight}.log"
   shell:
-    "Rscript {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
       --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
       --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
       --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
@@ -451,7 +451,7 @@ rule format_twas_gsea_cmap_results:
   log:
     "{outdir}/logs/format_twas_gsea_cmap_results-{gwas}-{weight}.log"
   shell:
-    "Rscript scripts/format_twas_gsea_cmap_results.R \
+    "Rscript --vanilla scripts/format_twas_gsea_cmap_results.R \
     --twas {wildcards.gwas} \
     --panel {wildcards.weight} \
     --config_file {params.config_file} > {log} 2>&1"

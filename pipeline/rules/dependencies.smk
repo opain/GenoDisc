@@ -119,7 +119,7 @@ rule download_biomart:
   log:
     f"{resdir}/logs/download_biomart.log"
   shell:
-    "Rscript scripts/download_biomart.R --resdir {params.resdir} > {log} 2>&1"
+    "Rscript --vanilla scripts/download_biomart.R --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download liftover and GRCh 37 to 38 and 36 track
@@ -174,7 +174,7 @@ rule prep_1kg:
   log:
     f"{resdir}/logs/prep_1kg.log"
   shell:
-    "Rscript scripts/prep_1kg.R > {log} 2>&1"
+    "Rscript --vanilla scripts/prep_1kg.R > {log} 2>&1"
 
 ####
 # Download LDSC
@@ -252,7 +252,7 @@ rule install_genoutils:
   log:
     f"{resdir}/logs/install_genoutils.log"
   shell:
-    "Rscript -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")' > {log} 2>&1"
 
 ####
 # Download MAGMA
@@ -398,7 +398,7 @@ rule format_drug_targetor:
   log:
     f"{resdir}/logs/format_drug_targetor.log"
   shell:
-    "Rscript scripts/format_drug_targetor.R > {log} 2>&1"
+    "Rscript --vanilla scripts/format_drug_targetor.R > {log} 2>&1"
 
 ####
 # Download and format GTEx TPM data
@@ -417,7 +417,7 @@ rule prep_tissue_exp:
   log:
     f"{resdir}/logs/prep_tissue_exp.log"
   shell:
-    "Rscript scripts/prep_tissue_exp.R > {log} 2>&1"
+    "Rscript --vanilla scripts/prep_tissue_exp.R > {log} 2>&1"
 
 ####
 # Download software required for TWAS-related analysis
@@ -474,7 +474,7 @@ rule install_plink2R:
   log:
     f"{resdir}/logs/install_plink2R.log"
   shell:
-    "Rscript -e 'install.packages(\"{params.resdir}/software/plink2R/plink2R-master/plink2R/\",repos=NULL)' > {log} 2>&1"
+    "Rscript --vanilla -e 'install.packages(\"{params.resdir}/software/plink2R/plink2R-master/plink2R/\",repos=NULL)' > {log} 2>&1"
 
 # Install SNP-weights pipeline repo
 rule install_snp_weight_pipe:
@@ -529,7 +529,7 @@ rule format_psychencode:
   log:
     f"{resdir}/logs/format_psychencode.log"
   shell:
-    "Rscript scripts/format_psychENCODE.R > {log} 2>&1"
+    "Rscript --vanilla scripts/format_psychENCODE.R > {log} 2>&1"
 
 # Download FUSION GTEx v8 EUR SNP-weights
 # I am using EUR instead of full sample to avoid LD mismatch
@@ -563,7 +563,7 @@ rule update_gtex_coord:
   log:
     f"{resdir}/logs/update_gtex_coord-{{weight}}.log"
   shell:
-    "Rscript scripts/update_gtex_coord.R \
+    "Rscript --vanilla scripts/update_gtex_coord.R \
       --panel {wildcards.weight} > {log} 2>&1"
 
 rule update_gtex_coord_all_panel:
@@ -600,7 +600,7 @@ rule insert_n_nongtex:
   log:
     f"{resdir}/logs/insert_n_nongtex-{{weight}}.log"
   shell:
-    "Rscript scripts/insert_n_nongtex.R \
+    "Rscript --vanilla scripts/insert_n_nongtex.R \
       --panel {wildcards.weight} > {log} 2>&1"
 
 rule insert_n_nongtex_all_panel:
@@ -742,7 +742,7 @@ rule feature_pred:
   log:
     f"{resdir}/logs/feature_pred-{{weight}}.log"
   shell:
-    "Rscript {params.resdir}/software/Predicting-TWAS-features/FeaturePred.V2.0.R \
+    "Rscript --vanilla {params.resdir}/software/Predicting-TWAS-features/FeaturePred.V2.0.R \
     	--PLINK_prefix_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
     	--weights {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
     	--weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weight} \
@@ -791,7 +791,7 @@ rule install_lme4qtl:
   log:
     f"{resdir}/logs/install_lme4qtl.log"
   shell:
-    "Rscript -e 'devtools::install_github(\"variani/lme4qtl@0c173ea8d8386b205f62ad642698519a861650b4\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"variani/lme4qtl@0c173ea8d8386b205f62ad642698519a861650b4\")' > {log} 2>&1"
 
 ####
 # Format ROSMAP and Banner PWAS data
@@ -810,7 +810,7 @@ rule format_pwas_data:
   log:
     f"{resdir}/logs/format_pwas_data.log"
   shell:
-    "Rscript scripts/format_pwas_data.R \
+    "Rscript --vanilla scripts/format_pwas_data.R \
       --rosmap {params.rosmap_fusion} \
       --banner {params.banner_fusion} > {log} 2>&1"
 
@@ -828,7 +828,7 @@ rule format_drug_targetor_for_twas_gsea:
   log:
     f"{resdir}/logs/format_drug_targetor_for_twas_gsea.log"
   shell:
-    "Rscript scripts/format_drug_targetor_for_twas_gsea.R > {log} 2>&1"
+    "Rscript --vanilla scripts/format_drug_targetor_for_twas_gsea.R > {log} 2>&1"
 
 ####
 # Download SMR
@@ -871,7 +871,7 @@ rule format_rosmap_smr_data:
   log:
     f"{resdir}/logs/format_rosmap_smr_data.log"
   shell:
-    "Rscript scripts/format_rosmap_smr_data.R \
+    "Rscript --vanilla scripts/format_rosmap_smr_data.R \
       --rosmap {params.rosmap_smr} > {log} 2>&1"
 
 ####
@@ -1013,7 +1013,7 @@ rule format_metabrain_esi:
   log:
     f"{resdir}/logs/format_metabrain_esi.log"
   shell:
-    "Rscript scripts/format_metabrain_esi.R > {log} 2>&1"
+    "Rscript --vanilla scripts/format_metabrain_esi.R > {log} 2>&1"
 
 # Download eQTLGen data in SMR format
 rule download_eqtlgen:

@@ -39,8 +39,8 @@ rule sumstat_prep_i:
     f"{outdir}/logs/sumstat_prep_i-{{gwas}}.log"
   shell:
     """
-    (sumstat_cleaner_script=$(Rscript -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
-    Rscript $sumstat_cleaner_script \
+    (sumstat_cleaner_script=$(Rscript --vanilla -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
+    Rscript --vanilla $sumstat_cleaner_script \
       --sumstats {params.path} \
       --n {params.n} \
       --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
@@ -84,7 +84,7 @@ rule retrieve_N:
   log:
     "{outdir}/logs/retrieve_N-{gwas}.log"
   shell:
-    "Rscript scripts/median_n.R --munged {input} --out {output} > {log} 2>&1"
+    "Rscript --vanilla scripts/median_n.R --munged {input} --out {output} > {log} 2>&1"
 
 ###
 # Run LDSC
@@ -167,7 +167,7 @@ rule process_clump:
   log:
     "{outdir}/logs/process_clump-{gwas}.log"
   shell:
-    "Rscript scripts/process_clump.R \
+    "Rscript --vanilla scripts/process_clump.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -229,6 +229,6 @@ rule process_cojo:
   log:
     "{outdir}/logs/process_cojo-{gwas}.log"
   shell:
-    "Rscript scripts/process_cojo.R \
+    "Rscript --vanilla scripts/process_cojo.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"

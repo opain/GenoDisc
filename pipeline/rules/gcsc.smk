@@ -25,7 +25,7 @@ rule run_twas_gcsc:
   log:
     "{outdir}/logs/run_twas_gcsc-{gwas}-{gcsc_tissue}-chr{chr}.log"
   shell:
-    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript {params.resdir}/software/fusion/FUSION.assoc_test.R \
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/gcsc/twas/{wildcards.gcsc_tissue}; N=$(cat {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.median_N.txt); Rscript --vanilla {params.resdir}/software/fusion/FUSION.assoc_test.R \
     --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
     --weights_dir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
@@ -66,7 +66,7 @@ checkpoint prep_set_gcsc:
   log:
     "{outdir}/logs/prep_set_gcsc-{gwas}.log"
   shell:
-    "Rscript scripts/prep_set_gcsc.R \
+    "Rscript --vanilla scripts/prep_set_gcsc.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -140,6 +140,6 @@ rule combine_gcsc:
   log:
     "{outdir}/logs/combine_gcsc-{gwas}.log"
   shell:
-    "Rscript scripts/combine_gcsc.R \
+    "Rscript --vanilla scripts/combine_gcsc.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"

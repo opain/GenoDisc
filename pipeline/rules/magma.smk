@@ -44,7 +44,7 @@ rule format_magma_gene_results:
   log:
     "{outdir}/logs/format_magma_gene_results-{gwas}.log"
   shell:
-    "Rscript scripts/format_magma_gene_results.R \
+    "Rscript --vanilla scripts/format_magma_gene_results.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -85,7 +85,7 @@ rule format_magma_results:
   log:
     "{outdir}/logs/format_magma_results-{gwas}.log"
   shell:
-    "Rscript scripts/format_magma_gsea_results.R \
+    "Rscript --vanilla scripts/format_magma_gsea_results.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -105,7 +105,7 @@ rule comp_magma_gsea_twas_results:
   log:
     "{outdir}/logs/comp_magma_gsea_twas_results-{gwas}.log"
   shell:
-    "Rscript scripts/comp_magma_gsea_twas_results.R \
+    "Rscript --vanilla scripts/comp_magma_gsea_twas_results.R \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
@@ -169,7 +169,7 @@ rule magma_tissue_conditional:
   log:
     "{outdir}/logs/magma_tissue_conditional-{gwas}.log"
   shell:
-    "Rscript scripts/magma_tissue_conditional.R \
+    "Rscript --vanilla scripts/magma_tissue_conditional.R \
       --config_file {params.config_file} \
       --gwas {wildcards.gwas} > {log} 2>&1"
 

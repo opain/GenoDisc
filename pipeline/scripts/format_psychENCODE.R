@@ -21,7 +21,7 @@ Genes<-Genes[order(Genes$chromosome_name, Genes$start_position),]
 
 write.table(Genes, paste0(opt$resdir, '/data/fusion_snp_weights/psychencode.coord'), col.names=T, row.names=F, quote=F)
 
-system(paste0('Rscript ', opt$resdir, '/software/Calculating-FUSION-TWAS-weights-pipeline/OP_packaging_fusion_weights.R --RDat_dir ', opt$resdir, '/data/fusion_snp_weights/psychencode/psychencode --coordinate_file ', opt$resdir, '/data/fusion_snp_weights/psychencode.coord --output_name psychencode --output_dir ', opt$resdir, '/data/fusion_snp_weights/psychencode/psychencode_new'))
+system(paste0('Rscript --vanilla ', opt$resdir, '/software/Calculating-FUSION-TWAS-weights-pipeline/OP_packaging_fusion_weights.R --RDat_dir ', opt$resdir, '/data/fusion_snp_weights/psychencode/psychencode --coordinate_file ', opt$resdir, '/data/fusion_snp_weights/psychencode.coord --output_name psychencode --output_dir ', opt$resdir, '/data/fusion_snp_weights/psychencode/psychencode_new'))
 
 # Delete original SNP-weights and rename new folder
 system(paste0('rm -r ', opt$resdir, '/data/fusion_snp_weights/psychencode/psychencode'))

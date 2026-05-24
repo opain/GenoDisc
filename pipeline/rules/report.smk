@@ -89,7 +89,7 @@ rule package_results:
   log:
     "{outdir}/logs/package_results.log"
   shell:
-    "Rscript scripts/package_results.R \
+    "Rscript --vanilla scripts/package_results.R \
     --config {params.config_file} > {log} 2>&1"
 
 rule run_package_results:
