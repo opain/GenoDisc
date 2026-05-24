@@ -17,9 +17,15 @@ option_list <- list(
   make_option("--panel",       action = "store", default = NA, type = 'character', help = "Weight panel [required]"),
   make_option("--config_file", action = "store", default = NA, type = 'character', help = "Path to config file [required]")
 )
-opt <- parse_args(OptionParser(option_list = option_list))
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
 
-source('scripts/functions/utils_functions.R')
+opt <- parse_args(OptionParser(option_list = option_list))
+options(pipeline_dir = opt$pipeline_dir)
+
+source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
 
 config <- readLines(opt$config_file)
 outdir <- gsub('outdir: ', '', config[grepl('outdir: ', config)])

@@ -6,15 +6,21 @@ option_list <- list(
               help = "Path to config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
-source('scripts/functions/utils_functions.R')
-source_all('scripts/functions')
+source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
+source_all(file.path(opt$pipeline_dir, 'functions'))
 
 # Read in config: merge default config with user config (user takes priority)
 library(yaml)
-default_config <- read_yaml('config.yaml')
+default_config <- read_yaml(file.path(opt$pipeline_dir, 'config.yaml'))
 user_config <- read_yaml(opt$config)
 merged_config <- default_config
 merged_config[names(user_config)] <- user_config

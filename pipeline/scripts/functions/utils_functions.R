@@ -46,8 +46,15 @@ read_param <- function(config, param, return_obj = T, quiet = F){
   config_file <- read_yaml(config)
   
   if(all(names(config_file) != param)){
-    # Check default config file
-    config_file <- read_yaml('config.yaml')
+    # Check default config file. Resolve via the global option `pipeline_dir`
+    # (set by each script after parse_args) so this works when CWD is not the
+    # pipeline folder; fall back to CWD-relative for backward compatibility.
+    .default_config_path <- if (!is.null(getOption('pipeline_dir'))) {
+      file.path(getOption('pipeline_dir'), 'config.yaml')
+    } else {
+      'config.yaml'
+    }
+    config_file <- read_yaml(.default_config_path)
     
     if(all(names(config_file) != param)){
       if(quiet == F){

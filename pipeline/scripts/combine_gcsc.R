@@ -8,10 +8,16 @@ option_list = list(
               help="config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
-source('scripts/functions/utils_functions.R')
+source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)

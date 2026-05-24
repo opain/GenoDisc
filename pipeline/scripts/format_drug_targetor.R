@@ -5,7 +5,13 @@ library(optparse)
 option_list = list(
   make_option("--resdir", type="character", default="resources")
 )
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 pathways<-fread(paste0(opt$resdir, '/data/drug_targetor/wholedatabase_for_targetor'))
 pathways$atc<-gsub(' ', '_', pathways$atc)
