@@ -157,7 +157,7 @@ rule magma_tissue_group:
 rule magma_tissue_conditional:
   input:
     "{outdir}/results/{gwas}/magma/magma_tissue_spec.gsa.out",
-    "scripts/magma_tissue_conditional.R"
+    f"{workflow.basedir}/scripts/magma_tissue_conditional.R"
   output:
     touch("{outdir}/results/{gwas}/magma/magma_property_conditional.done")
   benchmark:

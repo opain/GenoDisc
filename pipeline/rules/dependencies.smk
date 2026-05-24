@@ -54,7 +54,7 @@ chromosomes = config.get("chromosomes", list(range(1, 23)))
 
 def get_current_version():
     cmd = "git describe --tags"
-    tag = subprocess.check_output(cmd, shell=True).decode().strip()
+    tag = subprocess.check_output(cmd, shell=True, cwd=workflow.basedir).decode().strip()
     match = re.match(r"v?(\d+)\.(\d+)", tag)
     if match:
         return int(match.group(1)), int(match.group(2))  # Major, Minor
@@ -242,7 +242,7 @@ rule download_gcta:
 # Install GenoUtils
 rule install_genoutils:
   input:
-    "envs/main.yaml"
+    f"{workflow.basedir}/envs/main.yaml"
   output:
     touch(f"{resdir}/software/install_genoutils.done")
   benchmark:
@@ -407,7 +407,7 @@ rule format_drug_targetor:
 rule prep_tissue_exp:
   input:
     rules.download_magma_gene_loc.output,
-    "scripts/prep_tissue_exp.R"
+    f"{workflow.basedir}/scripts/prep_tissue_exp.R"
   output:
     f"{resdir}/data/gtex/GTEx_v8_group.tsv"
   benchmark:
@@ -462,7 +462,7 @@ rule download_plink2R:
 rule install_plink2R:
   input:
     rules.download_plink2R.output,
-    "envs/main.yaml"
+    f"{workflow.basedir}/envs/main.yaml"
   output:
     touch(f"{resdir}/software/install_plink2R")
   benchmark:
@@ -781,7 +781,7 @@ rule format_pred:
 
 rule install_lme4qtl:
   input:
-    "envs/main.yaml"
+    f"{workflow.basedir}/envs/main.yaml"
   output:
     touch(f"{resdir}/software/install_lme4qtl.done")
   benchmark:

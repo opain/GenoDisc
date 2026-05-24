@@ -244,7 +244,7 @@ if config["smr_expression_panel_metabrain_spinalcord"] == "T":
 rule format_metabrain_smr:
   input:
     metabrain_output,
-    "scripts/format_metabrain_smr.R",
+    f"{workflow.basedir}/scripts/format_metabrain_smr.R",
     rules.download_biomart.output
   output:
     "{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz"

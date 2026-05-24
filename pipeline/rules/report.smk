@@ -1,7 +1,7 @@
 ####
 # Create results package
 ####
-    
+
 myoutput = list()
 
 if config["clump"] == "T":
@@ -15,10 +15,10 @@ if config["finemap"] == "T":
 
 if config["ldsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-    
+
 if config["magma_gene"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-    
+
 if config["magma_drugtargetor"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
@@ -76,8 +76,8 @@ if config["gcsc"] == "T":
 rule package_results:
   input:
     myoutput,
-    "scripts/package_results.R",
-    "scripts/functions/package_results_functions.R"
+    f"{workflow.basedir}/scripts/package_results.R",
+    f"{workflow.basedir}/scripts/functions/package_results_functions.R"
   output:
     "{outdir}/results/results_package.rds"
   benchmark:
