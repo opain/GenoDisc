@@ -15,8 +15,8 @@ opt = parse_args(OptionParser(option_list=option_list))
 options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
-source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
-source_all(file.path(opt$pipeline_dir, 'functions'))
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
+source_all(file.path(opt$pipeline_dir, 'scripts', 'functions'))
 
 # Read in config: merge default config with user config (user takes priority)
 library(yaml)

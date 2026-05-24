@@ -23,7 +23,7 @@ options(pipeline_dir = opt$pipeline_dir)
 
 # Load required packages
 library(data.table)
-source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config_file<-readLines(opt$config_file)

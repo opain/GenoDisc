@@ -25,7 +25,7 @@ option_list <- c(option_list, list(
 opt <- parse_args(OptionParser(option_list = option_list))
 options(pipeline_dir = opt$pipeline_dir)
 
-source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 config <- readLines(opt$config_file)
 outdir <- gsub('outdir: ', '', config[grepl('outdir: ', config)])

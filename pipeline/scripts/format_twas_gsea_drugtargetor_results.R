@@ -25,7 +25,7 @@ if(!(opt$mode %in% c('directional','nondirectional'))) stop("--mode must be 'dir
 suffix <- if(opt$mode == 'nondirectional') '_nondir' else ''
 
 library(data.table)
-source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)

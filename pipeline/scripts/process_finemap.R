@@ -19,7 +19,7 @@ options(pipeline_dir = opt$pipeline_dir)
 library(data.table)
 library(susieR)
 library(stringr)
-source(file.path(opt$pipeline_dir, 'functions', 'utils_functions.R'))
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)
