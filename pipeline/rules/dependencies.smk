@@ -252,7 +252,7 @@ rule install_genoutils:
   log:
     f"{resdir}/logs/install_genoutils.log"
   shell:
-    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Download MAGMA
@@ -791,7 +791,7 @@ rule install_lme4qtl:
   log:
     f"{resdir}/logs/install_lme4qtl.log"
   shell:
-    "Rscript --vanilla -e 'devtools::install_github(\"variani/lme4qtl@0c173ea8d8386b205f62ad642698519a861650b4\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"variani/lme4qtl@0c173ea8d8386b205f62ad642698519a861650b4\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Format ROSMAP and Banner PWAS data
