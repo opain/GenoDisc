@@ -27,6 +27,18 @@ gwasQcUI <- function(id) {
       )
     ),
 
+    # --- QQ Plot ---
+    fluidRow(
+      column(
+        width = 12,
+        div(
+          class = "panel panel-default",
+          div(class = "panel-heading", tags$strong("QQ Plot")),
+          div(class = "panel-body", uiOutput(ns("qq_plot_ui")))
+        )
+      )
+    ),
+
     # --- Technical Appendix ---
     br(),
     div(
@@ -101,6 +113,28 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list) {
           tags$strong("MAF Plot Unavailable"),
           br(),
           "Allele frequency data was not provided in the input GWAS."
+        )
+      }
+    })
+
+    # QQ plot rendering
+    output$qq_plot_ui <- renderUI({
+      req(gwas_data(), selected_gwas())
+      b64 <- gwas_data()[[selected_gwas()]]$gwas_qc$qq_plot_base64
+
+      if (!is.null(b64)) {
+        tags$img(
+          src = paste0("data:image/png;base64,", b64),
+          style = "max-height: 500px; width: auto;"
+        )
+      } else {
+        div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          icon("chart-line", style = "font-size: 2em;"),
+          br(), br(),
+          tags$strong("QQ Plot Unavailable"),
+          br(),
+          "This results package was produced before the QQ plot rule was added."
         )
       }
     })

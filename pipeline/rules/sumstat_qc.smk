@@ -232,3 +232,64 @@ rule process_cojo:
     "Rscript --vanilla {workflow.basedir}/scripts/process_cojo.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
+
+###
+# QQ plot
+###
+
+rule qq_plot:
+  resources:
+    mem_mb=lambda wildcards, input: max(
+      4000,
+      int(2000 + (8 * os.path.getsize(input[0]) / 1024**2))
+    )
+  input:
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz"
+  output:
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.qq_plot.png"
+  benchmark:
+    f"{outdir}/benchmarks/qq_plot_{{gwas}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    f"{outdir}/logs/qq_plot-{{gwas}}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/plot_qq.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} > {log} 2>&1"
+
+###
+# Manhattan plot
+###
+
+def _manhattan_inputs(wildcards):
+    inputs = {"sumstats": f"{outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz"}
+    if config.get("clump", "F") == "T":
+        inputs["clump_csv"] = f"{outdir}/results/{wildcards.gwas}/clump/{wildcards.gwas}.GW.clump.clean.csv"
+    return inputs
+
+rule manhattan_plot:
+  resources:
+    mem_mb=lambda wildcards, input: max(
+      6000,
+      int(3000 + (12 * os.path.getsize(input.sumstats) / 1024**2))
+    )
+  input:
+    unpack(_manhattan_inputs)
+  output:
+    unlabelled=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.manhattan_plot.unlabelled.png",
+    labelled=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.manhattan_plot.labelled.png"
+  benchmark:
+    f"{outdir}/benchmarks/manhattan_plot_{{gwas}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    f"{outdir}/logs/manhattan_plot-{{gwas}}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/plot_manhattan.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} > {log} 2>&1"

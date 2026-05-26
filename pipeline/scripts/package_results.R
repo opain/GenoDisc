@@ -62,6 +62,14 @@ for(gwas_i in gwas_list$name){
     gwas_qc$maf_plot_base64 <- NULL
   }
 
+  qq_plot_path         <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.qq_plot.png')
+  manhattan_unlab_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.manhattan_plot.unlabelled.png')
+  manhattan_lab_path   <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.manhattan_plot.labelled.png')
+
+  gwas_qc$qq_plot_base64                   <- if (file.exists(qq_plot_path))         base64enc::base64encode(qq_plot_path)         else NULL
+  gwas_qc$manhattan_plot_unlabelled_base64 <- if (file.exists(manhattan_unlab_path)) base64enc::base64encode(manhattan_unlab_path) else NULL
+  gwas_qc$manhattan_plot_labelled_base64   <- if (file.exists(manhattan_lab_path))   base64enc::base64encode(manhattan_lab_path)   else NULL
+
   ##################
   # SNP associations
   ##################

@@ -73,6 +73,10 @@ if config["tissue_magma"] == "T":
 if config["gcsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.qq_plot.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.manhattan_plot.labelled.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 rule package_results:
   input:
     myoutput,

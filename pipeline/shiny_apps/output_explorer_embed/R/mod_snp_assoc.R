@@ -12,6 +12,24 @@ snpAssocUI <- function(id) {
     hr(),
     tabsetPanel(
       tabPanel(
+        title = "Manhattan plot",
+        br(),
+        fluidPage(
+          sidebarPanel(
+            radioButtons(ns("manhattan_label_choice"), "Variant labelling:",
+                         choices = c("Without labels" = "unlabelled",
+                                     "With nearest-gene labels" = "labelled"),
+                         selected = "unlabelled"),
+            width = 3
+          ),
+
+          mainPanel(
+            uiOutput(ns("manhattan_plot_ui")),
+            width = 9
+          )
+        )
+      ),
+      tabPanel(
         title = "Lead variants",
         br(),
         fluidPage(
@@ -62,6 +80,31 @@ snpAssocUI <- function(id) {
 #' @param selected_gwas Reactive returning the currently selected GWAS name
 snpAssocServer <- function(id, gwas_data, selected_gwas) {
   moduleServer(id, function(input, output, session) {
+
+    output$manhattan_plot_ui <- renderUI({
+      req(gwas_data(), selected_gwas(), input$manhattan_label_choice)
+      b64_field <- if (input$manhattan_label_choice == "labelled")
+        "manhattan_plot_labelled_base64"
+      else
+        "manhattan_plot_unlabelled_base64"
+      b64 <- gwas_data()[[selected_gwas()]]$gwas_qc[[b64_field]]
+
+      if (!is.null(b64)) {
+        tags$img(
+          src = paste0("data:image/png;base64,", b64),
+          style = "max-width: 100%; height: auto;"
+        )
+      } else {
+        div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          icon("chart-bar", style = "font-size: 2em;"),
+          br(), br(),
+          tags$strong("Manhattan plot Unavailable"),
+          br(),
+          "This results package was produced before the Manhattan plot rule was added."
+        )
+      }
+    })
 
     snp_assoc_lead_data <- reactive({
       req(gwas_data(), selected_gwas(), input$clumping_type)
