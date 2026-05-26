@@ -110,6 +110,28 @@ stack_genes <- function(g) {
 
 sanitise_id <- function(x) gsub("[/:]", "_", x)
 
+recomb_cache <- new.env(parent = emptyenv())
+
+get_recomb <- function(chr_i) {
+  key <- as.character(chr_i)
+  hit <- recomb_cache[[key]]
+  if (!is.null(hit)) return(hit)
+  path <- sprintf("%s/data/recomb_maps/chr%d.interpolated_genetic_map.gz", resdir, chr_i)
+  m <- tryCatch(
+    fread(path, header = FALSE, col.names = c("SNP", "BP", "cM")),
+    error = function(e) { warning(sprintf("recomb map chr%d: %s", chr_i, conditionMessage(e))); NULL }
+  )
+  if (is.null(m) || nrow(m) < 2) {
+    assign(key, list(), envir = recomb_cache)
+    return(NULL)
+  }
+  m <- m[order(BP)]
+  m[, rate := c(diff(cM) / diff(BP) * 1e6, NA_real_)]
+  m <- m[!is.na(rate)]
+  assign(key, m, envir = recomb_cache)
+  m
+}
+
 make_plot <- function(idx_row) {
   snp_id  <- idx_row$SNP
   chr_i   <- as.integer(idx_row$CHR)
@@ -176,9 +198,22 @@ make_plot <- function(idx_row) {
                size = 1.5)
   }
 
+  ymax <- max(c(win$neglogP, -log10(5e-9)), na.rm = TRUE) + 0.5
+  sf   <- ymax / 100
+  recomb_all <- get_recomb(chr_i)
+  recomb_win <- if (!is.null(recomb_all) && is.data.table(recomb_all))
+                  recomb_all[BP >= win_lo & BP <= win_hi] else NULL
+  recomb_layer <- if (!is.null(recomb_win) && nrow(recomb_win) >= 2) {
+    geom_line(data = recomb_win, aes(x = BP, y = rate * sf),
+              colour = "#90CAF9", size = 0.4, alpha = 0.7)
+  } else {
+    NULL
+  }
+
   title_text <- sprintf("%s — %s (chr%d:%s)", snp_id, nearest, chr_i, format(bp_i, big.mark = ","))
 
   scatter <- ggplot() +
+    recomb_layer +
     scatter_geom +
     geom_point(data = win[is_index == TRUE],
                aes(x = BP, y = neglogP),
@@ -187,11 +222,14 @@ make_plot <- function(idx_row) {
     geom_hline(yintercept = -log10(1e-5), colour = "blue", linetype = "dashed") +
     scale_colour_manual(values = r2_colours, drop = FALSE, name = expression(r^2)) +
     scale_x_continuous(labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
-    coord_cartesian(xlim = c(win_lo, win_hi)) +
-    expand_limits(y = 0) +
-    labs(x = NULL,
-         y = expression(-log[10](italic(P))),
-         title = title_text) +
+    scale_y_continuous(
+      name = expression(-log[10](italic(P))),
+      sec.axis = sec_axis(~ . / sf,
+                           name = "Recombination rate (cM/Mb)",
+                           breaks = c(0, 20, 40, 60, 80, 100))
+    ) +
+    coord_cartesian(xlim = c(win_lo, win_hi), ylim = c(0, ymax)) +
+    labs(x = NULL, title = title_text) +
     theme_bw(base_size = 10) +
     theme(panel.grid.minor = element_blank(),
           plot.title = element_text(size = 10, face = "bold"),

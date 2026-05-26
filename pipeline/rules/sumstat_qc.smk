@@ -316,7 +316,9 @@ rule locus_plots:
                           chr=chromosomes),
     fam=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.fam",
                           population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
-                          chr=chromosomes)
+                          chr=chromosomes),
+    recomb_maps=expand(f"{resdir}/data/recomb_maps/chr{{chr}}.interpolated_genetic_map.gz",
+                        chr=chromosomes)
   output:
     touch(f"{outdir}/results/{{gwas}}/locus_plots/{{gwas}}.locus_plots.done")
   benchmark:

@@ -123,6 +123,24 @@ rule download_biomart:
     "Rscript --vanilla {workflow.basedir}/scripts/download_biomart.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 ####
+# Download recombination rate maps (Pickrell HapMap-interpolated, GRCh37)
+####
+
+rule download_recomb_map:
+  output:
+    f"{resdir}/data/recomb_maps/chr{{chr}}.interpolated_genetic_map.gz"
+  benchmark:
+    f"{resdir}/benchmarks/download_recomb_map_chr{{chr}}.tsv"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_recomb_map_chr{{chr}}.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/recomb_maps/; "
+    "wget --no-check-certificate -O {output} "
+    "https://raw.githubusercontent.com/joepickrell/1000-genomes-genetic-maps/master/interpolated_from_hapmap/chr{wildcards.chr}.interpolated_genetic_map.gz) > {log} 2>&1"
+
+####
 # Download liftover and GRCh 37 to 38 and 36 track
 ####
 
