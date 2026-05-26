@@ -78,6 +78,19 @@ for(gwas_i in gwas_list$name){
 
   if(read_param(config = opt$config, param = 'clump', return_obj = F) == "T"){
     snp_assoc$clump<-fread(paste0(outdir,'/results/',gwas_i,'/clump/',gwas_i,'.GW.clump.clean.csv'))
+
+    locus_plots_dir <- paste0(outdir, '/results/', gwas_i, '/locus_plots/')
+    if (dir.exists(locus_plots_dir)) {
+      locus_pngs <- list.files(locus_plots_dir, pattern = '\\.png$', full.names = TRUE)
+      if (length(locus_pngs) > 0) {
+        snp_ids <- sub(paste0('^', gwas_i, '\\.locus_plot\\.'), '', basename(locus_pngs))
+        snp_ids <- sub('\\.png$', '', snp_ids)
+        snp_assoc$locus_plots <- setNames(
+          lapply(locus_pngs, base64enc::base64encode),
+          snp_ids
+        )
+      }
+    }
   } else {
     snp_assoc$clump<-NULL
   }

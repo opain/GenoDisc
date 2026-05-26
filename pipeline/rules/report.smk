@@ -6,6 +6,7 @@ myoutput = list()
 
 if config["clump"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/locus_plots/{gwas}.locus_plots.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
 if config["cojo"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
