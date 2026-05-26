@@ -1,82 +1,72 @@
 gwasQcUI <- function(id) {
   ns <- NS(id)
   tabPanel(
-    title="GWAS QC",
+    title = "GWAS QC",
     br(),
     p("This tab shows key quality control statistics for your selected GWAS."),
-
-    # --- Report Card: Top Row ---
-    fluidRow(
-      # Left column: Summary table card
-      column(
-        width = 6,
-        div(
-          class = "panel panel-default",
-          div(class = "panel-heading", tags$strong("QC Summary")),
-          div(class = "panel-body", dataTableOutput(ns("qc_table")))
-        )
+    hr(),
+    tabsetPanel(
+      tabPanel(
+        title = "QC Summary",
+        br(),
+        div(style = "max-width: 700px;", dataTableOutput(ns("qc_table")))
       ),
-      # Right column: Allele frequency plot card
-      column(
-        width = 6,
-        div(
-          class = "panel panel-default",
-          div(class = "panel-heading", tags$strong("Allele Frequency Plot")),
-          div(class = "panel-body", uiOutput(ns("maf_plot_ui")))
-        )
+      tabPanel(
+        title = "Allele Frequency Plot",
+        br(),
+        uiOutput(ns("maf_plot_ui"))
+      ),
+      tabPanel(
+        title = "QQ Plot",
+        br(),
+        uiOutput(ns("qq_plot_ui"))
+      ),
+      tabPanel(
+        title = "Sumstat QC Log",
+        br(),
+        uiOutput(ns("cleaner_log_ui"))
       )
-    ),
-
-    # --- QQ Plot ---
-    fluidRow(
-      column(
-        width = 12,
-        div(
-          class = "panel panel-default",
-          div(class = "panel-heading", tags$strong("QQ Plot")),
-          div(class = "panel-body", uiOutput(ns("qq_plot_ui")))
-        )
-      )
-    ),
-
-    # --- Technical Appendix ---
-    br(),
-    div(
-      class = "panel panel-default",
-      div(class = "panel-heading", tags$strong("Technical Appendix: Sumstat Cleaner Log")),
-      div(class = "panel-body", uiOutput(ns("cleaner_log_ui")))
     )
   )
 }
 
-gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list) {
+gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) {
   moduleServer(id, function(input, output, session) {
 
     # Create a table showing key statistics
     qc_val <- reactive({
-      req(gwas_data(), selected_gwas(), gwas_list())
+      req(gwas_data(), selected_gwas(), gwas_list(), config_flags())
+
+      g <- gwas_data()[[selected_gwas()]]
+      cf <- config_flags()
 
       qc_val<-data.table(name=selected_gwas(),
                          label=gwas_list()$label[gwas_list()$name == selected_gwas()],
-                         n_var_orig=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_var_orig,
-                         build=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$build$build,
-                         n_snp_final=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_snp_final,
-                         lambda_gc=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$lambda_gc,
-                         max_chi2=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$max_chi2,
-                         n_sig_snp=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$n_sig_snp,
-                         obs_h2=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_se,3),")"),
-                         int=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_se,3),")"))
+                         n_var_orig=g$gwas_qc$cleaner_dat$val$n_var_orig,
+                         build=g$gwas_qc$cleaner_dat$val$build$build,
+                         n_snp_final=g$gwas_qc$cleaner_dat$val$n_snp_final,
+                         lambda_gc=g$gwas_qc$focus_dat$val$lambda_gc,
+                         max_chi2=g$gwas_qc$focus_dat$val$max_chi2,
+                         n_sig_snp=g$gwas_qc$focus_dat$val$n_sig_snp)
 
-      names(qc_val)<-c('GWAS Name',
-                       'GWAS Label',
-                       'N variants pre-QC',
-                       'Identified genome build',
-                       'N variants post-QC',
-                       'Lambda GC',
-                       'Max. chi^2',
-                       'N genome-wide significant variants',
-                       "LDSC SNP-heritability (SE; observed scale)",
-                       "LDSC intercept (SE)")
+      col_labels <- c('GWAS Name',
+                      'GWAS Label',
+                      'N variants pre-QC',
+                      'Identified genome build',
+                      'N variants post-QC',
+                      'Lambda GC',
+                      'Max. chi^2',
+                      'N genome-wide significant variants')
+
+      if (isTRUE(cf$ldsc)) {
+        qc_val[, obs_h2 := paste0(round(g$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(g$gwas_qc$ldsc_dat$val$obs_h2_se,3),")")]
+        qc_val[, int := paste0(round(g$gwas_qc$ldsc_dat$val$int_est,3), " (",round(g$gwas_qc$ldsc_dat$val$int_se,3),")")]
+        col_labels <- c(col_labels,
+                        "LDSC SNP-heritability (SE; observed scale)",
+                        "LDSC intercept (SE)")
+      }
+
+      names(qc_val) <- col_labels
 
       qc_val<-t(qc_val)
       qc_val<-data.table(Parameter=dimnames(qc_val)[[1]],
@@ -101,9 +91,15 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list) {
       b64 <- gwas_data()[[selected_gwas()]]$gwas_qc$maf_plot_base64
 
       if (!is.null(b64)) {
-        tags$img(
-          src = paste0("data:image/png;base64,", b64),
-          style = "max-height: 430px; width: auto;"
+        tagList(
+          tags$img(
+            src = paste0("data:image/png;base64,", b64),
+            style = "max-height: 430px; width: auto;"
+          ),
+          tags$p(
+            style = "font-size: 0.85em; color: #6c757d; margin-top: 8px;",
+            "Only variants with an allele frequency difference greater than 0.2 from the reference are shown; these are the variants removed by the QC script."
+          )
         )
       } else {
         div(

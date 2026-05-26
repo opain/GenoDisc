@@ -82,8 +82,8 @@ server <- function(input, output, session) {
   })
 
   # Wire up all modules
-  gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list)
-  snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas)
+  gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags)
+  snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
   molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
   enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags)
   referencesServer("references")

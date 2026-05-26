@@ -11,8 +11,10 @@ snpAssocUI <- function(id) {
     p("This tab shows SNP association results. Select the Lead variant tab below to view information for independent lead variants identified by either LD-based clumping or COJO. Select the Fine-mapping tab below to view SuSiE Finemaping results."),
     hr(),
     tabsetPanel(
+      id = ns("snp_assoc_tabs"),
       tabPanel(
         title = "Manhattan plot",
+        value = "manhattan",
         br(),
         fluidPage(
           sidebarPanel(
@@ -31,6 +33,7 @@ snpAssocUI <- function(id) {
       ),
       tabPanel(
         title = "Lead variants",
+        value = "lead_variants",
         br(),
         fluidPage(
           sidebarPanel(
@@ -53,6 +56,7 @@ snpAssocUI <- function(id) {
       ),
       tabPanel(
         title = "Fine-mapping",
+        value = "finemapping",
         br(),
         fluidPage(
           sidebarPanel(
@@ -78,8 +82,33 @@ snpAssocUI <- function(id) {
 #' @param id Module namespace id
 #' @param gwas_data Reactive returning the loaded GWAS data list
 #' @param selected_gwas Reactive returning the currently selected GWAS name
-snpAssocServer <- function(id, gwas_data, selected_gwas) {
+snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
   moduleServer(id, function(input, output, session) {
+
+    observeEvent(config_flags(), {
+      cf <- config_flags()
+
+      if (any(cf$clump, cf$cojo)) {
+        showTab("snp_assoc_tabs", "lead_variants", session = session)
+      } else {
+        hideTab("snp_assoc_tabs", "lead_variants", session = session)
+      }
+
+      if (isTRUE(cf$finemap)) {
+        showTab("snp_assoc_tabs", "finemapping", session = session)
+      } else {
+        hideTab("snp_assoc_tabs", "finemapping", session = session)
+      }
+
+      lead_choices <- c()
+      if (isTRUE(cf$cojo)) lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
+      if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
+      if (length(lead_choices) > 0) {
+        updateRadioButtons(session, "clumping_type",
+                           choices = lead_choices,
+                           selected = unname(lead_choices[1]))
+      }
+    })
 
     output$manhattan_plot_ui <- renderUI({
       req(gwas_data(), selected_gwas(), input$manhattan_label_choice)
@@ -108,6 +137,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas) {
 
     snp_assoc_lead_data <- reactive({
       req(gwas_data(), selected_gwas(), input$clumping_type)
+      snp_assoc_lead <- NULL
       if (input$clumping_type == "ld_clumping") {
         snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$clump
       }
@@ -115,6 +145,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas) {
       if (input$clumping_type == "cojo_analysis") {
         snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$cojo
       }
+
+      req(snp_assoc_lead)
 
       snp_assoc_lead <- snp_assoc_lead[, names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","NearestGene"), with = F]
 
@@ -147,6 +179,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas) {
 
     snp_assoc_finemap_data <- reactive({
       req(gwas_data(), selected_gwas(), input$l_param)
+      snp_assoc_finemap <- NULL
       if (input$l_param == "L1") {
         snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L1
       }
@@ -154,6 +187,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas) {
       if (input$l_param == "L10") {
         snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L10
       }
+
+      req(snp_assoc_finemap)
 
       snp_assoc_finemap$cs_log10bf <- NULL
       snp_assoc_finemap$cs_avg_r2 <- NULL
