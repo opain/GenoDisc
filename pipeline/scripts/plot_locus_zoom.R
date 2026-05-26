@@ -19,7 +19,6 @@ options(pipeline_dir = opt$pipeline_dir)
 suppressMessages({
   library(data.table)
   library(ggplot2)
-  library(ggrepel)
   library(patchwork)
   library(scattermore)
 })
@@ -87,21 +86,21 @@ index_colour <- "#9632B8"
 
 stack_genes <- function(g) {
   if (nrow(g) == 0) return(g)
-  g <- g[order(start_position)]
+  g <- g[order(eff_start)]
   row_ends <- numeric(0)
   rows <- integer(nrow(g))
   for (i in seq_len(nrow(g))) {
     placed <- FALSE
     for (r in seq_along(row_ends)) {
-      if (g$start_position[i] > row_ends[r]) {
+      if (g$eff_start[i] > row_ends[r]) {
         rows[i] <- r
-        row_ends[r] <- g$end_position[i]
+        row_ends[r] <- g$eff_end[i]
         placed <- TRUE
         break
       }
     }
     if (!placed) {
-      row_ends <- c(row_ends, g$end_position[i])
+      row_ends <- c(row_ends, g$eff_end[i])
       rows[i] <- length(row_ends)
     }
   }
@@ -187,39 +186,51 @@ make_plot <- function(idx_row) {
     geom_hline(yintercept = -log10(5e-8), colour = "red", linetype = "solid") +
     geom_hline(yintercept = -log10(1e-5), colour = "blue", linetype = "dashed") +
     scale_colour_manual(values = r2_colours, drop = FALSE, name = expression(r^2)) +
-    scale_x_continuous(limits = c(win_lo, win_hi), labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
+    scale_x_continuous(labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
+    coord_cartesian(xlim = c(win_lo, win_hi)) +
     expand_limits(y = 0) +
-    labs(x = sprintf("Chromosome %d position (bp)", chr_i),
+    labs(x = NULL,
          y = expression(-log[10](italic(P))),
          title = title_text) +
     theme_bw(base_size = 10) +
     theme(panel.grid.minor = element_blank(),
-          plot.title = element_text(size = 10, face = "bold"))
+          plot.title = element_text(size = 10, face = "bold"),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
 
   genes_win <- gene_locs[chromosome_name == chr_i &
                           start_position <= win_hi &
                           end_position   >= win_lo]
   if (nrow(genes_win) > 0) {
+    win_width_bp <- win_hi - win_lo
+    chars_per_window <- 110
+    label_pad <- 1.35
+    genes_win[, vis_start := pmax(start_position, win_lo)]
+    genes_win[, vis_end   := pmin(end_position,   win_hi)]
+    genes_win[, label_x   := (vis_start + vis_end) / 2]
+    genes_win[, label_half_bp := nchar(external_gene_name) *
+                                  (win_width_bp / chars_per_window) / 2 * label_pad]
+    genes_win[, eff_start := pmin(start_position, label_x - label_half_bp)]
+    genes_win[, eff_end   := pmax(end_position,   label_x + label_half_bp)]
     genes_win <- stack_genes(genes_win)
-    genes_win[, label_x := pmin(pmax((start_position + end_position) / 2, win_lo), win_hi)]
     genes_win[, arrow_x_start := ifelse(strand == 1, end_position, start_position)]
     genes_win[, arrow_x_end   := ifelse(strand == 1,
                                          pmin(end_position   + (win_hi - win_lo) * 0.01, win_hi),
                                          pmax(start_position - (win_hi - win_lo) * 0.01, win_lo))]
+    n_rows <- max(genes_win$gene_row)
     gene_plot <- ggplot(genes_win) +
       geom_rect(aes(xmin = start_position, xmax = end_position,
-                    ymin = gene_row - 0.3, ymax = gene_row + 0.3),
+                    ymin = gene_row - 0.15, ymax = gene_row + 0.15),
                 fill = "grey40", colour = NA) +
       geom_segment(aes(x = arrow_x_start, xend = arrow_x_end,
                        y = gene_row, yend = gene_row),
                    arrow = arrow(length = unit(0.08, "cm"), type = "closed"),
                    colour = "grey20") +
-      geom_text_repel(aes(x = label_x, y = gene_row, label = external_gene_name),
-                      size = 2.5, max.overlaps = Inf, min.segment.length = 0,
-                      segment.size = 0.2, segment.colour = "grey60",
-                      box.padding = 0.15, point.padding = 0.1) +
-      scale_x_continuous(limits = c(win_lo, win_hi), labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
-      scale_y_continuous(limits = c(0.5, max(genes_win$gene_row) + 0.5)) +
+      geom_text(aes(x = label_x, y = gene_row + 0.45, label = external_gene_name),
+                size = 2.5, colour = "grey20") +
+      scale_x_continuous(labels = function(x) format(x, big.mark = ",", scientific = FALSE)) +
+      scale_y_continuous(limits = c(0.4, n_rows + 0.9)) +
+      coord_cartesian(xlim = c(win_lo, win_hi)) +
       labs(x = sprintf("Chromosome %d position (bp)", chr_i), y = NULL) +
       theme_bw(base_size = 10) +
       theme(axis.text.y = element_blank(),
@@ -231,9 +242,12 @@ make_plot <- function(idx_row) {
       theme_void()
   }
 
-  combined <- scatter / gene_plot + plot_layout(heights = c(3, 1))
-  out_png <- paste0(locus_dir, opt$gwas, '.locus_plot.', sanitise_id(snp_id), '.png')
-  ggsave(out_png, plot = combined, width = 8, height = 6, dpi = 120)
+  n_gene_rows <- if (exists("n_rows")) n_rows else 1
+  scatter_h <- 4.5
+  gene_h    <- max(1.2, 0.35 * n_gene_rows + 0.6)
+  combined  <- scatter / gene_plot + plot_layout(heights = c(scatter_h, gene_h))
+  out_png   <- paste0(locus_dir, opt$gwas, '.locus_plot.', sanitise_id(snp_id), '.png')
+  ggsave(out_png, plot = combined, width = 8, height = scatter_h + gene_h + 0.5, dpi = 120)
   invisible(out_png)
 }
 
