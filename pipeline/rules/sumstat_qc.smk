@@ -293,3 +293,41 @@ rule manhattan_plot:
     "Rscript --vanilla {workflow.basedir}/scripts/plot_manhattan.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
+
+###
+# Per-locus zoom plots
+###
+
+rule locus_plots:
+  resources:
+    mem_mb=lambda wildcards, input: max(
+      6000,
+      int(3000 + (12 * os.path.getsize(input.sumstats) / 1024**2))
+    )
+  input:
+    sumstats=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
+    clump_csv=f"{outdir}/results/{{gwas}}/clump/{{gwas}}.GW.clump.clean.csv",
+    gene_locations=f"{resdir}/data/biomart/gene_locations.tsv",
+    bed=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.bed",
+                          population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
+                          chr=chromosomes),
+    bim=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.bim",
+                          population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
+                          chr=chromosomes),
+    fam=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.fam",
+                          population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
+                          chr=chromosomes)
+  output:
+    touch(f"{outdir}/results/{{gwas}}/locus_plots/{{gwas}}.locus_plots.done")
+  benchmark:
+    f"{outdir}/benchmarks/locus_plots_{{gwas}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    f"{outdir}/logs/locus_plots-{{gwas}}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/plot_locus_zoom.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} > {log} 2>&1"
