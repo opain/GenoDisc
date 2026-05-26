@@ -1,8 +1,8 @@
 #!/usr/bin/Rscript
 # Pre-download BioMart gene annotation data for use by downstream scripts.
-# Saves two files:
+# Saves:
 #   - biomart_genes_grch37.tsv (ensembl_gene_id, external_gene_name, external_synonym, chromosome_name, start_position, end_position)
-#   - biomart_genes_grch38.tsv (ensembl_gene_id, external_gene_name)
+#   - gene_locations.tsv (chromosome_name, start_position, end_position, strand, external_gene_name, gene_biotype; chrs 1-22, X, Y)
 
 library(biomaRt)
 library(optparse)
@@ -30,4 +30,14 @@ genes37 <- getBM(
   mart = ensembl37
 )
 write.table(genes37, file.path(outdir, "biomart_genes_grch37.tsv"),
+            sep = "\t", row.names = FALSE, quote = FALSE)
+
+# Gene locations (separate query so the existing output above is untouched)
+gene_locations <- getBM(
+  attributes = c('chromosome_name', 'start_position', 'end_position', 'strand',
+                  'external_gene_name', 'gene_biotype'),
+  mart = ensembl37
+)
+gene_locations <- gene_locations[gene_locations$chromosome_name %in% c(as.character(1:22), "X", "Y"), ]
+write.table(gene_locations, file.path(outdir, "gene_locations.tsv"),
             sep = "\t", row.names = FALSE, quote = FALSE)

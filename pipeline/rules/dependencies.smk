@@ -109,7 +109,8 @@ else:
 
 rule download_biomart:
   output:
-    f"{resdir}/data/biomart/biomart_genes_grch37.tsv"
+    f"{resdir}/data/biomart/biomart_genes_grch37.tsv",
+    f"{resdir}/data/biomart/gene_locations.tsv"
   benchmark:
     f"{resdir}/benchmarks/download_biomart.tsv"
   params:
