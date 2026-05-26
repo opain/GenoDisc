@@ -50,6 +50,8 @@ snpAssocUI <- function(id) {
 
           mainPanel(
             dataTableOutput(ns("snp_assoc_lead_table")),
+            br(),
+            uiOutput(ns("locus_plot_ui")),
             width = 9
           )
         )
@@ -170,11 +172,63 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      datatable(snp_assoc_lead_data(), rownames = F, width = 7, options = list(
-        rowCallback = JS(js),
-        columnDefs = list(list(className = 'dt-center', targets = 0:7),
-                          list(width = '60px', targets = 7),
-                          list(width = '600px', targets = 8))))
+      datatable(snp_assoc_lead_data(), rownames = F, width = 7,
+        selection = list(mode = 'single', target = 'row'),
+        options = list(
+          rowCallback = JS(js),
+          columnDefs = list(list(className = 'dt-center', targets = 0:7),
+                            list(width = '60px', targets = 7),
+                            list(width = '600px', targets = 8))))
+    })
+
+    output$locus_plot_ui <- renderUI({
+      req(gwas_data(), selected_gwas(), input$clumping_type)
+
+      if (input$clumping_type != "ld_clumping") {
+        return(div(
+          style = "padding: 20px; text-align: center; color: #6c757d; font-style: italic;",
+          "Locus plots are available for LD-based clumping results only."
+        ))
+      }
+
+      locus_plots <- gwas_data()[[selected_gwas()]]$snp_assoc$locus_plots
+
+      if (is.null(locus_plots) || length(locus_plots) == 0) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",
+          icon("chart-area", style = "font-size: 1.5em;"),
+          br(), br(),
+          tags$strong("No locus plots available"),
+          br(),
+          "Locus plots are generated for index variants with p < 1e-5 (top 50 by p-value)."
+        ))
+      }
+
+      selected_row <- input$snp_assoc_lead_table_rows_selected
+      if (is.null(selected_row) || length(selected_row) == 0) {
+        return(div(
+          style = "padding: 20px; text-align: center; color: #6c757d; font-style: italic;",
+          "Select a variant from the table above to view its locus plot."
+        ))
+      }
+
+      tbl <- snp_assoc_lead_data()
+      if (selected_row > nrow(tbl)) return(NULL)
+      snp_id <- as.character(tbl[selected_row, "SNP"][[1]])
+
+      b64 <- locus_plots[[snp_id]]
+      if (is.null(b64)) {
+        return(div(
+          style = "padding: 20px; text-align: center; color: #6c757d; font-style: italic;",
+          paste0("No locus plot available for ", snp_id,
+                 " (variant may be outside the top 50 loci by p-value).")
+        ))
+      }
+
+      tags$img(
+        src = paste0("data:image/png;base64,", b64),
+        style = "max-width: 100%; height: auto;"
+      )
     })
 
     snp_assoc_finemap_data <- reactive({
