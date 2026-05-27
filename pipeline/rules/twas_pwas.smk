@@ -16,7 +16,7 @@ rule run_twas:
     rules.install_fusion.output,
     rules.install_plink2R.output,
     rules.prep_1kg.output,
-    rules.format_psychencode.output,
+    rules.format_psychencode.output if config["twas_panel_psychencode"] == "T" else [],
     rules.update_gtex_coord_all_panel.input,
     rules.insert_n_nongtex_all_panel.input,
   output:

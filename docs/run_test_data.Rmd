@@ -1,0 +1,40 @@
+---
+title: "Code for test run"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+```
+
+***
+
+# From neurohackpain project
+
+```{bash}
+# Load conda env
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+
+# Go to pipeline directory
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+
+# chr 22 only
+snakemake \
+  -n \
+  --profile slurm \
+  --configfile=tests/config_test.yaml \
+  --use-conda \
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
+
+# genome-wide
+snakemake \
+  -n \
+  --profile slurm \
+  --configfile=tests/config_test_full.yaml \
+  --use-conda \
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
+
+```

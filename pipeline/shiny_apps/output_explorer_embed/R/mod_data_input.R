@@ -33,7 +33,12 @@ dataInputServer <- function(id) {
     })
 
     observeEvent(input$loadExample, {
-      rds_path('example.rds')
+      example_path <- file.path("data", "example.rds")  # or wherever
+      if (file.exists(example_path)) {
+        rds_path(example_path)
+      } else {
+        showNotification("Example data file not found.", type = "error")
+      }
     })
 
     gwas_data <- reactive({

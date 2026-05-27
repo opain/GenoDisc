@@ -5,3 +5,4 @@ pipeline/results/
 pipeline/.snakemake/
 pipeline/shiny_apps/uploads/
 pipeline/tests/output/
+pipeline/tests/output_full/

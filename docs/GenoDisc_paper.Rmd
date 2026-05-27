@@ -329,3 +329,31 @@ snakemake \
 
 ***
 
+# Run using neurohack version
+
+```{bash}
+
+# Change resource directory
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+
+snakemake \
+  -n \
+  --profile slurm \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.neurohack.yaml \
+  --use-conda \
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
+
+
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+snakemake \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  -n
+  
+/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.neurohack.yaml
+
+```
