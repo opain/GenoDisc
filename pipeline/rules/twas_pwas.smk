@@ -224,35 +224,6 @@ rule banner_pwas_all_chr:
 # Run TWAS-GSEA using DrugTargetor sets
 #######
 
-# Pre-compute the gene-gene predicted-expression correlation matrix once per
-# weight panel. The result is reused across every (gwas, gene-set) call to
-# TWAS-GSEA-fast.R for that panel, so this rule has no {gwas} wildcard.
-rule build_twas_gsea_cormat:
-  resources:
-    mem_mb=50000,
-    cpus=5
-  input:
-    rules.install_twas_gsea.output,
-    f"{resdir}/data/fusion_snp_weights/{{weight}}/{{weight}}.pos",
-    f"{resdir}/data/predicted_expression/format_pred_{{weight}}.done"
-  output:
-    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
-  benchmark:
-    f"{resdir}/benchmarks/build_twas_gsea_cormat_{{weight}}.tsv"
-  conda:
-    "../envs/main.yaml"
-  params:
-    resdir=resdir
-  log:
-    f"{resdir}/logs/build_twas_gsea_cormat-{{weight}}.log"
-  shell:
-    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/build_cor_matrix.R \
-      --expression_ref {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/Reference_Expression_{wildcards.weight}.txt.gz \
-      --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
-      --min_r2 0.01 \
-      --n_cores 5 \
-      --output {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight} > {log} 2>&1"
-
 # Run TWAS-GSEA-fast.R against the precomputed cor matrix.
 rule run_twas_gsea_drug_targetor:
   wildcard_constraints:

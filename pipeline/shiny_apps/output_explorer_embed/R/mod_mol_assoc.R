@@ -209,7 +209,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
       tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI","High Confidence"), with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
-      tmp$se_SMR <- round(tmp$b_SMR, 3)
+      tmp$se_SMR <- round(tmp$se_SMR, 3)
 
       names(tmp)[names(tmp) == 'b_SMR'] <- 'BETA'
       names(tmp)[names(tmp) == 'se_SMR'] <- 'SE'
@@ -239,7 +239,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
       tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
-      tmp$se_SMR <- round(tmp$b_SMR, 3)
+      tmp$se_SMR <- round(tmp$se_SMR, 3)
 
       names(tmp)[names(tmp) == 'b_SMR'] <- 'BETA'
       names(tmp)[names(tmp) == 'se_SMR'] <- 'SE'

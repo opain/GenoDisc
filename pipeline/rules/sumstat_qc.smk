@@ -307,16 +307,6 @@ rule locus_plots:
   input:
     sumstats=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
     clump_csv=f"{outdir}/results/{{gwas}}/clump/{{gwas}}.GW.clump.clean.csv",
-    gene_locations=f"{resdir}/data/biomart/gene_locations.tsv",
-    bed=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.bed",
-                          population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
-                          chr=chromosomes),
-    bim=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.bim",
-                          population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
-                          chr=chromosomes),
-    fam=lambda w: expand(f"{resdir}/data/1kg/1KG.Phase3.{{population}}.MAF_001.chr{{chr}}.fam",
-                          population=gwas_list_df_eur.loc[gwas_list_df_eur['name'] == w.gwas, 'population'].iloc[0],
-                          chr=chromosomes),
     recomb_maps=expand(f"{resdir}/data/recomb_maps/chr{{chr}}.interpolated_genetic_map.gz",
                         chr=chromosomes)
   output:
