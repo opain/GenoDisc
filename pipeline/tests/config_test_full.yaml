@@ -30,6 +30,9 @@ finemap: T
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: T
 
+# Estimate genetic correlations
+gencor_gwas_list: tests/gencor_gwas_list_test_full.txt
+
 # MAGMA gene associations analysis
 magma_gene: T
 
