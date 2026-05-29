@@ -1,0 +1,4 @@
+name path population n sampling prevalence mean sd label
+BODY11 /users/k1806347/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas/BODY11.sumstats.gz EUR NA NA NA NA NA "BMI"
+COAD01 /users/k1806347/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas/COAD01.sumstats.gz EUR NA NA NA NA NA "CAD"
+SCHI04 /users/k1806347/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas/SCHI04.sumstats.gz EUR NA NA NA NA NA "SCZ"
