@@ -12,6 +12,12 @@ gwas_list_df = pd.read_table(config["gwas_list"], sep=' ')
 # Subset to EUR-based GWAS
 gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 
+# Path to bivariate LDSC secondary list (NA when not configured).
+# Read only as a path for input-staleness tracking; per-pair file existence is
+# verified at runtime so a missing secondary fails in isolation (NA row) rather
+# than at parse time.
+gencor_gwas_list_path = config.get("gencor_gwas_list", "NA")
+
 rule sumstat_prep_i:
   resources:
     mem_mb=lambda wildcards, input: max(
@@ -112,6 +118,75 @@ rule ldsc:
       --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res) > {log} 2>&1"
+
+###
+# Bivariate LDSC (genetic correlation)
+###
+
+rule ldsc_gencor:
+  input:
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    f"{resdir}/software/ldsc/",
+    f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
+    f"{resdir}/data/ldsc/w_hm3.snplist",
+    gencor_gwas_list_path
+  output:
+    touch("{outdir}/results/{gwas}/gencor/{gwas}_gencor_pairs.done")
+  benchmark:
+    "{outdir}/benchmarks/ldsc_gencor_{gwas}.tsv"
+  conda:
+    "../envs/ldsc.yaml"
+  params:
+    resdir=resdir,
+    gencor_list=gencor_gwas_list_path
+  log:
+    "{outdir}/logs/ldsc_gencor-{gwas}.log"
+  shell:
+    """
+    (mkdir -p {outdir}/results/{wildcards.gwas}/gencor/
+
+    # Pre-check: every secondary file in the path column must exist. If any are
+    # missing we abort the rule rather than write NA rows, so typos in the
+    # gencor_gwas_list are surfaced immediately. Missing-secondary is treated
+    # as a configuration error; other per-pair runtime failures (e.g. LDSC
+    # crashes on malformed sumstats) still record NA via the || fallback below.
+    missing=$(tail -n +2 {params.gencor_list} | awk '{{print $1, $2}}' | while read name path; do
+      [ -f "${{path}}" ] || echo "  ${{name}} -> ${{path}}"
+    done)
+    if [ -n "$missing" ]; then
+      echo "ERROR: secondary GWAS files listed in {params.gencor_list} are missing:"
+      echo "$missing"
+      exit 1
+    fi
+
+    tail -n +2 {params.gencor_list} | awk '{{print $1, $2}}' | while read name path; do
+      out_prefix={outdir}/results/{wildcards.gwas}/gencor/{wildcards.gwas}__${{name}}
+      python2.7 {params.resdir}/software/ldsc/ldsc.py \
+        --rg {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz,${{path}} \
+        --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
+        --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
+        --out ${{out_prefix}} \
+        || echo "GENCOR_PAIR_FAILED: ${{name}}" >> ${{out_prefix}}.log
+    done) > {log} 2>&1
+    """
+
+rule process_ldsc_gencor:
+  input:
+    "{outdir}/results/{gwas}/gencor/{gwas}_gencor_pairs.done"
+  output:
+    "{outdir}/results/{gwas}/gencor/{gwas}_gencor_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_ldsc_gencor_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_ldsc_gencor-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/process_ldsc_gencor.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} > {log} 2>&1"
 
 ###
 # Run LD clumping

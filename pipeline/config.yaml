@@ -39,6 +39,10 @@ finemap: F
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: F
 
+# Bivariate LDSC genetic correlation (requires ldsc: T).
+# Path to a gwas_list-format file of already-munged secondary GWAS.
+gencor_gwas_list: NA
+
 # MAGMA gene associations analysis
 magma_gene: F
 

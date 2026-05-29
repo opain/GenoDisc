@@ -37,6 +37,13 @@ if missing_or_invalid_config_params:
     # Exit Snakemake gracefully
     sys.exit(1)
 
+# Bivariate LDSC precondition (runs after Snakemake config merge)
+gencor_gwas_list_val = config.get('gencor_gwas_list', 'NA')
+if gencor_gwas_list_val not in (None, 'NA'):
+    if config.get('ldsc', 'F') != 'T':
+        print("Error: gencor_gwas_list is set but ldsc is not 'T'; genetic correlation requires LDSC heritability - set ldsc: 'T'.")
+        sys.exit(1)
+
 # Set outdir parameter
 outdir=config['outdir']
 

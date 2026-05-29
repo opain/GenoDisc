@@ -17,6 +17,9 @@ if config["finemap"] == "T":
 if config["ldsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if config["ldsc"] == "T" and config.get("gencor_gwas_list", "NA") not in (None, "NA"):
+    myoutput.append(expand("{outdir}/results/{gwas}/gencor/{gwas}_gencor_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["magma_gene"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

@@ -25,6 +25,11 @@ gwasQcUI <- function(id) {
         title = "Sumstat QC Log",
         br(),
         uiOutput(ns("cleaner_log_ui"))
+      ),
+      tabPanel(
+        title = "Bivariate LDSC",
+        br(),
+        uiOutput(ns("gencor_ui"))
       )
     )
   )
@@ -32,6 +37,8 @@ gwasQcUI <- function(id) {
 
 gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) {
   moduleServer(id, function(input, output, session) {
+
+    ns <- session$ns
 
     # Create a table showing key statistics
     qc_val <- reactive({
@@ -148,6 +155,132 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
         style = "background-color: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; font-size: 12px; padding: 15px; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;",
         paste(log_lines, collapse = "\n")
       )
+    })
+
+    # Bivariate LDSC (genetic correlation) rendering
+    gencor_table <- reactive({
+      req(gwas_data(), selected_gwas())
+      d <- gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_gencor_dat
+      if (is.null(d) || is.null(d$table)) return(NULL)
+      d$table
+    })
+
+    output$gencor_ui <- renderUI({
+      req(gwas_data(), selected_gwas(), config_flags())
+      cf  <- config_flags()
+      tab <- gencor_table()
+
+      if (!isTRUE(cf$ldsc_gencor) || is.null(tab) || nrow(tab) == 0) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          icon("link", style = "font-size: 2em;"),
+          br(), br(),
+          tags$strong("Bivariate LDSC not run"),
+          br(),
+          "Set gencor_gwas_list in the pipeline config to enable genetic-correlation analysis."
+        ))
+      }
+
+      tagList(
+        tags$p(
+          style = "font-size: 0.85em; color: #6c757d;",
+          "Note: rg estimated from externally-munged sumstats can be affected by ",
+          "strand-ambiguous SNPs and by low SNP overlap (see N SNPs)."
+        ),
+        div(style = "max-width: 900px;", dataTableOutput(ns("gencor_table"))),
+        br(),
+        plotOutput(ns("gencor_forest"), height = "auto")
+      )
+    })
+
+    output$gencor_table <- renderDataTable({
+      tab <- gencor_table()
+      req(tab)
+      show <- tab[, .(label, rg, rg_se, rg_p, rg_p_fdr, n_snps)]
+      # rowCallback replaces null cells (R's NA, after DT's JSON encoding) with
+      # the literal string "NA". Runs after formatRound / formatSignif, so the
+      # numeric formatting still applies to non-NA values.
+      na_callback <- JS(
+        "function(row, data, displayNum, displayIndex, dataIndex) {",
+        "  for (var i = 0; i < data.length; i++) {",
+        "    if (data[i] === null) { $('td:eq(' + i + ')', row).html('NA'); }",
+        "  }",
+        "}"
+      )
+      datatable(
+        show, rownames = FALSE,
+        colnames = c("Secondary trait", "rg", "SE", "p", "FDR p", "N SNPs"),
+        options  = list(
+          pageLength   = 25,
+          order        = list(list(1, 'asc')),
+          rowCallback  = na_callback
+        )
+      ) %>%
+        formatRound(columns = c("rg", "rg_se"), digits = 3) %>%
+        formatSignif(columns = c("rg_p", "rg_p_fdr"), digits = 3)
+    })
+
+    output$gencor_forest <- renderPlot({
+      tab <- gencor_table()
+      req(tab)
+      dt <- tab[!is.na(rg) & !is.na(rg_se)]
+      if (nrow(dt) == 0) return(NULL)
+      dt[, ci_lo := rg - 1.96 * rg_se]
+      dt[, ci_hi := rg + 1.96 * rg_se]
+      dt[, tier := fifelse(!is.na(rg_p_fdr) & rg_p_fdr < 0.05, "FDR significant",
+                    fifelse(!is.na(rg_p)     & rg_p     < 0.05, "Nominal (p < 0.05)",
+                                                                "Non-significant"))]
+      dt[, tier  := factor(tier, levels = c("FDR significant",
+                                            "Nominal (p < 0.05)",
+                                            "Non-significant"))]
+      dt[, label := factor(label, levels = label[order(rg)])]
+
+      tier_levels <- c("FDR significant",
+                       "Nominal (p < 0.05)",
+                       "Non-significant")
+      tier_cols <- c("FDR significant"    = "#d62728",
+                     "Nominal (p < 0.05)" = "#ff7f0e",
+                     "Non-significant"    = "#7f7f7f")
+      tier_shapes <- c("FDR significant"    = 15,  # filled square
+                       "Nominal (p < 0.05)" = 17,  # filled triangle
+                       "Non-significant"    = 16)  # filled circle
+
+      # Ghost rows: one per tier, plotted with alpha = 0 so they're invisible
+      # but make the colour + shape scales see every tier level. Without these,
+      # `limits = tier_levels` shows legend text for empty tiers but no glyph,
+      # because ggplot draws the legend key from the geom's data and tiers
+      # with zero observations contribute no key glyph.
+      ghost <- data.table(
+        rg    = rep(dt$rg[1],    length(tier_levels)),
+        ci_lo = rep(dt$rg[1],    length(tier_levels)),
+        ci_hi = rep(dt$rg[1],    length(tier_levels)),
+        label = rep(dt$label[1], length(tier_levels)),
+        tier  = factor(tier_levels, levels = tier_levels)
+      )
+
+      ggplot(dt, aes(x = rg, y = label, colour = tier, shape = tier)) +
+        geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+        # Invisible ghost points seed all tier levels into the scales so the
+        # legend renders a glyph for every tier, not just observed ones.
+        geom_point(data = ghost, size = 3, alpha = 0) +
+        # height = 0 removes the vertical end-cap whiskers, so the only lines
+        # touching each point are the horizontal 95% CI segments.
+        geom_errorbarh(aes(xmin = ci_lo, xmax = ci_hi), height = 0) +
+        geom_point(size = 3) +
+        scale_colour_manual(values = tier_cols,   limits = tier_levels, drop = FALSE, name = NULL) +
+        scale_shape_manual( values = tier_shapes, limits = tier_levels, drop = FALSE, name = NULL) +
+        guides(
+          colour = guide_legend(override.aes = list(size = 3.5, alpha = 1)),
+          shape  = guide_legend(override.aes = list(size = 3.5, alpha = 1))
+        ) +
+        labs(x = expression("Genetic correlation ("*r[g]*")"), y = NULL) +
+        cowplot::theme_cowplot() +
+        theme(legend.position = "top")
+    }, res = 96, height = function() {
+      tab <- isolate(gencor_table())
+      if (is.null(tab)) return(220)
+      n <- sum(!is.na(tab$rg))
+      max(220, 40 + 22 * n)
     })
   })
 }

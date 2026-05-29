@@ -80,6 +80,29 @@ process_ldsc_log<-function(config, gwas){
   return(dat)
 }
 
+process_ldsc_gencor <- function(config, gwas){
+
+  outdir      <- read_param(config = config, param = 'outdir',           return_obj = F)
+  gencor_path <- read_param(config = config, param = 'gencor_gwas_list', return_obj = F)
+  if (is.null(gencor_path) || is.na(gencor_path) || gencor_path == '') return(NULL)
+
+  dat <- list()
+
+  csv_path <- paste0(outdir, '/results/', gwas, '/gencor/', gwas, '_gencor_res.csv')
+  dat$table <- if (file.exists(csv_path)) fread(csv_path) else NULL
+
+  log_dir   <- paste0(outdir, '/results/', gwas, '/gencor/')
+  log_files <- list.files(log_dir, pattern = paste0('^', gwas, '__.*\\.log$'), full.names = TRUE)
+  if (length(log_files) > 0) {
+    log_names <- sub(paste0('^', gwas, '__'), '', sub('\\.log$', '', basename(log_files)))
+    dat$logs  <- setNames(lapply(log_files, readLines), log_names)
+  } else {
+    dat$logs  <- list()
+  }
+
+  return(dat)
+}
+
 process_susie<-function(outdir, gwas, L){
   if(L==1){
   dat<-fread(paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.L1.csv'))

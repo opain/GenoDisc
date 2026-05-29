@@ -14,6 +14,12 @@ parse_config_flags <- function(config) {
   cojo <- flag(config, "cojo")
   finemap <- flag(config, "finemap")
   ldsc <- flag(config, "ldsc")
+
+  # Bivariate LDSC: enabled if gencor_gwas_list is set (not NA / empty)
+  gencor_line <- config[grepl('^gencor_gwas_list:', config)]
+  ldsc_gencor <- length(gencor_line) > 0 &&
+                 !gencor_line[1] %in% c('gencor_gwas_list: NA', 'gencor_gwas_list: ')
+
   magma_gene <- flag(config, "magma_gene")
 
   twas_panel_psychencode <- flag(config, "twas_panel_psychencode")
@@ -92,6 +98,7 @@ parse_config_flags <- function(config) {
     cojo = cojo,
     finemap = finemap,
     ldsc = ldsc,
+    ldsc_gencor = ldsc_gencor,
     magma_gene = magma_gene,
     twas_panel_psychencode = twas_panel_psychencode,
     twas_panel_fusion = twas_panel_fusion,

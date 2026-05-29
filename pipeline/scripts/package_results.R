@@ -53,6 +53,7 @@ for(gwas_i in gwas_list$name){
   gwas_qc$cleaner_dat<-process_cleaner_log(config=opt$config, gwas=gwas_i)
   gwas_qc$focus_dat<-process_focus_log(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_dat<-process_ldsc_log(config=opt$config, gwas=gwas_i)
+  gwas_qc$ldsc_gencor_dat<-process_ldsc_gencor(config=opt$config, gwas=gwas_i)
 
   # Read MAF plot as base64 (if it exists)
   maf_plot_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.cleaned.MAF_plot.png')
