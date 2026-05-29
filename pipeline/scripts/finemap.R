@@ -62,7 +62,21 @@ ss_bim_swap<-merge(ss, bim, by.x=c('SNP','A1','A2'), by.y=c('V2','V6','V5'))
 ss<-ss[ss$SNP %in% ss_bim_match$SNP | ss$SNP %in% ss_bim_swap$SNP,] 
 ss$Z[ss$SNP %in% ss_bim_swap$SNP]<- -ss$Z[ss$SNP %in% ss_bim_swap$SNP]
 
-dir.create(paste0(outdir,'/results/',opt$gwas,'/finemap'), recursive = T)
+finemap_dir <- paste0(outdir,'/results/',opt$gwas,'/finemap')
+dir.create(finemap_dir, recursive = T)
+
+# Remove stale per-lead files for this chromosome so leads dropped from the current
+# clump file do not persist and pollute downstream summaries.
+stale_pattern <- paste0('^', opt$gwas, '\\.chr', opt$chr, '\\..*\\.(rds|png|ld|log|snp_for_ld\\.txt)$')
+stale_files <- list.files(finemap_dir, pattern = stale_pattern, full.names = TRUE)
+keep_prefixes <- paste0(opt$gwas, '.chr', opt$chr, '.', lead$SNP, '.')
+if(length(stale_files) > 0){
+  stale_basenames <- basename(stale_files)
+  keep <- vapply(stale_basenames, function(b) any(startsWith(b, keep_prefixes)), logical(1))
+  to_remove <- stale_files[!keep]
+  if(length(to_remove) > 0) file.remove(to_remove)
+}
+
 for(loc in 1:nrow(lead)){
   # Identify variants within 500kb of lead variants
   ss_subset<-ss[ss$BP > lead$BP[loc] - 5e5 & ss$BP < lead$BP[loc] + 5e5,]

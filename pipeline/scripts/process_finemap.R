@@ -63,8 +63,14 @@ if(length(finemap_files_L10) > 0){
 
     if(!is.null(summary(tmp)$cs)){
 
-      tmp_sum<-data.frame(CHR = ss$CHR[ss$SNP == lead],
-                          BP = ss$BP[ss$SNP == lead],
+      lead_idx <- which(ss$SNP == lead)
+      if(length(lead_idx) != 1){
+        message("Skipping stale finemap result for lead ", lead, ": ", length(lead_idx), " matches in cleaned sumstats.")
+        next
+      }
+
+      tmp_sum<-data.frame(CHR = ss$CHR[lead_idx],
+                          BP = ss$BP[lead_idx],
                           SNP = lead,
                           summary(tmp)$cs,
                           NSNP=NA,
@@ -122,8 +128,14 @@ if(length(finemap_files_L1) > 0){
 
     if(!is.null(summary(tmp)$cs)){
 
-      tmp_sum<-data.frame(CHR = ss$CHR[ss$SNP == lead],
-                          BP = ss$BP[ss$SNP == lead],
+      lead_idx <- which(ss$SNP == lead)
+      if(length(lead_idx) != 1){
+        message("Skipping stale finemap result for lead ", lead, ": ", length(lead_idx), " matches in cleaned sumstats.")
+        next
+      }
+
+      tmp_sum<-data.frame(CHR = ss$CHR[lead_idx],
+                          BP = ss$BP[lead_idx],
                           SNP = lead,
                           summary(tmp)$cs,
                           NSNP=NA,
