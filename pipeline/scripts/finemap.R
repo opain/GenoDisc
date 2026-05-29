@@ -45,6 +45,14 @@ lead<-fread(paste0(outdir,'/results/',opt$gwas,'/clump/',opt$gwas,'.GW.clump.cle
 lead<-lead[lead$P < 5e-8,]
 lead<-lead[lead$CHR == opt$chr,]
 
+# Skip MHC on chr6 (GRCh37 26-34 Mb). The extended LD here makes SuSiE
+# unstable and was the trigger for past OOM kills on this rule.
+if(opt$chr == "6"){
+  n_pre<-nrow(lead)
+  lead<-lead[!(lead$BP > 26e6 & lead$BP < 34e6),]
+  cat("chr6 leads before MHC filter:", n_pre, "; after:", nrow(lead), "\n")
+}
+
 if(nrow(lead) == 0){
   file.create(paste0(outdir,'/results/',opt$gwas,'/checks/',opt$gwas,'.chr',opt$chr,'.finemap.done'))
   q()
