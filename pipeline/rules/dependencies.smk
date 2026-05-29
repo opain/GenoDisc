@@ -271,7 +271,7 @@ rule install_genoutils:
   log:
     f"{resdir}/logs/install_genoutils.log"
   shell:
-    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@4beb75620f3291b633598acd06febb22298418c8\", upgrade = \"never\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@aeed69432fdd357789b412950b2275d31641b963\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Download MAGMA

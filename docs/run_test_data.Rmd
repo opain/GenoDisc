@@ -37,4 +37,9 @@ snakemake \
   --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
   run_package_results
 
+# MVP
+/scratch/prj/neurohackpain/GenoDisc/bin/mvp_test_run.sh \
+  /scratch/prj/neurohackpain/GenoDisc/test_data/COAD01.gz \
+  CAD01 \
+  "Coronary Artery Disease"
 ```
