@@ -60,13 +60,18 @@ chromosomes = config.get("chromosomes", list(range(1, 23)))
 ########
 
 def get_current_version():
-    cmd = "git describe --tags"
-    tag = subprocess.check_output(cmd, shell=True, cwd=workflow.basedir).decode().strip()
-    match = re.match(r"v?(\d+)\.(\d+)", tag)
-    if match:
-        return int(match.group(1)), int(match.group(2))  # Major, Minor
-    else:
-        raise ValueError("Git tag does not contain a valid version format.")
+    out = subprocess.run(
+        ["git", "-c", "safe.directory=*", "describe", "--tags"],
+        cwd=workflow.basedir,
+        capture_output=True, text=True,
+    )
+    if out.returncode != 0:
+        raise ValueError(f"git describe failed: {out.stderr.strip()}")
+    tag = out.stdout.strip()
+    m = re.match(r"v?(\d+)\.(\d+)", tag)
+    if not m:
+        raise ValueError(f"Git tag {tag!r} has no valid version format.")
+    return int(m.group(1)), int(m.group(2))
 
 def read_last_version():
     if os.path.exists(last_version_file):
