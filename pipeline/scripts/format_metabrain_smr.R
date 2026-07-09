@@ -33,11 +33,16 @@ Genes<-Genes[!duplicated(Genes),]
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]
 
 # Read in config file
-smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
-smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
-smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"
-smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
-smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
+# any(grepl(...)) - not config[grepl(...)] == "...: T" - so a key that's absent from
+# the job's config.yaml (the website omits unticked keys) correctly evaluates to FALSE
+# rather than logical(0), which previously corrupted the tissue selector below via R's
+# zero-length recycling (silently dropping/shifting tissues instead of just excluding
+# the unticked one).
+smr_expression_panel_metabrain_basalganglia_logical<-any(grepl('smr_expression_panel_metabrain_basalganglia: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_cerebellum_logical<-any(grepl('smr_expression_panel_metabrain_cerebellum: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_cortex_logical<-any(grepl('smr_expression_panel_metabrain_cortex: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_hippocampus_logical<-any(grepl('smr_expression_panel_metabrain_hippocampus: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_spinalcord_logical<-any(grepl('smr_expression_panel_metabrain_spinalcord: T',config, fixed=TRUE))
 
 metabrain_tissues<-c('Basalganglia','Cerebellum','Cortex','Hippocampus','Spinalcord')
   
