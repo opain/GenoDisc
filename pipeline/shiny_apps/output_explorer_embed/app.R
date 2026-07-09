@@ -15,6 +15,7 @@ source('functions.R')
 for (f in list.files("R", full.names = TRUE, pattern = "\\.R$")) source(f)
 
 options(shiny.maxRequestSize = 600 * 1024 * 1024)
+options(shiny.legacy.datatable = TRUE)
 
 # Define UI
 ui <- fluidPage(
