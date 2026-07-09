@@ -6,6 +6,15 @@
 # ============================================================================
 # run_genodisc.sh
 #
+# THIS IS A TRACKED COPY. The web app actually sbatches the live copy at
+# GenoDisc/bin/run_genodisc.sh (sibling of activate_genodisc.sh), not this
+# file directly. They're separate copies, NOT a symlink (symlinks across this
+# CIFS mount don't resolve correctly when accessed from the HPC side - sbatch
+# reads the raw mfsymlinks reparse-point data instead of the script and
+# rejects it). Edit one, then manually copy the change to the other.
+# Whichever you edit first, do the copy in the same sitting - don't let them
+# drift.
+#
 # SLURM job script that runs the GenoDisc pipeline for one submission.
 # Invoked by the web app via `sbatch run_genodisc.sh <job_dir>`.
 #
