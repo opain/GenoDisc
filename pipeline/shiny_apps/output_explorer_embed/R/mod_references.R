@@ -6,7 +6,7 @@ referencesUI <- function(id) {
     p("Please be sure to cite the software and datasets used by this pipeline. Relevent citations are shown below:"),
     fluidRow(
       column(width=8,
-             dataTableOutput(ns("reference_table")),
+             tableOutput(ns("reference_table")),
       )
     ),
   )
@@ -15,7 +15,10 @@ referencesUI <- function(id) {
 referencesServer <- function(id) {
   moduleServer(id, function(input, output, session) {
 
-    output$reference_table<-renderDataTable({
+    # Small, static reference table - plain shiny::renderTable instead of a DT
+    # widget, since this needs no sorting/searching/pagination (avoids the
+    # DT/DataTables client-side rendering issues seen with this table).
+    output$reference_table<-renderTable({
       ref_table<-NULL
 
       ref_table<-rbind(ref_table, data.frame(Name = 'LD Score Regression',
@@ -90,15 +93,7 @@ referencesServer <- function(id) {
                                              Type = 'Dataset',
                                              Use = 'Drug repurposing'))
 
-      datatable(ref_table,
-                rownames= FALSE,
-                escape = -2:-3,
-                selection = 'none',
-                options = list(
-                  paging = FALSE,
-                  dom = 'lrt'
-                )
-                )
-    })
+      ref_table
+    }, sanitize.text.function = function(x) x, rownames = FALSE)
   })
 }

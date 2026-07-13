@@ -9,7 +9,7 @@ gwasQcUI <- function(id) {
       tabPanel(
         title = "QC Summary",
         br(),
-        div(style = "max-width: 700px;", dataTableOutput(ns("qc_table")))
+        div(style = "max-width: 700px;", tableOutput(ns("qc_table")))
       ),
       tabPanel(
         title = "Allele Frequency Plot",
@@ -47,10 +47,18 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       g <- gwas_data()[[selected_gwas()]]
       cf <- config_flags()
 
+      # Build isn't always identified from CHR/BP (the cleaner can fall back to
+      # matching by SNP ID instead, which never determines a build - see
+      # extract_build() in package_results_functions.R). Coalesce to a scalar
+      # so a single missing QC field can't collapse the whole table via
+      # data.table()'s zero-length recycling.
+      build_val <- g$gwas_qc$cleaner_dat$val$build$build
+      if (length(build_val) == 0 || is.na(build_val)) build_val <- "Unknown"
+
       qc_val<-data.table(name=selected_gwas(),
                          label=gwas_list()$label[gwas_list()$name == selected_gwas()],
                          n_var_orig=g$gwas_qc$cleaner_dat$val$n_var_orig,
-                         build=g$gwas_qc$cleaner_dat$val$build$build,
+                         build=build_val,
                          n_snp_final=g$gwas_qc$cleaner_dat$val$n_snp_final,
                          lambda_gc=g$gwas_qc$focus_dat$val$lambda_gc,
                          max_chi2=g$gwas_qc$focus_dat$val$max_chi2,
@@ -82,15 +90,14 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       qc_val
     })
 
-    output$qc_table <- renderDataTable({
-      datatable(qc_val(), options = list(dom = 't',
-                                     ordering=F),
-                selection = 'none',
-                rownames = F,
-                colnames = '') %>%
-        formatStyle(columns = c("Parameter"), fontWeight = 'bold', textAlign = "center") %>%
-        formatStyle(columns = c("Value"), textAlign = "center")
-    })
+    # Small, static 2-column summary - plain shiny::renderTable instead of a
+    # DT widget, since this needs no sorting/searching/pagination (avoids the
+    # DT/DataTables client-side rendering issues seen with this table).
+    output$qc_table <- renderTable({
+      dat <- qc_val()
+      dat$Parameter <- paste0("<strong>", dat$Parameter, "</strong>")
+      dat
+    }, sanitize.text.function = function(x) x, colnames = FALSE, align = 'cc', rownames = FALSE)
 
     # MAF plot rendering
     output$maf_plot_ui <- renderUI({

@@ -32,8 +32,19 @@ extract_build<-function(x){
   target_pct<-as.numeric(gsub('%.*','',gsub('.* match: ','',match_lines)))/100
 
   best_match<-list()
-  best_match$build<-build_names[which.max(target_pct)]
-  best_match$overlap<-max(target_pct)
+  if(length(match_lines) == 0){
+    # No CHR/BP-based build match was logged - e.g. the cleaner fell back to
+    # matching by SNP ID instead (sumstat_cleaner_functions.R's rsid_avail
+    # branch), which never logs a "match: " line or sets target_build. Return
+    # scalar NAs rather than character(0)/numeric(0) so downstream table
+    # construction (e.g. shiny_apps/*/mod_gwas_qc.R, create_report.Rmd) gets a
+    # normal 1-row result instead of silently collapsing to 0 rows.
+    best_match$build<-NA_character_
+    best_match$overlap<-NA_real_
+  } else {
+    best_match$build<-build_names[which.max(target_pct)]
+    best_match$overlap<-max(target_pct)
+  }
 
   return(best_match)
 }
