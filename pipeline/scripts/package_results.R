@@ -283,9 +283,16 @@ for(gwas_i in gwas_list$name){
 output$configuration<-list()
 
 output$configuration$repo<-list()
-output$configuration$repo$remote<-gsub('.*@','',gsub(' .*','',system('git remote -v', intern=T)[1])) # nolint # nolint: line_length_linter.
-output$configuration$repo$branch<-gsub('On branch ','', system('git status', intern=T)[1])
-output$configuration$repo$commit<-system('git describe --tags --always', intern=T)
+# repo dirs are owned by the shared genodisc service account, but pipeline jobs
+# run under the submitting user's own uid, so plain `git` here hits "dubious
+# ownership" (exit 128) and these all come back NA/empty. -c safe.directory=
+# scoped to this specific repo (not persisted to any config file) fixes that
+# without weakening the check for any other repository.
+repo_root<-normalizePath(dirname(opt$pipeline_dir))
+git_cmd<-function(args) sprintf('git -C %s -c safe.directory=%s %s', shQuote(repo_root), shQuote(repo_root), args)
+output$configuration$repo$remote<-gsub('.*@','',gsub(' .*','',system(git_cmd('remote -v'), intern=T)[1])) # nolint # nolint: line_length_linter.
+output$configuration$repo$branch<-gsub('On branch ','', system(git_cmd('status'), intern=T)[1])
+output$configuration$repo$commit<-system(git_cmd('describe --tags --always'), intern=T)
 output$configuration$config<-config
 output$configuration$gwas_list<-gwas_list
 
