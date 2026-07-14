@@ -144,6 +144,30 @@ log "  --resources:     mem_mb=$MEM_MB"
 # IMPORTANT: --directory <job_dir> requires the pipeline patches from
 # commits 7a916db, 3201b37, f1a2b09, d22e016, 1883a84, 2b54dbb. Without
 # those, the pipeline assumes CWD is the pipeline folder and breaks.
+
+# A killed run (SLURM TIMEOUT, kill signal, power loss) leaves the
+# .snakemake lock in place, which makes the next run refuse to start with
+# LockException. We unlock automatically so Modify & Rerun "just works" -
+# but only after confirming via squeue that no OTHER active SLURM job is
+# still targeting this same job_dir. Every submission/rerun for a given job
+# shares job_dir but gets its own --job-name (original: JOB_UUID; reruns:
+# JOB_UUID_r<timestamp> - see job_service.py), so matching on that prefix
+# and excluding ourselves catches genuine concurrent runs. If one is found,
+# the lock is left alone and Snakemake will correctly refuse to start.
+OTHER_ACTIVE=$(squeue -u "$(whoami)" -h -o "%i %j" | awk -v uuid="$JOB_UUID" -v self="${SLURM_JOB_ID:-}" \
+    '$2 == uuid || $2 ~ ("^" uuid "_r") { if ($1 != self) print $1 }')
+
+if [[ -n "$OTHER_ACTIVE" ]]; then
+    log "Another active SLURM job (${OTHER_ACTIVE}) is already targeting this job directory - leaving any lock in place."
+else
+    log "Unlocking any stale Snakemake lock (safe no-op if none present)"
+    snakemake \
+        --snakefile  "$SNAKEFILE" \
+        --directory  "$JOB_DIR" \
+        --configfile "$DEFAULT_CONFIG" "$CONFIG_FILE" \
+        --unlock
+fi
+
 START_TIME=$(date +%s)
 
 snakemake \
