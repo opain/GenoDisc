@@ -155,6 +155,7 @@ snakemake \
     --conda-prefix   "$CONDA_PREFIX_DIR" \
     --default-resources mem_mb=4000 disk_mb=4000 \
     --resources      mem_mb="$MEM_MB" \
+    --rerun-incomplete \
     -c "$CORES" \
     "$TARGET"
 SNAKEMAKE_EXIT=$?
