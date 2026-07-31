@@ -9,6 +9,8 @@ library(shinythemes)
 library(shinycssloaders)
 library(R.utils)
 library(shinyjs)
+library(sass)
+library(memoise)
 library(jsonlite)
 
 # Load functions and modules
