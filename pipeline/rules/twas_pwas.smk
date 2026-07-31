@@ -6,10 +6,23 @@
 # Run TWAS
 ###
 
+# Per-chromosome memory ceiling for run_twas: observed peak RSS × ~1.3,
+# rounded up to the next GB. Baseline was job k1642468_20260729_134415, where
+# max RSS scaled strongly with chromosome (bigger chr = more reference SNPs =
+# bigger genotype matrix held in memory).
+def get_run_twas_mem_mb(wildcards):
+    return {
+        "1":  15000, "2":  16000, "3":  13000, "4":  13000, "5":  12000,
+        "6":  12000, "7":  12000, "8":  11000, "9":   8000, "10": 10000,
+        "11": 10000, "12": 10000, "13":  7000, "14":  6000, "15":  6000,
+        "16":  6000, "17":  6000, "18":  6000, "19":  5000, "20":  5000,
+        "21":  4000, "22":  4000,
+    }[str(wildcards.chr)]
+
 # run twas
 rule run_twas:
   resources:
-    mem_mb=20000
+    mem_mb=get_run_twas_mem_mb
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
