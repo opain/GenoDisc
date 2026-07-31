@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --partition=neurohack_cpu
-#SBATCH --cpus-per-task=5
-#SBATCH --mem=100G
-#SBATCH --time=04:00:00
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+#SBATCH --time=24:00:00
 # ============================================================================
 # run_genodisc.sh
 #
@@ -61,25 +61,17 @@ SNAKEFILE="${GD}/repo/current/pipeline/Snakefile"
 ACTIVATE_SCRIPT="${GD}/bin/activate_genodisc.sh"
 CONDA_PREFIX_DIR="${GD}/conda-envs"
 
-# Cores: SLURM tells us via SLURM_CPUS_PER_TASK; fall back to 5 for manual runs.
-CORES="${SLURM_CPUS_PER_TASK:-5}"
-
-# Memory (MB): SLURM tells us via SLURM_MEM_PER_NODE when --mem is set; fall back to
-# 100000 (100G, matching the #SBATCH --mem default above) for manual runs. Passed to
-# snakemake as --resources mem_mb so it actually throttles parallel rule scheduling to
-# fit the allocation - rules declare their own mem_mb (e.g. run_twas wants 20000 per
-# panel), but without this budget Snakemake schedules purely by CPU-slot availability
-# and ignores those declarations entirely, which is what caused OOM kills once several
-# 20G-per-panel rules landed in the same parallel wave (see misc/05-status.md).
-#
-# Two non-obvious gotchas hit while adding this (see misc/05-status.md):
-# - --resources must come before -c/the target positional arg, not after - it takes
-#   nargs='+' and will otherwise greedily swallow the next bare argument (the target
-#   path) and crash trying to parse it as a key=value pair.
-# - --default-resources mem_mb=... disk_mb=... is required alongside --resources, or
-#   rules that don't declare their own mem_mb/disk_mb get an internal "TBD" placeholder
-#   that can't be compared against the --resources budget and crashes the scheduler.
-MEM_MB="${SLURM_MEM_PER_NODE:-100000}"
+# Each rule now gets its own right-sized SLURM job via the profile below
+# (profiles/slurm/), so this orchestrator process itself only needs to run the
+# Snakemake scheduler - it no longer executes rules locally, so it no longer
+# needs a CORES/MEM_MB budget of its own. Two non-obvious Snakemake 7.x
+# argument-parsing gotchas that the old local `-c $CORES --resources mem_mb=...`
+# invocation had to work around (see misc/05-status.md) - --resources must
+# precede the positional target since it takes nargs='+' and otherwise
+# swallows it; --default-resources is required alongside --resources or rules
+# without declared mem_mb/disk_mb hit an internal "TBD" placeholder crash -
+# still apply, they just now live inside profiles/slurm/config.yaml's
+# default-resources: list instead of being set here.
 
 # ---- Plain logging (no colour; goes to SLURM stdout) ------------------------
 ts()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -102,8 +94,6 @@ TARGET="${JOB_DIR}/results/results_package.rds"
 log "GenoDisc pipeline run starting"
 log "  job_uuid:    ${JOB_UUID}"
 log "  job_dir:     ${JOB_DIR}"
-log "  cores:       ${CORES}"
-log "  mem_mb:      ${MEM_MB}"
 log "  slurm_jobid: ${SLURM_JOB_ID:-<not in slurm>}"
 log "  host:        $(hostname)"
 
@@ -137,7 +127,7 @@ log "  target:          $TARGET"
 log "  --directory:     $JOB_DIR"
 log "  default config:  $DEFAULT_CONFIG"
 log "  override config: $CONFIG_FILE"
-log "  --resources:     mem_mb=$MEM_MB"
+log "  --profile:       ${PIPELINE_DIR}/profiles/slurm"
 
 # IMPORTANT: --configfile takes BOTH paths as values of ONE flag (Snakemake
 # 7.32 silently overrides on repeated --configfile flags; see 05-status.md).
@@ -174,13 +164,8 @@ snakemake \
     --snakefile      "$SNAKEFILE" \
     --directory      "$JOB_DIR" \
     --configfile     "$DEFAULT_CONFIG" "$CONFIG_FILE" \
-    --use-conda \
-    --conda-frontend mamba \
     --conda-prefix   "$CONDA_PREFIX_DIR" \
-    --default-resources mem_mb=4000 disk_mb=4000 \
-    --resources      mem_mb="$MEM_MB" \
-    --rerun-incomplete \
-    -c "$CORES" \
+    --profile        "${PIPELINE_DIR}/profiles/slurm" \
     "$TARGET"
 SNAKEMAKE_EXIT=$?
 
