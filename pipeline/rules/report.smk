@@ -85,9 +85,12 @@ rule package_results:
   input:
     myoutput,
     f"{workflow.basedir}/scripts/package_results.R",
-    f"{workflow.basedir}/scripts/functions/package_results_functions.R"
+    f"{workflow.basedir}/scripts/functions/package_results_functions.R",
+    f"{workflow.basedir}/scripts/reader.R",
+    f"{workflow.basedir}/../VERSION"
   output:
-    "{outdir}/results/results_package.rds"
+    manifest = "{outdir}/results/package/manifest.json",
+    bundle   = "{outdir}/results/bundle.tar.gz"
   benchmark:
     "{outdir}/benchmarks/package_results.tsv"
   conda:
@@ -101,4 +104,4 @@ rule package_results:
     --config {params.config_file} > {log} 2>&1"
 
 rule run_package_results:
-  input: expand("{outdir}/results/results_package.rds", outdir={outdir})
+  input: expand("{outdir}/results/bundle.tar.gz", outdir={outdir})

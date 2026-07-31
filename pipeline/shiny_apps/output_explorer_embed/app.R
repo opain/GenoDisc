@@ -9,9 +9,11 @@ library(shinythemes)
 library(shinycssloaders)
 library(R.utils)
 library(shinyjs)
+library(jsonlite)
 
 # Load functions and modules
 source('functions.R')
+source('reader.R')
 for (f in list.files("R", full.names = TRUE, pattern = "\\.R$")) source(f)
 
 options(shiny.maxRequestSize = 600 * 1024 * 1024)
@@ -59,12 +61,12 @@ server <- function(input, output, session) {
   # Parse config flags once
   config_flags <- reactive({
     req(shared$gwas_data())
-    parse_config_flags(shared$gwas_data()$configuration$config)
+    parse_config_flags(gd_config(shared$gwas_data())$flags_raw)
   })
 
   gwas_list <- reactive({
     req(shared$gwas_data())
-    shared$gwas_data()$configuration$gwas_list
+    gd_config(shared$gwas_data())$gwas_list
   })
 
   # Show relevant tabs when data loads

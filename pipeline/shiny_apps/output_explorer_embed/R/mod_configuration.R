@@ -30,17 +30,24 @@ configurationServer <- function(id, gwas_data) {
 
     output$repo_info <- renderUI({
       req(gwas_data())
-      tagList(
-        p(HTML(paste0('<strong>Repo:</strong> ', gwas_data()$configuration$repo$remote))),
-        p(HTML(paste0('<strong>Branch:</strong> ', gwas_data()$configuration$repo$branch))),
-        p(HTML(paste0('<strong>Commit:</strong> ', gwas_data()$configuration$repo$commit)))
+      conf <- gd_config(gwas_data())
+      # New-format bundles only carry pipeline_version (no repo remote/branch);
+      # legacy .rds files carry the old remote/branch/commit trio.
+      rows <- list(
+        p(HTML(paste0('<strong>Pipeline version:</strong> ',
+                      if (!is.na(conf$pipeline_version)) conf$pipeline_version else '(unknown)')))
       )
+      if (!is.na(conf$remote) && nzchar(conf$remote)) rows <- c(rows, list(p(HTML(paste0('<strong>Repo:</strong> ',   conf$remote)))))
+      if (!is.na(conf$branch) && nzchar(conf$branch)) rows <- c(rows, list(p(HTML(paste0('<strong>Branch:</strong> ', conf$branch)))))
+      if (!is.na(conf$commit) && nzchar(conf$commit) && !identical(conf$commit, conf$pipeline_version))
+        rows <- c(rows, list(p(HTML(paste0('<strong>Commit:</strong> ', conf$commit)))))
+      do.call(tagList, rows)
     })
 
     output$config_table <- DT::renderDataTable({
       req(gwas_data())
       # Make table showing config parameters
-      config<-gwas_data()$configuration$config
+      config<-gd_config(gwas_data())$flags_raw
       config_tab<-config[!grepl('#', config)]
       config_tab<-config_tab[config_tab != '']
       config_tab<-data.frame(do.call(rbind, strsplit(config_tab, ': ')))
@@ -61,7 +68,7 @@ configurationServer <- function(id, gwas_data) {
 
     output$gwas_list <- DT::renderDataTable({
       req(gwas_data())
-      gwas_list<-gwas_data()$configuration$gwas_list
+      gwas_list<-gd_config(gwas_data())$gwas_list
 
       dat<-gwas_list
       dat[is.na(dat)]<-'NA'

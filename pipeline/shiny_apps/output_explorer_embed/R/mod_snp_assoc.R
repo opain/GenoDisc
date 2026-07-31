@@ -118,7 +118,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "manhattan_plot_labelled_base64"
       else
         "manhattan_plot_unlabelled_base64"
-      b64 <- gwas_data()[[selected_gwas()]]$gwas_qc[[b64_field]]
+      b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")[[b64_field]]
 
       if (!is.null(b64)) {
         tags$img(
@@ -139,13 +139,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     snp_assoc_lead_data <- reactive({
       req(gwas_data(), selected_gwas(), input$clumping_type)
+      snp_assoc <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")
       snp_assoc_lead <- NULL
       if (input$clumping_type == "ld_clumping") {
-        snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$clump
+        snp_assoc_lead <- snp_assoc$clump
       }
 
       if (input$clumping_type == "cojo_analysis") {
-        snp_assoc_lead <- gwas_data()[[selected_gwas()]]$snp_assoc$cojo
+        snp_assoc_lead <- snp_assoc$cojo
       }
 
       req(snp_assoc_lead)
@@ -191,7 +192,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         ))
       }
 
-      locus_plots <- gwas_data()[[selected_gwas()]]$snp_assoc$locus_plots
+      locus_plots <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")$locus_plots
 
       if (is.null(locus_plots) || length(locus_plots) == 0) {
         return(div(
@@ -233,13 +234,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     snp_assoc_finemap_data <- reactive({
       req(gwas_data(), selected_gwas(), input$l_param)
+      snp_assoc <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")
       snp_assoc_finemap <- NULL
       if (input$l_param == "L1") {
-        snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L1
+        snp_assoc_finemap <- snp_assoc$susie$L1
       }
 
       if (input$l_param == "L10") {
-        snp_assoc_finemap <- gwas_data()[[selected_gwas()]]$snp_assoc$susie$L10
+        snp_assoc_finemap <- snp_assoc$susie$L10
       }
 
       req(snp_assoc_finemap)

@@ -15,8 +15,10 @@ opt = parse_args(OptionParser(option_list=option_list))
 options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
+library(jsonlite)
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 source_all(file.path(opt$pipeline_dir, 'scripts', 'functions'))
+source(file.path(opt$pipeline_dir, 'scripts', 'reader.R'))
 
 # Read in config: merge default config with user config (user takes priority)
 library(yaml)
@@ -276,29 +278,104 @@ for(gwas_i in gwas_list$name){
 
 }
 
-#################
-# Configuration
-#################
-
-output$configuration<-list()
-
-output$configuration$repo<-list()
-# repo dirs are owned by the shared genodisc service account, but pipeline jobs
-# run under the submitting user's own uid, so plain `git` here hits "dubious
-# ownership" (exit 128) and these all come back NA/empty. -c safe.directory=
-# scoped to this specific repo (not persisted to any config file) fixes that
-# without weakening the check for any other repository.
-repo_root<-normalizePath(dirname(opt$pipeline_dir))
-git_cmd<-function(args) sprintf('git -C %s -c safe.directory=%s %s', shQuote(repo_root), shQuote(repo_root), args)
-output$configuration$repo$remote<-gsub('.*@','',gsub(' .*','',system(git_cmd('remote -v'), intern=T)[1])) # nolint # nolint: line_length_linter.
-output$configuration$repo$branch<-gsub('On branch ','', system(git_cmd('status'), intern=T)[1])
-output$configuration$repo$commit<-system(git_cmd('describe --tags --always'), intern=T)
-output$configuration$config<-config
-output$configuration$gwas_list<-gwas_list
-
 ################
-# Save results as .RDS
+# Write split bundle
 ################
 
-saveRDS(output, file = paste0(outdir,'/results/results_package.rds'))
+# `.gd_block_ids`, `.gd_traverse`, `.gd_row_count` come from reader.R.
+# The block IDs there are the canonical set; we walk them per-GWAS and
+# write only the blocks whose value is non-NULL.
 
+pkg_dir     <- file.path(outdir, 'results', 'package')
+bundle_path <- file.path(outdir, 'results', 'bundle.tar.gz')
+
+# Snakemake declares pkg_dir/manifest.json as the output — the directory
+# already exists via `directory()`-style implicit creation, but rerun after
+# manual deletion should still succeed. If a previous package exists, clear
+# it to avoid stale block files (e.g. a block that was previously present
+# but is now empty because config was toggled).
+if (dir.exists(pkg_dir)) unlink(pkg_dir, recursive = TRUE)
+dir.create(pkg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(file.path(pkg_dir, 'configuration'), showWarnings = FALSE)
+dir.create(file.path(pkg_dir, 'gwas'),          showWarnings = FALSE)
+
+# Read pipeline version from VERSION at repo root. Previously derived from
+# `git describe --tags` at runtime, which failed under non-owner UIDs
+# (CVE-2022-24765) and needed a scoped safe.directory workaround.
+version_path <- file.path(dirname(opt$pipeline_dir), 'VERSION')
+pipeline_version <- if (file.exists(version_path)) trimws(readLines(version_path, n = 1L)) else NA_character_
+
+blocks_meta <- setNames(vector('list', length(gwas_list$name)), gwas_list$name)
+for (gwas_i in gwas_list$name) {
+  gdata <- output[[gwas_i]]
+  per <- list()
+  for (bid in .gd_block_ids) {
+    keys  <- strsplit(bid, '/', fixed = TRUE)[[1L]]
+    value <- .gd_traverse(gdata, keys)
+    if (is.null(value)) next
+
+    block_file <- file.path(pkg_dir, 'gwas', gwas_i, paste0(bid, '.rds'))
+    dir.create(dirname(block_file), recursive = TRUE, showWarnings = FALSE)
+    saveRDS(value, file = block_file)
+
+    per[[bid]] <- list(
+      bytes = as.integer(file.info(block_file)$size),
+      rows  = .gd_row_count(value)
+    )
+  }
+  blocks_meta[[gwas_i]] <- per
+}
+
+# Configuration files (character vector + full gwas_list data.frame). These
+# stay as .rds because the character vector is what the Shiny app / report
+# already consume, and the gwas_list is a data.frame that doesn't round-trip
+# through JSON cleanly.
+saveRDS(config,    file = file.path(pkg_dir, 'configuration', 'config.rds'))
+saveRDS(gwas_list, file = file.path(pkg_dir, 'configuration', 'gwas_list.rds'))
+
+# Copy VERSION and reader.R into the bundle so a downloaded bundle is
+# self-contained.
+if (file.exists(version_path)) file.copy(version_path, file.path(pkg_dir, 'VERSION'), overwrite = TRUE)
+file.copy(file.path(opt$pipeline_dir, 'scripts', 'reader.R'),
+          file.path(pkg_dir, 'reader.R'), overwrite = TRUE)
+
+# Manifest — small JSON summary loaded first by the viewer.
+gwas_meta <- lapply(seq_len(nrow(gwas_list)), function(i) {
+  row <- gwas_list[i, ]
+  as.list(row)
+})
+
+manifest <- list(
+  schema_version   = 1L,
+  pipeline_version = pipeline_version,
+  created_at       = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z", tz = "UTC"),
+  config_file      = opt$config,
+  gwas             = gwas_meta,
+  block_ids        = .gd_block_ids,
+  blocks           = blocks_meta
+)
+
+# auto_unbox = TRUE turns length-1 vectors into JSON scalars (so
+# "pipeline_version": "1.0.0" not ["1.0.0"]). null=null keeps explicit NULLs.
+jsonlite::write_json(
+  manifest,
+  path        = file.path(pkg_dir, 'manifest.json'),
+  auto_unbox  = TRUE,
+  pretty      = TRUE,
+  null        = 'null',
+  na          = 'null'
+)
+
+################
+# Bundle as tarball
+################
+
+# tar from parent so the archive contains a `package/` top-level directory.
+if (file.exists(bundle_path)) unlink(bundle_path)
+tar_status <- system2(
+  'tar',
+  args = c('-czf', shQuote(bundle_path), '-C', shQuote(dirname(pkg_dir)), basename(pkg_dir))
+)
+if (!identical(as.integer(tar_status), 0L)) {
+  stop("failed to create bundle tarball (tar exit ", tar_status, ")")
+}

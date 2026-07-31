@@ -27,15 +27,16 @@
 #
 #   OUTPUT (this script produces):
 #     - <job_dir>/results/...                       raw Snakemake outputs
-#     - <job_dir>/results/results_package.rds       the .rds the web app reads
+#     - <job_dir>/results/package/manifest.json     manifest of the split bundle
+#     - <job_dir>/results/bundle.tar.gz             downloadable results bundle
 #     - SLURM stdout/stderr                         logs for human debugging
 #
-# Success signal: presence of <job_dir>/results/results_package.rds AND
+# Success signal: presence of <job_dir>/results/bundle.tar.gz AND
 # exit code 0. The web app determines this by polling sacct and stat-ing
-# the .rds file.
+# the bundle file.
 #
 # Exit codes:
-#   0   Pipeline completed and results_package.rds exists.
+#   0   Pipeline completed and bundle.tar.gz exists.
 #   1   Pipeline failed at some stage. Check SLURM stdout/stderr.
 #   2   Setup error (job dir missing, activation failed, etc.).
 #
@@ -88,7 +89,7 @@ JOB_DIR="$1"
 JOB_UUID=$(basename "$JOB_DIR")
 GWAS_LIST="${JOB_DIR}/gwas_list.txt"
 CONFIG_FILE="${JOB_DIR}/config.yaml"
-TARGET="${JOB_DIR}/results/results_package.rds"
+TARGET="${JOB_DIR}/results/bundle.tar.gz"
 
 # ---- Pre-flight checks ------------------------------------------------------
 log "GenoDisc pipeline run starting"

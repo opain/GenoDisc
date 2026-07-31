@@ -15,38 +15,18 @@ safe_access <- function(data, ...) {
   result
 }
 
-#' Validate RDS structure for GenoDisc results
-#'
-#' @param rds The object read from readRDS
-#' @return Character error message, or NULL if valid
-validate_rds <- function(rds) {
-  if (!is.list(rds)) {
-    return("Uploaded file does not contain a valid GenoDisc results object.")
-  }
-  if (!("configuration" %in% names(rds))) {
-    return("Results object is missing 'configuration'. Was this file produced by the GenoDisc pipeline?")
-  }
-  conf <- rds$configuration
-  if (is.null(conf$config) || is.null(conf$gwas_list)) {
-    return("Results object has an incomplete 'configuration' section.")
-  }
-  gwas_names <- setdiff(names(rds), "configuration")
-  if (length(gwas_names) == 0) {
-    return("Results object contains no GWAS results.")
-  }
-  NULL
-}
-
 #' Build molecular association summary data
 #'
-#' @param gwas_results The per-GWAS results list (e.g., rds[["MILEAGE01"]])
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas GWAS name
 #' @param cf Named list of config flags from parse_config_flags()
 #' @return data.frame with columns: Panel, ID, Z, Sig, Coloc, Method, Type
-build_mol_assoc_data <- function(gwas_results, cf) {
+build_mol_assoc_data <- function(gd, gwas, cf) {
   all_func_res <- NULL
 
   if (cf$finemap) {
-    finemap_ids <- safe_access(gwas_results, "mol_assoc", "finemap", "L1")
+    finemap <- gd_read(gd, gwas, "mol_assoc/finemap")
+    finemap_ids <- safe_access(finemap, "L1")
     if (!is.null(finemap_ids) && length(finemap_ids) > 0) {
       all_func_res <- rbind(all_func_res, data.frame(
         Panel = "SuSie (L=1)", ID = finemap_ids, Z = 1, Sig = F, Coloc = F,
@@ -55,7 +35,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
   }
 
   if (cf$twas) {
-    fusion_res <- safe_access(gwas_results, "mol_assoc", "exp", "fusion", "res")
+    fusion_res <- safe_access(gd_read(gd, gwas, "mol_assoc/exp/fusion"), "res")
     if (!is.null(fusion_res)) {
       twas_tmp <- data.table(
         Panel = fusion_res$PANEL,
@@ -75,7 +55,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
   }
 
   if (cf$smr_expression) {
-    smr_res <- safe_access(gwas_results, "mol_assoc", "exp", "smr", "results")
+    smr_res <- safe_access(gd_read(gd, gwas, "mol_assoc/exp/smr"), "results")
     if (!is.null(smr_res)) {
       smr_expr_id <- smr_res$`Gene Symbol`
       smr_expr_id[is.na(smr_expr_id)] <- smr_res$`Ensembl ID`[is.na(smr_expr_id)]
@@ -91,7 +71,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
   }
 
   if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) {
-    pwas_res <- safe_access(gwas_results, "mol_assoc", "protein", "fusion", "results")
+    pwas_res <- safe_access(gd_read(gd, gwas, "mol_assoc/protein/fusion"), "results")
     if (!is.null(pwas_res)) {
       pwas_tmp <- data.table(
         Panel = pwas_res$PANEL, ID = pwas_res$`Gene Symbol`,
@@ -107,7 +87,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
   }
 
   if (cf$smr_protein_panel_rosmap) {
-    smr_prot <- safe_access(gwas_results, "mol_assoc", "protein", "smr", "results")
+    smr_prot <- safe_access(gd_read(gd, gwas, "mol_assoc/protein/smr"), "results")
     if (!is.null(smr_prot)) {
       smr_prot_tmp <- data.table(
         Panel = smr_prot$PANEL, ID = smr_prot$`Gene Symbol`,
@@ -123,7 +103,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
   }
 
   if (cf$magma_gene) {
-    magma <- safe_access(gwas_results, "mol_assoc", "magma")
+    magma <- gd_read(gd, gwas, "mol_assoc/magma")
     if (!is.null(magma)) {
       all_func_res <- rbind(all_func_res, data.frame(
         Panel = 'MAGMA', ID = magma$ID,
@@ -134,7 +114,7 @@ build_mol_assoc_data <- function(gwas_results, cf) {
   }
 
   if (cf$clump) {
-    nearest <- safe_access(gwas_results, "mol_assoc", "nearest", "clump")
+    nearest <- safe_access(gd_read(gd, gwas, "mol_assoc/nearest"), "clump")
     if (!is.null(nearest) && length(nearest) > 0) {
       all_func_res <- rbind(all_func_res, data.frame(
         Panel = 'NearestGene', ID = nearest, Z = 1, Sig = F, Coloc = F,
@@ -147,10 +127,13 @@ build_mol_assoc_data <- function(gwas_results, cf) {
 
 #' Build drug enrichment summary data
 #'
-#' @param gwas_results The per-GWAS results list
+#' @param gd A gd_result
+#' @param gwas GWAS name
 #' @return data.frame with columns: Name, Z, P, P.FDR, ATC Code, Method, Panel
-build_drug_summary_data <- function(gwas_results) {
-  magma_gs <- safe_access(gwas_results, "tx", "drug", "magma")
+build_drug_summary_data <- function(gd, gwas) {
+  drug <- gd_read(gd, gwas, "tx/drug")
+
+  magma_gs <- safe_access(drug, "magma")
   if (!is.null(magma_gs)) {
     magma_gs$Z <- -qnorm(magma_gs$P)
     magma_gs <- magma_gs[, c('Name', 'Z', 'P', 'P.FDR', 'ATC Code')]
@@ -158,7 +141,7 @@ build_drug_summary_data <- function(gwas_results) {
     magma_gs$Panel <- 'MAGMA'
   }
 
-  gcsc_gs <- safe_access(gwas_results, "tx", "drug", "gcsc")
+  gcsc_gs <- safe_access(drug, "gcsc")
   if (!is.null(gcsc_gs)) {
     gcsc_gs <- gcsc_gs[, c('Name', 'Z', 'P', 'P.FDR', 'ATC Code')]
     gcsc_gs$Method <- 'GCSC'
@@ -166,7 +149,7 @@ build_drug_summary_data <- function(gwas_results) {
   }
 
   build_gsea <- function(slot, method_label) {
-    g <- safe_access(gwas_results, "tx", "drug", slot)
+    g <- safe_access(drug, slot)
     if (is.null(g)) return(NULL)
     g$Method <- method_label
     # Reversal_Z is positive when the drug opposes the disease TWAS signature
@@ -200,10 +183,13 @@ build_drug_summary_data <- function(gwas_results) {
 
 #' Build ATC enrichment summary data
 #'
-#' @param gwas_results The per-GWAS results list
+#' @param gd A gd_result
+#' @param gwas GWAS name
 #' @return data.frame with columns: Name, Z, FDR_Sig, Nom_Sig, Method, Panel
-build_atc_summary_data <- function(gwas_results) {
-  magma_gs_atc <- safe_access(gwas_results, "tx", "atc", "magma")
+build_atc_summary_data <- function(gd, gwas) {
+  atc <- gd_read(gd, gwas, "tx/atc")
+
+  magma_gs_atc <- safe_access(atc, "magma")
   if (!is.null(magma_gs_atc)) {
     magma_gs_atc$Z <- -qnorm(magma_gs_atc$P)
     magma_gs_atc$FDR_Sig <- magma_gs_atc$P.FDR < 0.05
@@ -214,7 +200,7 @@ build_atc_summary_data <- function(gwas_results) {
     magma_gs_atc <- magma_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
   }
 
-  gcsc_gs_atc <- safe_access(gwas_results, "tx", "atc", "gcsc")
+  gcsc_gs_atc <- safe_access(atc, "gcsc")
   if (!is.null(gcsc_gs_atc)) {
     gcsc_gs_atc$Z <- -qnorm(gcsc_gs_atc$P)
     gcsc_gs_atc$FDR_Sig <- gcsc_gs_atc$P.FDR < 0.05
@@ -226,7 +212,7 @@ build_atc_summary_data <- function(gwas_results) {
   }
 
   build_gsea_atc <- function(slot, method_label) {
-    g <- safe_access(gwas_results, "tx", "atc", slot)
+    g <- safe_access(atc, slot)
     if (is.null(g)) return(NULL)
     # P.FDR is already computed in the RDS (per-panel by the read function);
     # Reversal_Z is positive when the class opposes the disease TWAS signature.
@@ -264,8 +250,8 @@ build_atc_summary_data <- function(gwas_results) {
 #' Reversal_Z is positive when the perturbation opposes the disease TWAS
 #' signature (candidate therapeutic). Used directly as the colour aesthetic
 #' for the heatmap.
-build_cmap_drug_summary_data <- function(gwas_results) {
-  d <- safe_access(gwas_results, "tx", "cmap", "drug")
+build_cmap_drug_summary_data <- function(gd, gwas) {
+  d <- safe_access(gd_read(gd, gwas, "tx/cmap"), "drug")
   if (is.null(d) || nrow(d) == 0) return(NULL)
   d <- as.data.frame(d)
   d$Name    <- paste(d$cmap_name, d$pert_itime, d$pert_idose, sep = ' / ')
@@ -282,10 +268,11 @@ build_cmap_drug_summary_data <- function(gwas_results) {
 #' the packaging step). Adds a Retained flag indicating whether the tissue
 #' survived the upstream conditional analysis.
 #'
-#' @param gwas_results The per-GWAS results list
+#' @param gd A gd_result
+#' @param gwas GWAS name
 #' @return data.frame ordered by P, or NULL if tissue data absent
-build_tissue_data <- function(gwas_results) {
-  spec <- safe_access(gwas_results, "tissue", "specific")
+build_tissue_data <- function(gd, gwas) {
+  spec <- safe_access(gd_read(gd, gwas, "tissue"), "specific")
   if (is.null(spec) || is.null(spec$res) || nrow(spec$res) == 0) return(NULL)
   d <- as.data.frame(spec$res)
   keep <- if (is.null(spec$keep)) character(0) else spec$keep
@@ -297,8 +284,8 @@ build_tissue_data <- function(gwas_results) {
 }
 
 #' Build CMAP per-MOA enrichment summary data
-build_cmap_moa_summary_data <- function(gwas_results) {
-  d <- safe_access(gwas_results, "tx", "cmap", "moa")
+build_cmap_moa_summary_data <- function(gd, gwas) {
+  d <- safe_access(gd_read(gd, gwas, "tx/cmap"), "moa")
   if (is.null(d) || nrow(d) == 0) return(NULL)
   d <- as.data.frame(d)
   d$Name    <- d$MOA

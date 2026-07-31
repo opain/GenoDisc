@@ -3,10 +3,10 @@ dataInputUI <- function(id) {
   tabPanel(
     title="Data Input",
     br(),
-    p("This is an application for visualising the output of GenoDisc. To start, upload the 'results_package.rds' file output by the GenoDisc pipeline, select a GWAS, and use the tabs to view interactive tables and plots of your results."),
+    p("This is an application for visualising the output of GenoDisc. To start, upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works), select a GWAS, and use the tabs to view interactive tables and plots of your results."),
     p("Click ",a("here", href = "https://github.com/opain/GenoDisc"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDisc"), "  and relevent software and datasets included in your analysis."),
     hr(),
-    h5("Choose an .RDS file"),
+    h5("Choose a bundle (.tar.gz) or legacy .rds file"),
     fileInput(ns("file"), NULL),
     h6('Or'),
     actionButton(ns("loadExample"), "Use example data"),
@@ -28,46 +28,64 @@ dataInputServer <- function(id) {
 
     rds_path <- reactiveVal('')
 
+    # Uploads land at a random datapath with no extension. gd_open dispatches
+    # on file extension (tarball vs .rds), so we rename to preserve it.
     observeEvent(input$file, {
-      rds_path(input$file$datapath)
+      orig <- input$file$name
+      ext  <- if      (grepl("\\.tar\\.gz$", orig, ignore.case = TRUE)) ".tar.gz"
+              else if (grepl("\\.tgz$",      orig, ignore.case = TRUE)) ".tar.gz"
+              else if (grepl("\\.rds$",      orig, ignore.case = TRUE)) ".rds"
+              else ""
+      path <- input$file$datapath
+      if (nzchar(ext) && !grepl(paste0(gsub("\\.", "\\\\.", ext), "$"), path)) {
+        new_path <- paste0(path, ext)
+        file.rename(path, new_path)
+        path <- new_path
+      }
+      rds_path(path)
     })
 
     observeEvent(input$loadExample, {
-      example_path <- file.path("data", "example.rds")  # or wherever
-      if (file.exists(example_path)) {
-        rds_path(example_path)
+      # Try new-format bundle first, then legacy .rds. Path is resolved
+      # against the module source file's directory (not getwd()) so the
+      # button works whether the app was launched from the app dir or not.
+      here <- tryCatch(dirname(sys.frame(1L)$ofile), error = function(e) getwd())
+      candidates <- c(
+        file.path(here, "..", "data", "example.tar.gz"),
+        file.path(here, "..", "data", "example.rds"),
+        file.path("data", "example.tar.gz"),
+        file.path("data", "example.rds")
+      )
+      hit <- candidates[file.exists(candidates)][1]
+      if (!is.na(hit)) {
+        rds_path(normalizePath(hit, winslash = "/"))
       } else {
-        showNotification("Example data file not found.", type = "error")
+        showNotification("Example data file not found (looked for data/example.tar.gz and data/example.rds).", type = "error")
       }
     })
 
     gwas_data <- reactive({
       req(rds_path() != '')
-      rds <- tryCatch(readRDS(rds_path()), error = function(e) NULL)
-      if (is.null(rds)) {
-        showNotification("Could not read the uploaded file. Please ensure it is a valid .rds file.", type = "error")
+      gd <- tryCatch(gd_open(rds_path()), error = function(e) {
+        showNotification(paste0("Could not open file: ", conditionMessage(e)), type = "error")
+        NULL
+      })
+      if (is.null(gd)) req(FALSE)
+      if (length(gd_gwas(gd)) == 0L) {
+        showNotification("Results package contains no GWAS.", type = "error")
         req(FALSE)
       }
-      err <- validate_rds(rds)
-      if (!is.null(err)) {
-        showNotification(err, type = "error")
-        req(FALSE)
-      }
-      rds
+      gd
     })
 
     observeEvent(gwas_data(), {
-      rds <- gwas_data()
-      gwas_names <- names(rds)[names(rds) != 'configuration']
-      updateSelectInput(session, "gwas_selector", choices = gwas_names)
+      updateSelectInput(session, "gwas_selector", choices = gd_gwas(gwas_data()))
     })
 
     selected_gwas<-reactive({
       req(gwas_data(), input$gwas_selector)
-      gwas_selected <- ifelse(input$gwas_selector %in% names(gwas_data()),
-                              input$gwas_selector,
-                              names(gwas_data())[names(gwas_data()) != 'configuration'][1])
-      return(gwas_selected)
+      names_ <- gd_gwas(gwas_data())
+      if (input$gwas_selector %in% names_) input$gwas_selector else names_[1]
     })
 
     list(gwas_data = gwas_data, selected_gwas = selected_gwas)

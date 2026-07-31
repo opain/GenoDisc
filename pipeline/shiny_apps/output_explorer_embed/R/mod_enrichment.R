@@ -129,8 +129,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
       # Build CMAP sub-tabs (per-signature drug heatmap + per-MOA heatmap +
       # raw tables). Only assembled when the run produced CMAP results.
-      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data()[[selected_gwas()]]) else NULL
-      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data()[[selected_gwas()]])  else NULL
+      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data(), selected_gwas()) else NULL
+      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data(), selected_gwas())  else NULL
       cmap_panels    <- unique(c(cmap_drug_data$Panel, cmap_moa_data$Panel))
 
       cmap_core_cells <- c("A375", "HA1E", "HCC515", "HT29", "MCF7", "PC3", "VCAP", "HEPG2", "A549")
@@ -207,7 +207,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Build Tissue tab (MAGMA tissue-specific enrichment)
       tissue_tab <- NULL
       if (cf$tissue_magma) {
-        tissue_data <- build_tissue_data(gwas_data()[[selected_gwas()]])
+        tissue_data <- build_tissue_data(gwas_data(), selected_gwas())
         if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
           tissue_tab <- tabPanel(
             title="Tissue", br(),
@@ -261,7 +261,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp<-gwas_data()[[selected_gwas()]]$tx$drug$magma
+      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/drug")$magma
       if(is.null(tmp)) return(NULL)
       tmp$BETA<-round(tmp$BETA,3)
       tmp$SE<-round(tmp$SE,3)
@@ -291,7 +291,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
+      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/drug")$gcsc
       if(is.null(tmp)) return(NULL)
       tmp$Enrichment<-round(tmp$Enrichment, 3)
       tmp$SE<-round(tmp$SE, 3)
@@ -325,7 +325,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp<-gwas_data()[[selected_gwas()]]$tx$drug[[slot]]
+      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/drug")[[slot]]
       if(is.null(tmp)) return(NULL)
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
@@ -360,7 +360,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     tx_drug_summary_data <- reactive({
       req(gwas_data(), selected_gwas())
-      build_drug_summary_data(gwas_data()[[selected_gwas()]])
+      build_drug_summary_data(gwas_data(), selected_gwas())
     })
 
     tx_drug_summary_data_filtered<-reactive({
@@ -646,7 +646,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp<-gwas_data()[[selected_gwas()]]$tx$atc$magma
+      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/atc")$magma
       if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
@@ -676,7 +676,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
+      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/atc")$gcsc
       if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
@@ -697,7 +697,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     render_twas_gsea_atc_table <- function(slot){
       req(gwas_data(), selected_gwas())
-      tmp<-gwas_data()[[selected_gwas()]]$tx$atc[[slot]]
+      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/atc")[[slot]]
       if(is.null(tmp)) return(NULL)
 
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
@@ -741,7 +741,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     tx_atc_summary_data <- reactive({
       req(gwas_data(), selected_gwas())
-      build_atc_summary_data(gwas_data()[[selected_gwas()]])
+      build_atc_summary_data(gwas_data(), selected_gwas())
     })
 
     tx_atc_summary_data_filtered<-reactive({
@@ -1010,12 +1010,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     tx_cmap_drug_data <- reactive({
       req(gwas_data(), selected_gwas())
-      build_cmap_drug_summary_data(gwas_data()[[selected_gwas()]])
+      build_cmap_drug_summary_data(gwas_data(), selected_gwas())
     })
 
     tx_cmap_moa_data <- reactive({
       req(gwas_data(), selected_gwas())
-      build_cmap_moa_summary_data(gwas_data()[[selected_gwas()]])
+      build_cmap_moa_summary_data(gwas_data(), selected_gwas())
     })
 
     # ----- per-MOA -----
@@ -1183,7 +1183,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     output$tx_cmap_drug_table <- renderDataTable({
       req(gwas_data(), selected_gwas())
-      d <- gwas_data()[[selected_gwas()]]$tx$cmap$drug
+      d <- gd_read(gwas_data(), selected_gwas(), "tx/cmap")$drug
       if(is.null(d)) return(NULL)
       # Hide Reversal_Z from the table (it is used by the heatmap; Direction
       # column conveys the same information in human-readable form).
@@ -1196,7 +1196,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     output$tx_cmap_moa_table <- renderDataTable({
       req(gwas_data(), selected_gwas())
-      d <- gwas_data()[[selected_gwas()]]$tx$cmap$moa
+      d <- gd_read(gwas_data(), selected_gwas(), "tx/cmap")$moa
       if(is.null(d)) return(NULL)
       hide_idx <- which(names(d) == 'Reversal_Z') - 1L
       cdefs <- list(list(className = 'dt-center', targets = '_all'))
@@ -1211,7 +1211,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     tx_tissue_data <- reactive({
       req(gwas_data(), selected_gwas())
-      build_tissue_data(gwas_data()[[selected_gwas()]])
+      build_tissue_data(gwas_data(), selected_gwas())
     })
 
     tx_tissue_data_filtered <- reactive({

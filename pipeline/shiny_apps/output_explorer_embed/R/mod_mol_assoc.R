@@ -129,7 +129,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$magma
+      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/magma")
 
       datatable(tmp, rownames = F, options = list(
         rowCallback = JS(js),
@@ -147,7 +147,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res
+      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/exp/fusion")$res
       tmp$TWAS.Z <- round(tmp$TWAS.Z, 3)
       tmp$`High Confidence` <- tmp$TWAS.P.FDR < 0.05 & tmp$COLOC_logical
       tmp$COLOC_logical <- NULL
@@ -175,7 +175,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res
+      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/protein/fusion")$res
       tmp$pwas_all.Z <- round(tmp$pwas_all.Z, 3)
       tmp$`High Confidence` <- tmp$pwas_all.P.FDR < 0.05 & tmp$COLOC_logical
       tmp$COLOC_logical <- NULL
@@ -205,7 +205,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res
+      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/exp/smr")$res
       tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
       tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI","High Confidence"), with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
@@ -235,7 +235,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         "}"
       )
 
-      tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res
+      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/protein/smr")$res
       tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
       tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
@@ -263,22 +263,22 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       all_panel_info <- NULL
 
       if (cf$twas) {
-        tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$panels
+        tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/exp/fusion")$panels
         all_panel_info <- rbind(all_panel_info, tmp)
       }
 
       if (cf$smr_expression) {
-        tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$panels
+        tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/exp/smr")$panels
         all_panel_info <- rbind(all_panel_info, tmp)
       }
 
       if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) {
-        tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$panels
+        tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/protein/fusion")$panels
         all_panel_info <- rbind(all_panel_info, tmp)
       }
 
       if (cf$smr_protein_panel_rosmap) {
-        tmp <- gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$panels
+        tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/protein/smr")$panels
         all_panel_info <- rbind(all_panel_info, tmp)
       }
 
@@ -297,7 +297,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     mol_assoc_summary_data <- reactive({
       req(gwas_data(), selected_gwas(), config_flags())
-      build_mol_assoc_data(gwas_data()[[selected_gwas()]], config_flags())
+      build_mol_assoc_data(gwas_data(), selected_gwas(), config_flags())
     })
 
     ########

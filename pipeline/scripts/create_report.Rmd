@@ -39,8 +39,11 @@ config<-readLines(params$config_file)
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
-# Read in results package
-output<-readRDS(paste0(outdir,'/results/results_package.rds'))
+# Read in results package via the split-bundle reader. gd_collect() rebuilds
+# the old nested-list shape so the ~1200 lines of `output[[gwas]]$...` below
+# stay untouched.
+source(paste0(outdir,'/results/package/reader.R'))
+output<-gd_collect(gd_open(paste0(outdir,'/results/package')))
 
 # Read in GWAS list
 gwas_list<-fread(gsub('gwas_list: ','', config[grepl('gwas_list: ',config)]))

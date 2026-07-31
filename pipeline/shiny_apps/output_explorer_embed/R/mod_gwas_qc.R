@@ -44,7 +44,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
     qc_val <- reactive({
       req(gwas_data(), selected_gwas(), gwas_list(), config_flags())
 
-      g <- gwas_data()[[selected_gwas()]]
+      gwas_qc <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")
       cf <- config_flags()
 
       # Build isn't always identified from CHR/BP (the cleaner can fall back to
@@ -52,17 +52,17 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       # extract_build() in package_results_functions.R). Coalesce to a scalar
       # so a single missing QC field can't collapse the whole table via
       # data.table()'s zero-length recycling.
-      build_val <- g$gwas_qc$cleaner_dat$val$build$build
+      build_val <- gwas_qc$cleaner_dat$val$build$build
       if (length(build_val) == 0 || is.na(build_val)) build_val <- "Unknown"
 
       qc_val<-data.table(name=selected_gwas(),
                          label=gwas_list()$label[gwas_list()$name == selected_gwas()],
-                         n_var_orig=g$gwas_qc$cleaner_dat$val$n_var_orig,
+                         n_var_orig=gwas_qc$cleaner_dat$val$n_var_orig,
                          build=build_val,
-                         n_snp_final=g$gwas_qc$cleaner_dat$val$n_snp_final,
-                         lambda_gc=g$gwas_qc$focus_dat$val$lambda_gc,
-                         max_chi2=g$gwas_qc$focus_dat$val$max_chi2,
-                         n_sig_snp=g$gwas_qc$focus_dat$val$n_sig_snp)
+                         n_snp_final=gwas_qc$cleaner_dat$val$n_snp_final,
+                         lambda_gc=gwas_qc$focus_dat$val$lambda_gc,
+                         max_chi2=gwas_qc$focus_dat$val$max_chi2,
+                         n_sig_snp=gwas_qc$focus_dat$val$n_sig_snp)
 
       col_labels <- c('GWAS Name',
                       'GWAS Label',
@@ -74,8 +74,8 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
                       'N genome-wide significant variants')
 
       if (isTRUE(cf$ldsc)) {
-        qc_val[, obs_h2 := paste0(round(g$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(g$gwas_qc$ldsc_dat$val$obs_h2_se,3),")")]
-        qc_val[, int := paste0(round(g$gwas_qc$ldsc_dat$val$int_est,3), " (",round(g$gwas_qc$ldsc_dat$val$int_se,3),")")]
+        qc_val[, obs_h2 := paste0(round(gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(gwas_qc$ldsc_dat$val$obs_h2_se,3),")")]
+        qc_val[, int := paste0(round(gwas_qc$ldsc_dat$val$int_est,3), " (",round(gwas_qc$ldsc_dat$val$int_se,3),")")]
         col_labels <- c(col_labels,
                         "LDSC SNP-heritability (SE; observed scale)",
                         "LDSC intercept (SE)")
@@ -102,7 +102,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
     # MAF plot rendering
     output$maf_plot_ui <- renderUI({
       req(gwas_data(), selected_gwas())
-      b64 <- gwas_data()[[selected_gwas()]]$gwas_qc$maf_plot_base64
+      b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$maf_plot_base64
 
       if (!is.null(b64)) {
         tagList(
@@ -130,7 +130,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
     # QQ plot rendering
     output$qq_plot_ui <- renderUI({
       req(gwas_data(), selected_gwas())
-      b64 <- gwas_data()[[selected_gwas()]]$gwas_qc$qq_plot_base64
+      b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$qq_plot_base64
 
       if (!is.null(b64)) {
         tags$img(
@@ -152,7 +152,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
     # Cleaner log rendering
     output$cleaner_log_ui <- renderUI({
       req(gwas_data(), selected_gwas())
-      log_lines <- gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$log
+      log_lines <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$cleaner_dat$log
 
       if (is.null(log_lines) || length(log_lines) == 0) {
         return(p("Log not available."))
@@ -167,7 +167,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
     # Bivariate LDSC (genetic correlation) rendering
     gencor_table <- reactive({
       req(gwas_data(), selected_gwas())
-      d <- gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_gencor_dat
+      d <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$ldsc_gencor_dat
       if (is.null(d) || is.null(d$table)) return(NULL)
       d$table
     })
