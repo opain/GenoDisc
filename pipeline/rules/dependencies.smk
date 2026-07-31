@@ -465,9 +465,9 @@ rule install_fusion:
   log:
     f"{resdir}/logs/install_fusion.log"
   shell:
-    "(git clone https://github.com/gusevlab/fusion_twas.git {output}; \
+    "(git clone https://github.com/opain/fusion_twas.git {output}; \
     cd {output}; \
-    git reset --hard e1ba5f7f3907e6f586f7fb5bb115b35cc0d3c0c2) > {log} 2>&1"
+    git reset --hard 4635dd1aeafabafd5c062d2e9002e37e129a043d) > {log} 2>&1"
 
 # Download plink2R
 rule download_plink2R:
