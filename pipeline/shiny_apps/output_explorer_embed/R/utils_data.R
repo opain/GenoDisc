@@ -136,6 +136,11 @@ build_drug_summary_data <- function(gd, gwas) {
   magma_gs <- safe_access(drug, "magma")
   if (!is.null(magma_gs)) {
     magma_gs$Z <- -qnorm(magma_gs$P)
+    # P=0 (numerical underflow upstream) makes qnorm return Inf; Inf breaks
+    # the ggplot fill scale ("'to' must be a finite number"). Drop to NA so
+    # the point still renders (na.value) without dragging the colour limits
+    # to infinity.
+    magma_gs$Z[!is.finite(magma_gs$Z)] <- NA_real_
     magma_gs <- magma_gs[, c('Name', 'Z', 'P', 'P.FDR', 'ATC Code')]
     magma_gs$Method <- 'MAGMA'
     magma_gs$Panel <- 'MAGMA'
@@ -157,6 +162,9 @@ build_drug_summary_data <- function(gd, gwas) {
     # variants alike this is set by the format script / read function, so the
     # Shiny app no longer applies any sign flips here.
     g$Z <- g$Reversal_Z
+    # See MAGMA branch above: P=0 upstream produces Reversal_Z=Inf which
+    # would crash the ggplot fill scale.
+    g$Z[!is.finite(g$Z)] <- NA_real_
     g <- g[, c('Name', 'Z', 'P', 'P.FDR', 'Method', 'Panel', 'ATC Code')]
 
     g_all <- g
@@ -192,6 +200,7 @@ build_atc_summary_data <- function(gd, gwas) {
   magma_gs_atc <- safe_access(atc, "magma")
   if (!is.null(magma_gs_atc)) {
     magma_gs_atc$Z <- -qnorm(magma_gs_atc$P)
+    magma_gs_atc$Z[!is.finite(magma_gs_atc$Z)] <- NA_real_
     magma_gs_atc$FDR_Sig <- magma_gs_atc$P.FDR < 0.05
     magma_gs_atc$Nom_Sig <- magma_gs_atc$P < 0.05
     magma_gs_atc$Name <- paste0(magma_gs_atc$`ATC Code`, ': ', magma_gs_atc$`ATC Description`)
@@ -203,6 +212,7 @@ build_atc_summary_data <- function(gd, gwas) {
   gcsc_gs_atc <- safe_access(atc, "gcsc")
   if (!is.null(gcsc_gs_atc)) {
     gcsc_gs_atc$Z <- -qnorm(gcsc_gs_atc$P)
+    gcsc_gs_atc$Z[!is.finite(gcsc_gs_atc$Z)] <- NA_real_
     gcsc_gs_atc$FDR_Sig <- gcsc_gs_atc$P.FDR < 0.05
     gcsc_gs_atc$Nom_Sig <- gcsc_gs_atc$P < 0.05
     gcsc_gs_atc$Name <- paste0(gcsc_gs_atc$`ATC Code`, ': ', gcsc_gs_atc$`ATC Description`)
@@ -217,6 +227,7 @@ build_atc_summary_data <- function(gd, gwas) {
     # P.FDR is already computed in the RDS (per-panel by the read function);
     # Reversal_Z is positive when the class opposes the disease TWAS signature.
     g$Z <- g$Reversal_Z
+    g$Z[!is.finite(g$Z)] <- NA_real_
     g$FDR_Sig <- g$P.FDR < 0.05
     g$Nom_Sig <- g$P < 0.05
     g$Name <- paste0(g$`ATC Code`, ': ', g$`ATC Description`)

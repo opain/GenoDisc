@@ -539,19 +539,24 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         dir_data <- all_gs_all[Method == 'TWAS-GSEA']
         pos_data <- all_gs_all[Method != 'TWAS-GSEA']
 
-        dir_max <- if(nrow(dir_data) > 0) max(abs(dir_data$Z), na.rm=T) else NA
-        pos_max <- if(nrow(pos_data) > 0) max(pos_data$Z, na.rm=T) else NA
+        # max() on an all-NA vector returns -Inf and max() on a vector
+        # containing Inf returns Inf; either breaks scale_*_gradientn's
+        # limits. Fall back to NA so the branch is skipped cleanly.
+        dir_max <- if(nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Z), na.rm=T)) else NA
+        pos_max <- if(nrow(pos_data) > 0) suppressWarnings(max(pos_data$Z, na.rm=T))     else NA
+        if(!is.finite(dir_max)) dir_max <- NA
+        if(!is.finite(pos_max)) pos_max <- NA
 
         heatmap<-ggplot(data = all_gs_all, aes(x = Panel, y = Name)) +
           theme_bw()
-        if(nrow(dir_data) > 0){
+        if(nrow(dir_data) > 0 && is.finite(dir_max)){
           heatmap <- heatmap +
             geom_point(data=dir_data, aes(fill = Z), shape=21, stroke=0, size=5) +
             scale_fill_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
                                  na.value = NA, name = "TWAS-GSEA\nZ-score",
                                  limits = c(-dir_max, dir_max))
         }
-        if(nrow(pos_data) > 0){
+        if(nrow(pos_data) > 0 && is.finite(pos_max)){
           heatmap <- heatmap +
             geom_point(data=pos_data, aes(colour = Z), shape=16, size=5) +
             scale_colour_gradientn(colours=c("#FFFFFF","#00CC66"),
@@ -914,19 +919,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA']
         pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA']
 
-        dir_max_atc <- if(nrow(dir_data_atc) > 0) max(abs(dir_data_atc$Z), na.rm=T) else NA
-        pos_max_atc <- if(nrow(pos_data_atc) > 0) max(pos_data_atc$Z, na.rm=T) else NA
+        # See drug heatmap above for the finite-max guard rationale.
+        dir_max_atc <- if(nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Z), na.rm=T)) else NA
+        pos_max_atc <- if(nrow(pos_data_atc) > 0) suppressWarnings(max(pos_data_atc$Z, na.rm=T))     else NA
+        if(!is.finite(dir_max_atc)) dir_max_atc <- NA
+        if(!is.finite(pos_max_atc)) pos_max_atc <- NA
 
         heatmap<-ggplot(data = all_gs_atc_all, aes(x = Panel, y = Name)) +
           theme_bw()
-        if(nrow(dir_data_atc) > 0){
+        if(nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)){
           heatmap <- heatmap +
             geom_point(data=dir_data_atc, aes(fill = Z), shape=21, stroke=0, size=5) +
             scale_fill_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
                                  na.value = NA, name = "TWAS-GSEA\nZ-score",
                                  limits = c(-dir_max_atc, dir_max_atc))
         }
-        if(nrow(pos_data_atc) > 0){
+        if(nrow(pos_data_atc) > 0 && is.finite(pos_max_atc)){
           heatmap <- heatmap +
             geom_point(data=pos_data_atc, aes(colour = Z), shape=16, size=5) +
             scale_colour_gradientn(colours=c("#FFFFFF","#00CC66"),
