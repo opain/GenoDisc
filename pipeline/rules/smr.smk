@@ -60,6 +60,8 @@ rule run_psychencode_smr_chr:
 ########
 
 rule run_eqtlgen_smr:
+  resources:
+    mem_mb=6000
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
     rules.download_eqtlgen.output
