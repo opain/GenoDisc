@@ -12,11 +12,20 @@
 # not measured ones - see the plan's Risks section for what to validate
 # before relying on this for real submissions.
 
+# --partition reads $GENODISC_PARTITIONS if the calling job's environment
+# sets it - inherited automatically via sbatch's default --export=ALL, all
+# the way down through run_genodisc.sh -> snakemake -> this per-rule sbatch
+# call, with no other changes needed. Falls back to neurohack_cpu when
+# unset, so a plain invocation is unaffected. Double-braced (${{...}})
+# because this whole cluster: string is Python .format()'d by Snakemake
+# with {rule}/{wildcards}/{resources...} below - a single-braced ${VAR}
+# here would be parsed as a (nonexistent) format field instead of reaching
+# the shell.
 cluster:
   mkdir -p logs/slurm/{rule} &&
   sbatch
     --parsable
-    --partition=neurohack_cpu
+    --partition=${{GENODISC_PARTITIONS:-neurohack_cpu}}
     --job-name=gd-{rule}-{wildcards}
     --cpus-per-task={resources.cpus}
     --mem={resources.mem_mb}M
