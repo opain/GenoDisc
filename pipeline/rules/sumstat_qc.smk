@@ -276,7 +276,7 @@ rule cojo:
       --maf 0.01 \
       --cojo-file {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
       --cojo-slct \
-      --cojo-p 1e-5 \
+      --cojo-p 5e-8 \
       --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}) > {log} 2>&1"
 
 rule cojo_all_chr:

@@ -42,8 +42,7 @@ snpAssocUI <- function(id) {
                                      "LD-based clumping" = "ld_clumping"),
                          selected = "cojo_analysis"),
             radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
-                         choices = c("Genome-wide significance (p < 5e-8)" = 5e-8,
-                                     "Suggestive significance (p < 1e-5)" = 1e-5),
+                         choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
                          selected = 5e-8),
             width = 3
           ),
@@ -109,6 +108,21 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         updateRadioButtons(session, "clumping_type",
                            choices = lead_choices,
                            selected = unname(lead_choices[1]))
+      }
+    })
+
+    # COJO output is already thresholded at 5e-8, so the suggestive (1e-5) filter is only
+    # meaningful for LD-based clumping (which runs at --clump-p1 1e-5) - offer it there only.
+    observeEvent(input$clumping_type, {
+      if (input$clumping_type == "ld_clumping") {
+        updateRadioButtons(session, "pvalue_threshold",
+                           choices = c("Genome-wide significance (p < 5e-8)" = 5e-8,
+                                       "Suggestive significance (p < 1e-5)" = 1e-5),
+                           selected = 5e-8)
+      } else {
+        updateRadioButtons(session, "pvalue_threshold",
+                           choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
+                           selected = 5e-8)
       }
     })
 
