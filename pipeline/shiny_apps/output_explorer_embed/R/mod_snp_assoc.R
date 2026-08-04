@@ -48,6 +48,7 @@ snpAssocUI <- function(id) {
           ),
 
           mainPanel(
+            uiOutput(ns("cojo_status_message")),
             dataTableOutput(ns("snp_assoc_lead_table")),
             br(),
             uiOutput(ns("locus_plot_ui")),
@@ -177,6 +178,44 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       snp_assoc_lead <- snp_assoc_lead[order(snp_assoc_lead$CHR, snp_assoc_lead$BP), ]
 
       return(snp_assoc_lead)
+    })
+
+    # COJO can fail per chromosome when the number of independent genome-wide-significant
+    # signals exceeds the LD reference sample size (~503, 1000 Genomes EUR). package_results
+    # carries snp_assoc$cojo_status so we can flag partial results, or a full failure.
+    output$cojo_status_message <- renderUI({
+      req(gwas_data(), selected_gwas(), input$clumping_type)
+      if (input$clumping_type != "cojo_analysis") return(NULL)
+
+      cojo_status <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")$cojo_status
+      if (is.null(cojo_status) || !isTRUE(cojo_status$any_failed)) return(NULL)
+
+      failed_txt <- paste(cojo_status$failed_chrs, collapse = ", ")
+
+      if (isTRUE(cojo_status$all_failed)) {
+        div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",
+          icon("exclamation-triangle", style = "font-size: 1.5em;"),
+          br(), br(),
+          tags$strong("COJO could not be completed"),
+          br(),
+          paste0("The number of independent genome-wide-significant signals exceeded the LD ",
+                 "reference panel size (~503 individuals, 1000 Genomes EUR) on every chromosome ",
+                 "attempted (", failed_txt, "), so no joint model could be fitted. LD-based ",
+                 "clumping is available as an alternative.")
+        )
+      } else {
+        div(
+          style = "background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 15px 20px; color: #856404; margin-bottom: 15px;",
+          icon("exclamation-triangle"),
+          tags$strong(" Partial COJO results"),
+          br(),
+          paste0("Chromosome(s) ", failed_txt, " could not be analysed because the number of ",
+                 "independent genome-wide-significant signals exceeded the LD reference panel size ",
+                 "(~503 individuals, 1000 Genomes EUR). The table below shows COJO results for the ",
+                 "chromosomes that completed successfully.")
+        )
+      }
     })
 
     output$snp_assoc_lead_table <- renderDataTable({

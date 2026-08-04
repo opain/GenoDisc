@@ -99,10 +99,32 @@ for(gwas_i in gwas_list$name){
   }
 
   if(read_param(config = opt$config, param = 'cojo', return_obj = F) == "T"){
-    snp_assoc$cojo<-fread(paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.clean.csv'))
-    snp_assoc$cojo<-snp_assoc$cojo[order(snp_assoc$cojo$CHR, snp_assoc$cojo$BP),]
+    cojo_csv<-paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.clean.csv')
+    if(file.exists(cojo_csv)){
+      snp_assoc$cojo<-fread(cojo_csv)
+      snp_assoc$cojo<-snp_assoc$cojo[order(snp_assoc$cojo$CHR, snp_assoc$cojo$BP),]
+    } else {
+      snp_assoc$cojo<-NULL
+    }
+
+    # Carry the per-chromosome COJO status so the app can report which chromosomes (if any)
+    # could not be analysed because their independent signals exceeded the LD reference size.
+    cojo_status_csv<-paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.status.csv')
+    if(file.exists(cojo_status_csv)){
+      cojo_status_tab<-fread(cojo_status_csv)
+      failed_chrs<-cojo_status_tab$chr[cojo_status_tab$status == 'reference_too_small']
+      snp_assoc$cojo_status<-list(
+        failed_chrs = failed_chrs,
+        n_failed    = length(failed_chrs),
+        any_failed  = length(failed_chrs) > 0,
+        all_failed  = length(failed_chrs) > 0 && (is.null(snp_assoc$cojo) || nrow(snp_assoc$cojo) == 0)
+      )
+    } else {
+      snp_assoc$cojo_status<-NULL
+    }
   } else {
     snp_assoc$cojo<-NULL
+    snp_assoc$cojo_status<-NULL
   }
 
   if(read_param(config = opt$config, param = 'finemap', return_obj = F) == "T"){
@@ -171,7 +193,7 @@ for(gwas_i in gwas_list$name){
     mol_assoc$nearest$clump<-identify_nearest(snp_assoc$clump$NearestGene)
   }
 
-  if(read_param(config = opt$config, param = 'cojo', return_obj = F) == "T"){
+  if(read_param(config = opt$config, param = 'cojo', return_obj = F) == "T" && !is.null(snp_assoc$cojo) && nrow(snp_assoc$cojo) > 0){
     mol_assoc$nearest$cojo<-identify_nearest(snp_assoc$cojo$NearestGene)
   }
 

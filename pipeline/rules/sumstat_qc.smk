@@ -270,14 +270,30 @@ rule cojo:
   log:
     "{outdir}/logs/cojo-{gwas}-chr{chr}.log"
   shell:
-    "(mkdir -p {outdir}/results/{wildcards.gwas}/cojo; {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
-      --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
-      --chr {wildcards.chr} \
-      --maf 0.01 \
-      --cojo-file {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
-      --cojo-slct \
-      --cojo-p 5e-8 \
-      --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}) > {log} 2>&1"
+    """
+    # GCTA-COJO aborts a chromosome with "Error: too many SNPs..." when the number of
+    # independent genome-wide-significant signals exceeds the LD reference sample size
+    # (1KG-EUR, ~503). Tolerate ONLY that error so the pipeline can continue with the
+    # chromosomes that succeeded (recording a per-chr status); any other GCTA failure
+    # still exits non-zero and fails the rule as before.
+    mkdir -p {outdir}/results/{wildcards.gwas}/cojo
+    sf={outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}.cojo.status
+    if {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
+        --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
+        --chr {wildcards.chr} \
+        --maf 0.01 \
+        --cojo-file {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
+        --cojo-slct \
+        --cojo-p 5e-8 \
+        --out {outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr} > {log} 2>&1; then
+      echo ok > "$sf"
+    elif grep -q 'too many SNPs' {log}; then
+      echo reference_too_small > "$sf"
+      echo 'NOTE: COJO skipped for chr{wildcards.chr} - independent signals exceed LD reference sample size.' >> {log}
+    else
+      exit 1
+    fi
+    """
 
 rule cojo_all_chr:
     input:
