@@ -168,3 +168,41 @@ get_group_order <- function() {
   c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice', 'SMR\nExpr.',
     'FUSION\nProtein', 'SMR\nProtein', 'MAGMA', 'Nearest\nGene')
 }
+
+#' Group features into genomic loci by a fixed base-pair window
+#'
+#' Sorts features by chromosome then position and starts a new locus at each
+#' chromosome change or whenever the gap from the previous feature exceeds
+#' `window`. Each locus gets a coordinate-range label (e.g. "chr3:12.1-12.4Mb")
+#' and an integer order that sorts loci by genomic position.
+#'
+#' @param pos_df data.frame with columns ID, CHR, BP (one row per feature)
+#' @param window Base-pair gap that starts a new locus (default 5e5 = 500 kb)
+#' @return data.frame with columns ID, CHR, BP, Locus, locus_order (empty if no
+#'   positioned features are supplied)
+assign_loci <- function(pos_df, window = 5e5) {
+  empty <- data.frame(ID = character(0), CHR = numeric(0), BP = numeric(0),
+                      Locus = character(0), locus_order = integer(0),
+                      stringsAsFactors = FALSE)
+  if (is.null(pos_df) || nrow(pos_df) == 0) return(empty)
+
+  d <- pos_df[!is.na(pos_df$CHR) & !is.na(pos_df$BP), c("ID", "CHR", "BP")]
+  if (nrow(d) == 0) return(empty)
+  d <- d[order(d$CHR, d$BP), ]
+
+  n <- nrow(d)
+  brk <- rep(TRUE, n)
+  if (n > 1) {
+    brk[2:n] <- (d$CHR[2:n] != d$CHR[1:(n - 1)]) |
+                ((d$BP[2:n] - d$BP[1:(n - 1)]) > window)
+  }
+  d$locus_order <- cumsum(brk)
+
+  loc_min <- tapply(d$BP, d$locus_order, min)
+  loc_max <- tapply(d$BP, d$locus_order, max)
+  loc_chr <- tapply(d$CHR, d$locus_order, function(x) x[1])
+  lab <- sprintf("chr%s:%.1f–%.1fMb", loc_chr, loc_min / 1e6, loc_max / 1e6)
+  names(lab) <- names(loc_min)
+  d$Locus <- lab[as.character(d$locus_order)]
+  d
+}

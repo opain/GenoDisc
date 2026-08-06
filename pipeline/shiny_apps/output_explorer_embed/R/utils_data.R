@@ -125,6 +125,83 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
   all_func_res
 }
 
+#' Build a gene-symbol -> genomic position lookup
+#'
+#' build_mol_assoc_data() keeps only the gene symbol (ID), not position. The
+#' underlying method blocks that the results tables read (via $res) do carry a
+#' chromosome and position, so we harvest those here to give each symbol one
+#' canonical position for locus grouping. SuSiE fine-mapping and Nearest-gene
+#' slots hold symbols only and contribute no position (those genes stay
+#' unplaced downstream).
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas GWAS name
+#' @param cf Named list of config flags from parse_config_flags()
+#' @return data.frame with columns ID, CHR, BP (one row per symbol), or an
+#'   empty data.frame if no position-bearing method is present.
+build_gene_position_map <- function(gd, gwas, cf) {
+  pos <- NULL
+
+  add_pos <- function(id, chr, bp) {
+    ok <- !is.na(id) & !is.na(chr) & !is.na(bp)
+    if (!any(ok)) return(invisible(NULL))
+    pos <<- rbind(pos, data.frame(
+      ID = as.character(id)[ok],
+      CHR = suppressWarnings(as.numeric(chr))[ok],
+      BP = suppressWarnings(as.numeric(bp))[ok],
+      stringsAsFactors = FALSE))
+  }
+
+  # The FUSION/SMR result table lives under $res in the table renderers but
+  # $results in build_mol_assoc_data(); read whichever this package uses.
+  get_res <- function(blk) {
+    o <- gd_read(gd, gwas, blk)
+    r <- safe_access(o, "res")
+    if (is.null(r)) r <- safe_access(o, "results")
+    r
+  }
+
+  # MAGMA gene table: ID = symbol, gene bounds START/STOP -> midpoint.
+  if (isTRUE(cf$magma_gene)) {
+    m <- gd_read(gd, gwas, "mol_assoc/magma")
+    if (!is.null(m) && all(c("ID", "CHR", "START", "STOP") %in% names(m))) {
+      add_pos(m$ID, m$CHR, (as.numeric(m$START) + as.numeric(m$STOP)) / 2)
+    }
+  }
+
+  # FUSION expr/protein: Gene Symbol, gene bounds P0/P1 -> midpoint.
+  fusion_blocks <- c()
+  if (isTRUE(cf$twas)) fusion_blocks <- c(fusion_blocks, "mol_assoc/exp/fusion")
+  if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) fusion_blocks <- c(fusion_blocks, "mol_assoc/protein/fusion")
+  for (blk in fusion_blocks) {
+    r <- get_res(blk)
+    if (!is.null(r) && all(c("Gene Symbol", "CHR", "P0", "P1") %in% names(r))) {
+      add_pos(r$`Gene Symbol`, r$CHR, (as.numeric(r$P0) + as.numeric(r$P1)) / 2)
+    }
+  }
+
+  # SMR expr/protein: Gene Symbol, single position BP.
+  smr_blocks <- c()
+  if (isTRUE(cf$smr_expression)) smr_blocks <- c(smr_blocks, "mol_assoc/exp/smr")
+  if (isTRUE(cf$smr_protein_panel_rosmap)) smr_blocks <- c(smr_blocks, "mol_assoc/protein/smr")
+  for (blk in smr_blocks) {
+    r <- get_res(blk)
+    if (!is.null(r) && all(c("Gene Symbol", "CHR", "BP") %in% names(r))) {
+      add_pos(r$`Gene Symbol`, r$CHR, r$BP)
+    }
+  }
+
+  if (is.null(pos) || nrow(pos) == 0) {
+    return(data.frame(ID = character(0), CHR = numeric(0), BP = numeric(0)))
+  }
+
+  # Collapse to one canonical position per symbol (CHR = first, BP = median).
+  pos <- pos[!is.na(pos$CHR) & !is.na(pos$BP), ]
+  agg <- aggregate(BP ~ ID, data = pos, FUN = median)
+  chr <- aggregate(CHR ~ ID, data = pos, FUN = function(x) x[1])
+  merge(chr, agg, by = "ID")
+}
+
 #' Build drug enrichment summary data
 #'
 #' @param gd A gd_result
