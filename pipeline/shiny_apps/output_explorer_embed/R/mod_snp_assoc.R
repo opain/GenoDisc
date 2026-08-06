@@ -49,7 +49,9 @@ snpAssocUI <- function(id) {
 
           mainPanel(
             uiOutput(ns("cojo_status_message")),
+            uiOutput(ns("lead_status_message")),
             dataTableOutput(ns("snp_assoc_lead_table")),
+            uiOutput(ns("lead_legend")),
             br(),
             uiOutput(ns("locus_plot_ui")),
             width = 9
@@ -70,7 +72,17 @@ snpAssocUI <- function(id) {
           ),
 
           mainPanel(
+            uiOutput(ns("finemap_status_message")),
             dataTableOutput(ns("snp_assoc_finemap_table")),
+            gd_legend(list(
+              "L parameter" = paste0(
+                "Maximum number of causal signals SuSiE may fit per locus ",
+                "(L1 = single causal variant; L10 = up to ten)."),
+              "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
+              "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
+              "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
+              "Gene" = "Nearest gene to the top variant ('None' if unavailable)."
+            ), heading = "Column guide"),
             width = 6
           )
         )
@@ -129,27 +141,60 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     output$manhattan_plot_ui <- renderUI({
       req(gwas_data(), selected_gwas(), input$manhattan_label_choice)
+      gwas_qc <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")
       b64_field <- if (input$manhattan_label_choice == "labelled")
         "manhattan_plot_labelled_base64"
       else
         "manhattan_plot_unlabelled_base64"
-      b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")[[b64_field]]
+      b64 <- gwas_qc[[b64_field]]
 
-      if (!is.null(b64)) {
-        tags$img(
-          src = paste0("data:image/png;base64,", b64),
-          style = "max-width: 100%; height: auto;"
-        )
-      } else {
-        div(
+      if (is.null(b64)) {
+        return(div(
           style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
           icon("chart-bar", style = "font-size: 2em;"),
           br(), br(),
           tags$strong("Manhattan plot Unavailable"),
           br(),
           "This results package was produced before the Manhattan plot rule was added."
+        ))
+      }
+
+      # When labelling is requested but nothing reached genome-wide significance,
+      # explain why no genes are labelled rather than showing an image that looks
+      # identical to the unlabelled one.
+      n_sig <- gwas_qc$focus_dat$val$n_sig_snp
+      no_sig <- is.null(n_sig) || length(n_sig) == 0 || is.na(n_sig) || n_sig == 0
+      label_note <- NULL
+      if (input$manhattan_label_choice == "labelled" && no_sig) {
+        label_note <- div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 15px 20px; color: #6c757d; margin-bottom: 15px;",
+          icon("info-circle"),
+          tags$strong(" No genes labelled"),
+          br(),
+          paste0("No variant reached genome-wide significance (p < 5e-8), so there are no ",
+                 "genes to label. The dashed blue line marks the suggestive threshold (p < 1e-5).")
         )
       }
+
+      tagList(
+        label_note,
+        tags$img(
+          src = paste0("data:image/png;base64,", b64),
+          style = "max-width: 100%; height: auto;"
+        ),
+        gd_legend(list(
+          "Axes" = paste0(
+            "Each point is a variant, positioned by chromosome (x) and -log10(p-value) (y); ",
+            "higher points are more strongly associated."),
+          "Red solid line" = "Genome-wide significance threshold (p < 5e-8).",
+          "Blue dashed line" = "Suggestive significance threshold (p < 1e-5).",
+          "Green points" = "Variants clumped with an index variant (part of the same association signal).",
+          "Dark-green diamonds" = "Index (lead) variants identified by LD clumping.",
+          "Gene labels" = paste0(
+            "Nearest gene to each genome-wide-significant index variant (shown only with the ",
+            "'With nearest-gene labels' option).")
+        ), heading = "How to read this plot")
+      )
     })
 
     snp_assoc_lead_data <- reactive({
@@ -216,6 +261,65 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
                  "chromosomes that completed successfully.")
         )
       }
+    })
+
+    # Distinct from the COJO reference-too-small banner above: this fires when the
+    # analysis ran fine but simply found no variants passing the threshold (the
+    # common underpowered-GWAS case). Suppressed when the COJO failure banner shows.
+    output$lead_status_message <- renderUI({
+      req(gwas_data(), selected_gwas(), input$clumping_type)
+
+      if (input$clumping_type == "cojo_analysis") {
+        cojo_status <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")$cojo_status
+        if (!is.null(cojo_status) && isTRUE(cojo_status$any_failed)) return(NULL)
+      }
+
+      dat <- snp_assoc_lead_data()
+      if (nrow(dat) > 0) return(NULL)
+
+      thr <- if (isTRUE(as.numeric(input$pvalue_threshold) == 1e-5)) "1e-5" else "5e-8"
+      method <- if (input$clumping_type == "cojo_analysis") "COJO" else "LD-based clumping"
+      div(
+        style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",
+        icon("info-circle", style = "font-size: 1.5em;"),
+        br(), br(),
+        tags$strong("No lead variants"),
+        br(),
+        paste0("No variants passed the p < ", thr, " threshold for ", method, ". ",
+               "This is expected for an underpowered GWAS with no strong associations.")
+      )
+    })
+
+    # Column guide for the lead-variant table, specific to the selected method.
+    # Both tables show the same columns, but the meaning of a "lead variant" and
+    # of BETA/SE/P differs between the joint COJO model and marginal LD clumping.
+    output$lead_legend <- renderUI({
+      req(input$clumping_type)
+      common <- list(
+        "CHR / BP" = "Chromosome and base-pair position of the lead variant (genome build as identified on the QC Summary tab).",
+        "SNP" = "Variant identifier (rsID).",
+        "A1 / A2" = "Effect allele (A1) and other allele (A2); BETA is expressed per copy of A1.",
+        "NearestGene" = "Gene nearest to the lead variant (not necessarily the causal gene)."
+      )
+      if (input$clumping_type == "cojo_analysis") {
+        items <- c(list(
+          "Method (COJO)" = paste0(
+            "GCTA-COJO runs a stepwise conditional & joint analysis, keeping variants that stay ",
+            "genome-wide significant after conditioning on each other - i.e. approximately ",
+            "independent association signals at a locus.")),
+          common,
+          list("BETA / SE" = "Joint effect size from the COJO model and its standard error.",
+               "P" = "Joint conditional association p-value (already thresholded at p < 5e-8)."))
+      } else {
+        items <- c(list(
+          "Method (LD-based clumping)" = paste0(
+            "PLINK clumping groups variants correlated (in LD) with a top 'index' variant into ",
+            "one signal; each row is an index variant representing an approximately independent locus.")),
+          common,
+          list("BETA / SE" = "Marginal (single-variant) GWAS effect size and standard error.",
+               "P" = "Marginal GWAS association p-value of the index variant."))
+      }
+      gd_legend(items, heading = "Column guide")
     })
 
     output$snp_assoc_lead_table <- renderDataTable({
@@ -307,8 +411,30 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       return(snp_assoc_finemap)
     })
 
+    # When there are no credible sets, the pipeline emits a single all-NA placeholder
+    # row rather than an empty table; treat that (and a genuinely empty table) as empty.
+    finemap_is_empty <- function(df) {
+      is.null(df) || nrow(df) == 0 || all(is.na(df$SNP))
+    }
+
+    output$finemap_status_message <- renderUI({
+      req(gwas_data(), selected_gwas(), input$l_param)
+      if (!finemap_is_empty(snp_assoc_finemap_data())) return(NULL)
+      div(
+        style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",
+        icon("info-circle", style = "font-size: 1.5em;"),
+        br(), br(),
+        tags$strong("No credible sets identified"),
+        br(),
+        paste0("Fine-mapping runs only at loci containing a variant at p < 5e-8. ",
+               "This GWAS has no such loci, so no credible sets were produced.")
+      )
+    })
+
     output$snp_assoc_finemap_table <- renderDataTable({
-      datatable(snp_assoc_finemap_data(), rownames = F, width = 7, options = list(
+      df <- snp_assoc_finemap_data()
+      req(!finemap_is_empty(df))
+      datatable(df, rownames = F, width = 7, options = list(
         columnDefs = list(list(className = 'dt-center', targets = 0:5))))
     })
   })

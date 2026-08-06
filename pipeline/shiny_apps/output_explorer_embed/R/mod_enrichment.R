@@ -14,6 +14,81 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
+    # Column-guide legend for an enrichment results table. Text is centralised
+    # here so each table sub-tab just inserts enr_legend("<key>").
+    enr_legend <- function(which) {
+      lg_p    <- "Enrichment p-value (smaller = stronger enrichment)."
+      lg_pfdr <- "Benjamini-Hochberg FDR-adjusted p-value; < 0.05 is the usual significance threshold."
+      lg_panel<- "Gene-expression reference panel (tissue or dataset) used for the TWAS."
+      lg_est  <- "Enrichment effect size from the gene-set analysis."
+      lg_dir  <- paste0(
+        "Direction of effect: 'Opposes disease' = the drug's expression signature counteracts ",
+        "the disease's predicted signature (a candidate therapeutic); 'Matches disease' = it ",
+        "mimics the disease signature.")
+      items <- switch(which,
+        drug_magma = list(
+          "Name" = "Drug name.",
+          "ATC Code" = "Anatomical Therapeutic Chemical (ATC) classification code.",
+          "BETA" = "Enrichment effect size (MAGMA competitive gene-set test).",
+          "SE" = "Standard error of BETA.",
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        drug_gcsc = list(
+          "Name" = "Drug name.",
+          "ATC Code" = "ATC classification code.",
+          "Enrichment" = "Gene co-regulation score (GCSC) enrichment effect size.",
+          "SE" = "Standard error of the enrichment.",
+          "Z" = "Enrichment Z-score (higher = stronger).",
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        drug_twas = list(
+          "Name" = "Drug name.",
+          "Panel" = lg_panel,
+          "N Genes" = "Number of target genes tested for this drug.",
+          "Estimate" = lg_est,
+          "SE" = "Standard error of Estimate.",
+          "Direction" = lg_dir,
+          "P" = lg_p, "P.FDR" = lg_pfdr,
+          "ATC Code" = "ATC classification code.",
+          "ATC Description" = "Text label for the ATC class.",
+          "ChEMBL" = "ChEMBL database identifier for the drug."),
+        atc_pval = list(
+          "Name" = "Drug class (ATC code: description).",
+          "N Drugs" = "Number of drugs in the class that were tested.",
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        atc_twas = list(
+          "Name" = "Drug class (ATC code: description).",
+          "Panel" = lg_panel,
+          "N Drugs" = "Number of drugs in the class.",
+          "Estimate" = lg_est,
+          "Direction" = lg_dir,
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        cmap_drug = list(
+          "cmap_name" = "Compound (CMAP drug signature).",
+          "cell_iname" = "Cell line the signature was measured in.",
+          "pert_itime" = "Treatment duration.",
+          "pert_idose" = "Treatment dose.",
+          "moa" = "Mechanism of action.",
+          "Panel" = lg_panel,
+          "Estimate" = lg_est,
+          "Direction" = lg_dir,
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        cmap_moa = list(
+          "MOA" = "Mechanism of action (drugs grouped by target/mechanism).",
+          "Cell_Line" = "Cell line the signatures were measured in.",
+          "Panel" = lg_panel,
+          "Estimate" = lg_est,
+          "Direction" = lg_dir,
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        tissue = list(
+          "Tissue" = "GTEx v8 tissue.",
+          "N Gene" = "Number of genes used in the test for this tissue.",
+          "BETA" = "Tissue-specific expression enrichment effect size.",
+          "SE" = "Standard error of BETA.",
+          "P" = lg_p, "P.FDR" = lg_pfdr,
+          "Retained" = "TRUE = the tissue stays FDR-significant after conditioning on the other significant tissues.")
+      )
+      gd_legend(items, heading = "Column guide")
+    }
+
     ########
     # Dynamic tab rendering
     ########
@@ -60,25 +135,25 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       if (cf$magma_drugtargetor) {
         drug_tabs <- c(drug_tabs, list(tabPanel(title="MAGMA", br(),
           p("This tab shows MAGMA drug enrichment results."), hr(), br(),
-          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_magma_table")))), br()
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_magma_table")))), enr_legend("drug_magma"), br()
         )))
       }
       if (cf$gcsc) {
         drug_tabs <- c(drug_tabs, list(tabPanel(title="GCSC", br(),
           p("This tab shows GCSC drug enrichment results."), hr(), br(),
-          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_gcsc_table")))), br()
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_gcsc_table")))), enr_legend("drug_gcsc"), br()
         )))
       }
       if (cf$twas_gsea_drugtargetor) {
         drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA", br(),
           p("This tab shows TWAS-GSEA drug enrichment results."), hr(), br(),
-          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_table")))), br()
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_table")))), enr_legend("drug_twas"), br()
         )))
       }
       if (cf$twas_gsea_drugtargetor_nondirectional) {
         drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
           p("This tab shows TWAS-GSEA drug enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA)."), hr(), br(),
-          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_nondir_table")))), br()
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_nondir_table")))), enr_legend("drug_twas"), br()
         )))
       }
 
@@ -105,25 +180,25 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       if (cf$magma_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
           p("This tab shows MAGMA ATC enrichment results."), hr(), br(),
-          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_magma_table")))), br()
+          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br()
         )))
       }
       if (cf$gcsc) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="GCSC", br(),
           p("This tab shows GCSC ATC enrichment results."), hr(), br(),
-          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_gcsc_table")))), br()
+          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_gcsc_table")))), enr_legend("atc_pval"), br()
         )))
       }
       if (cf$twas_gsea_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA", br(),
           p("This tab shows TWAS-GSEA ATC enrichment results."), hr(), br(),
-          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_table")))), br()
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_table")))), enr_legend("atc_twas"), br()
         )))
       }
       if (cf$twas_gsea_drugtargetor_nondirectional) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
           p("This tab shows TWAS-GSEA ATC enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA)."), hr(), br(),
-          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), br()
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), enr_legend("atc_twas"), br()
         )))
       }
 
@@ -189,13 +264,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         cmap_inner <- c(cmap_inner, list(tabPanel(
           title="Drug table", br(),
           p("All per-signature CMAP TWAS-GSEA results."), hr(), br(),
-          fluidRow(column(width=12, dataTableOutput(ns("tx_cmap_drug_table")))), br()
+          fluidRow(column(width=12, dataTableOutput(ns("tx_cmap_drug_table")))), enr_legend("cmap_drug"), br()
         )))
 
         cmap_inner <- c(cmap_inner, list(tabPanel(
           title="MOA table", br(),
           p("All per-MOA CMAP TWAS-GSEA enrichment results."), hr(), br(),
-          fluidRow(column(width=10, dataTableOutput(ns("tx_cmap_moa_table")))), br()
+          fluidRow(column(width=10, dataTableOutput(ns("tx_cmap_moa_table")))), enr_legend("cmap_moa"), br()
         )))
 
         cmap_tab <- do.call(tabPanel,
@@ -221,8 +296,16 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
               ),
               mainPanel(
                 plotOutput(ns("tx_tissue_plot"), height = "700px"),
+                gd_legend(list(
+                  "X-axis" = "-log10(p-value) for tissue-specific expression enrichment; further right = stronger.",
+                  "Y-axis" = "GTEx v8 tissue, ordered by significance.",
+                  "Filled black square" = "FDR-significant (P.FDR < 0.05).",
+                  "Bold label with *" = "Retained in the conditional analysis (still significant after conditioning on the other significant tissues).",
+                  "Dashed / dotted vertical lines" = "Nominal significance (p = 0.05) and the Bonferroni threshold."
+                ), heading = "How to read this plot"),
                 br(),
                 dataTableOutput(ns("tx_tissue_table")),
+                enr_legend("tissue"),
                 width = 9
               )
             )

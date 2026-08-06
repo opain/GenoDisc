@@ -9,7 +9,8 @@ gwasQcUI <- function(id) {
       tabPanel(
         title = "QC Summary",
         br(),
-        div(style = "max-width: 700px;", tableOutput(ns("qc_table")))
+        div(style = "max-width: 700px;", tableOutput(ns("qc_table"))),
+        uiOutput(ns("qc_legend"))
       ),
       tabPanel(
         title = "Allele Frequency Plot",
@@ -39,6 +40,32 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
   moduleServer(id, function(input, output, session) {
 
     ns <- session$ns
+
+    # Plain-text explanations for the QC metrics, used by the legend under the table.
+    qc_help <- list(
+      "N variants pre-QC" = "Number of variants in the input GWAS before quality control.",
+      "Identified genome build" = paste0(
+        "Genome build (e.g. GRCh37/GRCh38) inferred from the variant positions; ",
+        "shown as 'Unknown' if it could not be determined."),
+      "N variants post-QC" = "Number of variants remaining after quality-control filtering.",
+      "Lambda GC" = paste0(
+        "Genomic inflation factor: median chi-square divided by 0.455. About 1.0 means the ",
+        "test statistics are well calibrated; much above 1.1 can indicate confounding (or, ",
+        "for a well-powered polygenic trait, genuine widespread signal)."),
+      "Max. chi^2" = paste0(
+        "The strongest single-variant association in the study, as a chi-square statistic ",
+        "(chi-square = (BETA/SE)^2). Larger values mean a stronger top signal."),
+      "N genome-wide significant variants" = paste0(
+        "Number of variants reaching genome-wide significance (p < 5e-8) after QC. ",
+        "Zero is common for underpowered GWAS."),
+      "LDSC SNP-heritability (SE; observed scale)" = paste0(
+        "Proportion of trait variance explained by common SNPs, estimated by LD-score ",
+        "regression, on the observed scale. Standard error in brackets."),
+      "LDSC intercept (SE)" = paste0(
+        "LD-score regression intercept. About 1.0 indicates little confounding or sample ",
+        "overlap; values above 1 suggest residual confounding rather than polygenic signal ",
+        "(contrast with Lambda GC). Standard error in brackets.")
+    )
 
     # Create a table showing key statistics
     qc_val <- reactive({
@@ -99,6 +126,22 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       dat
     }, sanitize.text.function = function(x) x, colnames = FALSE, align = 'cc', rownames = FALSE)
 
+    # Always-visible legend under the QC table; LDSC rows only when LDSC was run.
+    output$qc_legend <- renderUI({
+      req(config_flags())
+      cf <- config_flags()
+      items <- list(
+        "Lambda GC" = qc_help[["Lambda GC"]],
+        "Max. chi^2" = qc_help[["Max. chi^2"]],
+        "N genome-wide significant variants" = qc_help[["N genome-wide significant variants"]]
+      )
+      if (isTRUE(cf$ldsc)) {
+        items[["LDSC SNP-heritability"]] <- qc_help[["LDSC SNP-heritability (SE; observed scale)"]]
+        items[["LDSC intercept"]] <- qc_help[["LDSC intercept (SE)"]]
+      }
+      gd_legend(items)
+    })
+
     # MAF plot rendering
     output$maf_plot_ui <- renderUI({
       req(gwas_data(), selected_gwas())
@@ -111,9 +154,22 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
             style = "max-height: 430px; width: auto;"
           ),
           tags$p(
-            style = "font-size: 0.85em; color: #6c757d; margin-top: 8px;",
-            "Only variants with an allele frequency difference greater than 0.2 from the reference are shown; these are the variants removed by the QC script."
-          )
+            style = "font-size: 0.85em; color: #6c757d; margin-top: 8px; max-width: 800px;",
+            "This is a quality-control check. It compares the allele frequency reported in your ",
+            "GWAS summary statistics against the allele frequency of the same variant in the ",
+            "reference panel (1000 Genomes). Large disagreements usually indicate allele ",
+            "mis-coding, strand issues, an ancestry mismatch between your GWAS and the reference, ",
+            "or data errors, so these variants are removed before downstream analysis."
+          ),
+          gd_legend(list(
+            "X-axis" = "Reference-panel allele frequency.",
+            "Y-axis" = "Allele frequency reported in your GWAS summary statistics.",
+            "Diagonal line" = "y = x: points on this line agree between the GWAS and the reference.",
+            "Points shown" = paste0(
+              "Only variants whose two frequencies differ by more than 0.2 are plotted — these ",
+              "are the discordant variants removed during QC. An empty or nearly-empty plot is a ",
+              "good sign (few or no frequency mismatches).")
+          ), heading = "How to read this plot")
         )
       } else {
         div(
@@ -133,9 +189,21 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$qq_plot_base64
 
       if (!is.null(b64)) {
-        tags$img(
-          src = paste0("data:image/png;base64,", b64),
-          style = "max-height: 500px; width: auto;"
+        tagList(
+          tags$img(
+            src = paste0("data:image/png;base64,", b64),
+            style = "max-height: 500px; width: auto;"
+          ),
+          gd_legend(list(
+            "Diagonal line" = "Expected p-value distribution under the null hypothesis of no association.",
+            "Points on the line" = "Test statistics are well calibrated (no inflation).",
+            "Early upward departure" = paste0(
+              "Points lifting above the line across most of the range suggests inflation or ",
+              "confounding (compare with Lambda GC on the QC Summary tab)."),
+            "Upward tail at the far right only" = paste0(
+              "The strongest associations rising above the line, while the rest follows it, ",
+              "is the expected signature of true genetic signal.")
+          ), heading = "How to read this plot")
         )
       } else {
         div(
@@ -196,7 +264,15 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
         ),
         div(style = "max-width: 900px;", dataTableOutput(ns("gencor_table"))),
         br(),
-        plotOutput(ns("gencor_forest"), height = "auto")
+        plotOutput(ns("gencor_forest"), height = "auto"),
+        gd_legend(list(
+          "rg" = "Genetic correlation between this GWAS and each secondary trait, ranging from -1 to 1.",
+          "Whiskers" = "95% confidence interval (rg plus/minus 1.96 x SE).",
+          "Dashed vertical line" = "rg = 0 (no genetic correlation).",
+          "Colour and shape" = paste0(
+            "FDR-significant (red square), nominally significant p < 0.05 (orange triangle), ",
+            "or non-significant (grey circle).")
+        ), heading = "How to read this plot")
       )
     })
 
