@@ -364,10 +364,15 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       build_mol_assoc_data(gwas_data(), selected_gwas(), config_flags())
     })
 
-    # Gene-symbol -> locus lookup (built once per GWAS) for the per-locus layout.
+    # Gene -> locus lookup for the per-locus layout. Positions are resolved
+    # through the canonical reference (with a per-method harvest fallback) and
+    # scoped to the DISPLAYED genes only, so loci are tight clusters of the
+    # shown features rather than genome-wide bands.
     mol_locus_map <- reactive({
-      req(gwas_data(), selected_gwas(), config_flags())
-      pos <- build_gene_position_map(gwas_data(), selected_gwas(), config_flags())
+      req(gwas_data(), selected_gwas(), config_flags(), mol_assoc_summary_data_filtered())
+      ids <- unique(as.character(mol_assoc_summary_data_filtered()$ID))
+      ids <- ids[ids != "Placeholder"]
+      pos <- resolve_feature_positions(ids, gwas_data(), selected_gwas(), config_flags())
       assign_loci(pos)
     })
 

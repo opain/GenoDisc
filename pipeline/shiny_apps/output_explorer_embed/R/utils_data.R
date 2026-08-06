@@ -202,6 +202,69 @@ build_gene_position_map <- function(gd, gwas, cf) {
   merge(chr, agg, by = "ID")
 }
 
+#' Load the bundled GRCh37 gene-position reference (cached)
+#'
+#' Reads data/gene_positions.rds (built by data/make_gene_positions.R) once and
+#' caches it. Returns a list with three symbol-keyed data.frames (ID, CHR, BP):
+#' by_symbol, by_synonym, by_ensembl. Returns NULL if the file is absent, in
+#' which case the app falls back to per-method harvested positions.
+load_gene_positions <- local({
+  cache <- NULL
+  loaded <- FALSE
+  function() {
+    if (loaded) return(cache)
+    loaded <<- TRUE
+    here <- tryCatch(dirname(sys.frame(1L)$ofile), error = function(e) getwd())
+    candidates <- c(
+      file.path("data", "gene_positions.rds"),
+      file.path(here, "..", "data", "gene_positions.rds"),
+      file.path(here, "data", "gene_positions.rds")
+    )
+    hit <- candidates[file.exists(candidates)][1]
+    cache <<- if (is.na(hit)) NULL else readRDS(hit)
+    cache
+  }
+})
+
+#' Resolve a genomic position for each feature via one canonical reference
+#'
+#' Deterministically maps each gene id to a single GRCh37 position using the
+#' bundled reference (symbol -> synonym -> Ensembl), falling back to positions
+#' harvested from the method blocks for anything the reference does not cover.
+#' Only ids that resolve are returned (unresolved features stay "Unplaced").
+#'
+#' @param ids Character vector of feature ids (gene symbols / Ensembl ids)
+#' @param gd,gwas,cf As for build_gene_position_map() (fallback source)
+#' @return data.frame(ID, CHR, BP) for the resolved subset of `ids`
+resolve_feature_positions <- function(ids, gd, gwas, cf) {
+  ids <- unique(as.character(ids))
+  ids <- ids[!is.na(ids) & ids != "" & ids != "Placeholder"]
+  out <- data.frame(ID = ids, CHR = NA_real_, BP = NA_real_, stringsAsFactors = FALSE)
+  if (nrow(out) == 0) return(out)
+
+  fill_from <- function(map, eligible) {
+    idx <- match(out$ID, map$ID)
+    take <- eligible & !is.na(idx)
+    out$CHR[take] <<- map$CHR[idx[take]]
+    out$BP[take]  <<- map$BP[idx[take]]
+  }
+
+  ref <- load_gene_positions()
+  if (!is.null(ref)) {
+    fill_from(ref$by_symbol,  is.na(out$BP))
+    fill_from(ref$by_synonym, is.na(out$BP))
+    fill_from(ref$by_ensembl, is.na(out$BP) & grepl("^ENSG", out$ID))
+  }
+
+  # Fallback for ids the reference does not cover.
+  if (any(is.na(out$BP))) {
+    harvest <- build_gene_position_map(gd, gwas, cf)
+    if (!is.null(harvest) && nrow(harvest) > 0) fill_from(harvest, is.na(out$BP))
+  }
+
+  out[!is.na(out$BP), ]
+}
+
 #' Build drug enrichment summary data
 #'
 #' @param gd A gd_result
