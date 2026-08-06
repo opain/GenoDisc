@@ -1,3 +1,56 @@
+#' Column-guide legend for a Molecular Associations results table.
+#'
+#' @param which One of "magma", "fusion", "smr_expr", "smr_protein", "panel".
+#' @return A gd_legend() tag describing that table's columns.
+mol_table_legend <- function(which) {
+  lg_pfdr  <- "Benjamini-Hochberg FDR-adjusted p-value; < 0.05 is the usual significance threshold."
+  lg_coloc <- paste0(
+    "Colocalisation posterior probabilities: PP3 = expression and trait have distinct causal ",
+    "variants; PP4 = they share one causal variant (high PP4 supports a genuine link).")
+  items <- switch(which,
+    magma = list(
+      "CHR" = "Chromosome.",
+      "START / STOP" = "Gene start and stop position (base pairs).",
+      "ID" = "Gene symbol.",
+      "P" = "MAGMA gene-based association p-value.",
+      "P.FDR" = lg_pfdr),
+    fusion = list(
+      "PANEL" = "Expression/protein reference panel (tissue or dataset) used.",
+      "CHR" = "Chromosome.",
+      "P0 / P1" = "Gene start and end position (base pairs).",
+      "Ensembl ID / Gene Symbol" = "Gene identifiers.",
+      "Z" = "TWAS/PWAS Z-score: sign gives the direction and magnitude the strength of the molecular-trait association.",
+      "P" = "TWAS/PWAS association p-value.",
+      "P.FDR" = lg_pfdr,
+      "COLOC.PP3 / COLOC.PP4" = lg_coloc,
+      "High Confidence" = "TRUE = FDR-significant (P.FDR < 0.05) and colocalised (PP4-supported)."),
+    smr_expr = list(
+      "PANEL" = "Expression reference panel (eQTL dataset) used.",
+      "CHR / BP" = "Chromosome and position of the probe/variant.",
+      "Ensembl ID / Gene Symbol" = "Gene identifiers.",
+      "BETA / SE" = "SMR effect estimate and its standard error.",
+      "P" = "SMR association p-value.",
+      "P.FDR" = lg_pfdr,
+      "P (HEIDI)" = "HEIDI test p-value; > 0.05 favours a single shared causal variant over linkage.",
+      "High Confidence" = "TRUE = FDR-significant SMR and HEIDI not rejected (P (HEIDI) > 0.05)."),
+    smr_protein = list(
+      "PANEL" = "Protein reference panel (pQTL dataset) used.",
+      "CHR / BP" = "Chromosome and position of the probe/variant.",
+      "Ensembl ID / Gene Symbol" = "Gene identifiers.",
+      "BETA / SE" = "SMR effect estimate and its standard error.",
+      "P" = "SMR association p-value.",
+      "P.FDR" = lg_pfdr,
+      "P (HEIDI)" = "HEIDI test p-value; > 0.05 favours a single shared causal variant over linkage."),
+    panel = list(
+      "Panel" = "Reference-panel name.",
+      "Software" = "Method the panel is used with (FUSION or SMR).",
+      "Type" = "Molecular feature type (expression, splicing or protein).",
+      "N Individuals" = "Number of individuals in the panel's reference dataset.",
+      "N Genes" = "Number of genes/features available in the panel.")
+  )
+  gd_legend(items, heading = "Column guide")
+}
+
 #' Molecular Associations module UI
 #'
 #' @param id Module namespace id
@@ -36,27 +89,33 @@ molAssocUI <- function(id) {
       ),
       tabPanel(title = "MAGMA", br(),
         p("This tab shows MAGMA gene association results."), hr(), br(),
-        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))), br()
+        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
+        mol_table_legend("magma"), br()
       ),
       tabPanel(title = "Expression - FUSION", br(),
         p("This tab shows differential expression association results from FUSION."), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))), br()
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
+        mol_table_legend("fusion"), br()
       ),
       tabPanel(title = "Protein - FUSION", br(),
         p("This tab shows differential protein level association results from FUSION."), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))), br()
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
+        mol_table_legend("fusion"), br()
       ),
       tabPanel(title = "Expression - SMR", br(),
         p("This tab shows differential expression association results from SMR"), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))), br()
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
+        mol_table_legend("smr_expr"), br()
       ),
       tabPanel(title = "Protein - SMR", br(),
         p("This tab shows differential protein level association results from SMR"), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))), br()
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
+        mol_table_legend("smr_protein"), br()
       ),
       tabPanel(title = "Panel Info.", br(),
         p("This tab shows the number of features and individuals for each panel."), hr(), br(),
-        fluidRow(column(width = 7, dataTableOutput(ns("panel_info_table")))), br()
+        fluidRow(column(width = 7, dataTableOutput(ns("panel_info_table")))),
+        mol_table_legend("panel"), br()
       )
     )
   )
@@ -476,7 +535,16 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       filtered <- mol_assoc_summary_data_filtered()
       has_real_genes <- any(filtered$ID != 'Placeholder')
       if (plot_dim_mol()[['height']] < 10000 & nrow(filtered) > 0 & has_real_genes) {
-        plotOutput(ns("mol_assoc_plot"), height = plot_dim_mol()[['height']], width = plot_dim_mol()[['width']])
+        tagList(
+          plotOutput(ns("mol_assoc_plot"), height = plot_dim_mol()[['height']], width = plot_dim_mol()[['width']]),
+          gd_legend(list(
+            "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
+            "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+            "Black outline" = "The association is FDR-significant in that panel and method.",
+            "Black square" = "FDR-significant AND supported by colocalisation.",
+            "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant."
+          ), heading = "How to read this plot")
+        )
       } else {
         NULL
       }

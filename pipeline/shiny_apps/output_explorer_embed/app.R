@@ -31,6 +31,19 @@ ui <- fluidPage(
           padding: 20px;
           border: 1px solid #ccc;
     }
+    .gd-legend {
+          font-size: 0.85em;
+          color: #6c757d;
+          margin-top: 10px;
+          max-width: 800px;
+    }
+    .gd-legend ul {
+          margin: 4px 0 0 0;
+          padding-left: 20px;
+    }
+    .gd-legend li {
+          margin-bottom: 3px;
+    }
   ")),
 
   theme = shinythemes::shinytheme("paper"),
