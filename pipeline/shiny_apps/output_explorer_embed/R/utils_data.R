@@ -204,7 +204,7 @@ build_gene_position_map <- function(gd, gwas, cf) {
 
 #' Load the bundled GRCh37 gene-position reference (cached)
 #'
-#' Reads data/gene_positions.rds (built by data/make_gene_positions.R) once and
+#' Reads data/gene_positions.rds (built by pipeline/scripts/make_shiny_gene_positions.R) once and
 #' caches it. Returns a list with three symbol-keyed data.frames (ID, CHR, BP):
 #' by_symbol, by_synonym, by_ensembl. Returns NULL if the file is absent, in
 #' which case the app falls back to per-method harvested positions.
