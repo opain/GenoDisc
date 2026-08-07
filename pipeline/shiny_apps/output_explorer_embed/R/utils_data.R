@@ -125,6 +125,146 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
   all_func_res
 }
 
+#' Build a gene-symbol -> genomic position lookup
+#'
+#' build_mol_assoc_data() keeps only the gene symbol (ID), not position. The
+#' underlying method blocks that the results tables read (via $res) do carry a
+#' chromosome and position, so we harvest those here to give each symbol one
+#' canonical position for locus grouping. SuSiE fine-mapping and Nearest-gene
+#' slots hold symbols only and contribute no position (those genes stay
+#' unplaced downstream).
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas GWAS name
+#' @param cf Named list of config flags from parse_config_flags()
+#' @return data.frame with columns ID, CHR, BP (one row per symbol), or an
+#'   empty data.frame if no position-bearing method is present.
+build_gene_position_map <- function(gd, gwas, cf) {
+  pos <- NULL
+
+  add_pos <- function(id, chr, bp) {
+    ok <- !is.na(id) & !is.na(chr) & !is.na(bp)
+    if (!any(ok)) return(invisible(NULL))
+    pos <<- rbind(pos, data.frame(
+      ID = as.character(id)[ok],
+      CHR = suppressWarnings(as.numeric(chr))[ok],
+      BP = suppressWarnings(as.numeric(bp))[ok],
+      stringsAsFactors = FALSE))
+  }
+
+  # The FUSION/SMR result table lives under $res in the table renderers but
+  # $results in build_mol_assoc_data(); read whichever this package uses.
+  get_res <- function(blk) {
+    o <- gd_read(gd, gwas, blk)
+    r <- safe_access(o, "res")
+    if (is.null(r)) r <- safe_access(o, "results")
+    r
+  }
+
+  # MAGMA gene table: ID = symbol, gene bounds START/STOP -> midpoint.
+  if (isTRUE(cf$magma_gene)) {
+    m <- gd_read(gd, gwas, "mol_assoc/magma")
+    if (!is.null(m) && all(c("ID", "CHR", "START", "STOP") %in% names(m))) {
+      add_pos(m$ID, m$CHR, (as.numeric(m$START) + as.numeric(m$STOP)) / 2)
+    }
+  }
+
+  # FUSION expr/protein: Gene Symbol, gene bounds P0/P1 -> midpoint.
+  fusion_blocks <- c()
+  if (isTRUE(cf$twas)) fusion_blocks <- c(fusion_blocks, "mol_assoc/exp/fusion")
+  if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) fusion_blocks <- c(fusion_blocks, "mol_assoc/protein/fusion")
+  for (blk in fusion_blocks) {
+    r <- get_res(blk)
+    if (!is.null(r) && all(c("Gene Symbol", "CHR", "P0", "P1") %in% names(r))) {
+      add_pos(r$`Gene Symbol`, r$CHR, (as.numeric(r$P0) + as.numeric(r$P1)) / 2)
+    }
+  }
+
+  # SMR expr/protein: Gene Symbol, single position BP.
+  smr_blocks <- c()
+  if (isTRUE(cf$smr_expression)) smr_blocks <- c(smr_blocks, "mol_assoc/exp/smr")
+  if (isTRUE(cf$smr_protein_panel_rosmap)) smr_blocks <- c(smr_blocks, "mol_assoc/protein/smr")
+  for (blk in smr_blocks) {
+    r <- get_res(blk)
+    if (!is.null(r) && all(c("Gene Symbol", "CHR", "BP") %in% names(r))) {
+      add_pos(r$`Gene Symbol`, r$CHR, r$BP)
+    }
+  }
+
+  if (is.null(pos) || nrow(pos) == 0) {
+    return(data.frame(ID = character(0), CHR = numeric(0), BP = numeric(0)))
+  }
+
+  # Collapse to one canonical position per symbol (CHR = first, BP = median).
+  pos <- pos[!is.na(pos$CHR) & !is.na(pos$BP), ]
+  agg <- aggregate(BP ~ ID, data = pos, FUN = median)
+  chr <- aggregate(CHR ~ ID, data = pos, FUN = function(x) x[1])
+  merge(chr, agg, by = "ID")
+}
+
+#' Load the bundled GRCh37 gene-position reference (cached)
+#'
+#' Reads data/gene_positions.rds (built by data/make_gene_positions.R) once and
+#' caches it. Returns a list with three symbol-keyed data.frames (ID, CHR, BP):
+#' by_symbol, by_synonym, by_ensembl. Returns NULL if the file is absent, in
+#' which case the app falls back to per-method harvested positions.
+load_gene_positions <- local({
+  cache <- NULL
+  loaded <- FALSE
+  function() {
+    if (loaded) return(cache)
+    loaded <<- TRUE
+    here <- tryCatch(dirname(sys.frame(1L)$ofile), error = function(e) getwd())
+    candidates <- c(
+      file.path("data", "gene_positions.rds"),
+      file.path(here, "..", "data", "gene_positions.rds"),
+      file.path(here, "data", "gene_positions.rds")
+    )
+    hit <- candidates[file.exists(candidates)][1]
+    cache <<- if (is.na(hit)) NULL else readRDS(hit)
+    cache
+  }
+})
+
+#' Resolve a genomic position for each feature via one canonical reference
+#'
+#' Deterministically maps each gene id to a single GRCh37 position using the
+#' bundled reference (symbol -> synonym -> Ensembl), falling back to positions
+#' harvested from the method blocks for anything the reference does not cover.
+#' Only ids that resolve are returned (unresolved features stay "Unplaced").
+#'
+#' @param ids Character vector of feature ids (gene symbols / Ensembl ids)
+#' @param gd,gwas,cf As for build_gene_position_map() (fallback source)
+#' @return data.frame(ID, CHR, BP) for the resolved subset of `ids`
+resolve_feature_positions <- function(ids, gd, gwas, cf) {
+  ids <- unique(as.character(ids))
+  ids <- ids[!is.na(ids) & ids != "" & ids != "Placeholder"]
+  out <- data.frame(ID = ids, CHR = NA_real_, BP = NA_real_, stringsAsFactors = FALSE)
+  if (nrow(out) == 0) return(out)
+
+  fill_from <- function(map, eligible) {
+    idx <- match(out$ID, map$ID)
+    take <- eligible & !is.na(idx)
+    out$CHR[take] <<- map$CHR[idx[take]]
+    out$BP[take]  <<- map$BP[idx[take]]
+  }
+
+  ref <- load_gene_positions()
+  if (!is.null(ref)) {
+    fill_from(ref$by_symbol,  is.na(out$BP))
+    fill_from(ref$by_synonym, is.na(out$BP))
+    fill_from(ref$by_ensembl, is.na(out$BP) & grepl("^ENSG", out$ID))
+  }
+
+  # Fallback for ids the reference does not cover.
+  if (any(is.na(out$BP))) {
+    harvest <- build_gene_position_map(gd, gwas, cf)
+    if (!is.null(harvest) && nrow(harvest) > 0) fill_from(harvest, is.na(out$BP))
+  }
+
+  out[!is.na(out$BP), ]
+}
+
 #' Build drug enrichment summary data
 #'
 #' @param gd A gd_result

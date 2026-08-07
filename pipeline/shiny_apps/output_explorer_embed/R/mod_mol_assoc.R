@@ -75,6 +75,10 @@ molAssocUI <- function(id) {
             selectInput(ns("selected_protein_panels_mol"), "Select protein panels", "", multiple = T),
             radioButtons(ns("conf_only_mol"), "Show high-confidence only :",
                          choices = c("True" = T, "False" = F), selected = T),
+            radioButtons(ns("mol_layout"), "Feature ordering:",
+                         choices = c("Alphabetical" = "alphabetical",
+                                     "By locus (genomic position)" = "locus"),
+                         selected = "alphabetical"),
             textInput(ns("geneInput_mol"), "Enter gene symbols (whitespace- or comma-seperated):"),
             hr(),
             h5('Select high confidence criteria:'),
@@ -83,6 +87,7 @@ molAssocUI <- function(id) {
           mainPanel(
             uiOutput(ns("message_too_large_mol")),
             uiOutput(ns("message_no_genes_mol")),
+            uiOutput(ns("message_no_positions_mol")),
             uiOutput(ns("mol_assoc_plot.ui"))
           )
         )
@@ -359,6 +364,18 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       build_mol_assoc_data(gwas_data(), selected_gwas(), config_flags())
     })
 
+    # Gene -> locus lookup for the per-locus layout. Positions are resolved
+    # through the canonical reference (with a per-method harvest fallback) and
+    # scoped to the DISPLAYED genes only, so loci are tight clusters of the
+    # shown features rather than genome-wide bands.
+    mol_locus_map <- reactive({
+      req(gwas_data(), selected_gwas(), config_flags(), mol_assoc_summary_data_filtered())
+      ids <- unique(as.character(mol_assoc_summary_data_filtered()$ID))
+      ids <- ids[ids != "Placeholder"]
+      pos <- resolve_feature_positions(ids, gwas_data(), selected_gwas(), config_flags())
+      assign_loci(pos)
+    })
+
     ########
     # Filtered summary data with debounce
     ########
@@ -421,7 +438,19 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     plot_dim_mol <- reactive({
       all_func_res <- mol_assoc_summary_data_filtered()
       all_func_res$Group <- make_group_labels(all_func_res$Method, all_func_res$Type)
-      calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group")
+      dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group")
+
+      # Per-locus layout adds a horizontal band (facet row) per locus plus a
+      # right-hand locus strip, so allow extra height/width for that chrome.
+      if (identical(input$mol_layout, "locus")) {
+        genes <- unique(all_func_res$ID[all_func_res$ID != 'Placeholder'])
+        lmap <- mol_locus_map()
+        n_loci <- length(unique(lmap$Locus[lmap$ID %in% genes]))
+        if (any(!(genes %in% lmap$ID))) n_loci <- n_loci + 1  # trailing "Unplaced" band
+        dims$height <- dims$height + 30 * max(n_loci, 1)
+        dims$width  <- dims$width + 120
+      }
+      dims
     })
 
     ########
@@ -478,29 +507,42 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
         all_func_res_all$Group <- factor(all_func_res_all$Group, levels = groups)
 
-        all_func_res_all <- all_func_res_all[order(as.character(all_func_res_all$ID)), ]
+        # Per-locus layout only if positions are available; otherwise fall back
+        # to alphabetical (a note explains this via message_no_positions_mol).
+        locus_mode <- identical(input$mol_layout, "locus") && nrow(mol_locus_map()) > 0
 
-        all_func_res_all$ID <- factor(all_func_res_all$ID, levels = unique(all_func_res_all$ID))
+        if (locus_mode) {
+          # Join locus assignments; genes without a position go to a trailing
+          # "Unplaced" band ordered alphabetically at the bottom.
+          lmap <- mol_locus_map()
+          all_func_res_all <- merge(
+            all_func_res_all, lmap[, c("ID", "BP", "Locus", "locus_order")],
+            by = "ID", all.x = TRUE)
+          unplaced <- is.na(all_func_res_all$locus_order)
+          max_order <- suppressWarnings(max(all_func_res_all$locus_order, na.rm = TRUE))
+          if (!is.finite(max_order)) max_order <- 0
+          all_func_res_all$Locus[unplaced] <- "Unplaced"
+          all_func_res_all$locus_order[unplaced] <- max_order + 1
+          all_func_res_all$BP[unplaced] <- Inf
 
-        group_siz <- NULL
-        for (i in groups) {
-          group_siz <- rbind(group_siz, data.frame(Group = i,
-                                                    Size = length(unique(all_func_res_all$Panel[all_func_res_all$Group == i]))))
+          # Gene order: by locus, then position within locus, then symbol.
+          gene_order <- unique(all_func_res_all[order(all_func_res_all$locus_order,
+                                                      all_func_res_all$BP,
+                                                      as.character(all_func_res_all$ID)), "ID"])
+          all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(gene_order))
+          locus_levels <- unique(all_func_res_all$Locus[order(all_func_res_all$locus_order)])
+          all_func_res_all$Locus <- factor(all_func_res_all$Locus, levels = locus_levels)
+        } else {
+          all_func_res_all <- all_func_res_all[order(as.character(all_func_res_all$ID)), ]
+          all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
         }
-
-        # Set minimum size to 2 to allow space for labels
-        group_siz$Size[group_siz$Size < 2] <- 2
-        group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
-        group_siz$Width <- 4 * group_siz$Prop
-
-        all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
 
         x <- c(-max(abs(all_func_res_all$Z), na.rm = T), 0, max(abs(all_func_res_all$Z), na.rm = T))
         x <- (x - min(x)) / (max(x) - min(x))
 
         all_func_res_all <- data.table(all_func_res_all)
 
-        # Create the heatmap plot
+        # Create the heatmap plot (geoms/scale/theme shared across layouts)
         heatmap <- ggplot(data = all_func_res_all, aes(x = Panel, y = ID)) +
           theme_bw() +
           geom_point(data = all_func_res_all[all_func_res_all$Sig == T, ], aes(x = Panel, y = ID), colour = 'black', size = 5) +
@@ -510,17 +552,38 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
           scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = T), max(abs(all_func_res_all$Z), na.rm = T)), values = x) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5)) +
           labs(x = '', y = '') +
-          facet_wrap(~ Group, nrow = 1, scales = "free_x") +
-          scale_y_discrete(limits = unique(rev(all_func_res_all$ID))) +
           theme(text = element_text(size = 14))
 
-        gt <- ggplot_gtable(ggplot_build(heatmap))
+        if (locus_mode) {
+          # Locus bands (facet rows) x method groups (facet columns). space="free"
+          # sizes each band by its gene count and each column by its panel count,
+          # so the manual gtable width hack used below is not needed here.
+          heatmap <- heatmap +
+            facet_grid(Locus ~ Group, scales = "free", space = "free") +
+            theme(strip.text.y = element_text(angle = 0),
+                  panel.spacing.y = grid::unit(4, "pt"))
+          print(heatmap)
+        } else {
+          group_siz <- NULL
+          for (i in groups) {
+            group_siz <- rbind(group_siz, data.frame(Group = i,
+                                                      Size = length(unique(all_func_res_all$Panel[all_func_res_all$Group == i]))))
+          }
+          # Set minimum size to 2 to allow space for labels
+          group_siz$Size[group_siz$Size < 2] <- 2
+          group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
+          group_siz$Width <- 4 * group_siz$Prop
 
-        for (i in 1:nrow(group_siz)) {
-          gt$widths[gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]] <- group_siz$Width[i] * gt$widths[gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]]
+          heatmap <- heatmap +
+            facet_wrap(~ Group, nrow = 1, scales = "free_x") +
+            scale_y_discrete(limits = unique(rev(all_func_res_all$ID)))
+
+          gt <- ggplot_gtable(ggplot_build(heatmap))
+          for (i in 1:nrow(group_siz)) {
+            gt$widths[gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]] <- group_siz$Width[i] * gt$widths[gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]]
+          }
+          grid.draw(gt)
         }
-
-        grid.draw(gt)
       } else {
         NULL
       }
@@ -535,15 +598,21 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       filtered <- mol_assoc_summary_data_filtered()
       has_real_genes <- any(filtered$ID != 'Placeholder')
       if (plot_dim_mol()[['height']] < 10000 & nrow(filtered) > 0 & has_real_genes) {
+        legend_items <- list(
+          "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
+          "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+          "Black outline" = "The association is FDR-significant in that panel and method.",
+          "Black square" = "FDR-significant AND supported by colocalisation.",
+          "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant."
+        )
+        if (identical(input$mol_layout, "locus")) {
+          legend_items <- c(list(
+            "Locus bands" = "Genes are grouped into loci (features within 500 kb, labelled by coordinate range) and ordered by genomic position; genes with no known position appear in a trailing 'Unplaced' band."
+          ), legend_items)
+        }
         tagList(
           plotOutput(ns("mol_assoc_plot"), height = plot_dim_mol()[['height']], width = plot_dim_mol()[['width']]),
-          gd_legend(list(
-            "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
-            "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
-            "Black outline" = "The association is FDR-significant in that panel and method.",
-            "Black square" = "FDR-significant AND supported by colocalisation.",
-            "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant."
-          ), heading = "How to read this plot")
+          gd_legend(legend_items, heading = "How to read this plot")
         )
       } else {
         NULL
@@ -555,6 +624,19 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         HTML(sprintf(
           "<div style='color: red;'>%s</div>",
           "Plot is too large. Restrict to high-confidence genes or specify a list of genes."
+        ))
+      }
+    })
+
+    output$message_no_positions_mol <- renderUI({
+      req(config_flags())
+      if (identical(input$mol_layout, "locus") && nrow(mol_locus_map()) == 0) {
+        HTML(paste0(
+          "<div style='color: #666; font-style: italic; margin: 10px 0;'>",
+          "No genomic positions are available for these results (position-bearing ",
+          "methods such as MAGMA, FUSION or SMR were not run), so the plot is shown ",
+          "alphabetically instead of by locus.",
+          "</div>"
         ))
       }
     })
