@@ -630,6 +630,33 @@ If you see errors related to ROSMAP, Banner, or CMAP data, ensure you have downl
 
 LDSC requires Python 2.7 and uses a separate conda environment (`envs/ldsc.yaml`). If LDSC fails, ensure the conda environment can be created successfully.
 
+**Updating GenoUtils without rerunning the pipeline**
+
+The `install_genoutils` rule pins a GenoUtils commit in its shell command, and `touch`es `resources/software/install_genoutils.done` on completion. Bumping that pin therefore fires Snakemake's `code` rerun trigger, the marker's timestamp is updated, and every job downstream of the marker (`sumstat_prep_i` and everything derived from it) goes stale — even when the GenoUtils change does not affect existing results.
+
+To install the new version without invalidating completed work, update the pin, rebuild the marker on its own, then restore its original timestamp:
+
+```bash
+MARKER=<resdir>/software/install_genoutils.done
+
+# 1. Record the marker's current timestamp, BEFORE running snakemake
+STAMP=$(stat -c %y "$MARKER")
+
+# 2. With the new commit already pinned in rules/dependencies.smk, build the
+#    marker as the target. The DAG then contains only install_genoutils, so no
+#    downstream rule is evaluated during this run.
+snakemake "$MARKER" --configfile=$CONFIG --use-conda --profile slurm
+
+# 3. Restore the timestamp so later runs cannot see that the marker changed
+touch -d "$STAMP" "$MARKER"
+```
+
+Step 2 matters because it actually runs the rule, which updates Snakemake's recorded code hash for `install_genoutils` — passing `--rerun-triggers mtime` instead would suppress the rerun once and then fire again on every subsequent invocation. Step 3 undoes the `touch`, so the `mtime` trigger stays quiet too.
+
+Step 1 must happen *before* step 2, and not just for convenience: if the install fails (for example `devtools::install_github` hitting a GitHub API rate limit), Snakemake deletes the incomplete marker, and the recorded `$STAMP` is then the only way to restore the original timestamp on a later successful attempt.
+
+This deliberately hides the GenoUtils update from Snakemake. When an update *should* invalidate results, skip step 3, or force the affected rules explicitly (e.g. `--forcerun sumstat_prep_i`).
+
 ***
 
 For questions or issues, please contact Oliver Pain (oliver.pain@kcl.ac.uk) or open an issue on the [GitHub repository](https://github.com/opain/GenoDisc).
