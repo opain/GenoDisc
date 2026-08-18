@@ -496,8 +496,8 @@ The per-GWAS list (`results$<gwas>`) is organised as follows:
 ```
 <gwas>/
   gwas_qc/                      # GWAS summary-statistic QC
-    cleaner_dat                 # sumstat cleaner log + parsed values
-    focus_dat                   # FOCUS log + lambda_GC / max_chi2 / N sig SNPs
+    cleaner_dat                 # sumstat cleaner log + parsed values,
+                                #   incl. lambda_GC / max_chi2 / N sig SNPs
     ldsc_dat                    # NULL unless ldsc: T
     maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
 

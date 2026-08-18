@@ -41,7 +41,6 @@ tools <- list(
   list(Tool = 'SMR', Purpose = 'Summary-data-based Mendelian randomisation', Reference = '[Zhu et al. 2016](https://doi.org/10.1038/ng.3538)'),
   list(Tool = 'TWAS-GSEA', Purpose = 'Gene set enrichment of TWAS results', Reference = '[Pain et al. 2023](https://doi.org/10.1101/2023.07.24.23293084)'),
   list(Tool = 'DrugTargetor', Purpose = 'Drug-gene interaction database for enrichment', Reference = '[Gaspar et al. 2019](https://doi.org/10.1093/bioinformatics/bty742)'),
-  list(Tool = 'FOCUS', Purpose = 'Summary statistic munging', Reference = '[Mancuso et al. 2019](https://doi.org/10.1038/s41588-019-0367-1)'),
   list(Tool = 'liftOver', Purpose = 'Genome build coordinate conversion', Reference = '[UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgLiftOver)')
 )
 
@@ -88,7 +87,7 @@ GWAS summary statistics undergo a standardised cleaning procedure implemented in
 
 5. **Effect size conversion**: If only odds ratios are provided, they are converted to log-odds (BETA). Z-scores are converted to BETA and SE where possible.
 
-The cleaned summary statistics are stored in `{outdir}/results/{gwas}/gwas_sumstat/`.
+The cleaned summary statistics are stored in `{outdir}/results/{gwas}/gwas_sumstat/`. A munged copy (`.cleaned.munged.sumstats.gz`) is written alongside them, containing `CHR SNP BP A1 A2 Z N` with `Z = BETA/SE`, as required by LDSC and FUSION.
 
 <details><summary>**Recognised column name variants**</summary>
 
@@ -119,7 +118,7 @@ The pipeline accepts many common column name formats. Below are examples of reco
 - **SNP-heritability** ($h^2_{SNP}$): the proportion of phenotypic variance explained by common SNPs
 - **LD score regression intercept**: an indicator of confounding or population stratification in the GWAS
 
-The pipeline uses pre-computed LD scores from the European 1000 Genomes reference panel. Summary statistics are first munged using the LDSC `munge_sumstats.py` script to ensure compatibility.
+The pipeline uses pre-computed LD scores from the European 1000 Genomes reference panel. LDSC is run on the Z-score formatted summary statistics written by `sumstat_cleaner.R` alongside the cleaned sumstats (`.cleaned.munged.sumstats.gz`).
 
 Results are stored in `{outdir}/results/{gwas}/ldsc/`.
 

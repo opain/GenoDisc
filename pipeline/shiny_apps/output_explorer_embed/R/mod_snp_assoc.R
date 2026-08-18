@@ -162,7 +162,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # When labelling is requested but nothing reached genome-wide significance,
       # explain why no genes are labelled rather than showing an image that looks
       # identical to the unlabelled one.
-      n_sig <- gwas_qc$focus_dat$val$n_sig_snp
+      n_sig <- gd_qc_stat(gwas_qc, "n_sig_snp")
       no_sig <- is.null(n_sig) || length(n_sig) == 0 || is.na(n_sig) || n_sig == 0
       label_note <- NULL
       if (input$manhattan_label_choice == "labelled" && no_sig) {

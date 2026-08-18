@@ -135,3 +135,14 @@ populations<-data.frame(original=c('EUR'),
 populations <- setNames(populations$original, populations$clean)
 
 
+
+# Read a GWAS QC statistic (lambda_gc, max_chi2, n_sig_snp) from a gwas_qc block.
+# These moved from the FOCUS munge log to the sumstat_cleaner log when the FOCUS
+# munge step was dropped, so results packaged before that change carry them under
+# focus_dat instead of cleaner_dat.
+gd_qc_stat <- function(gwas_qc, field) {
+  val <- gwas_qc$cleaner_dat$val[[field]]
+  if (length(val) != 1 || is.na(val)) val <- gwas_qc$focus_dat$val[[field]]
+  if (length(val) != 1) return(NA_real_)
+  val
+}

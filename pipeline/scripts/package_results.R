@@ -53,7 +53,6 @@ for(gwas_i in gwas_list$name){
   gwas_qc<-list()
 
   gwas_qc$cleaner_dat<-process_cleaner_log(config=opt$config, gwas=gwas_i)
-  gwas_qc$focus_dat<-process_focus_log(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_dat<-process_ldsc_log(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_gencor_dat<-process_ldsc_gencor(config=opt$config, gwas=gwas_i)
 

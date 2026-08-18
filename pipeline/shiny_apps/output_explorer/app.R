@@ -1303,9 +1303,9 @@ server <- function(input, output, session) {
                        n_var_orig=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_var_orig,
                        build=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$build$build,
                        n_snp_final=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_snp_final,
-                       lambda_gc=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$lambda_gc,
-                       max_chi2=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$max_chi2,
-                       n_sig_snp=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$n_sig_snp,
+                       lambda_gc=gd_qc_stat(gwas_data()[[selected_gwas()]]$gwas_qc, "lambda_gc"),
+                       max_chi2=gd_qc_stat(gwas_data()[[selected_gwas()]]$gwas_qc, "max_chi2"),
+                       n_sig_snp=gd_qc_stat(gwas_data()[[selected_gwas()]]$gwas_qc, "n_sig_snp"),
                        obs_h2=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_se,3),")"),
                        int=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_se,3),")"))
 

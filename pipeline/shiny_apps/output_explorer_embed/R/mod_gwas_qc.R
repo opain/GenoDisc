@@ -54,7 +54,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
         "for a well-powered polygenic trait, genuine widespread signal)."),
       "Max. chi^2" = paste0(
         "The strongest single-variant association in the study, as a chi-square statistic ",
-        "(chi-square = (BETA/SE)^2). Larger values mean a stronger top signal."),
+        "derived from the p-value. Larger values mean a stronger top signal."),
       "N genome-wide significant variants" = paste0(
         "Number of variants reaching genome-wide significance (p < 5e-8) after QC. ",
         "Zero is common for underpowered GWAS."),
@@ -87,9 +87,9 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
                          n_var_orig=gwas_qc$cleaner_dat$val$n_var_orig,
                          build=build_val,
                          n_snp_final=gwas_qc$cleaner_dat$val$n_snp_final,
-                         lambda_gc=gwas_qc$focus_dat$val$lambda_gc,
-                         max_chi2=gwas_qc$focus_dat$val$max_chi2,
-                         n_sig_snp=gwas_qc$focus_dat$val$n_sig_snp)
+                         lambda_gc=gd_qc_stat(gwas_qc, "lambda_gc"),
+                         max_chi2=gd_qc_stat(gwas_qc, "max_chi2"),
+                         n_sig_snp=gd_qc_stat(gwas_qc, "n_sig_snp"))
 
       col_labels <- c('GWAS Name',
                       'GWAS Label',

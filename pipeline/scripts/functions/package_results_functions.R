@@ -23,7 +23,22 @@ process_cleaner_log<-function(config, gwas){
   # Identify the number of SNPs in the GWAS after QC
   dat$val$n_snp_final<-as.numeric(gsub(' variants remain.','',gsub('After removal of SNPs with SE == 0, ','',dat$log[grepl('After removal of SNPs with SE == 0, ', dat$log)])))
 
+  # Test statistic summaries. These are only logged by GenoUtils >= the pin that
+  # replaced the FOCUS munge step, so scalar_or_na() keeps older logs (which
+  # lack the lines) from collapsing downstream tables to zero rows - see the
+  # comment in extract_build() below.
+  dat$val$lambda_gc<-scalar_or_na(as.numeric(gsub('Lambda GC = ','',dat$log[grepl('Lambda GC = ', dat$log)])))
+  dat$val$max_chi2<-scalar_or_na(as.numeric(gsub('Max chi-square = ','',dat$log[grepl('Max chi-square = ', dat$log)])))
+  dat$val$n_sig_snp<-scalar_or_na(as.numeric(gsub(' variants with P < 5e-8.','',dat$log[grepl(' variants with P < 5e-8.', dat$log, fixed = TRUE)], fixed = TRUE)))
+
   return(dat)
+}
+
+# Collapse a zero-length or multi-element regex result to a single value, so a
+# missing log line yields NA rather than numeric(0).
+scalar_or_na<-function(x){
+  if(length(x) != 1) return(NA_real_)
+  x
 }
 
 extract_build<-function(x){
@@ -47,22 +62,6 @@ extract_build<-function(x){
   }
 
   return(best_match)
-}
-
-process_focus_log<-function(config, gwas){
-
-  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
-
-  dat<-list()
-
-  dat$log<-readLines(paste0(outdir,'/results/',gwas,'/gwas_sumstat/',gwas,'.cleaned.munged.log'))
-
-  dat$val<-list()
-  dat$val$lambda_gc<-as.numeric(gsub('.*Lambda GC = ','',dat$log[grepl('Lambda GC', dat$log)]))
-  dat$val$max_chi2<-as.numeric(gsub('.*Max chi\\^2 = ','',dat$log[grepl('Max chi\\^2', dat$log)]))
-  dat$val$n_sig_snp<-as.numeric(gsub('.* ','',gsub(' Genome-wide significant SNPs.*','',dat$log[grepl('Genome-wide significant SNPs', dat$log)])))
-
-  return(dat)
 }
 
 process_ldsc_log<-function(config, gwas){

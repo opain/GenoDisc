@@ -29,7 +29,8 @@ rule sumstat_prep_i:
     rules.install_genoutils.output,
     lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
   output:
-    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz"
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.sumstats.gz"
   benchmark:
     f"{outdir}/benchmarks/sumstat_prep_i_{{gwas}}.tsv"
   conda:
@@ -51,6 +52,7 @@ rule sumstat_prep_i:
       --n {params.n} \
       --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
+      --munged T \
       --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
 
@@ -58,25 +60,9 @@ rule sumstat_prep:
   input: expand(f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz", gwas=gwas_list_df_eur['name'])
 
 ###
-# Munge sumstats
+# Calculate median effective sample size
 ###
 
-# munge sumstats using FOCUS munge function
-rule focus_munge:
-  input:
-    premunged="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz"
-  output:
-    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz"
-  benchmark:
-    "{outdir}/benchmarks/focus_munge_{gwas}.tsv"
-  conda:
-    "../envs/focus.yaml"
-  log:
-    "{outdir}/logs/focus_munge-{gwas}.log"
-  shell:
-    "focus munge {input.premunged} --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged > {log} 2>&1"
-
-# Calculate median effective sample size
 # FUSION requires this parameter to be specified despite having the N column in the sumstats
 rule retrieve_N:
   input:
