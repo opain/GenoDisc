@@ -197,6 +197,11 @@ ggplot(plot_df, aes(x = dose_uM, y = cell_type)) +
 
 # Anqi
 
+```{bash}
+# Check sumstats provided by Anqi
+ls ~/neurohackpain/anqi/DiseasesGwas/*
+```
+
 ```{r}
 dir.create('/scratch/prj/neurohackpain/anqi/genodisc_validation/config/', recursive = T)
 
@@ -216,6 +221,7 @@ for(i in traits){
     paste0("outdir: /scratch/prj/neurohackpain/anqi/genodisc_validation/output/", i), 
     paste0("config_file: /scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_", i, ".yaml"), 
     paste0("gwas_list: /scratch/prj/neurohackpain/anqi/DiseasesGwas/", i, "/gwas_list.txt"), 
+    "resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources",
     "ldsc: T", 
     "magma_gene: T", 
     "magma_drugtargetor: T",
@@ -245,22 +251,39 @@ for(i in traits){
 ```
 
 ```{bash}
-# Ensure you are in the right place and environment
-cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
-conda activate genodisc
+# Load conda env
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+
+# Go to pipeline directory
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
 
 for CONFIG in /scratch/prj/neurohackpain/anqi/genodisc_validation/config/*.yaml; do
     TRAIT=$(basename "$CONFIG" .yaml)
-
     sbatch --job-name="smk_$TRAIT" \
            --mem=2G \
+           -t 1-00:00:00 \
            -p neurohack_cpu \
-           --wrap="snakemake --configfile=$CONFIG --use-conda --profile slurm run_package_results"
+           --wrap="snakemake --configfile=$CONFIG --use-conda --profile slurm_interrupt --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs run_package_results"
 done
 
-snakemake --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Type2_diabetes_mellitus.yaml --use-conda --profile slurm run_package_results -n
-snakemake --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Hypertension.yaml --use-conda --profile slurm run_package_results -n
-snakemake --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Myocardial_infarction.yaml --use-conda --profile slurm run_package_results -n
+####
+# Test using single GWAS
+####
+
+# Load conda env
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+
+# Go to pipeline directory
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+
+snakemake \
+  -j1 \
+  -n \
+  --configfile=/scratch/prj/neurohackpain/anqi/genodisc_validation/config/config_Myocardial_infarction.yaml \
+  --use-conda \
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
+
 
 ```
 
