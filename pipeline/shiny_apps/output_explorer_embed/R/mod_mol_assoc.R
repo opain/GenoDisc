@@ -164,7 +164,7 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   # facets keep their width and the two layouts match.
   group_widths <- vapply(groups, function(g) {
     panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
-    facet_target_width_pt(g, panel_names)
+    facet_target_width_pt(g, panel_names, font_size = font_size)
   }, numeric(1))
 
   if (locus_mode) {
@@ -627,7 +627,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       all_func_res <- mol_assoc_summary_data_filtered()
       all_func_res$Group <- make_group_labels(all_func_res$Method, all_func_res$Type)
       dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group",
-                             facet_order = get_group_order())
+                             facet_order = get_group_order(),
+                             font_size = input$plot_font_size %||% 14)
 
       # Per-locus layout adds panel spacing between locus bands (rows) plus a
       # right-hand locus strip, so allow extra height/width for that chrome.

@@ -73,13 +73,13 @@ insert_placeholders <- function(df, id_col = "ID") {
   rbind(na_rows, df)
 }
 
-#' Measure rendered width of strings at the plot's 14pt strip/axis font,
-#' returned in pt. Uses a null pdf device so no side effects on the caller.
-strwidth_pt_14 <- function(s) {
+#' Measure rendered width of strings at the given point size, returned in pt.
+#' Uses a null pdf device so no side effects on the caller.
+strwidth_pt <- function(s, ps = 14) {
   if (length(s) == 0) return(numeric(0))
   grDevices::pdf(NULL)
   on.exit(grDevices::dev.off())
-  graphics::par(ps = 14)
+  graphics::par(ps = ps)
   graphics::strwidth(as.character(s), units = "inches") * 72
 }
 
@@ -87,14 +87,18 @@ strwidth_pt_14 <- function(s) {
 #'
 #' Shared by `calc_plot_dims` (width budget) and the render code (absolute
 #' panel widths) so the two stay in lockstep. Floor is the strip title
-#' width (widest line, measured with `strwidth`). Panel names are only used
-#' for the arity `n_x`; overflow from long rotated tick labels is absorbed
-#' by extra `plot.margin` on the left of the plot, not by widening panels.
-facet_target_width_pt <- function(group_label, panel_names) {
+#' width (widest line, measured with `strwidth` at the plot's font size, so
+#' longer labels at larger fonts get proportionally wider facets). Panel
+#' names are only used for the arity `n_x`; overflow from long rotated tick
+#' labels is absorbed by extra `plot.margin` on the left of the plot, not by
+#' widening panels.
+facet_target_width_pt <- function(group_label, panel_names, font_size = 14) {
   n_x <- length(panel_names)
   lines <- unlist(strsplit(group_label, "\n"))
-  title_pt <- max(strwidth_pt_14(lines)) + 10
-  max(n_x * 25, title_pt)
+  title_pt <- max(strwidth_pt(lines, ps = font_size)) + 10
+  # Per-panel budget also scales with font so points don't cramp at big fonts.
+  per_panel <- 25 * (font_size / 14)
+  max(n_x * per_panel, title_pt)
 }
 
 #' Calculate plot dimensions from data
@@ -112,17 +116,22 @@ facet_target_width_pt <- function(group_label, panel_names) {
 #' @param facet_order Optional character vector giving the left-to-right facet
 #'   order in the rendered plot. Used to identify the leftmost facet for the
 #'   overflow calculation; if `NULL`, uses `unique(df[[facet_col]])`.
+#' @param font_size Base text size in pt. Facet titles, y-axis text and
+#'   rotated x-tick labels all scale with this, so per-facet widths and the
+#'   overall plot width grow proportionally when the user picks a larger font.
 #' @return List with height (pt), width (pt), and left_pad_pt (pt) for the
 #'   `plot.margin(l = ...)` needed to absorb tick-label overflow.
 calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Method",
-                           facet_order = NULL) {
+                           facet_order = NULL, font_size = 14) {
   if (nrow(df) == 0) {
     return(list(height = 100, width = 100, left_pad_pt = 0))
   }
 
-  # Height: x-label rotation space + rows + padding
+  # Height: x-label rotation space + rows + padding, scaled by font size.
+  fs_ratio <- font_size / 14
   num_row <- length(unique(df[[y_col]]))
-  plot_height <- (max(nchar(df[[x_col]]), na.rm = TRUE) * 3) + (num_row * 20) + 100
+  plot_height <- (max(nchar(df[[x_col]]), na.rm = TRUE) * 3 * fs_ratio) +
+                 (num_row * 20 * fs_ratio) + 100
 
   # Facet order (left→right)
   present <- unique(df[[facet_col]])
@@ -131,11 +140,11 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
   } else present
 
   # Width: y-label margin + sum of per-facet widths
-  y_label_width <- max(nchar(df[[y_col]]), na.rm = TRUE) * 7
+  y_label_width <- max(strwidth_pt(unique(df[[y_col]]), ps = font_size)) + 10
   total_facet_width <- 0
   for (f in facets) {
     panel_names <- unique(df[[x_col]][df[[facet_col]] == f])
-    total_facet_width <- total_facet_width + facet_target_width_pt(f, panel_names)
+    total_facet_width <- total_facet_width + facet_target_width_pt(f, panel_names, font_size)
   }
 
   # Left pad: only needed if the leftmost facet's leftmost 45° tick label
@@ -146,13 +155,13 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
     leftmost_panels <- unique(df[[x_col]][df[[facet_col]] == leftmost])
     n_x_left <- length(leftmost_panels)
     if (n_x_left > 0) {
-      label_slot <- max(strwidth_pt_14(leftmost_panels)) * cos(pi / 4)
-      leftmost_panel_width <- facet_target_width_pt(leftmost, leftmost_panels)
+      label_slot <- max(strwidth_pt(leftmost_panels, ps = font_size)) * cos(pi / 4)
+      leftmost_panel_width <- facet_target_width_pt(leftmost, leftmost_panels, font_size)
       leftmost_tick_from_edge <- leftmost_panel_width / (2 * n_x_left)
       overflow_past_panel <- max(0, label_slot - leftmost_tick_from_edge)
-      # Approximate rendered y-axis area: strwidth of longest gene name at
-      # 14pt + tick length + text-to-tick padding (~15pt combined).
-      y_axis_actual_pt <- max(strwidth_pt_14(unique(df[[y_col]]))) + 15
+      # Approximate rendered y-axis area: strwidth of longest y-label at the
+      # plot font size + tick length + text-to-tick padding (~15pt combined).
+      y_axis_actual_pt <- max(strwidth_pt(unique(df[[y_col]]), ps = font_size)) + 15
       left_pad_pt <- max(0, overflow_past_panel - y_axis_actual_pt)
     }
   }

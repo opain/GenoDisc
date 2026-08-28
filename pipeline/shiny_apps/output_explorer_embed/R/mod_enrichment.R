@@ -1,3 +1,234 @@
+#' Resolve the "Plot options" theme dropdown value to a ggplot theme function.
+enr_theme_fn <- function(name) {
+  switch(name %||% "bw",
+    bw = ggplot2::theme_bw,
+    minimal = ggplot2::theme_minimal,
+    classic = ggplot2::theme_classic,
+    light = ggplot2::theme_light,
+    ggplot2::theme_bw
+  )
+}
+
+#' Build the drug-enrichment summary heatmap as a gtable
+#'
+#' Shared by the on-screen `renderPlot` and the download handler so downloaded
+#' files match what's on screen. Returns `NULL` if there's no data.
+build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
+                                  font_size = 14, point_size = 5,
+                                  theme_fn = ggplot2::theme_bw, title = "") {
+  if (is.null(all_gs) || nrow(all_gs) == 0) return(NULL)
+  all_gs$`ATC Code` <- NULL
+
+  # Insert missing Panel × Method combinations so the heatmap grid is complete.
+  all_gs_all <- NULL
+  for (i in unique(all_gs$Panel)) {
+    for (j in unique(all_gs$Method[all_gs$Panel == i])) {
+      all_gs_panel <- all_gs[all_gs$Panel == i & all_gs$Method == j, ]
+      all_gs_other <- all_gs[!(all_gs$Panel %in% all_gs_panel$Panel) & !(all_gs$Method %in% all_gs_panel$Method), ]
+      all_gs_other <- all_gs_other[!(all_gs_other$Name %in% all_gs_panel$Name), ]
+      all_gs_other <- unique(all_gs_other$Name)
+
+      if (length(all_gs_other) > 0) {
+        all_gs_panel_missing <- data.frame(Name = all_gs_other)
+        all_gs_panel_missing$Panel  <- i
+        all_gs_panel_missing$Name   <- all_gs_other
+        all_gs_panel_missing$Z      <- NA
+        all_gs_panel_missing$P      <- NA
+        all_gs_panel_missing$P.FDR  <- NA
+        all_gs_panel_missing$Method <- j
+        all_gs_panel_missing <- all_gs_panel_missing[, names(all_gs_panel)]
+        all_gs_all <- rbind(all_gs_all, all_gs_panel_missing)
+      }
+      all_gs_all <- rbind(all_gs_all, all_gs_panel)
+    }
+  }
+  all_gs_all <- all_gs_all[all_gs_all$Name != 'Placeholder', ]
+
+  methods <- c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')
+  methods <- methods[methods %in% all_gs_all$Method]
+  all_gs_all$Method <- factor(all_gs_all$Method, levels = methods)
+
+  # Sort levels by user choice
+  if (sort_choice == 'Alphabetical') {
+    all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[rev(order(all_gs_all$Name))]))
+  } else if (sort_choice == 'All - Z') {
+    all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[order(all_gs_all$Z, na.last = FALSE)]))))
+  } else if (sort_choice == 'TWAS-GSEA - Z') {
+    all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA'], na.last = FALSE)]))))
+  } else if (sort_choice == 'TWAS-GSEA (non-dir) - Z') {
+    all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA (non-dir)'], na.last = FALSE)]))))
+  } else if (sort_choice == 'MAGMA - Z') {
+    all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'MAGMA'][order(all_gs_all$Z[all_gs_all$Method == 'MAGMA'], na.last = FALSE)]))
+  } else if (sort_choice == 'GCSC - Z') {
+    all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'GCSC'][order(all_gs_all$Z[all_gs_all$Method == 'GCSC'], na.last = FALSE)]))
+  }
+
+  # Per-facet width scaling (min-2 floor, proportional to panel count).
+  group_siz <- do.call(rbind, lapply(methods, function(m)
+    data.frame(Group = m, Size = length(unique(all_gs_all$Panel[all_gs_all$Method == m])))))
+  group_siz$Size[group_siz$Size < 2] <- 2
+  group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
+  group_siz$Width <- 4 * group_siz$Prop
+
+  all_gs_all <- data.table::data.table(all_gs_all)
+  dir_data <- all_gs_all[Method == 'TWAS-GSEA']
+  pos_data <- all_gs_all[Method != 'TWAS-GSEA']
+  dir_max <- if (nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Z), na.rm = TRUE)) else NA
+  pos_max <- if (nrow(pos_data) > 0) suppressWarnings(max(pos_data$Z,      na.rm = TRUE)) else NA
+  if (!is.finite(dir_max)) dir_max <- NA
+  if (!is.finite(pos_max)) pos_max <- NA
+
+  heatmap <- ggplot2::ggplot(data = all_gs_all, ggplot2::aes(x = Panel, y = Name)) +
+    theme_fn()
+  if (nrow(dir_data) > 0 && is.finite(dir_max)) {
+    heatmap <- heatmap +
+      ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
+      ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
+                                    na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                    limits = c(-dir_max, dir_max))
+  }
+  if (nrow(pos_data) > 0 && is.finite(pos_max)) {
+    heatmap <- heatmap +
+      ggplot2::geom_point(data = pos_data, ggplot2::aes(colour = Z), shape = 16, size = point_size) +
+      ggplot2::scale_colour_gradientn(colours = c("#FFFFFF","#00CC66"),
+                                      na.value = NA, name = "Enrichment\nZ-score",
+                                      limits = c(0, pos_max))
+  }
+  heatmap <- heatmap +
+    ggplot2::geom_point(data = all_gs_all[which(all_gs_all$P < 0.05), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
+    ggplot2::geom_point(data = all_gs_all[which(all_gs_all$P.FDR < 0.05), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
+  if (nrow(dir_data) > 0) {
+    heatmap <- heatmap + ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size)
+  }
+  if (nrow(pos_data) > 0) {
+    heatmap <- heatmap + ggplot2::geom_point(data = pos_data, ggplot2::aes(colour = Z), shape = 16, size = point_size)
+  }
+  heatmap <- heatmap +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   plot.title = ggplot2::element_text(hjust = 0.5)) +
+    ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
+    ggplot2::facet_wrap(~ Method, nrow = 1, scales = "free_x") +
+    ggplot2::theme(text = ggplot2::element_text(size = font_size))
+
+  gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
+  for (i in seq_len(nrow(group_siz))) {
+    panel_l <- gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]
+    gt$widths[panel_l] <- group_siz$Width[i] * gt$widths[panel_l]
+  }
+  gt
+}
+
+#' Build the ATC-class enrichment summary heatmap as a gtable
+build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
+                                 font_size = 14, point_size = 5,
+                                 theme_fn = ggplot2::theme_bw, title = "") {
+  if (is.null(all_gs_atc) || nrow(all_gs_atc) == 0) return(NULL)
+
+  all_gs_atc_all <- NULL
+  for (i in unique(all_gs_atc$Panel)) {
+    for (j in unique(all_gs_atc$Method[all_gs_atc$Panel == i])) {
+      all_gs_atc_panel <- all_gs_atc[all_gs_atc$Panel == i & all_gs_atc$Method == j, ]
+      all_gs_atc_other <- all_gs_atc[!(all_gs_atc$Panel %in% all_gs_atc_panel$Panel) & !(all_gs_atc$Method %in% all_gs_atc_panel$Method), ]
+      all_gs_atc_other <- all_gs_atc_other[!(all_gs_atc_other$Name %in% all_gs_atc_panel$Name), ]
+      all_gs_atc_other <- unique(all_gs_atc_other$Name)
+
+      if (length(all_gs_atc_other) > 0) {
+        all_gs_atc_panel_missing <- data.frame(Name = all_gs_atc_other)
+        all_gs_atc_panel_missing$Panel   <- i
+        all_gs_atc_panel_missing$Name    <- all_gs_atc_other
+        all_gs_atc_panel_missing$Z       <- NA
+        all_gs_atc_panel_missing$FDR_Sig <- NA
+        all_gs_atc_panel_missing$Nom_Sig <- NA
+        all_gs_atc_panel_missing$Method  <- j
+        all_gs_atc_panel_missing <- all_gs_atc_panel_missing[, names(all_gs_atc_panel)]
+        all_gs_atc_all <- rbind(all_gs_atc_all, all_gs_atc_panel_missing)
+      }
+      all_gs_atc_all <- rbind(all_gs_atc_all, all_gs_atc_panel)
+    }
+  }
+  all_gs_atc_all <- all_gs_atc_all[all_gs_atc_all$Name != 'Placeholder', ]
+
+  methods <- c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')
+  methods <- methods[methods %in% all_gs_atc_all$Method]
+  all_gs_atc_all$Method <- factor(all_gs_atc_all$Method, levels = methods)
+
+  # Shorten long ATC descriptions
+  for (i in unique(all_gs_atc_all$Name)) {
+    if (nchar(i) > 30) {
+      i_new <- paste0(substr(i, 1, 27), '...')
+      i_new <- gsub(' \\.\\.\\.', '...', i_new)
+      all_gs_atc_all$Name[all_gs_atc_all$Name == i] <- i_new
+    }
+  }
+
+  if (sort_choice == 'Alphabetical') {
+    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[rev(order(all_gs_atc_all$Name))]))
+  } else if (sort_choice == 'All - Z') {
+    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[order(all_gs_atc_all$Z, na.last = FALSE)]))))
+  } else if (sort_choice == 'TWAS-GSEA - Z') {
+    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA'], na.last = FALSE)]))))
+  } else if (sort_choice == 'TWAS-GSEA (non-dir) - Z') {
+    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'], na.last = FALSE)]))))
+  } else if (sort_choice == 'MAGMA - Z') {
+    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'MAGMA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'MAGMA'], na.last = FALSE)]))
+  } else if (sort_choice == 'GCSC - Z') {
+    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'GCSC'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'GCSC'], na.last = FALSE)]))
+  }
+
+  group_siz <- do.call(rbind, lapply(methods, function(m)
+    data.frame(Group = m, Size = length(unique(all_gs_atc_all$Panel[all_gs_atc_all$Method == m])))))
+  group_siz$Size[group_siz$Size < 2] <- 2
+  group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
+  group_siz$Width <- 4 * group_siz$Prop
+
+  all_gs_atc_all <- data.table::data.table(all_gs_atc_all)
+  dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA']
+  pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA']
+  dir_max_atc <- if (nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Z), na.rm = TRUE)) else NA
+  pos_max_atc <- if (nrow(pos_data_atc) > 0) suppressWarnings(max(pos_data_atc$Z,      na.rm = TRUE)) else NA
+  if (!is.finite(dir_max_atc)) dir_max_atc <- NA
+  if (!is.finite(pos_max_atc)) pos_max_atc <- NA
+
+  heatmap <- ggplot2::ggplot(data = all_gs_atc_all, ggplot2::aes(x = Panel, y = Name)) +
+    theme_fn()
+  if (nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)) {
+    heatmap <- heatmap +
+      ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
+      ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
+                                    na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                    limits = c(-dir_max_atc, dir_max_atc))
+  }
+  if (nrow(pos_data_atc) > 0 && is.finite(pos_max_atc)) {
+    heatmap <- heatmap +
+      ggplot2::geom_point(data = pos_data_atc, ggplot2::aes(colour = Z), shape = 16, size = point_size) +
+      ggplot2::scale_colour_gradientn(colours = c("#FFFFFF","#00CC66"),
+                                      na.value = NA, name = "Enrichment\nZ-score",
+                                      limits = c(0, pos_max_atc))
+  }
+  heatmap <- heatmap +
+    ggplot2::geom_point(data = all_gs_atc_all[which(all_gs_atc_all$Nom_Sig == TRUE), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
+    ggplot2::geom_point(data = all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == TRUE), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
+  if (nrow(dir_data_atc) > 0) {
+    heatmap <- heatmap + ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size)
+  }
+  if (nrow(pos_data_atc) > 0) {
+    heatmap <- heatmap + ggplot2::geom_point(data = pos_data_atc, ggplot2::aes(colour = Z), shape = 16, size = point_size)
+  }
+  heatmap <- heatmap +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   plot.title = ggplot2::element_text(hjust = 0.5)) +
+    ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
+    ggplot2::facet_wrap(~ Method, nrow = 1, scales = "free_x") +
+    ggplot2::theme(text = ggplot2::element_text(size = font_size))
+
+  gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
+  for (i in seq_len(nrow(group_siz))) {
+    panel_l <- gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]
+    gt$widths[panel_l] <- group_siz$Width[i] * gt$widths[panel_l]
+  }
+  gt
+}
+
 enrichmentUI <- function(id) {
   ns <- NS(id)
 
@@ -122,7 +353,35 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
                            choices = c("True" = T, "False" = F), selected = T),
               textInput(ns("drugInput_drug"), "Search drug (whitespace- or comma-seperated):"),
               textInput(ns("atcInput_drug"), "Search ATC Code (whitespace- or comma-seperated):"),
-              selectInput(ns("selected_sort_drug"), "Sort by:", '', multiple = F)
+              selectInput(ns("selected_sort_drug"), "Sort by:", '', multiple = F),
+              hr(),
+              tags$details(
+                class = "gd-plot-options",
+                tags$summary("Plot options"),
+                textInput(ns("plot_title_drug"), "Plot title (optional):", value = ""),
+                selectInput(ns("plot_theme_drug"), "Theme:",
+                            choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                        "Classic" = "classic", "Light" = "light"),
+                            selected = "bw"),
+                sliderInput(ns("plot_font_size_drug"), "Font size (pt):",
+                            min = 10, max = 20, value = 14, step = 1),
+                sliderInput(ns("plot_point_size_drug"), "Point size:",
+                            min = 2, max = 8, value = 5, step = 1),
+                hr(),
+                selectInput(ns("dl_format_drug"), "Download format:",
+                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                            selected = "png"),
+                numericInput(ns("dl_width_drug"), "Width (inches):",
+                             value = 12, min = 2, max = 40, step = 0.5),
+                numericInput(ns("dl_height_drug"), "Height (inches):",
+                             value = 8, min = 2, max = 40, step = 0.5),
+                conditionalPanel(
+                  condition = sprintf("input['%s'] == 'png'", ns("dl_format_drug")),
+                  numericInput(ns("dl_dpi_drug"), "Resolution (DPI, PNG only):",
+                               value = 300, min = 72, max = 600, step = 25)
+                ),
+                downloadButton(ns("download_plot_drug"), "Download plot")
+              )
             ),
             mainPanel(
               uiOutput(ns("message_too_large_drug")),
@@ -167,7 +426,35 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
               radioButtons(ns("conf_only_atc"), "Show FDR significant only :",
                            choices = c("True" = T, "False" = F), selected = T),
               textInput(ns("atcInput_atc"), "Search ATC Code (whitespace- or comma-seperated):"),
-              selectInput(ns("selected_sort_atc"), "Sort by:", '', multiple = F)
+              selectInput(ns("selected_sort_atc"), "Sort by:", '', multiple = F),
+              hr(),
+              tags$details(
+                class = "gd-plot-options",
+                tags$summary("Plot options"),
+                textInput(ns("plot_title_atc"), "Plot title (optional):", value = ""),
+                selectInput(ns("plot_theme_atc"), "Theme:",
+                            choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                        "Classic" = "classic", "Light" = "light"),
+                            selected = "bw"),
+                sliderInput(ns("plot_font_size_atc"), "Font size (pt):",
+                            min = 10, max = 20, value = 14, step = 1),
+                sliderInput(ns("plot_point_size_atc"), "Point size:",
+                            min = 2, max = 8, value = 5, step = 1),
+                hr(),
+                selectInput(ns("dl_format_atc"), "Download format:",
+                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                            selected = "png"),
+                numericInput(ns("dl_width_atc"), "Width (inches):",
+                             value = 12, min = 2, max = 40, step = 0.5),
+                numericInput(ns("dl_height_atc"), "Height (inches):",
+                             value = 8, min = 2, max = 40, step = 0.5),
+                conditionalPanel(
+                  condition = sprintf("input['%s'] == 'png'", ns("dl_format_atc")),
+                  numericInput(ns("dl_dpi_atc"), "Resolution (DPI, PNG only):",
+                               value = 300, min = 72, max = 600, step = 25)
+                ),
+                downloadButton(ns("download_plot_atc"), "Download plot")
+              )
             ),
             mainPanel(
               uiOutput(ns("message_too_large_atc")),
@@ -512,7 +799,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Identify number of drugs
     plot_dim_drug<-reactive({
       all_gs<-tx_drug_summary_data_filtered()
-      calc_plot_dims(all_gs, y_col = "Name", x_col = "Panel", facet_col = "Method")
+      calc_plot_dims(all_gs, y_col = "Name", x_col = "Panel", facet_col = "Method",
+                     font_size = input$plot_font_size_drug %||% 14)
     })
 
     observeEvent(tx_drug_summary_data_filtered(), {
@@ -538,145 +826,60 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       updateSelectInput(session, "selected_sort_drug", choices = choices, selected=choices[1])
     })
 
-    output$tx_drug_plot<-renderPlot({
+    output$tx_drug_plot <- renderPlot({
+      all_gs <- tx_drug_summary_data_filtered()
+      if (plot_dim_drug()[['height']] >= 10000 || nrow(all_gs) == 0) return(NULL)
+      gt <- build_tx_drug_gtable(
+        all_gs = all_gs,
+        sort_choice = input$selected_sort_drug %||% "Alphabetical",
+        font_size = input$plot_font_size_drug %||% 14,
+        point_size = input$plot_point_size_drug %||% 5,
+        theme_fn = enr_theme_fn(input$plot_theme_drug),
+        title = input$plot_title_drug %||% ""
+      )
+      if (!is.null(gt)) grid::grid.draw(gt)
+    })
 
-      all_gs<-tx_drug_summary_data_filtered()
-      all_gs$`ATC Code`<-NULL
-
-      if(plot_dim_drug()[['height']] < 10000 & nrow(all_gs) > 0){
-
-        # Insert missing data
-        all_gs_all<-NULL
-        for(i in unique(all_gs$Panel)){
-          for(j in unique(all_gs$Method[all_gs$Panel == i])){
-
-            all_gs_panel<-all_gs[all_gs$Panel == i & all_gs$Method == j,]
-            all_gs_other<-all_gs[!(all_gs$Panel %in% all_gs_panel$Panel) & !(all_gs$Method %in% all_gs_panel$Method),]
-            all_gs_other<-all_gs_other[!(all_gs_other$Name %in% all_gs_panel$Name),]
-            all_gs_other<-unique(all_gs_other$Name)
-
-            if(length(all_gs_other) > 0){
-              all_gs_panel_missing<-data.frame(Name=all_gs_other)
-              all_gs_panel_missing$Panel=i
-              all_gs_panel_missing$Name=all_gs_other
-              all_gs_panel_missing$Z=NA
-              all_gs_panel_missing$P=NA
-              all_gs_panel_missing$P.FDR=NA
-              all_gs_panel_missing$Method=j
-
-              all_gs_panel_missing<-all_gs_panel_missing[,names(all_gs_panel)]
-
-              all_gs_all<-rbind(all_gs_all,all_gs_panel_missing)
-            }
-
-            all_gs_all<-rbind(all_gs_all,all_gs_panel)
-          }
-        }
-
-        # Now remove the NA rows
-        all_gs_all<-all_gs_all[all_gs_all$Name != 'Placeholder',]
-
-        methods<-c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')[c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)') %in% all_gs_all$Method]
-        all_gs_all$Method<-factor(all_gs_all$Method, levels=methods)
-
-        # Sort according to user input
-        if(input$selected_sort_drug == 'Alphabetical'){
-          all_gs_all$Name<-factor(all_gs_all$Name, levels=unique(all_gs_all$Name[rev(order(all_gs_all$Name))]))
-        }
-        if(input$selected_sort_drug == 'All - Z'){
-          all_gs_all$Name<-factor(all_gs_all$Name, levels=rev(unique(rev(all_gs_all$Name[order(all_gs_all$Z, na.last=F)]))))
-        }
-        if(input$selected_sort_drug == 'TWAS-GSEA - Z'){
-          all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA'], na.last=F)]))))
-        }
-        if(input$selected_sort_drug == 'TWAS-GSEA (non-dir) - Z'){
-          all_gs_all$Name <- factor(all_gs_all$Name, levels = rev(unique(rev(all_gs_all$Name[all_gs_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_all$Z[all_gs_all$Method == 'TWAS-GSEA (non-dir)'], na.last=F)]))))
-        }
-        if(input$selected_sort_drug == 'MAGMA - Z'){
-          all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'MAGMA'][order(all_gs_all$Z[all_gs_all$Method == 'MAGMA'], na.last=F)]))
-        }
-        if(input$selected_sort_drug == 'GCSC - Z'){
-          all_gs_all$Name <- factor(all_gs_all$Name, levels = unique(all_gs_all$Name[all_gs_all$Method == 'GCSC'][order(all_gs_all$Z[all_gs_all$Method == 'GCSC'], na.last=F)]))
-        }
-
-        group_siz<-NULL
-        for(i in methods){
-          group_siz<-rbind(group_siz, data.frame(Group=i,
-                                                 Size=length(unique(all_gs_all$Panel[all_gs_all$Method==i]))))
-        }
-
-        # Set minimum size to 3 to allow space for labels
-        group_siz$Size[group_siz$Size < 2]<-2
-        group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
-        group_siz$Width<-4*group_siz$Prop
-
-        # Convert to data.table before geom_point subsetting
-        all_gs_all <- data.table(all_gs_all)
-
-        # Two palettes: directional TWAS-GSEA uses a diverging red-white-blue
-        # scale (red = drug reverses disease signature = candidate therapeutic).
-        # Everything else (MAGMA, GCSC, non-directional TWAS-GSEA) uses a
-        # sequential white-to-green scale (Z >= 0 only; green = enriched).
-        # Achieved by mapping the diverging series to `fill` (shape 21) and the
-        # sequential series to `colour` (shape 16) so the two scales coexist.
-        dir_data <- all_gs_all[Method == 'TWAS-GSEA']
-        pos_data <- all_gs_all[Method != 'TWAS-GSEA']
-
-        # max() on an all-NA vector returns -Inf and max() on a vector
-        # containing Inf returns Inf; either breaks scale_*_gradientn's
-        # limits. Fall back to NA so the branch is skipped cleanly.
-        dir_max <- if(nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Z), na.rm=T)) else NA
-        pos_max <- if(nrow(pos_data) > 0) suppressWarnings(max(pos_data$Z, na.rm=T))     else NA
-        if(!is.finite(dir_max)) dir_max <- NA
-        if(!is.finite(pos_max)) pos_max <- NA
-
-        heatmap<-ggplot(data = all_gs_all, aes(x = Panel, y = Name)) +
-          theme_bw()
-        if(nrow(dir_data) > 0 && is.finite(dir_max)){
-          heatmap <- heatmap +
-            geom_point(data=dir_data, aes(fill = Z), shape=21, stroke=0, size=5) +
-            scale_fill_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                 na.value = NA, name = "TWAS-GSEA\nZ-score",
-                                 limits = c(-dir_max, dir_max))
-        }
-        if(nrow(pos_data) > 0 && is.finite(pos_max)){
-          heatmap <- heatmap +
-            geom_point(data=pos_data, aes(colour = Z), shape=16, size=5) +
-            scale_colour_gradientn(colours=c("#FFFFFF","#00CC66"),
-                                   na.value = NA, name = "Enrichment\nZ-score",
-                                   limits = c(0, pos_max))
-        }
-        # Sig overlays use the default filled shape, so they would otherwise
-        # cover the coloured point. Draw the coloured points again on top so
-        # only the outer ring of the sig overlay remains visible.
-        heatmap <- heatmap +
-          geom_point(data=all_gs_all[which(all_gs_all$P < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
-          geom_point(data=all_gs_all[which(all_gs_all$P.FDR < 0.05),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15)
-        if(nrow(dir_data) > 0){
-          heatmap <- heatmap + geom_point(data=dir_data, aes(fill = Z), shape=21, stroke=0, size=5)
-        }
-        if(nrow(pos_data) > 0){
-          heatmap <- heatmap + geom_point(data=pos_data, aes(colour = Z), shape=16, size=5)
-        }
-        heatmap <- heatmap +
-          theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
-          labs(x='', y='') +
-          facet_wrap(~ Method , nrow=1, scales = "free_x") +
-          theme(text = element_text(size = 14))
-
-        library(grid)
-        gt = ggplot_gtable(ggplot_build(heatmap))
-
-        for(i in 1:nrow(group_siz)){
-          gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
-        }
-
-        grid.draw(gt)
-
-      } else {
-        NULL
+    # Seed download width/height defaults from the plot's natural pt dimensions
+    # once data is loaded, then let the user override.
+    dl_defaults_seeded_drug <- reactiveVal(FALSE)
+    observeEvent(plot_dim_drug(), {
+      dims <- plot_dim_drug()
+      if (!dl_defaults_seeded_drug() && dims$width > 100 && dims$height < 10000) {
+        updateNumericInput(session, "dl_width_drug",  value = round(dims$width  / 72, 1))
+        updateNumericInput(session, "dl_height_drug", value = round(dims$height / 72, 1))
+        dl_defaults_seeded_drug(TRUE)
       }
     })
+
+    output$download_plot_drug <- downloadHandler(
+      filename = function() {
+        sprintf("drug_enrichment_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$dl_format_drug %||% "png")
+      },
+      content = function(file) {
+        gt <- build_tx_drug_gtable(
+          all_gs = tx_drug_summary_data_filtered(),
+          sort_choice = input$selected_sort_drug %||% "Alphabetical",
+          font_size = input$plot_font_size_drug %||% 14,
+          point_size = input$plot_point_size_drug %||% 5,
+          theme_fn = enr_theme_fn(input$plot_theme_drug),
+          title = input$plot_title_drug %||% ""
+        )
+        w <- input$dl_width_drug  %||% 12
+        h <- input$dl_height_drug %||% 8
+        fmt <- input$dl_format_drug %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$dl_dpi_drug %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        if (!is.null(gt)) grid::grid.draw(gt)
+        grDevices::dev.off()
+      }
+    )
 
     output$tx_drug_plot.ui <- renderUI({
       if(plot_dim_drug()[['height']] < 10000 & nrow(tx_drug_summary_data_filtered()) > 0){
@@ -888,7 +1091,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Truncate long ATC names to match what the plot displays
       long <- nchar(all_gs_atc$Name) > 30
       all_gs_atc$Name[long] <- paste0(substr(all_gs_atc$Name[long], 1, 27), '...')
-      calc_plot_dims(all_gs_atc, y_col = "Name", x_col = "Panel", facet_col = "Method")
+      calc_plot_dims(all_gs_atc, y_col = "Name", x_col = "Panel", facet_col = "Method",
+                     font_size = input$plot_font_size_atc %||% 14)
     })
 
     observeEvent(tx_atc_summary_data_filtered(), {
@@ -914,145 +1118,58 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       updateSelectInput(session, "selected_sort_atc", choices = choices, selected=choices[1])
     })
 
-    output$tx_atc_plot<-renderPlot({
+    output$tx_atc_plot <- renderPlot({
+      all_gs_atc <- tx_atc_summary_data_filtered()
+      if (plot_dim_atc()[['height']] >= 10000 || nrow(all_gs_atc) == 0) return(NULL)
+      gt <- build_tx_atc_gtable(
+        all_gs_atc = all_gs_atc,
+        sort_choice = input$selected_sort_atc %||% "Alphabetical",
+        font_size = input$plot_font_size_atc %||% 14,
+        point_size = input$plot_point_size_atc %||% 5,
+        theme_fn = enr_theme_fn(input$plot_theme_atc),
+        title = input$plot_title_atc %||% ""
+      )
+      if (!is.null(gt)) grid::grid.draw(gt)
+    })
 
-      all_gs_atc<-tx_atc_summary_data_filtered()
-
-      if(plot_dim_atc()[['height']] < 10000 & nrow(all_gs_atc) > 0){
-
-        # Insert missing data
-        all_gs_atc_all<-NULL
-        for(i in unique(all_gs_atc$Panel)){
-          for(j in unique(all_gs_atc$Method[all_gs_atc$Panel == i])){
-
-            all_gs_atc_panel<-all_gs_atc[all_gs_atc$Panel == i & all_gs_atc$Method == j,]
-            all_gs_atc_other<-all_gs_atc[!(all_gs_atc$Panel %in% all_gs_atc_panel$Panel) & !(all_gs_atc$Method %in% all_gs_atc_panel$Method),]
-            all_gs_atc_other<-all_gs_atc_other[!(all_gs_atc_other$Name %in% all_gs_atc_panel$Name),]
-            all_gs_atc_other<-unique(all_gs_atc_other$Name)
-
-            if(length(all_gs_atc_other) > 0){
-              all_gs_atc_panel_missing<-data.frame(Name=all_gs_atc_other)
-              all_gs_atc_panel_missing$Panel=i
-              all_gs_atc_panel_missing$Name=all_gs_atc_other
-              all_gs_atc_panel_missing$Z=NA
-              all_gs_atc_panel_missing$FDR_Sig=NA
-              all_gs_atc_panel_missing$Nom_Sig=NA
-              all_gs_atc_panel_missing$Method=j
-
-
-              all_gs_atc_panel_missing<-all_gs_atc_panel_missing[,names(all_gs_atc_panel)]
-
-              all_gs_atc_all<-rbind(all_gs_atc_all,all_gs_atc_panel_missing)
-            }
-
-            all_gs_atc_all<-rbind(all_gs_atc_all,all_gs_atc_panel)
-          }
-        }
-
-        # Now remove the NA rows
-        all_gs_atc_all<-all_gs_atc_all[all_gs_atc_all$Name != 'Placeholder',]
-
-        methods<-c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')[c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)') %in% all_gs_atc_all$Method]
-        all_gs_atc_all$Method<-factor(all_gs_atc_all$Method, levels=methods)
-
-        # Shorten long ATC descriptions
-        for(i in unique(all_gs_atc_all$Name)){
-          if(nchar(i) > 30){
-            i_new<-paste0(substr(i, 1, 27),'...')
-            i_new<-gsub(' \\.\\.\\.','...',i_new)
-            all_gs_atc_all$Name[all_gs_atc_all$Name == i]<-i_new
-          }
-        }
-
-        # Sort according to user input
-        if(input$selected_sort_atc == 'Alphabetical'){
-          all_gs_atc_all$Name<-factor(all_gs_atc_all$Name, levels=unique(all_gs_atc_all$Name[rev(order(all_gs_atc_all$Name))]))
-        }
-        if(input$selected_sort_atc == 'All - Z'){
-          all_gs_atc_all$Name<-factor(all_gs_atc_all$Name, levels=rev(unique(rev(all_gs_atc_all$Name[order(all_gs_atc_all$Z, na.last=F)]))))
-        }
-        if(input$selected_sort_atc == 'TWAS-GSEA - Z'){
-          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA'], na.last=F)]))))
-        }
-        if(input$selected_sort_atc == 'TWAS-GSEA (non-dir) - Z'){
-          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'], na.last=F)]))))
-        }
-        if(input$selected_sort_atc == 'MAGMA - Z'){
-          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'MAGMA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'MAGMA'], na.last=F)]))
-        }
-        if(input$selected_sort_atc == 'GCSC - Z'){
-          all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'GCSC'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'GCSC'], na.last=F)]))
-        }
-
-        group_siz<-NULL
-        for(i in methods){
-          group_siz<-rbind(group_siz, data.frame(Group=i,
-                                                 Size=length(unique(all_gs_atc_all$Panel[all_gs_atc_all$Method==i]))))
-        }
-
-        # Set minimum size to 3 to allow space for labels
-        group_siz$Size[group_siz$Size < 2]<-2
-        group_siz$Prop<-group_siz$Size/sum(group_siz$Size)
-        group_siz$Width<-4*group_siz$Prop
-
-        # Convert to data.table before geom_point subsetting
-        all_gs_atc_all <- data.table(all_gs_atc_all)
-
-        # See drug heatmap above for the two-palette rationale.
-        dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA']
-        pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA']
-
-        # See drug heatmap above for the finite-max guard rationale.
-        dir_max_atc <- if(nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Z), na.rm=T)) else NA
-        pos_max_atc <- if(nrow(pos_data_atc) > 0) suppressWarnings(max(pos_data_atc$Z, na.rm=T))     else NA
-        if(!is.finite(dir_max_atc)) dir_max_atc <- NA
-        if(!is.finite(pos_max_atc)) pos_max_atc <- NA
-
-        heatmap<-ggplot(data = all_gs_atc_all, aes(x = Panel, y = Name)) +
-          theme_bw()
-        if(nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)){
-          heatmap <- heatmap +
-            geom_point(data=dir_data_atc, aes(fill = Z), shape=21, stroke=0, size=5) +
-            scale_fill_gradientn(colours=c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                 na.value = NA, name = "TWAS-GSEA\nZ-score",
-                                 limits = c(-dir_max_atc, dir_max_atc))
-        }
-        if(nrow(pos_data_atc) > 0 && is.finite(pos_max_atc)){
-          heatmap <- heatmap +
-            geom_point(data=pos_data_atc, aes(colour = Z), shape=16, size=5) +
-            scale_colour_gradientn(colours=c("#FFFFFF","#00CC66"),
-                                   na.value = NA, name = "Enrichment\nZ-score",
-                                   limits = c(0, pos_max_atc))
-        }
-        heatmap <- heatmap +
-          geom_point(data=all_gs_atc_all[which(all_gs_atc_all$Nom_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=6) +
-          geom_point(data=all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == T),], aes(x = Panel, y = Name), colour='black', fill=NA, size=7, shape=15)
-        if(nrow(dir_data_atc) > 0){
-          heatmap <- heatmap + geom_point(data=dir_data_atc, aes(fill = Z), shape=21, stroke=0, size=5)
-        }
-        if(nrow(pos_data_atc) > 0){
-          heatmap <- heatmap + geom_point(data=pos_data_atc, aes(colour = Z), shape=16, size=5)
-        }
-        heatmap <- heatmap +
-          theme(axis.text.x = element_text(angle = 45, hjust = 1),plot.title = element_text(hjust = 0.5)) +
-          labs(x='', y='') +
-          facet_wrap(~ Method , nrow=1, scales = "free_x") +
-          theme(text = element_text(size = 14))
-
-
-        library(grid)
-        gt = ggplot_gtable(ggplot_build(heatmap))
-
-        for(i in 1:nrow(group_siz)){
-          gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]] = group_siz$Width[i]*gt$widths[gt$layout$l[grep(paste0('panel-',i,'-1'), gt$layout$name)]]
-        }
-
-        grid.draw(gt)
-
-      } else {
-        NULL
+    dl_defaults_seeded_atc <- reactiveVal(FALSE)
+    observeEvent(plot_dim_atc(), {
+      dims <- plot_dim_atc()
+      if (!dl_defaults_seeded_atc() && dims$width > 100 && dims$height < 10000) {
+        updateNumericInput(session, "dl_width_atc",  value = round(dims$width  / 72, 1))
+        updateNumericInput(session, "dl_height_atc", value = round(dims$height / 72, 1))
+        dl_defaults_seeded_atc(TRUE)
       }
     })
+
+    output$download_plot_atc <- downloadHandler(
+      filename = function() {
+        sprintf("atc_enrichment_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$dl_format_atc %||% "png")
+      },
+      content = function(file) {
+        gt <- build_tx_atc_gtable(
+          all_gs_atc = tx_atc_summary_data_filtered(),
+          sort_choice = input$selected_sort_atc %||% "Alphabetical",
+          font_size = input$plot_font_size_atc %||% 14,
+          point_size = input$plot_point_size_atc %||% 5,
+          theme_fn = enr_theme_fn(input$plot_theme_atc),
+          title = input$plot_title_atc %||% ""
+        )
+        w <- input$dl_width_atc  %||% 12
+        h <- input$dl_height_atc %||% 8
+        fmt <- input$dl_format_atc %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$dl_dpi_atc %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        if (!is.null(gt)) grid::grid.draw(gt)
+        grDevices::dev.off()
+      }
+    )
 
     output$tx_atc_plot.ui <- renderUI({
       if(plot_dim_atc()[['height']] < 10000 & nrow(tx_atc_summary_data_filtered()) > 0){
