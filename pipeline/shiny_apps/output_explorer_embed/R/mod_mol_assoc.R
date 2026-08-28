@@ -438,7 +438,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     plot_dim_mol <- reactive({
       all_func_res <- mol_assoc_summary_data_filtered()
       all_func_res$Group <- make_group_labels(all_func_res$Method, all_func_res$Type)
-      dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group")
+      dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group",
+                             facet_order = get_group_order())
 
       # Per-locus layout adds a horizontal band (facet row) per locus plus a
       # right-hand locus strip, so allow extra height/width for that chrome.
@@ -542,6 +543,10 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
         all_func_res_all <- data.table(all_func_res_all)
 
+        # Extra left plot.margin to absorb 45° tick label overflow past the
+        # y-axis area (kept in sync with calc_plot_dims's width budget).
+        left_pad_pt <- plot_dim_mol()[["left_pad_pt"]]
+
         # Create the heatmap plot (geoms/scale/theme shared across layouts)
         heatmap <- ggplot(data = all_func_res_all, aes(x = Panel, y = ID)) +
           theme_bw() +
@@ -552,7 +557,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
           scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = T), max(abs(all_func_res_all$Z), na.rm = T)), values = x) +
           theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5)) +
           labs(x = '', y = '') +
-          theme(text = element_text(size = 14))
+          theme(text = element_text(size = 14),
+                plot.margin = margin(t = 5.5, r = 5.5, b = 5.5, l = left_pad_pt, unit = "pt"))
 
         if (locus_mode) {
           # Locus bands (facet rows) x method groups (facet columns). space="free"
@@ -564,23 +570,22 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
                   panel.spacing.y = grid::unit(4, "pt"))
           print(heatmap)
         } else {
-          group_siz <- NULL
-          for (i in groups) {
-            group_siz <- rbind(group_siz, data.frame(Group = i,
-                                                      Size = length(unique(all_func_res_all$Panel[all_func_res_all$Group == i]))))
-          }
-          # Set minimum size to 2 to allow space for labels
-          group_siz$Size[group_siz$Size < 2] <- 2
-          group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
-          group_siz$Width <- 4 * group_siz$Prop
+          # Absolute per-facet widths matching calc_plot_dims's budget, so
+          # unaffected facets (e.g. MAGMA) keep the same width when panels are
+          # added to TWAS/SMR facets.
+          group_widths <- vapply(groups, function(g) {
+            panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
+            facet_target_width_pt(g, panel_names)
+          }, numeric(1))
 
           heatmap <- heatmap +
             facet_wrap(~ Group, nrow = 1, scales = "free_x") +
             scale_y_discrete(limits = unique(rev(all_func_res_all$ID)))
 
           gt <- ggplot_gtable(ggplot_build(heatmap))
-          for (i in 1:nrow(group_siz)) {
-            gt$widths[gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]] <- group_siz$Width[i] * gt$widths[gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]]
+          for (i in seq_along(groups)) {
+            panel_l <- gt$layout$l[grepl(paste0('^panel-', i, '-1$'), gt$layout$name)]
+            gt$widths[panel_l] <- grid::unit(group_widths[i], "pt")
           }
           grid.draw(gt)
         }
