@@ -51,6 +51,141 @@ mol_table_legend <- function(which) {
   gd_legend(items, heading = "Column guide")
 }
 
+`%||%` <- function(a, b) if (is.null(a) || (length(a) == 1 && is.na(a))) b else a
+
+#' Resolve the "Plot options" theme dropdown value to a ggplot theme function.
+mol_theme_fn <- function(name) {
+  switch(name %||% "bw",
+    bw = ggplot2::theme_bw,
+    minimal = ggplot2::theme_minimal,
+    classic = ggplot2::theme_classic,
+    light = ggplot2::theme_light,
+    ggplot2::theme_bw
+  )
+}
+
+#' Build the Molecular Associations summary heatmap as a gtable
+#'
+#' Shared by the on-screen `renderPlot` and the file download handler so the
+#' saved file matches what's on screen. Returns `NULL` if there's no data.
+#'
+#' @param all_func_res Filtered summary data (as returned by the module's
+#'   `mol_assoc_summary_data_filtered()` reactive).
+#' @param locus_mode `TRUE` for the by-locus layout, `FALSE` for alphabetical.
+#' @param locus_map Data frame with `ID`, `BP`, `Locus`, `locus_order` used
+#'   in locus mode (ignored otherwise).
+#' @param left_pad_pt Left `plot.margin` in pt for rotated x-tick overflow
+#'   (from `plot_dim_mol()[["left_pad_pt"]]`).
+#' @param font_size Base font size in pt (default 14).
+#' @param point_size Base point size for the main Z-score dots (default 4).
+#'   Highlight/outline dots are size + 1, coloc squares are size + 2.
+#' @param theme_fn A ggplot theme function (e.g. `ggplot2::theme_bw`).
+#' @param title Optional plot title; empty string draws no title.
+build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
+                                    left_pad_pt = 0, font_size = 14,
+                                    point_size = 4, theme_fn = ggplot2::theme_bw,
+                                    title = "") {
+  if (is.null(all_func_res) || nrow(all_func_res) == 0) return(NULL)
+
+  # Insert missing Panel × Method combinations so the heatmap grid is complete.
+  all_func_res_all <- NULL
+  for (i in unique(all_func_res$Panel)) {
+    for (j in unique(all_func_res$Method[all_func_res$Panel == i])) {
+      all_func_res_panel <- all_func_res[all_func_res$Panel == i & all_func_res$Method == j, ]
+      all_func_res_other <- all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel) & !(all_func_res$Method %in% all_func_res_panel$Method), ]
+      all_func_res_other <- all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID), ]
+      all_func_res_other <- unique(all_func_res_other$ID)
+
+      if (length(all_func_res_other) > 0) {
+        all_func_res_panel_missing <- data.frame(ID = all_func_res_other)
+        all_func_res_panel_missing$Panel <- i
+        all_func_res_panel_missing$ID <- all_func_res_other
+        all_func_res_panel_missing$Z <- NA
+        all_func_res_panel_missing$Sig <- 0
+        all_func_res_panel_missing$Coloc <- 0
+        all_func_res_panel_missing$Method <- j
+        all_func_res_panel_missing$Type <- all_func_res_panel$Type[1]
+        all_func_res_panel_missing$Group <- all_func_res_panel$Group[1]
+        all_func_res_panel_missing <- all_func_res_panel_missing[, names(all_func_res_panel)]
+        all_func_res_all <- rbind(all_func_res_all, all_func_res_panel_missing)
+      }
+      all_func_res_all <- rbind(all_func_res_all, all_func_res_panel)
+    }
+  }
+  all_func_res_all <- all_func_res_all[all_func_res_all$ID != 'Placeholder', ]
+
+  all_func_res_all$Group <- make_group_labels(all_func_res_all$Method, all_func_res_all$Type)
+  groups <- get_group_order()
+  groups <- groups[groups %in% all_func_res_all$Group]
+  all_func_res_all$Group <- factor(all_func_res_all$Group, levels = groups)
+
+  # Locus mode requires positioned features; caller ensures locus_map is valid.
+  if (locus_mode) {
+    all_func_res_all <- merge(
+      all_func_res_all, locus_map[, c("ID", "BP", "Locus", "locus_order")],
+      by = "ID", all.x = TRUE)
+    unplaced <- is.na(all_func_res_all$locus_order)
+    max_order <- suppressWarnings(max(all_func_res_all$locus_order, na.rm = TRUE))
+    if (!is.finite(max_order)) max_order <- 0
+    all_func_res_all$Locus[unplaced] <- "Unplaced"
+    all_func_res_all$locus_order[unplaced] <- max_order + 1
+    all_func_res_all$BP[unplaced] <- Inf
+
+    gene_order <- unique(all_func_res_all[order(all_func_res_all$locus_order,
+                                                 all_func_res_all$BP,
+                                                 as.character(all_func_res_all$ID)), "ID"])
+    all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(gene_order))
+    locus_levels <- unique(all_func_res_all$Locus[order(all_func_res_all$locus_order)])
+    all_func_res_all$Locus <- factor(all_func_res_all$Locus, levels = locus_levels)
+  } else {
+    all_func_res_all <- all_func_res_all[order(as.character(all_func_res_all$ID)), ]
+    all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
+  }
+
+  x <- c(-max(abs(all_func_res_all$Z), na.rm = TRUE), 0, max(abs(all_func_res_all$Z), na.rm = TRUE))
+  x <- (x - min(x)) / (max(x) - min(x))
+
+  all_func_res_all <- data.table::data.table(all_func_res_all)
+
+  heatmap <- ggplot2::ggplot(data = all_func_res_all, ggplot2::aes(x = Panel, y = ID)) +
+    theme_fn() +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Coloc == TRUE & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
+    ggplot2::geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene', ], ggplot2::aes(colour = Z), size = point_size) +
+    ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   plot.title = ggplot2::element_text(hjust = 0.5)) +
+    ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
+    ggplot2::theme(text = ggplot2::element_text(size = font_size),
+                   plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5, l = left_pad_pt, unit = "pt"))
+
+  # Absolute per-facet widths matching calc_plot_dims's budget so unaffected
+  # facets keep their width and the two layouts match.
+  group_widths <- vapply(groups, function(g) {
+    panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
+    facet_target_width_pt(g, panel_names)
+  }, numeric(1))
+
+  if (locus_mode) {
+    heatmap <- heatmap +
+      ggplot2::facet_grid(Locus ~ Group, scales = "free", space = "free") +
+      ggplot2::theme(strip.text.y = ggplot2::element_text(angle = 0),
+                     panel.spacing.y = grid::unit(4, "pt"))
+  } else {
+    heatmap <- heatmap +
+      ggplot2::facet_wrap(~ Group, nrow = 1, scales = "free_x") +
+      ggplot2::scale_y_discrete(limits = unique(rev(all_func_res_all$ID)))
+  }
+
+  gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
+  for (i in seq_along(groups)) {
+    panel_l <- unique(gt$layout$l[grepl(paste0('^panel-', i, '-\\d+$'), gt$layout$name)])
+    gt$widths[panel_l] <- grid::unit(group_widths[i], "pt")
+  }
+  gt
+}
+
 #' Molecular Associations module UI
 #'
 #' @param id Module namespace id
@@ -82,7 +217,60 @@ molAssocUI <- function(id) {
             textInput(ns("geneInput_mol"), "Enter gene symbols (whitespace- or comma-seperated):"),
             hr(),
             h5('Select high confidence criteria:'),
-            selectInput(ns("selected_group_hc_mol"), "Select methods", "", multiple = T)
+            selectInput(ns("selected_group_hc_mol"), "Select methods", "", multiple = T),
+            hr(),
+            tags$style(HTML("
+              .gd-plot-options > summary {
+                cursor: pointer;
+                padding: 8px 12px;
+                background: #f5f5f5;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                font-weight: bold;
+                user-select: none;
+                list-style: none;
+              }
+              .gd-plot-options > summary::-webkit-details-marker { display: none; }
+              .gd-plot-options > summary::before {
+                content: '\\25B8';
+                display: inline-block;
+                width: 1em;
+                margin-right: 4px;
+                transition: transform 0.15s ease;
+              }
+              .gd-plot-options[open] > summary::before { transform: rotate(90deg); }
+              .gd-plot-options > summary:hover { background: #e9e9e9; }
+              .gd-plot-options[open] > summary { margin-bottom: 10px; }
+            ")),
+            tags$details(
+              class = "gd-plot-options",
+              tags$summary("Plot options"),
+              textInput(ns("plot_title"), "Plot title (optional):", value = ""),
+              selectInput(ns("plot_theme"), "Theme:",
+                          choices = c("Black & white" = "bw",
+                                      "Minimal" = "minimal",
+                                      "Classic" = "classic",
+                                      "Light" = "light"),
+                          selected = "bw"),
+              sliderInput(ns("plot_font_size"), "Font size (pt):",
+                          min = 10, max = 20, value = 14, step = 1),
+              sliderInput(ns("plot_point_size"), "Point size:",
+                          min = 2, max = 8, value = 4, step = 1),
+              hr(),
+              selectInput(ns("dl_format"), "Download format:",
+                          choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                          selected = "png"),
+              numericInput(ns("dl_width"), "Width (inches):",
+                           value = 12, min = 2, max = 40, step = 0.5),
+              numericInput(ns("dl_height"), "Height (inches):",
+                           value = 8, min = 2, max = 40, step = 0.5),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
+                numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
+                             value = 300, min = 72, max = 600, step = 25)
+              ),
+              downloadButton(ns("download_plot"), "Download plot")
+            )
           ),
           mainPanel(
             uiOutput(ns("message_too_large_mol")),
@@ -461,141 +649,20 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     ########
 
     output$mol_assoc_plot <- renderPlot({
-
       all_func_res <- mol_assoc_summary_data_filtered()
+      if (plot_dim_mol()[['height']] >= 10000 || nrow(all_func_res) == 0) return(NULL)
 
-      if (plot_dim_mol()[['height']] < 10000 & nrow(all_func_res) > 0) {
-
-        # Insert missing data
-        all_func_res_all <- NULL
-        for (i in unique(all_func_res$Panel)) {
-          for (j in unique(all_func_res$Method[all_func_res$Panel == i])) {
-
-            all_func_res_panel <- all_func_res[all_func_res$Panel == i & all_func_res$Method == j, ]
-            all_func_res_other <- all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel) & !(all_func_res$Method %in% all_func_res_panel$Method), ]
-            all_func_res_other <- all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID), ]
-            all_func_res_other <- unique(all_func_res_other$ID)
-
-            if (length(all_func_res_other) > 0) {
-              all_func_res_panel_missing <- data.frame(ID = all_func_res_other)
-
-              all_func_res_panel_missing$Panel <- i
-              all_func_res_panel_missing$ID <- all_func_res_other
-              all_func_res_panel_missing$Z <- NA
-              all_func_res_panel_missing$Sig <- 0
-              all_func_res_panel_missing$Coloc <- 0
-              all_func_res_panel_missing$Method <- j
-              all_func_res_panel_missing$Type <- all_func_res_panel$Type[1]
-              all_func_res_panel_missing$Group <- all_func_res_panel$Group[1]
-
-              all_func_res_panel_missing <- all_func_res_panel_missing[, names(all_func_res_panel)]
-
-              all_func_res_all <- rbind(all_func_res_all, all_func_res_panel_missing)
-            }
-
-            all_func_res_all <- rbind(all_func_res_all, all_func_res_panel)
-          }
-        }
-
-        # Now remove the NA rows
-        all_func_res_all <- all_func_res_all[all_func_res_all$ID != 'Placeholder', ]
-
-        all_func_res_all$Group <- paste0(all_func_res_all$Method, '\n', all_func_res_all$Type)
-        all_func_res_all$Group[all_func_res_all$Group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
-        all_func_res_all$Group[all_func_res_all$Group == 'MAGMA\n'] <- 'MAGMA'
-        all_func_res_all$Group[all_func_res_all$Group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
-
-        groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice', 'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein', 'MAGMA', 'Nearest\nGene')
-        groups <- groups[groups %in% all_func_res_all$Group]
-
-        all_func_res_all$Group <- factor(all_func_res_all$Group, levels = groups)
-
-        # Per-locus layout only if positions are available; otherwise fall back
-        # to alphabetical (a note explains this via message_no_positions_mol).
-        locus_mode <- identical(input$mol_layout, "locus") && nrow(mol_locus_map()) > 0
-
-        if (locus_mode) {
-          # Join locus assignments; genes without a position go to a trailing
-          # "Unplaced" band ordered alphabetically at the bottom.
-          lmap <- mol_locus_map()
-          all_func_res_all <- merge(
-            all_func_res_all, lmap[, c("ID", "BP", "Locus", "locus_order")],
-            by = "ID", all.x = TRUE)
-          unplaced <- is.na(all_func_res_all$locus_order)
-          max_order <- suppressWarnings(max(all_func_res_all$locus_order, na.rm = TRUE))
-          if (!is.finite(max_order)) max_order <- 0
-          all_func_res_all$Locus[unplaced] <- "Unplaced"
-          all_func_res_all$locus_order[unplaced] <- max_order + 1
-          all_func_res_all$BP[unplaced] <- Inf
-
-          # Gene order: by locus, then position within locus, then symbol.
-          gene_order <- unique(all_func_res_all[order(all_func_res_all$locus_order,
-                                                      all_func_res_all$BP,
-                                                      as.character(all_func_res_all$ID)), "ID"])
-          all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(gene_order))
-          locus_levels <- unique(all_func_res_all$Locus[order(all_func_res_all$locus_order)])
-          all_func_res_all$Locus <- factor(all_func_res_all$Locus, levels = locus_levels)
-        } else {
-          all_func_res_all <- all_func_res_all[order(as.character(all_func_res_all$ID)), ]
-          all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
-        }
-
-        x <- c(-max(abs(all_func_res_all$Z), na.rm = T), 0, max(abs(all_func_res_all$Z), na.rm = T))
-        x <- (x - min(x)) / (max(x) - min(x))
-
-        all_func_res_all <- data.table(all_func_res_all)
-
-        # Extra left plot.margin to absorb 45° tick label overflow past the
-        # y-axis area (kept in sync with calc_plot_dims's width budget).
-        left_pad_pt <- plot_dim_mol()[["left_pad_pt"]]
-
-        # Create the heatmap plot (geoms/scale/theme shared across layouts)
-        heatmap <- ggplot(data = all_func_res_all, aes(x = Panel, y = ID)) +
-          theme_bw() +
-          geom_point(data = all_func_res_all[all_func_res_all$Sig == T, ], aes(x = Panel, y = ID), colour = 'black', size = 5) +
-          geom_point(data = all_func_res_all[all_func_res_all$Coloc == T & all_func_res_all$Sig == T, ], aes(x = Panel, y = ID), colour = 'black', shape = 15, size = 6) +
-          geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !(is.na(all_func_res_all$Z)), ], aes(x = Panel, y = ID), colour = '#00FF00', size = 5) +
-          geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene', ], aes(colour = Z), size = 4) +
-          scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = T), max(abs(all_func_res_all$Z), na.rm = T)), values = x) +
-          theme(axis.text.x = element_text(angle = 45, hjust = 1), plot.title = element_text(hjust = 0.5)) +
-          labs(x = '', y = '') +
-          theme(text = element_text(size = 14),
-                plot.margin = margin(t = 5.5, r = 5.5, b = 5.5, l = left_pad_pt, unit = "pt"))
-
-        # Absolute per-facet widths matching calc_plot_dims's budget. Applied
-        # to both layouts so unaffected facets (e.g. MAGMA) keep the same
-        # width when panels are added to TWAS/SMR facets, and so the plot
-        # renders at the same column widths in alphabetical and locus modes.
-        group_widths <- vapply(groups, function(g) {
-          panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
-          facet_target_width_pt(g, panel_names)
-        }, numeric(1))
-
-        if (locus_mode) {
-          # Locus bands (facet rows) x method groups (facet columns).
-          # space="free" sizes rows by gene count (kept). Column widths are
-          # overridden below to match the alphabetical-mode absolute widths.
-          heatmap <- heatmap +
-            facet_grid(Locus ~ Group, scales = "free", space = "free") +
-            theme(strip.text.y = element_text(angle = 0),
-                  panel.spacing.y = grid::unit(4, "pt"))
-        } else {
-          heatmap <- heatmap +
-            facet_wrap(~ Group, nrow = 1, scales = "free_x") +
-            scale_y_discrete(limits = unique(rev(all_func_res_all$ID)))
-        }
-
-        gt <- ggplot_gtable(ggplot_build(heatmap))
-        for (i in seq_along(groups)) {
-          # facet_wrap: panels named "panel-<i>-1"; facet_grid: "panel-<i>-<row>".
-          # All rows in column i share the same gtable `l` position.
-          panel_l <- unique(gt$layout$l[grepl(paste0('^panel-', i, '-\\d+$'), gt$layout$name)])
-          gt$widths[panel_l] <- grid::unit(group_widths[i], "pt")
-        }
-        grid.draw(gt)
-      } else {
-        NULL
-      }
+      gt <- build_mol_assoc_gtable(
+        all_func_res = all_func_res,
+        locus_mode = identical(input$mol_layout, "locus") && nrow(mol_locus_map()) > 0,
+        locus_map = mol_locus_map(),
+        left_pad_pt = plot_dim_mol()[["left_pad_pt"]],
+        font_size = input$plot_font_size %||% 14,
+        point_size = input$plot_point_size %||% 4,
+        theme_fn = mol_theme_fn(input$plot_theme),
+        title = input$plot_title %||% ""
+      )
+      if (!is.null(gt)) grid.draw(gt)
     })
 
     ########
@@ -668,5 +735,59 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         ))
       }
     })
+
+    ########
+    # Plot download: seed width/height from the plot's natural pt dimensions
+    # once data is loaded, then let the user override.
+    ########
+
+    dl_defaults_seeded <- reactiveVal(FALSE)
+    observeEvent(plot_dim_mol(), {
+      dims <- plot_dim_mol()
+      if (!dl_defaults_seeded() && dims$width > 100 && dims$height < 10000) {
+        updateNumericInput(session, "dl_width",  value = round(dims$width  / 72, 1))
+        updateNumericInput(session, "dl_height", value = round(dims$height / 72, 1))
+        dl_defaults_seeded(TRUE)
+      }
+    })
+
+    output$download_plot <- downloadHandler(
+      filename = function() {
+        sprintf("mol_assoc_summary_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$dl_format %||% "png")
+      },
+      content = function(file) {
+        all_func_res <- mol_assoc_summary_data_filtered()
+        if (is.null(all_func_res) || nrow(all_func_res) == 0) {
+          # Write a small placeholder so the file isn't empty on error.
+          grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
+          grid::grid.text("No data to plot.")
+          grDevices::dev.off()
+          return(invisible())
+        }
+        gt <- build_mol_assoc_gtable(
+          all_func_res = all_func_res,
+          locus_mode = identical(input$mol_layout, "locus") && nrow(mol_locus_map()) > 0,
+          locus_map = mol_locus_map(),
+          left_pad_pt = plot_dim_mol()[["left_pad_pt"]],
+          font_size = input$plot_font_size %||% 14,
+          point_size = input$plot_point_size %||% 4,
+          theme_fn = mol_theme_fn(input$plot_theme),
+          title = input$plot_title %||% ""
+        )
+        w <- input$dl_width  %||% 12
+        h <- input$dl_height %||% 8
+        fmt <- input$dl_format %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$dl_dpi %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        if (!is.null(gt)) grid::grid.draw(gt)
+        grDevices::dev.off()
+      }
+    )
   })
 }
