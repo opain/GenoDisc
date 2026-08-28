@@ -44,6 +44,21 @@ ui <- fluidPage(
     .gd-legend li {
           margin-bottom: 3px;
     }
+    /* fileInput: give the filename text extra left-padding so long names
+       don't creep under the Browse button, and make the upload progress
+       bar tall enough that the percentage is readable. */
+    .shiny-input-container .input-group .form-control {
+          padding-left: 16px;
+    }
+    .shiny-file-input-progress {
+          height: 24px !important;
+          margin-top: 6px;
+    }
+    .shiny-file-input-progress .progress-bar {
+          height: 24px !important;
+          line-height: 24px;
+          font-size: 13px;
+    }
   ")),
 
   theme = shinythemes::shinytheme("paper"),

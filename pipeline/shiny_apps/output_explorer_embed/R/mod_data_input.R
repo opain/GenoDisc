@@ -4,22 +4,27 @@ dataInputUI <- function(id) {
     title="Data Input",
     br(),
     p("This is an application for visualising the output of GenoDisc. To start, upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works), select a GWAS, and use the tabs to view interactive tables and plots of your results."),
-    p("Click ",a("here", href = "https://github.com/opain/GenoDisc"), " here to learn more about the pipeline. Please cite  ",a("our publication", href = "https://github.com/opain/GenoDisc"), "  and relevent software and datasets included in your analysis."),
     hr(),
     h5("Choose a bundle (.tar.gz) or legacy .rds file"),
     fileInput(ns("file"), NULL),
     h6('Or'),
     actionButton(ns("loadExample"), "Use example data"),
+    tags$div(style = "font-size: 0.85em; color: #6c757d; margin-top: 6px;",
+      "Example data: GenoDisc results for amyotrophic lateral sclerosis (ALS), ",
+      "generated from the European-ancestry GWAS meta-analysis of ",
+      tags$a("Van Rheenen et al. (2021, Nature Genetics)",
+             href = "https://pubmed.ncbi.nlm.nih.gov/34873335/",
+             target = "_blank", rel = "noopener noreferrer"), "."
+    ),
 
-    hr(),
-
-    h5("Select a GWAS"),
-    selectInput(ns("gwas_selector"), NULL, ""),
-    br(),
-    br(),
-    br(),
-    br(),
-    br()
+    shinyjs::hidden(
+      div(id = ns("gwas_selector_section"),
+        hr(),
+        h5("Select a GWAS"),
+        selectInput(ns("gwas_selector"), NULL, ""),
+        br(), br(), br(), br(), br()
+      )
+    )
   )
 }
 
@@ -46,21 +51,19 @@ dataInputServer <- function(id) {
     })
 
     observeEvent(input$loadExample, {
-      # Try new-format bundle first, then legacy .rds. Path is resolved
-      # against the module source file's directory (not getwd()) so the
-      # button works whether the app was launched from the app dir or not.
+      # Path is resolved against the module source file's directory (not
+      # getwd()) so the button works whether the app was launched from the
+      # app dir or not.
       here <- tryCatch(dirname(sys.frame(1L)$ofile), error = function(e) getwd())
       candidates <- c(
-        file.path(here, "..", "data", "example.tar.gz"),
-        file.path(here, "..", "data", "example.rds"),
-        file.path("data", "example.tar.gz"),
-        file.path("data", "example.rds")
+        file.path(here, "..", "data", "als_bundle.tar.gz"),
+        file.path("data", "als_bundle.tar.gz")
       )
       hit <- candidates[file.exists(candidates)][1]
       if (!is.na(hit)) {
         rds_path(normalizePath(hit, winslash = "/"))
       } else {
-        showNotification("Example data file not found (looked for data/example.tar.gz and data/example.rds).", type = "error")
+        showNotification("Example data file not found (looked for data/als_bundle.tar.gz).", type = "error")
       }
     })
 
@@ -80,6 +83,7 @@ dataInputServer <- function(id) {
 
     observeEvent(gwas_data(), {
       updateSelectInput(session, "gwas_selector", choices = gd_gwas(gwas_data()))
+      shinyjs::show("gwas_selector_section")
     })
 
     selected_gwas<-reactive({
