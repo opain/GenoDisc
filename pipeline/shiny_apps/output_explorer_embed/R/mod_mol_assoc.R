@@ -441,14 +441,16 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group",
                              facet_order = get_group_order())
 
-      # Per-locus layout adds a horizontal band (facet row) per locus plus a
+      # Per-locus layout adds panel spacing between locus bands (rows) plus a
       # right-hand locus strip, so allow extra height/width for that chrome.
+      # Vertical overhead is just `panel.spacing.y * (n_loci - 1)` (4pt gaps);
+      # anything more here would inflate gene row heights vs. alphabetical.
       if (identical(input$mol_layout, "locus")) {
         genes <- unique(all_func_res$ID[all_func_res$ID != 'Placeholder'])
         lmap <- mol_locus_map()
         n_loci <- length(unique(lmap$Locus[lmap$ID %in% genes]))
         if (any(!(genes %in% lmap$ID))) n_loci <- n_loci + 1  # trailing "Unplaced" band
-        dims$height <- dims$height + 30 * max(n_loci, 1)
+        dims$height <- dims$height + 4 * max(n_loci - 1, 0)
         dims$width  <- dims$width + 120
       }
       dims
@@ -560,35 +562,37 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
           theme(text = element_text(size = 14),
                 plot.margin = margin(t = 5.5, r = 5.5, b = 5.5, l = left_pad_pt, unit = "pt"))
 
+        # Absolute per-facet widths matching calc_plot_dims's budget. Applied
+        # to both layouts so unaffected facets (e.g. MAGMA) keep the same
+        # width when panels are added to TWAS/SMR facets, and so the plot
+        # renders at the same column widths in alphabetical and locus modes.
+        group_widths <- vapply(groups, function(g) {
+          panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
+          facet_target_width_pt(g, panel_names)
+        }, numeric(1))
+
         if (locus_mode) {
-          # Locus bands (facet rows) x method groups (facet columns). space="free"
-          # sizes each band by its gene count and each column by its panel count,
-          # so the manual gtable width hack used below is not needed here.
+          # Locus bands (facet rows) x method groups (facet columns).
+          # space="free" sizes rows by gene count (kept). Column widths are
+          # overridden below to match the alphabetical-mode absolute widths.
           heatmap <- heatmap +
             facet_grid(Locus ~ Group, scales = "free", space = "free") +
             theme(strip.text.y = element_text(angle = 0),
                   panel.spacing.y = grid::unit(4, "pt"))
-          print(heatmap)
         } else {
-          # Absolute per-facet widths matching calc_plot_dims's budget, so
-          # unaffected facets (e.g. MAGMA) keep the same width when panels are
-          # added to TWAS/SMR facets.
-          group_widths <- vapply(groups, function(g) {
-            panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
-            facet_target_width_pt(g, panel_names)
-          }, numeric(1))
-
           heatmap <- heatmap +
             facet_wrap(~ Group, nrow = 1, scales = "free_x") +
             scale_y_discrete(limits = unique(rev(all_func_res_all$ID)))
-
-          gt <- ggplot_gtable(ggplot_build(heatmap))
-          for (i in seq_along(groups)) {
-            panel_l <- gt$layout$l[grepl(paste0('^panel-', i, '-1$'), gt$layout$name)]
-            gt$widths[panel_l] <- grid::unit(group_widths[i], "pt")
-          }
-          grid.draw(gt)
         }
+
+        gt <- ggplot_gtable(ggplot_build(heatmap))
+        for (i in seq_along(groups)) {
+          # facet_wrap: panels named "panel-<i>-1"; facet_grid: "panel-<i>-<row>".
+          # All rows in column i share the same gtable `l` position.
+          panel_l <- unique(gt$layout$l[grepl(paste0('^panel-', i, '-\\d+$'), gt$layout$name)])
+          gt$widths[panel_l] <- grid::unit(group_widths[i], "pt")
+        }
+        grid.draw(gt)
       } else {
         NULL
       }
