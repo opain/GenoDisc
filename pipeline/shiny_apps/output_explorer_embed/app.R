@@ -26,48 +26,6 @@ ui <- fluidPage(
 
   shinyjs::useShinyjs(),
 
-  # Self-report content height to a parent iframe (Django viewer listens for
-  # {type:'genodisc-iframe-height', height} and resizes the iframe to match).
-  # The CSS override lets the document grow to its content instead of being
-  # pinned to viewport height, so scrollHeight measures real content.
-  tags$head(
-    tags$style(HTML(
-      "html, body { height: auto !important; min-height: 0 !important; overflow: hidden !important; }"
-    )),
-    tags$script(HTML("
-      (function() {
-        var last = -1, timer = null;
-        function post() {
-          var h = Math.ceil(document.documentElement.scrollHeight);
-          if (h === last) return;
-          last = h;
-          try {
-            window.parent.postMessage({ type: 'genodisc-iframe-height', height: h }, '*');
-          } catch (e) {}
-        }
-        function schedule() {
-          if (timer) clearTimeout(timer);
-          timer = setTimeout(post, 100);
-        }
-
-        if (document.readyState !== 'loading') schedule();
-        document.addEventListener('DOMContentLoaded', schedule);
-        window.addEventListener('load', schedule);
-
-        document.addEventListener('shiny:idle', schedule);
-        document.addEventListener('shiny:value', schedule);
-        document.addEventListener('shown.bs.tab', schedule);
-
-        if (typeof ResizeObserver !== 'undefined') {
-          var ro = new ResizeObserver(schedule);
-          function attach() { if (document.body) ro.observe(document.body); }
-          if (document.body) attach();
-          else document.addEventListener('DOMContentLoaded', attach);
-        }
-      })();
-    "))
-  ),
-
   tags$style(HTML("
     .custom-panel {
           padding: 20px;
