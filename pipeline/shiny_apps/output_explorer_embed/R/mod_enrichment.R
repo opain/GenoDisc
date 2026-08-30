@@ -9,6 +9,61 @@ enr_theme_fn <- function(name) {
   )
 }
 
+#' Build the tissue-enrichment lollipop plot as a ggplot object.
+#'
+#' Shared by the on-screen `renderPlot` and the download handler so saved
+#' files match what's on screen. Returns `NULL` if there's no data.
+#'
+#' @param d Filtered tissue data (Tissue, negLog10P, FDR_Sig, Retained).
+#' @param n_total Total number of tissues before filtering — used to derive
+#'   the Bonferroni threshold line.
+#' @param font_size Base font size in pt.
+#' @param point_size Point size for the dots.
+#' @param theme_fn A ggplot theme function (e.g. `ggplot2::theme_bw`).
+#' @param title Optional plot title; empty string draws no title.
+build_tissue_plot <- function(d, n_total, sort_choice = "significance",
+                               font_size = 13, point_size = 3,
+                               theme_fn = ggplot2::theme_bw, title = "") {
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+
+  # For y-axis, first factor level renders at the BOTTOM of the plot.
+  # Significance: least-significant at bottom, most at top.
+  # Alphabetical: A at top, Z at bottom → reverse-alphabetical factor order.
+  if (identical(sort_choice, "alphabetical")) {
+    d <- d[order(as.character(d$Tissue), decreasing = TRUE), ]
+  } else {
+    d <- d[order(d$negLog10P), ]
+  }
+  d$Label <- ifelse(d$Retained, paste0(d$Tissue, " *"), d$Tissue)
+  d$Label <- factor(d$Label, levels = d$Label)
+  face_vec <- ifelse(d$Retained, "bold", "plain")
+
+  nom_line  <- -log10(0.05)
+  bonf_line <- -log10(0.05 / max(n_total, 1))
+
+  ggplot2::ggplot(d, ggplot2::aes(x = negLog10P, y = Label)) +
+    ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
+                          colour = "grey78", linewidth = 0.6) +
+    ggplot2::geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey55") +
+    ggplot2::geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey35") +
+    ggplot2::geom_point(ggplot2::aes(fill = FDR_Sig),
+                        shape = 21, size = point_size, colour = "black", stroke = 0.4) +
+    ggplot2::scale_fill_manual(
+      values = c(`FALSE` = "white", `TRUE` = "#0f766e"),
+      labels = c(`FALSE` = "Not FDR-significant", `TRUE` = "FDR-significant"),
+      name = NULL) +
+    ggplot2::labs(x = expression(-log[10](italic(P))), y = NULL,
+                  title = if (nzchar(title)) title else NULL) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.y = ggplot2::element_text(face = face_vec),
+      legend.position = "top",
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank(),
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+    )
+}
+
 #' Build the drug-enrichment summary heatmap as a gtable
 #'
 #' Shared by the on-screen `renderPlot` and the download handler so downloaded
@@ -627,29 +682,89 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
           tissue_tab <- tabPanel(
             title="Tissue", br(),
-            p("MAGMA tissue-specific enrichment across GTEx v8 tissues. Filled square = FDR-significant (P.FDR < 0.05); bold label with * = retained in the conditional analysis (still significant after conditioning on the other FDR-significant tissues)."),
+            p("MAGMA tissue-specific enrichment across GTEx v8 tissues. Each dot is a tissue; further right means stronger enrichment. Filled teal dots are FDR-significant; a bold label with * means the tissue is retained in the conditional analysis. Use ", tags$b("Filter data"), " to restrict which tissues appear and ", tags$b("Plot options"), " to customise or download the figure."),
             hr(),
-            fluidPage(
-              sidebarPanel(
-                radioButtons(ns("conf_only_tissue"), "Show FDR significant only :",
-                             choices = c("True" = T, "False" = F), selected = F),
-                width = 3
-              ),
-              mainPanel(
-                plotOutput(ns("tx_tissue_plot"), height = "700px"),
-                gd_legend(list(
-                  "X-axis" = "-log10(p-value) for tissue-specific expression enrichment; further right = stronger.",
-                  "Y-axis" = "GTEx v8 tissue, ordered by significance.",
-                  "Filled black square" = "FDR-significant (P.FDR < 0.05).",
-                  "Bold label with *" = "Retained in the conditional analysis (still significant after conditioning on the other significant tissues).",
-                  "Dashed / dotted vertical lines" = "Nominal significance (p = 0.05) and the Bonferroni threshold."
-                ), heading = "How to read this plot"),
-                br(),
-                dataTableOutput(ns("tx_tissue_table")),
-                enr_legend("tissue"),
-                width = 9
+            tags$details(class = "gd-details",
+              tags$summary("Filter data"),
+              tags$div(class = "gd-details-body",
+                tags$p(class = "gd-details-intro",
+                  "Restrict which tissues appear in the plot and how they are ordered."),
+                fluidRow(
+                  column(4,
+                    selectInput(ns("selected_tissues_tissue"),
+                                "Include these tissues:",
+                                choices = sort(unique(tissue_data$Tissue)),
+                                selected = sort(unique(tissue_data$Tissue)),
+                                multiple = TRUE)
+                  ),
+                  column(4,
+                    selectInput(ns("sort_tissue"), "Sort tissues by:",
+                                choices = c("Significance" = "significance",
+                                            "Alphabetical" = "alphabetical"),
+                                selected = "significance")
+                  ),
+                  column(4,
+                    radioButtons(ns("conf_only_tissue"),
+                                 "Show FDR-significant tissues only :",
+                                 choices = c("True" = T, "False" = F),
+                                 selected = F)
+                  )
+                )
               )
-            )
+            ),
+            tags$details(class = "gd-details",
+              tags$summary("Plot options"),
+              tags$div(class = "gd-details-body",
+                tags$p(class = "gd-details-intro",
+                  "Customise how the plot looks (title, theme, font size, point size) ",
+                  "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+                fluidRow(
+                  column(4,
+                    textInput(ns("plot_title_tissue"), "Plot title (optional):", value = ""),
+                    selectInput(ns("plot_theme_tissue"), "Theme:",
+                                choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                            "Classic" = "classic", "Light" = "light"),
+                                selected = "bw")
+                  ),
+                  column(4,
+                    sliderInput(ns("plot_font_size_tissue"), "Font size (pt):",
+                                min = 8, max = 20, value = 13, step = 1),
+                    sliderInput(ns("plot_point_size_tissue"), "Point size:",
+                                min = 1, max = 8, value = 3, step = 1)
+                  ),
+                  column(4,
+                    selectInput(ns("dl_format_tissue"), "Download format:",
+                                choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                                selected = "png"),
+                    numericInput(ns("dl_width_tissue"), "Width (inches):",
+                                 value = 8, min = 2, max = 40, step = 0.5),
+                    numericInput(ns("dl_height_tissue"), "Height (inches):",
+                                 value = 9, min = 2, max = 40, step = 0.5),
+                    conditionalPanel(
+                      condition = sprintf("input['%s'] == 'png'", ns("dl_format_tissue")),
+                      numericInput(ns("dl_dpi_tissue"), "Resolution (DPI, PNG only):",
+                                   value = 300, min = 72, max = 600, step = 25)
+                    ),
+                    downloadButton(ns("download_plot_tissue"), "Download plot")
+                  )
+                )
+              )
+            ),
+            br(),
+            tags$div(style = "max-width: 900px;",
+              plotOutput(ns("tx_tissue_plot"), height = "700px")
+            ),
+            gd_legend(list(
+              "X-axis" = "-log10(p-value) for tissue-specific expression enrichment; further right = stronger.",
+              "Y-axis" = "GTEx v8 tissue, ordered by significance or alphabetically (chosen in Filter data).",
+              "Filled teal dot" = "FDR-significant (P.FDR < 0.05).",
+              "Bold label with *" = "Retained in the conditional analysis (still significant after conditioning on the other significant tissues).",
+              "Dashed / dotted vertical lines" = "Nominal significance (p = 0.05) and the Bonferroni threshold."
+            ), heading = "How to read this plot"),
+            br(),
+            fluidRow(column(width = 8, dataTableOutput(ns("tx_tissue_table")))),
+            enr_legend("tissue"),
+            br()
           )
         }
       }
@@ -1505,6 +1620,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     tx_tissue_data_filtered <- reactive({
       d <- tx_tissue_data()
       if (is.null(d)) return(NULL)
+      picked <- input$selected_tissues_tissue
+      if (!is.null(picked) && length(picked) > 0) {
+        d <- d[d$Tissue %in% picked, ]
+      }
       if (isTRUE(as.logical(input$conf_only_tissue))) {
         d <- d[which(d$FDR_Sig), ]
       }
@@ -1514,33 +1633,52 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     output$tx_tissue_plot <- renderPlot({
       d <- tx_tissue_data_filtered()
       if (is.null(d) || nrow(d) == 0) return(NULL)
-
-      d <- d[order(d$negLog10P), ]
-      d$Label <- ifelse(d$Retained, paste0(d$Tissue, " *"), d$Tissue)
-      d$Label <- factor(d$Label, levels = d$Label)
-      face_vec <- ifelse(d$Retained, "bold", "plain")
-
-      n_tissues <- nrow(tx_tissue_data())
-      nom_line  <- -log10(0.05)
-      bonf_line <- -log10(0.05 / n_tissues)
-
-      ggplot(d, aes(x = negLog10P, y = Label)) +
-        geom_segment(aes(x = 0, xend = negLog10P, yend = Label), colour = "grey60") +
-        geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey50") +
-        geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey30") +
-        geom_point(aes(shape = FDR_Sig, fill = FDR_Sig), size = 3, colour = "black") +
-        scale_shape_manual(values = c(`FALSE` = 21, `TRUE` = 22),
-                           labels = c(`FALSE` = "Not FDR-sig", `TRUE` = "FDR-sig"),
-                           name = NULL) +
-        scale_fill_manual(values = c(`FALSE` = "white", `TRUE` = "black"),
-                          labels = c(`FALSE` = "Not FDR-sig", `TRUE` = "FDR-sig"),
-                          name = NULL) +
-        labs(x = expression(-log[10](italic(P))), y = NULL) +
-        theme_bw(base_size = 12) +
-        theme(axis.text.y = element_text(face = face_vec),
-              legend.position = "top",
-              panel.grid.major.y = element_blank())
+      build_tissue_plot(
+        d = d,
+        n_total = nrow(tx_tissue_data()),
+        sort_choice = input$sort_tissue %||% "significance",
+        font_size = input$plot_font_size_tissue %||% 13,
+        point_size = input$plot_point_size_tissue %||% 3,
+        theme_fn = enr_theme_fn(input$plot_theme_tissue),
+        title = input$plot_title_tissue %||% ""
+      )
     })
+
+    output$download_plot_tissue <- downloadHandler(
+      filename = function() {
+        sprintf("tissue_enrichment_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$dl_format_tissue %||% "png")
+      },
+      content = function(file) {
+        p <- build_tissue_plot(
+          d = tx_tissue_data_filtered(),
+          n_total = nrow(tx_tissue_data() %||% data.frame()),
+          sort_choice = input$sort_tissue %||% "significance",
+          font_size = input$plot_font_size_tissue %||% 13,
+          point_size = input$plot_point_size_tissue %||% 3,
+          theme_fn = enr_theme_fn(input$plot_theme_tissue),
+          title = input$plot_title_tissue %||% ""
+        )
+        if (is.null(p)) {
+          grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
+          grid::grid.text("No tissues to plot.")
+          grDevices::dev.off()
+          return(invisible())
+        }
+        w <- input$dl_width_tissue  %||% 8
+        h <- input$dl_height_tissue %||% 9
+        fmt <- input$dl_format_tissue %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$dl_dpi_tissue %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        print(p)
+        grDevices::dev.off()
+      }
+    )
 
     output$tx_tissue_table <- renderDataTable({
       d <- tx_tissue_data_filtered()
