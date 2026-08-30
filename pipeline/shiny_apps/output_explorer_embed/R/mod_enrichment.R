@@ -345,30 +345,53 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Build Drug sub-tabs
       drug_tabs <- list(
         tabPanel(title="Summary", br(),
-          fluidPage(
-            sidebarPanel(
-              selectInput(ns("selected_methods_drug"), "Select methods", choices=drug_methods, selected=drug_methods, multiple=T),
-              selectInput(ns("selected_expr_panels_drug"), "Select expression panels", choices=drug_expr_panels, selected=drug_expr_panels, multiple=T),
-              radioButtons(ns("conf_only_drug"), "Show FDR significant only :",
-                           choices = c("True" = T, "False" = F), selected = T),
-              textInput(ns("drugInput_drug"), "Search drug (whitespace- or comma-seperated):"),
-              textInput(ns("atcInput_drug"), "Search ATC Code (whitespace- or comma-seperated):"),
-              selectInput(ns("selected_sort_drug"), "Sort by:", '', multiple = F),
-              hr(),
-              tags$details(
-                class = "gd-details",
-                tags$summary("Plot options"),
-                tags$div(class = "gd-details-body",
+          p("This tab shows a heatmap summarising, for each candidate drug, whether the genes it targets are enriched for association with the trait across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
+          hr(),
+          tags$details(class = "gd-details",
+            tags$summary("Filter data"),
+            tags$div(class = "gd-details-body",
+              tags$p(class = "gd-details-intro",
+                "Choose which drug-enrichment results appear in the heatmap, ",
+                "restrict the view to specific drugs or ATC classes, and choose ",
+                "how to sort the rows."),
+              fluidRow(
+                column(4,
+                  selectInput(ns("selected_methods_drug"), "Include results from these methods:", choices=drug_methods, selected=drug_methods, multiple=T),
+                  selectInput(ns("selected_expr_panels_drug"), "Include expression / splicing panels:", choices=drug_expr_panels, selected=drug_expr_panels, multiple=T)
+                ),
+                column(4,
+                  textInput(ns("drugInput_drug"), "Show only these drugs (comma- or space-separated):"),
+                  textInput(ns("atcInput_drug"), "Show only these ATC codes (comma- or space-separated):")
+                ),
+                column(4,
+                  selectInput(ns("selected_sort_drug"), "Sort rows by:", '', multiple = F),
+                  radioButtons(ns("conf_only_drug"), "Show FDR-significant drugs only :",
+                               choices = c("True" = T, "False" = F), selected = T)
+                )
+              )
+            )
+          ),
+          tags$details(class = "gd-details",
+            tags$summary("Plot options"),
+            tags$div(class = "gd-details-body",
+              tags$p(class = "gd-details-intro",
+                "Customise how the heatmap looks (title, theme, font size, point size) ",
+                "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+              fluidRow(
+                column(4,
                   textInput(ns("plot_title_drug"), "Plot title (optional):", value = ""),
                   selectInput(ns("plot_theme_drug"), "Theme:",
                               choices = c("Black & white" = "bw", "Minimal" = "minimal",
                                           "Classic" = "classic", "Light" = "light"),
-                              selected = "bw"),
+                              selected = "bw")
+                ),
+                column(4,
                   sliderInput(ns("plot_font_size_drug"), "Font size (pt):",
                               min = 10, max = 20, value = 14, step = 1),
                   sliderInput(ns("plot_point_size_drug"), "Point size:",
-                              min = 2, max = 8, value = 5, step = 1),
-                  hr(),
+                              min = 2, max = 8, value = 5, step = 1)
+                ),
+                column(4,
                   selectInput(ns("dl_format_drug"), "Download format:",
                               choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                               selected = "png"),
@@ -384,13 +407,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
                   downloadButton(ns("download_plot_drug"), "Download plot")
                 )
               )
-            ),
-            mainPanel(
-              uiOutput(ns("message_too_large_drug")),
-              uiOutput(ns("message_no_drugs_drug")),
-              uiOutput(ns("tx_drug_plot.ui"))
             )
-          )
+          ),
+          br(),
+          uiOutput(ns("message_too_large_drug")),
+          uiOutput(ns("message_no_drugs_drug")),
+          uiOutput(ns("tx_drug_plot.ui"))
         )
       )
       if (cf$magma_drugtargetor) {
@@ -421,29 +443,52 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Build ATC sub-tabs
       atc_tabs <- list(
         tabPanel(title="Summary", br(),
-          fluidPage(
-            sidebarPanel(
-              selectInput(ns("selected_methods_atc"), "Select methods", choices=atc_methods, selected=atc_methods, multiple=T),
-              selectInput(ns("selected_expr_panels_atc"), "Select expression panels", choices=atc_expr_panels, selected=atc_expr_panels, multiple=T),
-              radioButtons(ns("conf_only_atc"), "Show FDR significant only :",
-                           choices = c("True" = T, "False" = F), selected = T),
-              textInput(ns("atcInput_atc"), "Search ATC Code (whitespace- or comma-seperated):"),
-              selectInput(ns("selected_sort_atc"), "Sort by:", '', multiple = F),
-              hr(),
-              tags$details(
-                class = "gd-details",
-                tags$summary("Plot options"),
-                tags$div(class = "gd-details-body",
+          p("This tab shows a heatmap summarising, for each ATC drug class, whether drugs in that class collectively target genes enriched for trait association, across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
+          hr(),
+          tags$details(class = "gd-details",
+            tags$summary("Filter data"),
+            tags$div(class = "gd-details-body",
+              tags$p(class = "gd-details-intro",
+                "Choose which ATC-class enrichment results appear in the heatmap, ",
+                "restrict the view to specific ATC codes, and choose how to sort ",
+                "the rows."),
+              fluidRow(
+                column(4,
+                  selectInput(ns("selected_methods_atc"), "Include results from these methods:", choices=atc_methods, selected=atc_methods, multiple=T),
+                  selectInput(ns("selected_expr_panels_atc"), "Include expression / splicing panels:", choices=atc_expr_panels, selected=atc_expr_panels, multiple=T)
+                ),
+                column(4,
+                  textInput(ns("atcInput_atc"), "Show only these ATC codes (comma- or space-separated):")
+                ),
+                column(4,
+                  selectInput(ns("selected_sort_atc"), "Sort rows by:", '', multiple = F),
+                  radioButtons(ns("conf_only_atc"), "Show FDR-significant classes only :",
+                               choices = c("True" = T, "False" = F), selected = T)
+                )
+              )
+            )
+          ),
+          tags$details(class = "gd-details",
+            tags$summary("Plot options"),
+            tags$div(class = "gd-details-body",
+              tags$p(class = "gd-details-intro",
+                "Customise how the heatmap looks (title, theme, font size, point size) ",
+                "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+              fluidRow(
+                column(4,
                   textInput(ns("plot_title_atc"), "Plot title (optional):", value = ""),
                   selectInput(ns("plot_theme_atc"), "Theme:",
                               choices = c("Black & white" = "bw", "Minimal" = "minimal",
                                           "Classic" = "classic", "Light" = "light"),
-                              selected = "bw"),
+                              selected = "bw")
+                ),
+                column(4,
                   sliderInput(ns("plot_font_size_atc"), "Font size (pt):",
                               min = 10, max = 20, value = 14, step = 1),
                   sliderInput(ns("plot_point_size_atc"), "Point size:",
-                              min = 2, max = 8, value = 5, step = 1),
-                  hr(),
+                              min = 2, max = 8, value = 5, step = 1)
+                ),
+                column(4,
                   selectInput(ns("dl_format_atc"), "Download format:",
                               choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                               selected = "png"),
@@ -459,13 +504,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
                   downloadButton(ns("download_plot_atc"), "Download plot")
                 )
               )
-            ),
-            mainPanel(
-              uiOutput(ns("message_too_large_atc")),
-              uiOutput(ns("message_no_atcs_atc")),
-              uiOutput(ns("tx_atc_plot.ui"))
             )
-          )
+          ),
+          br(),
+          uiOutput(ns("message_too_large_atc")),
+          uiOutput(ns("message_no_atcs_atc")),
+          uiOutput(ns("tx_atc_plot.ui"))
         )
       )
       if (cf$magma_drugtargetor) {
