@@ -466,6 +466,22 @@ ui <- fluidPage(
       background: var(--gd-accent);
     }
 
+    /* ===== Plot outputs =====
+       Round the corners of every plotOutput visually via overflow:hidden on
+       the wrapper. The underlying <img> stays rectangular, so right-click →
+       Save Image As downloads the original unrounded PNG. */
+    .shiny-plot-output {
+      border-radius: var(--gd-r-card);
+      overflow: hidden;
+    }
+    /* Same rounding for the pre-rendered PNG plots that some tabs load from
+       the bundle (GWAS QC, SNP assoc). These are embedded as base64 data
+       URLs — border-radius on <img> is a render-time effect only, so
+       right-click Save Image As still gets the rectangular original. */
+    img[src^='data:image/png'] {
+      border-radius: var(--gd-r-card);
+    }
+
     /* ===== Theme toggle button (fixed top-right) ===== */
     .gd-theme-toggle {
       position: fixed;
