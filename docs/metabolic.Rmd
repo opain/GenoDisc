@@ -15,24 +15,6 @@ library(knitr)
 ```
 
 ```{r}
-a <- fread('/scratch/prj/ukbiobank/metabolomic/MORT01_munged.txt.gz')
-plot(a$FREQ[1:100000],a$FRQ[1:100000])
-```
-
-```{bash}
-zcat /scratch/prj/ukbiobank/metabolomic/MORT01_munged.txt.gz | \
-awk 'BEGIN{FS=OFS="\t"} 
-NR==1 {for (i=1;i<=NF;i++) if ($i=="FREQ") col=i}
-{ $col=""; $1=$1; print }' | gzip > /scratch/prj/ukbiobank/metabolomic/MORT01_noFREQ.txt.gz
-
-zcat /scratch/prj/ukbiobank/metabolomic/MILEAGE01_munged.txt.gz | \
-awk 'BEGIN{FS=OFS="\t"} 
-NR==1 {for (i=1;i<=NF;i++) if ($i=="FREQ") col=i}
-{ $col=""; $1=$1; print }' | gzip > /scratch/prj/ukbiobank/metabolomic/MILEAGE01_noFREQ.txt.gz
-
-```
-
-```{r}
 
 dir.create('/users/k1806347/oliverpainfel/Analyses/metabolic/config/', recursive = T)
 
@@ -70,6 +52,19 @@ gwas_list <- rbind(
     sd = NA,
     label = 'MORT01'))
 
+gwas_list <- rbind(
+  gwas_list,
+  data.table(
+    name = 'PACNI',
+    path = '/scratch/prj/ukbiobank/metabolomic/PACNI.txt.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'PACNI'))
+
 write.table(gwas_list, '/users/k1806347/oliverpainfel/Analyses/metabolic/config/gwas_list.txt', row.names = F)
 
 ####
@@ -78,6 +73,7 @@ write.table(gwas_list, '/users/k1806347/oliverpainfel/Analyses/metabolic/config/
 
 config <- c(
   "outdir: /users/k1806347/oliverpainfel/Analyses/metabolic/output", 
+  "resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources", 
   "config_file: /users/k1806347/oliverpainfel/Analyses/metabolic/config/config.yaml", 
   "gwas_list: /users/k1806347/oliverpainfel/Analyses/metabolic/config/gwas_list.txt", 
   "clump: T", 
@@ -99,15 +95,18 @@ write.table(config, '/users/k1806347/oliverpainfel/Analyses/metabolic/config/con
 ```
 
 ```{bash}
-cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
-conda activate genodisc
-  
+# Load conda env
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+
+# Go to pipeline directory
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+
 snakemake \
+  -n \
+  --profile slurm \
   --configfile=/users/k1806347/oliverpainfel/Analyses/metabolic/config/config.yaml \
   --use-conda \
-  --profile slurm \
-  run_package_results \
-  --retries 3 \
-  -n
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
 
 ```
