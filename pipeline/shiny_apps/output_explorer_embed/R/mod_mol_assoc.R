@@ -203,82 +203,135 @@ molAssocUI <- function(id) {
       tabPanel(
         title = "Summary",
         br(),
-        fluidPage(
-          sidebarPanel(
-            selectInput(ns("selected_methods_mol"), "Select methods", "", multiple = T),
-            selectInput(ns("selected_expr_panels_mol"), "Select expression panels", "", multiple = T),
-            selectInput(ns("selected_protein_panels_mol"), "Select protein panels", "", multiple = T),
-            radioButtons(ns("conf_only_mol"), "Show high-confidence only :",
-                         choices = c("True" = T, "False" = F), selected = T),
-            radioButtons(ns("mol_layout"), "Feature ordering:",
-                         choices = c("Alphabetical" = "alphabetical",
-                                     "By locus (genomic position)" = "locus"),
-                         selected = "alphabetical"),
-            textInput(ns("geneInput_mol"), "Enter gene symbols (whitespace- or comma-seperated):"),
-            hr(),
-            h5('Select high confidence criteria:'),
-            selectInput(ns("selected_group_hc_mol"), "Select methods", "", multiple = T),
-            hr(),
-            tags$style(HTML("
-              .gd-plot-options > summary {
-                cursor: pointer;
-                padding: 8px 12px;
-                background: #f5f5f5;
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                font-weight: bold;
-                user-select: none;
-                list-style: none;
-              }
-              .gd-plot-options > summary::-webkit-details-marker { display: none; }
-              .gd-plot-options > summary::before {
-                content: '\\25B8';
-                display: inline-block;
-                width: 1em;
-                margin-right: 4px;
-                transition: transform 0.15s ease;
-              }
-              .gd-plot-options[open] > summary::before { transform: rotate(90deg); }
-              .gd-plot-options > summary:hover { background: #e9e9e9; }
-              .gd-plot-options[open] > summary { margin-bottom: 10px; }
-            ")),
-            tags$details(
-              class = "gd-plot-options",
-              tags$summary("Plot options"),
-              textInput(ns("plot_title"), "Plot title (optional):", value = ""),
-              selectInput(ns("plot_theme"), "Theme:",
-                          choices = c("Black & white" = "bw",
-                                      "Minimal" = "minimal",
-                                      "Classic" = "classic",
-                                      "Light" = "light"),
-                          selected = "bw"),
-              sliderInput(ns("plot_font_size"), "Font size (pt):",
-                          min = 10, max = 20, value = 14, step = 1),
-              sliderInput(ns("plot_point_size"), "Point size:",
-                          min = 2, max = 8, value = 4, step = 1),
-              hr(),
-              selectInput(ns("dl_format"), "Download format:",
-                          choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
-                          selected = "png"),
-              numericInput(ns("dl_width"), "Width (inches):",
-                           value = 12, min = 2, max = 40, step = 0.5),
-              numericInput(ns("dl_height"), "Height (inches):",
-                           value = 8, min = 2, max = 40, step = 0.5),
-              conditionalPanel(
-                condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
-                numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
-                             value = 300, min = 72, max = 600, step = 25)
+        p("This tab shows a heatmap summarising, for each gene, whether it is associated with the trait across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
+        hr(),
+        tags$style(HTML("
+          .gd-details > summary {
+            cursor: pointer;
+            padding: 8px 12px;
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-weight: bold;
+            user-select: none;
+            list-style: none;
+            max-width: 1100px;
+          }
+          .gd-details > summary::-webkit-details-marker { display: none; }
+          .gd-details > summary::before {
+            content: '\\25B8';
+            display: inline-block;
+            width: 1em;
+            margin-right: 4px;
+            transition: transform 0.15s ease;
+            font-size: 1.35em;
+            line-height: 1;
+            vertical-align: -0.05em;
+          }
+          .gd-details[open] > summary::before { transform: rotate(90deg); }
+          .gd-details > summary:hover { background: #e9e9e9; }
+          /* When open, flatten the summary's bottom so it visually joins the body. */
+          .gd-details[open] > summary {
+            border-radius: 4px 4px 0 0;
+            border-bottom: none;
+          }
+          .gd-details + .gd-details { margin-top: 8px; }
+          /* Bordered grey box that continues from the summary and holds the controls. */
+          .gd-details-body {
+            padding: 12px 15px;
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 4px 4px;
+            max-width: 1100px;
+          }
+          .gd-details-intro {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 12px;
+          }
+          /* Cap multi-select height so a long panel list scrolls instead of
+             stretching its column far below the others. */
+          .gd-details .selectize-control.multi .selectize-input {
+            max-height: 120px;
+            overflow-y: auto;
+          }
+        ")),
+        tags$details(class = "gd-details",
+          tags$summary("Filter data"),
+          tags$div(class = "gd-details-body",
+            tags$p(class = "gd-details-intro",
+              "Choose which molecular-association results appear in the heatmap, ",
+              "restrict the view to specific genes, and decide how a gene is ",
+              "labelled ", tags$em("high-confidence"), "."),
+            fluidRow(
+              column(4,
+                selectInput(ns("selected_methods_mol"), "Include results from these methods:", "", multiple = T),
+                selectInput(ns("selected_expr_panels_mol"), "Include expression / splicing panels:", "", multiple = T),
+                selectInput(ns("selected_protein_panels_mol"), "Include protein panels:", "", multiple = T)
               ),
-              downloadButton(ns("download_plot"), "Download plot")
+              column(4,
+                textInput(ns("geneInput_mol"), "Show only these genes (comma- or space-separated):"),
+                selectInput(ns("selected_group_hc_mol"),
+                            "Define 'high-confidence' as significant in any of:",
+                            "", multiple = T)
+              ),
+              column(4,
+                radioButtons(ns("mol_layout"), "Feature ordering:",
+                             choices = c("Alphabetical" = "alphabetical",
+                                         "By locus (genomic position)" = "locus"),
+                             selected = "alphabetical"),
+                radioButtons(ns("conf_only_mol"), "Show high-confidence genes only :",
+                             choices = c("True" = T, "False" = F), selected = T)
+              )
             )
-          ),
-          mainPanel(
-            uiOutput(ns("message_too_large_mol")),
-            uiOutput(ns("message_no_genes_mol")),
-            uiOutput(ns("message_no_positions_mol")),
-            uiOutput(ns("mol_assoc_plot.ui"))
           )
-        )
+        ),
+        tags$details(class = "gd-details",
+          tags$summary("Plot options"),
+          tags$div(class = "gd-details-body",
+            tags$p(class = "gd-details-intro",
+              "Customise how the heatmap looks (title, theme, font size, point size) ",
+              "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+            fluidRow(
+              column(4,
+                textInput(ns("plot_title"), "Plot title (optional):", value = ""),
+                selectInput(ns("plot_theme"), "Theme:",
+                            choices = c("Black & white" = "bw",
+                                        "Minimal" = "minimal",
+                                        "Classic" = "classic",
+                                        "Light" = "light"),
+                            selected = "bw")
+              ),
+              column(4,
+                sliderInput(ns("plot_font_size"), "Font size (pt):",
+                            min = 10, max = 20, value = 14, step = 1),
+                sliderInput(ns("plot_point_size"), "Point size:",
+                            min = 2, max = 8, value = 4, step = 1)
+              ),
+              column(4,
+                selectInput(ns("dl_format"), "Download format:",
+                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                            selected = "png"),
+                numericInput(ns("dl_width"), "Width (inches):",
+                             value = 12, min = 2, max = 40, step = 0.5),
+                numericInput(ns("dl_height"), "Height (inches):",
+                             value = 8, min = 2, max = 40, step = 0.5),
+                conditionalPanel(
+                  condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
+                  numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
+                               value = 300, min = 72, max = 600, step = 25)
+                ),
+                downloadButton(ns("download_plot"), "Download plot")
+              )
+            )
+          )
+        ),
+        br(),
+        uiOutput(ns("message_too_large_mol")),
+        uiOutput(ns("message_no_genes_mol")),
+        uiOutput(ns("message_no_positions_mol")),
+        uiOutput(ns("mol_assoc_plot.ui"))
       ),
       tabPanel(title = "MAGMA", br(),
         p("This tab shows MAGMA gene association results."), hr(), br(),
