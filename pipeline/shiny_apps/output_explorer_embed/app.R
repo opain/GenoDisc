@@ -26,8 +26,10 @@ ui <- fluidPage(
 
   shinyjs::useShinyjs(),
 
-  # GenoDisc-web design tokens (light mode) mirrored from the Django app's
-  # _design_system.html so the two look congruent.
+  # GenoDisc-web design tokens (light + dark) mirrored from the Django app's
+  # _design_system.html so the two look congruent. Dark is the default; users
+  # opt into light and the choice persists via localStorage['genodisc_theme'],
+  # matching Django's key and semantics.
   tags$head(
     tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
     tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = ""),
@@ -35,11 +37,74 @@ ui <- fluidPage(
               href = paste0("https://fonts.googleapis.com/css2?",
                             "family=Inter+Tight:wght@400;500;600;700&",
                             "family=Montserrat:wght@500;600&",
-                            "display=swap"))
+                            "display=swap")),
+    # Pre-paint: restore saved theme before body renders (no flash).
+    tags$script(HTML("
+      (function () {
+        try {
+          if (localStorage.getItem('genodisc_theme') === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+        } catch (e) {}
+      })();
+    ")),
+    # Wire up the toggle button once the DOM is ready.
+    tags$script(HTML("
+      document.addEventListener('DOMContentLoaded', function () {
+        var KEY = 'genodisc_theme';
+        var btn = document.getElementById('themeToggle');
+        if (!btn) return;
+        btn.addEventListener('click', function () {
+          var light = document.documentElement.getAttribute('data-theme') === 'light';
+          if (light) {
+            document.documentElement.removeAttribute('data-theme');
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light');
+          }
+          try { localStorage.setItem(KEY, light ? 'dark' : 'light'); } catch (e) {}
+        });
+      });
+    "))
   ),
 
   tags$style(HTML("
     :root {
+      /* Dark defaults — mirrors Django _design_system.html :root. */
+      --gd-bg:        #0c0f14;
+      --gd-bg-2:      #11151c;
+      --gd-panel:     #161b24;
+      --gd-panel-2:   #1c2330;
+      --gd-border:    #242b3a;
+      --gd-border-2:  #2e3647;
+      --gd-text:      #e8ecf2;
+      --gd-text-dim:  #c9d1e1;
+      --gd-text-mute: #c9d1e1;
+      --gd-accent:    #7df0c4;
+      --gd-accent-h:  #66d9ab;
+      --gd-accent-2:  #f3c969;
+      --gd-accent-3:  #9eb6ff;
+      --gd-danger:    #ff8985;
+      --gd-shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+      --gd-shadow:    0 8px 24px rgba(0,0,0,.35);
+      --gd-focus-ring: rgba(125,240,196,.20);
+      --gd-pill-bg:    rgba(125,240,196,.10);
+      --gd-pill-text:  #7df0c4;
+      /* Text colour on an --gd-accent background. Accent is a bright mint in
+         dark mode, so use a dark ink; light mode uses white on dark teal. */
+      --gd-accent-text: #0c0f14;
+      /* Subtle darker/lighter tint for hover states over --gd-panel-2 */
+      --gd-hover-bg: #242b3a;
+      /* Alt-row background for banded tables (noticeably lighter than panel). */
+      --gd-band:    #21293a;
+      --gd-r-btn: 10px;
+      --gd-r-input: 6px;
+      --gd-r-card: 16px;
+      --gd-font-body: 'Inter Tight', -apple-system, BlinkMacSystemFont,
+                     'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --gd-font-head: 'Montserrat', -apple-system, BlinkMacSystemFont,
+                     'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    :root[data-theme='light'] {
       --gd-bg:        #f6f7f9;
       --gd-bg-2:      #eceef2;
       --gd-panel:     #ffffff;
@@ -56,13 +121,12 @@ ui <- fluidPage(
       --gd-danger:    #dc2626;
       --gd-shadow-sm: 0 1px 2px rgba(0,0,0,.06);
       --gd-shadow:    0 8px 24px rgba(0,0,0,.10);
-      --gd-r-btn: 10px;
-      --gd-r-input: 6px;
-      --gd-r-card: 16px;
-      --gd-font-body: 'Inter Tight', -apple-system, BlinkMacSystemFont,
-                     'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      --gd-font-head: 'Montserrat', -apple-system, BlinkMacSystemFont,
-                     'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      --gd-focus-ring: rgba(15,118,110,.15);
+      --gd-pill-bg:    rgba(15,118,110,.10);
+      --gd-pill-text:  #0c655e;
+      --gd-accent-text: #ffffff;
+      --gd-hover-bg:   #e6e9ef;
+      --gd-band:       #f5f7fa;
     }
 
     /* ===== Base ===== */
@@ -110,54 +174,85 @@ ui <- fluidPage(
     .shiny-download-link {
       background: var(--gd-accent);
       border-color: var(--gd-accent);
-      color: #fff;
+      color: var(--gd-accent-text);
     }
     .btn-primary:hover,
     .btn-file:hover,
     .shiny-download-link:hover {
       background: var(--gd-accent-h);
       border-color: var(--gd-accent-h);
-      color: #fff;
+      color: var(--gd-accent-text);
     }
     .btn:focus, .btn:active,
     .action-button:focus,
     .shiny-download-link:focus {
       outline: none;
-      box-shadow: 0 0 0 3px rgba(15,118,110,.15);
+      box-shadow: 0 0 0 3px var(--gd-focus-ring);
     }
 
     /* ===== Form inputs ===== */
     .form-control,
     input[type='text'], input[type='number'], input[type='search'], textarea,
-    .selectize-input {
-      background: var(--gd-bg-2);
-      border: 1px solid var(--gd-border-2);
+    .selectize-input,
+    .selectize-control.single .selectize-input,
+    .selectize-control.multi .selectize-input {
+      background: var(--gd-bg-2) !important;
+      border: 1px solid var(--gd-border-2) !important;
       border-radius: var(--gd-r-input);
-      color: var(--gd-text);
+      color: var(--gd-text) !important;
       font-family: var(--gd-font-body);
       font-size: 13.5px;
       padding: 8px 12px;
-      box-shadow: none;
+      box-shadow: none !important;
+    }
+    /* fileInput pill: button (left) and text field (right) share padding,
+       line-height, and border-radius so the two halves are the same height
+       and their corners align — one continuous pill shape. */
+    .input-group > .input-group-btn > .btn,
+    .input-group > .input-group-btn > label > .btn,
+    .input-group > .input-group-btn > label.btn {
+      padding: 8px 14px !important;
+      font-size: 13.5px !important;
+      line-height: 1.5 !important;
+      border: 1px solid var(--gd-accent) !important;
+      border-top-left-radius: var(--gd-r-input) !important;
+      border-bottom-left-radius: var(--gd-r-input) !important;
+      border-top-right-radius: 0 !important;
+      border-bottom-right-radius: 0 !important;
+      border-right: 0 !important;
+    }
+    .input-group > .form-control {
+      padding: 8px 12px !important;
+      padding-left: 16px !important;
+      font-size: 13.5px !important;
+      line-height: 1.5 !important;
+      border: 1px solid var(--gd-border-2) !important;
+      border-top-left-radius: 0 !important;
+      border-bottom-left-radius: 0 !important;
+      border-top-right-radius: var(--gd-r-input) !important;
+      border-bottom-right-radius: var(--gd-r-input) !important;
     }
     .form-control:focus,
     input[type='text']:focus, input[type='number']:focus, textarea:focus,
     .selectize-input.focus {
       border-color: var(--gd-accent);
-      box-shadow: 0 0 0 3px rgba(15,118,110,.15);
+      box-shadow: 0 0 0 3px var(--gd-focus-ring);
       outline: none;
     }
-    .selectize-dropdown {
+    .selectize-dropdown, .selectize-dropdown-content {
       border: 1px solid var(--gd-border);
       border-radius: var(--gd-r-input);
       background: var(--gd-panel);
+      color: var(--gd-text);
     }
     .selectize-dropdown .active {
       background: var(--gd-panel-2);
       color: var(--gd-text);
     }
+    .selectize-input > input { color: var(--gd-text); }
     .selectize-control.multi .selectize-input > div {
-      background: rgba(15,118,110,.10);
-      color: var(--gd-accent-h);
+      background: var(--gd-pill-bg);
+      color: var(--gd-pill-text);
       border-radius: 4px;
       padding: 2px 8px;
     }
@@ -215,7 +310,10 @@ ui <- fluidPage(
       color: var(--gd-accent);
     }
     .gd-details[open] > summary::before { transform: rotate(90deg); }
-    .gd-details > summary:hover { background: #e6e9ef; }
+    .gd-details > summary:hover {
+      background: var(--gd-hover-bg);
+      color: var(--gd-text);
+    }
     .gd-details[open] > summary {
       border-radius: var(--gd-r-input) var(--gd-r-input) 0 0;
       border-bottom: none;
@@ -279,15 +377,18 @@ ui <- fluidPage(
     }
     /* Keyboard-only focus ring — subtle teal glow (doesn't add layout). */
     .nav-tabs > li > a:focus-visible {
-      box-shadow: 0 0 0 3px rgba(15,118,110,.15) !important;
+      box-shadow: 0 0 0 3px var(--gd-focus-ring) !important;
     }
 
     /* ===== DataTables (DT) ===== */
-    table.dataTable {
+    table.dataTable, table.dataTable tbody, table.dataTable tbody tr,
+    table.dataTable tbody td, table.dataTable thead th, table.dataTable thead td,
+    .dataTables_wrapper {
+      background: var(--gd-panel);
+      color: var(--gd-text);
       font-family: var(--gd-font-body);
-      font-size: 13.5px;
-      border-collapse: separate;
     }
+    table.dataTable { font-size: 13.5px; border-collapse: separate; }
     table.dataTable thead th, table.dataTable thead td {
       border-bottom: 1px solid var(--gd-border);
       color: var(--gd-text-mute);
@@ -297,8 +398,27 @@ ui <- fluidPage(
       letter-spacing: 0.03em;
     }
     table.dataTable tbody td { padding: 10px 12px; }
-    table.dataTable.hover tbody tr:hover,
-    table.dataTable tbody tr:hover { background: rgba(0,0,0,.035); }
+    /* Zebra rows — apply to <td> cells directly, at high specificity, so we
+       beat DataTables' built-in .stripe rules and any inline styles it may
+       inject. :nth-child covers legacy shiny tables that don't get the
+       .odd/.even classes; the .odd/.even rules cover DT's default markup. */
+    .dataTables_wrapper table tbody tr:nth-child(even) > td,
+    .dataTables_wrapper table tbody tr.even > td,
+    table.dataTable tbody tr:nth-child(even) > td,
+    table.dataTable tbody tr.even > td {
+      background-color: var(--gd-panel) !important;
+    }
+    .dataTables_wrapper table tbody tr:nth-child(odd) > td,
+    .dataTables_wrapper table tbody tr.odd > td,
+    table.dataTable tbody tr:nth-child(odd) > td,
+    table.dataTable tbody tr.odd > td {
+      background-color: var(--gd-band) !important;
+    }
+    .dataTables_wrapper table tbody tr:hover > td,
+    table.dataTable tbody tr:hover > td,
+    table.dataTable.hover tbody tr:hover > td {
+      background-color: var(--gd-panel-2) !important;
+    }
     .dataTables_wrapper .dataTables_paginate .paginate_button {
       border-radius: 6px;
       color: var(--gd-text) !important;
@@ -345,9 +465,46 @@ ui <- fluidPage(
       font-size: 13px;
       background: var(--gd-accent);
     }
+
+    /* ===== Theme toggle button (fixed top-right) ===== */
+    .gd-theme-toggle {
+      position: fixed;
+      top: 10px;
+      right: 14px;
+      z-index: 1050;
+    }
+    .gd-theme-toggle button {
+      background: transparent;
+      border: 1px solid var(--gd-border);
+      color: var(--gd-text) !important;
+      padding: 6px 10px !important;
+      border-radius: 8px !important;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .gd-theme-toggle button:hover {
+      background: var(--gd-panel-2);
+      border-color: var(--gd-border) !important;
+    }
+    .gd-theme-toggle svg { display: inline-block; vertical-align: middle; }
+    .gd-theme-toggle .icon-moon { display: none; }
+    :root[data-theme='light'] .gd-theme-toggle .icon-sun  { display: none; }
+    :root[data-theme='light'] .gd-theme-toggle .icon-moon { display: inline-block; }
   ")),
 
   theme = shinythemes::shinytheme("paper"),
+
+  tags$div(
+    class = "gd-theme-toggle",
+    tags$button(
+      id = "themeToggle",
+      type = "button",
+      `aria-label` = "Toggle light or dark theme",
+      title = "Toggle light/dark theme",
+      HTML('<svg class="icon-sun"  width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>'),
+      HTML('<svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>')
+    )
+  ),
 
   tabsetPanel(id = "main_tabs",
     dataInputUI("data_input"),
