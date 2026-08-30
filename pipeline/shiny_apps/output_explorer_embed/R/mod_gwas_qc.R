@@ -6,7 +6,19 @@
 #' @param tab data.table with columns label, rg, rg_se, rg_p, rg_p_fdr.
 #' @param sort_choice one of "rg", "significance", "alphabetical".
 #' @param font_size,point_size,theme_fn,title standard plot-options params.
-build_gencor_plot <- function(tab, sort_choice = "rg",
+# Columns that are always in the gencor results table (not offered as
+# facet options).
+GENCOR_CORE_COLS <- c("name", "label", "rg", "rg_se", "rg_p", "rg_p_fdr",
+                      "n_snps", "gcov_int")
+
+#' Detect facet-able extra columns in a gencor table (anything beyond the
+#' core LDSC output columns).
+detect_gencor_facet_cols <- function(tab) {
+  if (is.null(tab) || nrow(tab) == 0) return(character(0))
+  setdiff(names(tab), GENCOR_CORE_COLS)
+}
+
+build_gencor_plot <- function(tab, sort_choice = "rg", facet_by = NULL,
                                font_size = 13, point_size = 3,
                                theme_fn = ggplot2::theme_bw, title = "") {
   if (is.null(tab) || nrow(tab) == 0) return(NULL)
@@ -28,6 +40,14 @@ build_gencor_plot <- function(tab, sort_choice = "rg",
     order(dt$rg))
   dt[, label := factor(label, levels = as.character(label)[ord])]
 
+  # Optional facet column: bucket NA / empty into "Unknown".
+  use_facet <- !is.null(facet_by) && nzchar(facet_by) && facet_by %in% names(dt)
+  if (use_facet) {
+    vals <- as.character(dt[[facet_by]])
+    vals[is.na(vals) | vals == ""] <- "Unknown"
+    dt[[facet_by]] <- vals
+  }
+
   tier_cols <- c("FDR significant"    = "#d62728",
                  "Nominal (p < 0.05)" = "#ff7f0e",
                  "Non-significant"    = "#7f7f7f")
@@ -44,8 +64,9 @@ build_gencor_plot <- function(tab, sort_choice = "rg",
     label = rep(dt$label[1], length(tier_levels)),
     tier  = factor(tier_levels, levels = tier_levels)
   )
+  if (use_facet) ghost[[facet_by]] <- dt[[facet_by]][1]
 
-  ggplot2::ggplot(dt, ggplot2::aes(x = rg, y = label, colour = tier, shape = tier)) +
+  p <- ggplot2::ggplot(dt, ggplot2::aes(x = rg, y = label, colour = tier, shape = tier)) +
     ggplot2::geom_vline(xintercept = 0, linetype = "dashed", colour = "grey55") +
     ggplot2::geom_point(data = ghost, size = point_size, alpha = 0) +
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = ci_lo, xmax = ci_hi), height = 0) +
@@ -66,6 +87,21 @@ build_gencor_plot <- function(tab, sort_choice = "rg",
       panel.grid.minor = ggplot2::element_blank(),
       plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
     )
+
+  # facet_grid rows with space="free_y" so each band is sized by its trait
+  # count, keeping row height constant. switch="y" puts the strip on the
+  # left, right next to the y-axis labels, so the grouping reads naturally.
+  if (use_facet) {
+    p <- p +
+      ggplot2::facet_grid(rows = as.formula(paste0("`", facet_by, "` ~ .")),
+                          scales = "free_y", space = "free_y", switch = "y") +
+      ggplot2::theme(
+        strip.placement = "outside",
+        strip.background.y = ggplot2::element_rect(fill = "grey93", colour = NA),
+        strip.text.y.left  = ggplot2::element_text(angle = 0, face = "bold")
+      )
+  }
+  p
 }
 
 gwasQcUI <- function(id) {
@@ -325,6 +361,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
 
     # Plot width adapts to the longest visible trait label — long labels
     # (e.g. "Consumption (AUDIT-C)") were being cut off by the 900px cap.
+    # When faceting, add a small extra allowance for the left-side facet strip.
     plot_dim_gencor <- reactive({
       tab <- gencor_table_filtered()
       if (is.null(tab) || nrow(tab) == 0) return(list(width_px = 700L))
@@ -333,7 +370,16 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       label_px <- label_pt * 96 / 72   # approx pt -> CSS px at 96dpi
       # Chrome: y-axis text padding + plot panel area + right margin.
       chrome_px <- 60 + 480 + 40
-      total_px  <- round(label_px + chrome_px)
+      fb <- input$gencor_facet
+      if (!is.null(fb) && nzchar(fb) && fb %in% names(tab)) {
+        # Left-side facet strip: measure widest facet value at the current font
+        # so long category names ("Endocrine / metabolic") don't get clipped.
+        facet_vals <- as.character(tab[[fb]])
+        facet_vals[is.na(facet_vals) | facet_vals == ""] <- "Unknown"
+        strip_pt   <- max(strwidth_pt(facet_vals, ps = fs)) + 20
+        chrome_px  <- chrome_px + strip_pt * 96 / 72
+      }
+      total_px <- round(label_px + chrome_px)
       list(width_px = as.integer(min(max(total_px, 700L), 1800L)))
     })
 
@@ -354,6 +400,9 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       }
 
       all_labels <- sort(unique(as.character(tab$label)))
+      facet_choices <- c("None" = "",
+                         stats::setNames(detect_gencor_facet_cols(tab),
+                                         detect_gencor_facet_cols(tab)))
 
       tagList(
         tags$p(
@@ -371,7 +420,9 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
               column(4,
                 selectInput(ns("gencor_traits"), "Include these traits:",
                             choices = all_labels, selected = all_labels,
-                            multiple = TRUE)
+                            multiple = TRUE),
+                selectInput(ns("gencor_facet"), "Facet by:",
+                            choices = facet_choices, selected = "")
               ),
               column(4,
                 selectInput(ns("gencor_sort"), "Sort traits by:",
@@ -478,6 +529,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       build_gencor_plot(
         tab = gencor_table_filtered(),
         sort_choice = input$gencor_sort %||% "rg",
+        facet_by = input$gencor_facet %||% "",
         font_size = input$gencor_font_size %||% 13,
         point_size = input$gencor_point_size %||% 3,
         theme_fn = mol_theme_fn(input$gencor_theme),
@@ -487,7 +539,14 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       tab <- isolate(gencor_table_filtered())
       if (is.null(tab)) return(220)
       n <- sum(!is.na(tab$rg))
-      max(220, 40 + 22 * n)
+      base <- max(220, 40 + 22 * n)
+      # Each facet band adds ~30px of chrome (strip + panel spacing).
+      fb <- isolate(input$gencor_facet)
+      if (!is.null(fb) && nzchar(fb) && fb %in% names(tab)) {
+        n_facets <- length(unique(tab[[fb]]))
+        base <- base + 30 * max(n_facets - 1, 0)
+      }
+      base
     })
 
     output$gencor_download <- downloadHandler(

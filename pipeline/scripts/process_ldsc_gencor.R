@@ -26,6 +26,13 @@ if (is.null(gencor_path) || is.na(gencor_path) || gencor_path == '') {
 secondary <- fread(gencor_path, sep = ' ', header = TRUE)
 gencor_dir <- file.path(outdir, 'results', opt$gwas, 'gencor')
 
+# Any column in gencor_gwas_list beyond the known system columns is treated
+# as facet-able metadata (e.g. category) and preserved through to the
+# results CSV so the Shiny app can offer it as a "Facet by" option.
+KNOWN_GENCOR_LIST_COLS <- c("name", "label", "path", "population", "n",
+                             "sampling", "prevalence", "mean", "sd")
+extra_cols <- setdiff(names(secondary), KNOWN_GENCOR_LIST_COLS)
+
 # Parse rg / SE / p / gcov_int / n_snps from a single LDSC --rg log
 parse_pair_log <- function(log_file) {
   out <- list(rg = NA_real_, rg_se = NA_real_, rg_p = NA_real_,
@@ -101,7 +108,17 @@ if (any(valid)) {
   res[valid, rg_p_fdr := p.adjust(rg_p, method = 'BH')]
 }
 
-setcolorder(res, c('name', 'label', 'rg', 'rg_se', 'rg_p', 'rg_p_fdr', 'n_snps', 'gcov_int'))
+# Attach preserved extras by matching on name (defensive; res / secondary
+# should already be in the same order, but cbind-by-position would silently
+# misalign if that ever changed).
+if (length(extra_cols) > 0) {
+  idx <- match(res$name, secondary$name)
+  extras <- secondary[idx, ..extra_cols]
+  res <- cbind(res, extras)
+}
+
+core_cols <- c('name', 'label', 'rg', 'rg_se', 'rg_p', 'rg_p_fdr', 'n_snps', 'gcov_int')
+setcolorder(res, c(core_cols, setdiff(names(res), core_cols)))
 
 dir.create(gencor_dir, recursive = TRUE, showWarnings = FALSE)
 out_csv <- file.path(gencor_dir, paste0(opt$gwas, '_gencor_res.csv'))
