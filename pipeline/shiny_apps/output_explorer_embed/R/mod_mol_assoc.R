@@ -205,58 +205,6 @@ molAssocUI <- function(id) {
         br(),
         p("This tab shows a heatmap summarising, for each gene, whether it is associated with the trait across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
         hr(),
-        tags$style(HTML("
-          .gd-details > summary {
-            cursor: pointer;
-            padding: 8px 12px;
-            background: #f5f5f5;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-weight: bold;
-            user-select: none;
-            list-style: none;
-            max-width: 1100px;
-          }
-          .gd-details > summary::-webkit-details-marker { display: none; }
-          .gd-details > summary::before {
-            content: '\\25B8';
-            display: inline-block;
-            width: 1em;
-            margin-right: 4px;
-            transition: transform 0.15s ease;
-            font-size: 1.35em;
-            line-height: 1;
-            vertical-align: -0.05em;
-          }
-          .gd-details[open] > summary::before { transform: rotate(90deg); }
-          .gd-details > summary:hover { background: #e9e9e9; }
-          /* When open, flatten the summary's bottom so it visually joins the body. */
-          .gd-details[open] > summary {
-            border-radius: 4px 4px 0 0;
-            border-bottom: none;
-          }
-          .gd-details + .gd-details { margin-top: 8px; }
-          /* Bordered grey box that continues from the summary and holds the controls. */
-          .gd-details-body {
-            padding: 12px 15px;
-            background: #f5f5f5;
-            border: 1px solid #ccc;
-            border-top: none;
-            border-radius: 0 0 4px 4px;
-            max-width: 1100px;
-          }
-          .gd-details-intro {
-            color: #6c757d;
-            font-size: 0.9em;
-            margin-bottom: 12px;
-          }
-          /* Cap multi-select height so a long panel list scrolls instead of
-             stretching its column far below the others. */
-          .gd-details .selectize-control.multi .selectize-input {
-            max-height: 120px;
-            overflow-y: auto;
-          }
-        ")),
         tags$details(class = "gd-details",
           tags$summary("Filter data"),
           tags$div(class = "gd-details-body",
