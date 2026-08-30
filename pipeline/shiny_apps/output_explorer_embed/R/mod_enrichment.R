@@ -43,6 +43,10 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
     }
   }
   all_gs_all <- all_gs_all[all_gs_all$Name != 'Placeholder', ]
+  # Filters may leave only Placeholder rows (e.g. no FDR-significant drugs in
+  # the selected methods). Bail before ggplot's facet_wrap errors on an empty
+  # factor; the "no drugs" UI message explains the situation to the user.
+  if (nrow(all_gs_all) == 0) return(NULL)
 
   methods <- c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')
   methods <- methods[methods %in% all_gs_all$Method]
@@ -147,6 +151,8 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
     }
   }
   all_gs_atc_all <- all_gs_atc_all[all_gs_atc_all$Name != 'Placeholder', ]
+  # See build_tx_drug_gtable: bail before facet_wrap errors on an empty factor.
+  if (nrow(all_gs_atc_all) == 0) return(NULL)
 
   methods <- c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')
   methods <- methods[methods %in% all_gs_atc_all$Method]
@@ -930,7 +936,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     )
 
     output$tx_drug_plot.ui <- renderUI({
-      if(plot_dim_drug()[['height']] < 10000 & nrow(tx_drug_summary_data_filtered()) > 0){
+      filtered <- tx_drug_summary_data_filtered()
+      has_real <- any(filtered$Name != 'Placeholder')
+      if(plot_dim_drug()[['height']] < 10000 && has_real){
         tagList(
           plotOutput(ns("tx_drug_plot"), height = plot_dim_drug()[['height']], width=plot_dim_drug()[['width']]),
           tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
@@ -962,11 +970,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$message_no_drugs_drug <- renderUI({
-      if(nrow(tx_drug_summary_data_filtered()) == 0){
-        HTML(sprintf(
+      filtered <- tx_drug_summary_data_filtered()
+      real_drugs <- filtered$Name[filtered$Name != 'Placeholder']
+      if (length(real_drugs) == 0 && isTRUE(as.logical(input$conf_only_drug))) {
+        return(HTML(paste0(
+          "<div style='color: #666; font-style: italic; margin: 10px 0;'>",
+          "No FDR-significant drugs match your current filters. ",
+          "Set <b>Show FDR-significant drugs only</b> to <b>False</b> to see all results, ",
+          "or broaden the method / panel / drug / ATC filters.",
+          "</div>"
+        )))
+      }
+      if (length(real_drugs) == 0) {
+        return(HTML(sprintf(
           "<div style='color: red;'>%s</div>",
-          "No drugs are present."
-        ))
+          "No drugs match your current filters. Try broadening the method / panel / drug / ATC filters."
+        )))
       }
     })
 
@@ -1220,7 +1239,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     )
 
     output$tx_atc_plot.ui <- renderUI({
-      if(plot_dim_atc()[['height']] < 10000 & nrow(tx_atc_summary_data_filtered()) > 0){
+      filtered <- tx_atc_summary_data_filtered()
+      has_real <- any(filtered$Name != 'Placeholder')
+      if(plot_dim_atc()[['height']] < 10000 && has_real){
         tagList(
           plotOutput(ns("tx_atc_plot"), height = plot_dim_atc()[['height']], width=plot_dim_atc()[['width']]),
           tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
@@ -1252,11 +1273,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$message_no_atcs_atc <- renderUI({
-      if(nrow(tx_atc_summary_data_filtered()) == 0){
-        HTML(sprintf(
+      filtered <- tx_atc_summary_data_filtered()
+      real_atcs <- filtered$Name[filtered$Name != 'Placeholder']
+      if (length(real_atcs) == 0 && isTRUE(as.logical(input$conf_only_atc))) {
+        return(HTML(paste0(
+          "<div style='color: #666; font-style: italic; margin: 10px 0;'>",
+          "No FDR-significant ATC classes match your current filters. ",
+          "Set <b>Show FDR-significant classes only</b> to <b>False</b> to see all results, ",
+          "or broaden the method / panel / ATC-code filters.",
+          "</div>"
+        )))
+      }
+      if (length(real_atcs) == 0) {
+        return(HTML(sprintf(
           "<div style='color: red;'>%s</div>",
-          "No ATC codes remain"
-        ))
+          "No ATC classes match your current filters. Try broadening the method / panel / ATC-code filters."
+        )))
       }
     })
 
