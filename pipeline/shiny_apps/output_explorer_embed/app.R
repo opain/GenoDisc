@@ -205,9 +205,11 @@ ui <- fluidPage(
       padding: 8px 12px;
       box-shadow: none !important;
     }
-    /* fileInput pill: button (left) and text field (right) share padding,
-       line-height, and border-radius so the two halves are the same height
-       and their corners align — one continuous pill shape. */
+    /* fileInput: hide the 'no file selected' text field so only the Browse
+       button remains, styled as a complete standalone pill. Filename
+       feedback still comes via the progress bar and the tab reveal after
+       upload completes. */
+    .input-group > .form-control { display: none !important; }
     .input-group > .input-group-btn > .btn,
     .input-group > .input-group-btn > label > .btn,
     .input-group > .input-group-btn > label.btn {
@@ -215,22 +217,7 @@ ui <- fluidPage(
       font-size: 13.5px !important;
       line-height: 1.5 !important;
       border: 1px solid var(--gd-accent) !important;
-      border-top-left-radius: var(--gd-r-input) !important;
-      border-bottom-left-radius: var(--gd-r-input) !important;
-      border-top-right-radius: 0 !important;
-      border-bottom-right-radius: 0 !important;
-      border-right: 0 !important;
-    }
-    .input-group > .form-control {
-      padding: 8px 12px !important;
-      padding-left: 16px !important;
-      font-size: 13.5px !important;
-      line-height: 1.5 !important;
-      border: 1px solid var(--gd-border-2) !important;
-      border-top-left-radius: 0 !important;
-      border-bottom-left-radius: 0 !important;
-      border-top-right-radius: var(--gd-r-input) !important;
-      border-bottom-right-radius: var(--gd-r-input) !important;
+      border-radius: var(--gd-r-input) !important;
     }
     .form-control:focus,
     input[type='text']:focus, input[type='number']:focus, textarea:focus,
@@ -466,6 +453,17 @@ ui <- fluidPage(
       background: var(--gd-accent);
     }
 
+    /* ===== First-load: hide downstream tabs until data is loaded =====
+       Fires at CSS-parse time so there's no flash of all tabs while Shiny's
+       observeEvent(session$clientData, hideTab(...)) is still waiting for
+       the WebSocket. Once config_flags first resolves in the server we set
+       data-app-ready on <html>, and this rule stops matching — the tabs
+       Shiny showed via showTab() become visible; hideTab-hidden ones stay
+       hidden thanks to the inline display:none Shiny set. */
+    html:not([data-app-ready]) #main_tabs > li:not(:first-child) {
+      display: none !important;
+    }
+
     /* ===== Plot outputs =====
        Round the corners of every plotOutput visually via overflow:hidden on
        the wrapper. The underlying <img> stays rectangular, so right-click →
@@ -571,6 +569,10 @@ server <- function(input, output, session) {
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
     toggle("Molecular Associations", cf$mol_assoc)
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma))
+
+    # Release the CSS-level hide of downstream tabs now that Shiny has
+    # decided which of them should be visible for the loaded bundle.
+    shinyjs::runjs("document.documentElement.setAttribute('data-app-ready', '1');")
   })
 
   # Wire up all modules
