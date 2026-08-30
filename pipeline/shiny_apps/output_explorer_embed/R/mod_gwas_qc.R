@@ -89,16 +89,15 @@ build_gencor_plot <- function(tab, sort_choice = "rg", facet_by = NULL,
     )
 
   # facet_grid rows with space="free_y" so each band is sized by its trait
-  # count, keeping row height constant. switch="y" puts the strip on the
-  # left, right next to the y-axis labels, so the grouping reads naturally.
+  # count, keeping row height constant. Strips render on the right (ggplot's
+  # default for row facets).
   if (use_facet) {
     p <- p +
       ggplot2::facet_grid(rows = as.formula(paste0("`", facet_by, "` ~ .")),
-                          scales = "free_y", space = "free_y", switch = "y") +
+                          scales = "free_y", space = "free_y") +
       ggplot2::theme(
-        strip.placement = "outside",
         strip.background.y = ggplot2::element_rect(fill = "grey93", colour = NA),
-        strip.text.y.left  = ggplot2::element_text(angle = 0, face = "bold")
+        strip.text.y       = ggplot2::element_text(angle = 0, face = "bold")
       )
   }
   p
