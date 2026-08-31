@@ -123,3 +123,21 @@ if (!is.null(idx_plot) && nrow(idx_plot) > 0) {
 } else {
   ggsave(lab_path, plot = base_plot, width = 12, height = 5, dpi = 200)
 }
+
+# Also write the raw filtered variant data (with clumping status + nearest
+# gene for indexes) so the Shiny app can rebuild the plot on the fly and
+# expose user-facing knobs (threshold, gene labels, theme, etc.) via
+# build_manhattan_plot(). Much smaller than the two PNG blobs.
+manhattan_data <- list(
+  data = ss[, .(CHR, BP, SNP, P, chr_colour, cum_bp, neglogP, category)],
+  offsets = chr_lens[, .(CHR, cum_offset, label_pos, chr_colour)],
+  indexes = if (!is.null(idx_plot))
+              idx_plot[, .(SNP, CHR, BP, P, cum_bp, neglogP, label)]
+            else data.table(SNP = character(), CHR = integer(), BP = numeric(),
+                            P = numeric(), cum_bp = numeric(),
+                            neglogP = numeric(), label = character()),
+  p_threshold = if (nrow(ss) < 10) 1 else 1e-3
+)
+data_path <- paste0(outdir, '/results/', opt$gwas, '/gwas_sumstat/',
+                    opt$gwas, '.manhattan_data.rds')
+saveRDS(manhattan_data, data_path)

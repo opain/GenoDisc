@@ -1,3 +1,90 @@
+#' Build the Manhattan plot as a ggplot object.
+#'
+#' Shared by the on-screen renderPlot and the download handler so saved
+#' files match what's on screen. Returns NULL if `manhattan_data` is missing.
+#'
+#' @param md List with elements `data` (filtered variants with cum_bp,
+#'   neglogP, chr_colour, category), `offsets` (per-chromosome axis labels
+#'   with cum_offset, label_pos), `indexes` (clumping leads with cum_bp,
+#'   neglogP, label = nearest gene), `p_threshold` (effective filter P).
+#' @param sig_threshold Numeric P for the dashed significance line.
+#' @param highlight_threshold Numeric P below which index variants get the
+#'   enlarged diamond glyph.
+#' @param label_variants Whether to draw ggrepel labels on index leads.
+#' @param label_threshold Numeric P — only label indexes below this.
+#' @param font_size,point_size,theme_fn,title Standard plot-options params.
+build_manhattan_plot <- function(md,
+                                  sig_threshold = 5e-8,
+                                  highlight_threshold = 5e-8,
+                                  label_variants = FALSE,
+                                  label_threshold = 5e-8,
+                                  font_size = 12,
+                                  point_size = 0.9,
+                                  theme_fn = ggplot2::theme_bw,
+                                  title = "") {
+  if (is.null(md) || is.null(md$data) || is.null(md$offsets)) return(NULL)
+  ss <- md$data
+  offsets <- md$offsets
+  idx <- md$indexes
+
+  p <- ggplot2::ggplot() +
+    ggplot2::geom_point(
+      data = ss[category == "other"],
+      ggplot2::aes(x = cum_bp, y = neglogP, colour = chr_colour),
+      size = point_size) +
+    ggplot2::scale_colour_identity() +
+    ggplot2::geom_point(
+      data = ss[category == "clump_member"],
+      ggplot2::aes(x = cum_bp, y = neglogP),
+      colour = "green3", size = point_size) +
+    ggplot2::geom_hline(yintercept = -log10(sig_threshold),
+                        colour = "red", linetype = "dashed") +
+    ggplot2::scale_x_continuous(breaks = offsets$label_pos,
+                                labels = offsets$CHR,
+                                expand = ggplot2::expansion(mult = c(0.01, 0.01))) +
+    ggplot2::expand_limits(y = 0) +
+    ggplot2::labs(x = "Chromosome",
+                  y = expression(-log[10](italic(P))),
+                  title = if (nzchar(title)) title else NULL) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(
+      panel.grid.minor = ggplot2::element_blank(),
+      panel.grid.major.x = ggplot2::element_blank(),
+      panel.grid.major.y = ggplot2::element_blank(),
+      plot.title = ggplot2::element_text(hjust = 0.5, face = "bold")
+    )
+
+  # Highlight independent leads below the user's threshold as diamonds.
+  if (!is.null(idx) && nrow(idx) > 0) {
+    idx_hi <- idx[P < highlight_threshold]
+    if (nrow(idx_hi) > 0) {
+      p <- p + ggplot2::geom_point(
+        data = idx_hi, ggplot2::aes(x = cum_bp, y = neglogP),
+        shape = 23, size = point_size * 3.5,
+        fill = "darkgreen", colour = "black")
+    }
+    if (isTRUE(label_variants)) {
+      idx_lab <- idx[!is.na(label) & P < label_threshold]
+      if (nrow(idx_lab) > 0) {
+        p <- p + ggrepel::geom_text_repel(
+          data = idx_lab,
+          ggplot2::aes(x = cum_bp, y = neglogP, label = label),
+          ylim = c(-log10(sig_threshold), NA),
+          direction = "both",
+          force = 2,
+          box.padding = 0.5,
+          point.padding = 0.3,
+          min.segment.length = 0,
+          max.overlaps = Inf,
+          segment.size = 0.3,
+          segment.colour = "grey50",
+          size = font_size * 0.28)
+      }
+    }
+  }
+  p
+}
+
 #' SNP Associations module UI
 #'
 #' @param id Module namespace id
@@ -16,20 +103,11 @@ snpAssocUI <- function(id) {
         title = "Manhattan plot",
         value = "manhattan",
         br(),
-        fluidPage(
-          sidebarPanel(
-            radioButtons(ns("manhattan_label_choice"), "Variant labelling:",
-                         choices = c("Without labels" = "unlabelled",
-                                     "With nearest-gene labels" = "labelled"),
-                         selected = "unlabelled"),
-            width = 3
-          ),
-
-          mainPanel(
-            uiOutput(ns("manhattan_plot_ui")),
-            width = 9
-          )
-        )
+        p("Genome-wide summary of the association signal. Each point is a variant, positioned by chromosome (x) and ", tags$code("-log10(P)"), " (y). Green points are variants clumped with an index (lead) variant; dark-green diamonds are the index variants themselves. Use ", tags$b("Plot options"), " to customise thresholds, gene labels, appearance, and download the figure."),
+        hr(),
+        uiOutput(ns("manhattan_options_ui")),
+        br(),
+        uiOutput(ns("manhattan_plot_ui"))
       ),
       tabPanel(
         title = "Lead variants",
@@ -139,15 +217,94 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       }
     })
 
-    output$manhattan_plot_ui <- renderUI({
-      req(gwas_data(), selected_gwas(), input$manhattan_label_choice)
-      gwas_qc <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")
-      b64_field <- if (input$manhattan_label_choice == "labelled")
-        "manhattan_plot_labelled_base64"
-      else
-        "manhattan_plot_unlabelled_base64"
-      b64 <- gwas_qc[[b64_field]]
+    # Convenience: pull the whole gwas_qc block once per bundle/GWAS change.
+    manhattan_qc <- reactive({
+      req(gwas_data(), selected_gwas())
+      gd_read(gwas_data(), selected_gwas(), "gwas_qc")
+    })
+    manhattan_data <- reactive({ manhattan_qc()$manhattan_data })
 
+    # Plot options collapsible — only shown when we have raw manhattan_data
+    # (bundles produced before the pipeline change fall through to the
+    # legacy PNG fallback in manhattan_plot_ui).
+    output$manhattan_options_ui <- renderUI({
+      if (is.null(manhattan_data())) return(NULL)
+      tags$details(class = "gd-details",
+        tags$summary("Plot options"),
+        tags$div(class = "gd-details-body",
+          tags$p(class = "gd-details-intro",
+            "Customise thresholds, gene labels, appearance (title, theme, ",
+            "font size, point size), and download the figure as PNG / PDF / SVG."),
+          fluidRow(
+            column(4,
+              textInput(ns("mh_title"), "Plot title (optional):", value = ""),
+              selectInput(ns("mh_theme"), "Theme:",
+                          choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                      "Classic" = "classic", "Light" = "light"),
+                          selected = "bw"),
+              sliderInput(ns("mh_font_size"), "Font size (pt):",
+                          min = 8, max = 20, value = 12, step = 1),
+              sliderInput(ns("mh_point_size"), "Point size:",
+                          min = 0.3, max = 3, value = 0.9, step = 0.1)
+            ),
+            column(4,
+              numericInput(ns("mh_sig_threshold"),
+                           "Significance line at P <:",
+                           value = 5e-8, min = 1e-20, max = 1, step = NA),
+              numericInput(ns("mh_highlight_threshold"),
+                           "Highlight independent leads at P <:",
+                           value = 5e-8, min = 1e-20, max = 1, step = NA),
+              checkboxInput(ns("mh_label"),
+                            "Label nearest gene at lead variants", value = FALSE),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("mh_label")),
+                numericInput(ns("mh_label_threshold"),
+                             "Label leads with P <:",
+                             value = 5e-8, min = 1e-20, max = 1, step = NA)
+              )
+            ),
+            column(4,
+              selectInput(ns("mh_dl_format"), "Download format:",
+                          choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                          selected = "png"),
+              numericInput(ns("mh_dl_width"), "Width (inches):",
+                           value = 12, min = 2, max = 40, step = 0.5),
+              numericInput(ns("mh_dl_height"), "Height (inches):",
+                           value = 5, min = 2, max = 40, step = 0.5),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == 'png'", ns("mh_dl_format")),
+                numericInput(ns("mh_dl_dpi"), "Resolution (DPI, PNG only):",
+                             value = 300, min = 72, max = 600, step = 25)
+              ),
+              downloadButton(ns("mh_download"), "Download plot")
+            )
+          )
+        )
+      )
+    })
+
+    output$manhattan_plot_ui <- renderUI({
+      req(gwas_data(), selected_gwas())
+      gwas_qc <- manhattan_qc()
+
+      # Preferred: raw data → modifiable ggplot render.
+      if (!is.null(gwas_qc$manhattan_data)) {
+        return(tagList(
+          tags$div(style = "max-width: 1200px;",
+            plotOutput(ns("manhattan_plot"), height = "500px")
+          ),
+          gd_legend(list(
+            "Axes" = "Each point is a variant, positioned by chromosome (x) and -log10(P) (y); higher points are more strongly associated.",
+            "Red dashed line" = "Significance line (default P < 5e-8; adjustable in Plot options).",
+            "Green points" = "Variants clumped with an index variant (part of the same association signal).",
+            "Dark-green diamonds" = "Index (lead) variants below the highlight threshold (adjustable in Plot options).",
+            "Gene labels" = "Nearest gene to each labelled index variant (toggle and threshold in Plot options)."
+          ), heading = "How to read this plot")
+        ))
+      }
+
+      # Legacy fallback: pre-manhattan_data bundles still ship the base64 PNGs.
+      b64 <- gwas_qc$manhattan_plot_unlabelled_base64
       if (is.null(b64)) {
         return(div(
           style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
@@ -158,44 +315,71 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
           "This results package was produced before the Manhattan plot rule was added."
         ))
       }
-
-      # When labelling is requested but nothing reached genome-wide significance,
-      # explain why no genes are labelled rather than showing an image that looks
-      # identical to the unlabelled one.
-      n_sig <- gd_qc_stat(gwas_qc, "n_sig_snp")
-      no_sig <- is.null(n_sig) || length(n_sig) == 0 || is.na(n_sig) || n_sig == 0
-      label_note <- NULL
-      if (input$manhattan_label_choice == "labelled" && no_sig) {
-        label_note <- div(
-          style = "background-color: #e9ecef; border-radius: 8px; padding: 15px 20px; color: #6c757d; margin-bottom: 15px;",
-          icon("info-circle"),
-          tags$strong(" No genes labelled"),
-          br(),
-          paste0("No variant reached genome-wide significance (p < 5e-8), so there are no ",
-                 "genes to label. The dashed blue line marks the suggestive threshold (p < 1e-5).")
-        )
-      }
-
       tagList(
-        label_note,
         tags$img(
           src = paste0("data:image/png;base64,", b64),
           style = "max-width: 100%; height: auto;"
         ),
-        gd_legend(list(
-          "Axes" = paste0(
-            "Each point is a variant, positioned by chromosome (x) and -log10(p-value) (y); ",
-            "higher points are more strongly associated."),
-          "Red solid line" = "Genome-wide significance threshold (p < 5e-8).",
-          "Blue dashed line" = "Suggestive significance threshold (p < 1e-5).",
-          "Green points" = "Variants clumped with an index variant (part of the same association signal).",
-          "Dark-green diamonds" = "Index (lead) variants identified by LD clumping.",
-          "Gene labels" = paste0(
-            "Nearest gene to each genome-wide-significant index variant (shown only with the ",
-            "'With nearest-gene labels' option).")
-        ), heading = "How to read this plot")
+        tags$p(style = "font-size: 0.85em; color: var(--gd-text-mute); margin-top: 8px;",
+               tags$em("This bundle predates the modifiable Manhattan plot; ",
+                       "regenerate it with the current pipeline to unlock plot options."))
       )
     })
+
+    output$manhattan_plot <- renderPlot({
+      md <- manhattan_data()
+      if (is.null(md)) return(NULL)
+      build_manhattan_plot(
+        md,
+        sig_threshold       = input$mh_sig_threshold       %||% 5e-8,
+        highlight_threshold = input$mh_highlight_threshold %||% 5e-8,
+        label_variants      = isTRUE(input$mh_label),
+        label_threshold     = input$mh_label_threshold     %||% 5e-8,
+        font_size           = input$mh_font_size           %||% 12,
+        point_size          = input$mh_point_size          %||% 0.9,
+        theme_fn            = mol_theme_fn(input$mh_theme),
+        title               = input$mh_title               %||% ""
+      )
+    })
+
+    output$mh_download <- downloadHandler(
+      filename = function() {
+        sprintf("manhattan_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$mh_dl_format %||% "png")
+      },
+      content = function(file) {
+        md <- manhattan_data()
+        if (is.null(md)) {
+          grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
+          grid::grid.text("No manhattan_data in this bundle.")
+          grDevices::dev.off()
+          return(invisible())
+        }
+        p <- build_manhattan_plot(
+          md,
+          sig_threshold       = input$mh_sig_threshold       %||% 5e-8,
+          highlight_threshold = input$mh_highlight_threshold %||% 5e-8,
+          label_variants      = isTRUE(input$mh_label),
+          label_threshold     = input$mh_label_threshold     %||% 5e-8,
+          font_size           = input$mh_font_size           %||% 12,
+          point_size          = input$mh_point_size          %||% 0.9,
+          theme_fn            = mol_theme_fn(input$mh_theme),
+          title               = input$mh_title               %||% ""
+        )
+        w   <- input$mh_dl_width  %||% 12
+        h   <- input$mh_dl_height %||% 5
+        fmt <- input$mh_dl_format %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$mh_dl_dpi %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        print(p)
+        grDevices::dev.off()
+      }
+    )
 
     snp_assoc_lead_data <- reactive({
       req(gwas_data(), selected_gwas(), input$clumping_type)

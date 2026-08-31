@@ -72,6 +72,12 @@ for(gwas_i in gwas_list$name){
   gwas_qc$manhattan_plot_unlabelled_base64 <- if (file.exists(manhattan_unlab_path)) base64enc::base64encode(manhattan_unlab_path) else NULL
   gwas_qc$manhattan_plot_labelled_base64   <- if (file.exists(manhattan_lab_path))   base64enc::base64encode(manhattan_lab_path)   else NULL
 
+  # Raw filtered variant data (variants, offsets, indexes, effective P-threshold)
+  # for the Shiny app to rebuild the Manhattan plot on the fly with user-facing
+  # knobs (theme, thresholds, gene labels, ...).
+  manhattan_data_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.manhattan_data.rds')
+  gwas_qc$manhattan_data <- if (file.exists(manhattan_data_path)) readRDS(manhattan_data_path) else NULL
+
   ##################
   # SNP associations
   ##################

@@ -357,7 +357,8 @@ rule manhattan_plot:
     unpack(_manhattan_inputs)
   output:
     unlabelled=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.manhattan_plot.unlabelled.png",
-    labelled=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.manhattan_plot.labelled.png"
+    labelled=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.manhattan_plot.labelled.png",
+    data=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.manhattan_data.rds"
   benchmark:
     f"{outdir}/benchmarks/manhattan_plot_{{gwas}}.tsv"
   conda:
