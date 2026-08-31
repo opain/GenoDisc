@@ -1,3 +1,13 @@
+#' Parse a user-typed P-value string into a positive number, falling back
+#' to `default` if the value is missing, non-numeric, or non-positive.
+#' Lets the UI use textInput (which round-trips 5e-8 correctly) instead of
+#' numericInput (which shows 5e-8 as 0.00000005).
+parse_p <- function(x, default) {
+  if (is.null(x)) return(default)
+  v <- suppressWarnings(as.numeric(x))
+  if (length(v) != 1 || is.na(v) || v <= 0) default else v
+}
+
 #' Build the Manhattan plot as a ggplot object.
 #'
 #' Shared by the on-screen renderPlot and the download handler so saved
@@ -15,30 +25,58 @@
 #' @param font_size,point_size,theme_fn,title Standard plot-options params.
 build_manhattan_plot <- function(md,
                                   sig_threshold = 5e-8,
+                                  suggestive_line = FALSE,
+                                  suggestive_threshold = 1e-5,
                                   highlight_threshold = 5e-8,
                                   label_variants = FALSE,
                                   label_threshold = 5e-8,
                                   font_size = 12,
                                   point_size = 0.9,
                                   theme_fn = ggplot2::theme_bw,
-                                  title = "") {
+                                  title = "",
+                                  col_chr_odd  = "#8c8c8c",
+                                  col_chr_even = "#4d4d4d",
+                                  col_member   = "#2ca02c",
+                                  col_index    = "#006400") {
   if (is.null(md) || is.null(md$data) || is.null(md$offsets)) return(NULL)
-  ss <- md$data
+  ss <- data.table::copy(md$data)
   offsets <- md$offsets
   idx <- md$indexes
+
+  # Recompute alternating-chromosome colour from CHR so it reacts to the
+  # user's colour choices — ignore any baked-in chr_colour from old bundles.
+  ss[, chr_bg := ifelse(CHR %% 2 == 1, col_chr_odd, col_chr_even)]
+
+  # Independent leads that clear the highlight threshold. Clump members are
+  # highlighted only when their PARENT index is in this set — so loosening
+  # the threshold de-highlights the whole clump together, not just the
+  # index diamond. Backward compat: if the bundle's manhattan_data was
+  # produced before we started writing `index_snp`, fall back to
+  # highlighting members by their own P.
+  hi_index_snps <- if (!is.null(idx)) idx$SNP[!is.na(idx$P) & idx$P < highlight_threshold] else character(0)
+  if ("index_snp" %in% names(ss)) {
+    ss_members <- ss[category == "clump_member" & !is.na(index_snp) &
+                       index_snp %in% hi_index_snps]
+  } else {
+    ss_members <- ss[category == "clump_member" & !is.na(P) & P < highlight_threshold]
+  }
 
   p <- ggplot2::ggplot() +
     ggplot2::geom_point(
       data = ss[category == "other"],
-      ggplot2::aes(x = cum_bp, y = neglogP, colour = chr_colour),
+      ggplot2::aes(x = cum_bp, y = neglogP, colour = chr_bg),
       size = point_size) +
     ggplot2::scale_colour_identity() +
     ggplot2::geom_point(
-      data = ss[category == "clump_member"],
+      data = ss_members,
       ggplot2::aes(x = cum_bp, y = neglogP),
-      colour = "green3", size = point_size) +
+      colour = col_member, size = point_size) +
     ggplot2::geom_hline(yintercept = -log10(sig_threshold),
                         colour = "red", linetype = "dashed") +
+    (if (isTRUE(suggestive_line))
+       ggplot2::geom_hline(yintercept = -log10(suggestive_threshold),
+                           colour = "blue", linetype = "dotted")
+     else NULL) +
     ggplot2::scale_x_continuous(breaks = offsets$label_pos,
                                 labels = offsets$CHR,
                                 expand = ggplot2::expansion(mult = c(0.01, 0.01))) +
@@ -61,7 +99,7 @@ build_manhattan_plot <- function(md,
       p <- p + ggplot2::geom_point(
         data = idx_hi, ggplot2::aes(x = cum_bp, y = neglogP),
         shape = 23, size = point_size * 3.5,
-        fill = "darkgreen", colour = "black")
+        fill = col_index, colour = "black")
     }
     if (isTRUE(label_variants)) {
       idx_lab <- idx[!is.na(label) & P < label_threshold]
@@ -176,6 +214,7 @@ snpAssocUI <- function(id) {
 #' @param selected_gwas Reactive returning the currently selected GWAS name
 snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
   moduleServer(id, function(input, output, session) {
+    ns <- session$ns
 
     observeEvent(config_flags(), {
       cf <- config_flags()
@@ -248,19 +287,23 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
                           min = 0.3, max = 3, value = 0.9, step = 0.1)
             ),
             column(4,
-              numericInput(ns("mh_sig_threshold"),
-                           "Significance line at P <:",
-                           value = 5e-8, min = 1e-20, max = 1, step = NA),
-              numericInput(ns("mh_highlight_threshold"),
-                           "Highlight independent leads at P <:",
-                           value = 5e-8, min = 1e-20, max = 1, step = NA),
+              textInput(ns("mh_sig_threshold"),
+                        "Significance line at P <:", value = "5e-8"),
+              checkboxInput(ns("mh_suggestive"),
+                            "Show suggestive line", value = FALSE),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("mh_suggestive")),
+                textInput(ns("mh_suggestive_threshold"),
+                          "Suggestive line at P <:", value = "1e-5")
+              ),
+              textInput(ns("mh_highlight_threshold"),
+                        "Highlight independent leads at P <:", value = "5e-8"),
               checkboxInput(ns("mh_label"),
                             "Label nearest gene at lead variants", value = FALSE),
               conditionalPanel(
                 condition = sprintf("input['%s'] == true", ns("mh_label")),
-                numericInput(ns("mh_label_threshold"),
-                             "Label leads with P <:",
-                             value = 5e-8, min = 1e-20, max = 1, step = NA)
+                textInput(ns("mh_label_threshold"),
+                          "Label leads with P <:", value = "5e-8")
               )
             ),
             column(4,
@@ -278,6 +321,20 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
               ),
               downloadButton(ns("mh_download"), "Download plot")
             )
+          ),
+          br(),
+          fluidRow(
+            column(3, colourpicker::colourInput(
+              ns("mh_col_chr_odd"),  "Colour: odd chromosomes",  value = "#8c8c8c")),
+            column(3, colourpicker::colourInput(
+              ns("mh_col_chr_even"), "Colour: even chromosomes", value = "#4d4d4d")),
+            column(3, colourpicker::colourInput(
+              ns("mh_col_member"),   "Colour: clumped members",  value = "#2ca02c")),
+            column(3, colourpicker::colourInput(
+              ns("mh_col_index"),    "Colour: independent leads", value = "#006400"))
+          ),
+          tags$div(style = "text-align: right; margin-top: 4px;",
+            actionButton(ns("mh_reset_colours"), "Reset colours")
           )
         )
       )
@@ -331,14 +388,20 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       if (is.null(md)) return(NULL)
       build_manhattan_plot(
         md,
-        sig_threshold       = input$mh_sig_threshold       %||% 5e-8,
-        highlight_threshold = input$mh_highlight_threshold %||% 5e-8,
+        sig_threshold        = parse_p(input$mh_sig_threshold,        5e-8),
+        suggestive_line      = isTRUE(input$mh_suggestive),
+        suggestive_threshold = parse_p(input$mh_suggestive_threshold, 1e-5),
+        highlight_threshold  = parse_p(input$mh_highlight_threshold,  5e-8),
         label_variants      = isTRUE(input$mh_label),
-        label_threshold     = input$mh_label_threshold     %||% 5e-8,
-        font_size           = input$mh_font_size           %||% 12,
-        point_size          = input$mh_point_size          %||% 0.9,
+        label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
+        font_size           = input$mh_font_size  %||% 12,
+        point_size          = input$mh_point_size %||% 0.9,
         theme_fn            = mol_theme_fn(input$mh_theme),
-        title               = input$mh_title               %||% ""
+        title               = input$mh_title      %||% "",
+        col_chr_odd  = input$mh_col_chr_odd  %||% "#8c8c8c",
+        col_chr_even = input$mh_col_chr_even %||% "#4d4d4d",
+        col_member   = input$mh_col_member   %||% "#2ca02c",
+        col_index    = input$mh_col_index    %||% "#006400"
       )
     })
 
@@ -358,14 +421,18 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         }
         p <- build_manhattan_plot(
           md,
-          sig_threshold       = input$mh_sig_threshold       %||% 5e-8,
-          highlight_threshold = input$mh_highlight_threshold %||% 5e-8,
+          sig_threshold       = parse_p(input$mh_sig_threshold,       5e-8),
+          highlight_threshold = parse_p(input$mh_highlight_threshold, 5e-8),
           label_variants      = isTRUE(input$mh_label),
-          label_threshold     = input$mh_label_threshold     %||% 5e-8,
-          font_size           = input$mh_font_size           %||% 12,
-          point_size          = input$mh_point_size          %||% 0.9,
+          label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
+          font_size           = input$mh_font_size  %||% 12,
+          point_size          = input$mh_point_size %||% 0.9,
           theme_fn            = mol_theme_fn(input$mh_theme),
-          title               = input$mh_title               %||% ""
+          title               = input$mh_title      %||% "",
+          col_chr_odd  = input$mh_col_chr_odd  %||% "#8c8c8c",
+          col_chr_even = input$mh_col_chr_even %||% "#4d4d4d",
+          col_member   = input$mh_col_member   %||% "#2ca02c",
+          col_index    = input$mh_col_index    %||% "#006400"
         )
         w   <- input$mh_dl_width  %||% 12
         h   <- input$mh_dl_height %||% 5
@@ -380,6 +447,16 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         grDevices::dev.off()
       }
     )
+
+    # Reset the four Manhattan colour pickers to the defaults declared in
+    # the UI / build_manhattan_plot(). Kept in sync manually — small enough
+    # not to warrant a shared constant.
+    observeEvent(input$mh_reset_colours, {
+      colourpicker::updateColourInput(session, "mh_col_chr_odd",  value = "#8c8c8c")
+      colourpicker::updateColourInput(session, "mh_col_chr_even", value = "#4d4d4d")
+      colourpicker::updateColourInput(session, "mh_col_member",   value = "#2ca02c")
+      colourpicker::updateColourInput(session, "mh_col_index",    value = "#006400")
+    })
 
     snp_assoc_lead_data <- reactive({
       req(gwas_data(), selected_gwas(), input$clumping_type)

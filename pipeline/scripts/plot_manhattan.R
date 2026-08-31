@@ -57,22 +57,40 @@ if (has_clump) {
   idx_plot[, label := sub(",.*$", "", NearestGene)]
   idx_plot[label == "None", label := NA_character_]
 
+  member_index_map <- data.table(member_snp = character(), index_snp = character())
   clumped_files <- Sys.glob(paste0(outdir, '/results/', opt$gwas, '/clump/', opt$gwas, '_chr*.clumped'))
   for (f in clumped_files) {
     tmp <- tryCatch(fread(f), error = function(e) NULL)
     if (is.null(tmp) || !("SP2" %in% names(tmp))) next
-    sp2_strings <- tmp$SP2[!is.na(tmp$SP2) & tmp$SP2 != "NONE"]
-    if (length(sp2_strings) == 0) next
-    members <- unlist(strsplit(paste(sp2_strings, collapse = ","), ","))
-    members <- gsub("\\(.*$", "", members)
-    clump_members <- c(clump_members, members)
+    for (row_i in seq_len(nrow(tmp))) {
+      sp2 <- tmp$SP2[row_i]
+      if (is.na(sp2) || sp2 == "NONE") next
+      members <- unlist(strsplit(sp2, ","))
+      members <- gsub("\\(.*$", "", members)
+      if (length(members) == 0) next
+      member_index_map <- rbind(
+        member_index_map,
+        data.table(member_snp = members, index_snp = tmp$SNP[row_i]))
+    }
   }
-  clump_members <- unique(clump_members)
+  member_index_map <- unique(member_index_map)
+  clump_members <- unique(member_index_map$member_snp)
 }
 
 ss[, category := "other"]
 ss[SNP %in% clump_members, category := "clump_member"]
 if (!is.null(idx_plot)) ss[SNP %in% idx_plot$SNP, category := "index"]
+
+# Record the parent index for each clump member so the Shiny app can hide
+# member highlighting when the parent index falls above the user's
+# "highlight independent leads at P <" threshold. Indexes point to
+# themselves; "other" variants get NA.
+ss[, index_snp := NA_character_]
+if (exists("member_index_map") && nrow(member_index_map) > 0) {
+  ss[category == "clump_member",
+     index_snp := member_index_map[match(SNP, member_snp), index_snp]]
+}
+ss[category == "index", index_snp := SNP]
 
 base_plot <- ggplot() +
   geom_point(data = ss[category == "other"],
@@ -129,7 +147,7 @@ if (!is.null(idx_plot) && nrow(idx_plot) > 0) {
 # expose user-facing knobs (threshold, gene labels, theme, etc.) via
 # build_manhattan_plot(). Much smaller than the two PNG blobs.
 manhattan_data <- list(
-  data = ss[, .(CHR, BP, SNP, P, chr_colour, cum_bp, neglogP, category)],
+  data = ss[, .(CHR, BP, SNP, P, chr_colour, cum_bp, neglogP, category, index_snp)],
   offsets = chr_lens[, .(CHR, cum_offset, label_pos, chr_colour)],
   indexes = if (!is.null(idx_plot))
               idx_plot[, .(SNP, CHR, BP, P, cum_bp, neglogP, label)]

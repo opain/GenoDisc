@@ -12,6 +12,7 @@ library(shinyjs)
 library(sass)
 library(memoise)
 library(jsonlite)
+library(colourpicker)
 
 # Load functions and modules
 source('functions.R')
@@ -247,6 +248,13 @@ ui <- fluidPage(
     .irs--shiny .irs-bar { background: var(--gd-accent); border-color: var(--gd-accent); }
     .irs--shiny .irs-from, .irs--shiny .irs-to, .irs--shiny .irs-single {
       background: var(--gd-accent);
+      /* Text on --gd-accent needs the same colour as button text: dark in
+         dark mode (where accent is a bright mint), white in light mode. */
+      color: var(--gd-accent-text);
+    }
+    .irs--shiny .irs-from::before, .irs--shiny .irs-to::before,
+    .irs--shiny .irs-single::before {
+      border-top-color: var(--gd-accent);
     }
     .irs--shiny .irs-handle {
       border-color: var(--gd-accent);
