@@ -36,5 +36,13 @@ We have implemented a range of post-GWAS analyses into our GenoPred pipeline - A
 
 <br/>
 
+# The Hosted Service
+
+Don't want to install anything? Submit your GWAS via the hosted web service — the pipeline runs on our King's College London servers and results appear in an interactive viewer, without any local software installation.
+
+<a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to hosted service ↗</a>
+
+<br/>
+
 Please contact Oliver Pain (oliver.pain@kcl.ac.uk) for any questions or comments.
 

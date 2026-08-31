@@ -75,6 +75,12 @@ All results are packaged into a single `.rds` file that can be read into R or ex
 
 ***
 
+<div class="note-box">
+
+**Prefer not to install anything?** GenoDisc is also available as a hosted web service at [https://genodisc.er.kcl.ac.uk/](https://genodisc.er.kcl.ac.uk/) — submit your GWAS, run analyses on our servers, and explore the results in an interactive viewer, all without setting up conda or Snakemake.
+
+</div>
+
 # Installation
 
 There are three steps:

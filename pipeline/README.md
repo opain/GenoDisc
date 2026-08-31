@@ -24,7 +24,7 @@ The results of all analyses are summarised in an [.html report](https://opain.gi
 
 ### Using the pipeline
 
-Users can upload their GWAS summary statistics [here](https://opain.shinyapps.io/NEUROHACK_GenoFunc_demo/) for analysis via our King's College London server.
+Users can submit their GWAS summary statistics for analysis via our hosted web service at [https://genodisc.er.kcl.ac.uk/](https://genodisc.er.kcl.ac.uk/) — the pipeline runs on our King's College London servers and results appear in an interactive viewer.
 
 Alternatively, users can download the pipeline and run analyses [locally](#locally) (see instructions below).
 

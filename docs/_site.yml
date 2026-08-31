@@ -12,6 +12,8 @@ navbar:
         - text: "Technical Details"
           href: pipeline_technical.html
   right:
+    - text: "Hosted service ↗"
+      href: https://genodisc.er.kcl.ac.uk/
     - icon: fa-github fa-lg
       href: https://github.com/opain/GenoDisc
 css: styles/styles.css
