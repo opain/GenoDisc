@@ -68,51 +68,12 @@ document.getElementById('toggleNightMode').addEventListener('change', function()
 });
 </script>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-QTZQY06TLF');
-</script>
-
-<!-- Osano Cookie Consent -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"></script>
-<script>
-window.addEventListener("load", function(){
-  window.cookieconsent.initialise({
-    palette: {
-      popup: { background: "#000" },
-      button: { background: "#f1d600" }
-    },
-    theme: "classic",
-    position: "bottom-right",
-    content: {
-      message: "We use a cookie for Google Analytics to understand how people use this site. This helps us improve GenoPred and demonstrate its impact. Please click 'Accept' to help us with this.",
-      dismiss: "Accept",
-      link: "Google's privacy info",
-      href: "https://policies.google.com/technologies/partner-sites"
-    },
-    onStatusChange: function(status) {
-      if (status === 'allow') {
-        // Now load Google Analytics only if user consents
-        var gtagScript = document.createElement('script');
-        gtagScript.setAttribute('async', '');
-        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF';
-        document.head.appendChild(gtagScript);
-
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){ dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'G-QTZQY06TLF');
-      }
-    }
-  });
-});
-</script>
+<!-- Cloudflare Web Analytics (cookieless, no personal data - no consent required).
+     Same token as the hosted service (genodisc.er.kcl.ac.uk) so both surfaces
+     roll up into one dashboard. Replaces the previous Google Analytics setup
+     and its Osano cookie-consent banner. -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7709e512a3d5400a96a68c4893306f2c"}'></script>
+<!-- End Cloudflare Web Analytics -->
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -418,6 +379,9 @@ div.tocify {
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
+  <a href="https://genodisc.er.kcl.ac.uk/">Hosted service ↗</a>
+</li>
+<li>
   <a href="https://github.com/opain/GenoDisc">
     <span class="fa fa-github fa-lg"></span>
      
@@ -527,13 +491,6 @@ href="https://doi.org/10.1093/bioinformatics/bty742">Gaspar et
 al. 2019</a></td>
 </tr>
 <tr class="odd">
-<td align="left">FOCUS</td>
-<td align="left">Summary statistic munging</td>
-<td align="left"><a
-href="https://doi.org/10.1038/s41588-019-0367-1">Mancuso et
-al. 2019</a></td>
-</tr>
-<tr class="even">
 <td align="left">liftOver</td>
 <td align="left">Genome build coordinate conversion</td>
 <td align="left"><a
@@ -605,7 +562,10 @@ provided, they are converted to log-odds (BETA). Z-scores are converted
 to BETA and SE where possible.</p></li>
 </ol>
 <p>The cleaned summary statistics are stored in
-<code>{outdir}/results/{gwas}/gwas_sumstat/</code>.</p>
+<code>{outdir}/results/{gwas}/gwas_sumstat/</code>. A munged copy
+(<code>.cleaned.munged.sumstats.gz</code>) is written alongside them,
+containing <code>CHR SNP BP A1 A2 Z N</code> with
+<code>Z = BETA/SE</code>, as required by LDSC and FUSION.</p>
 <details>
 <summary>
 <strong>Recognised column name variants</strong>
@@ -653,8 +613,9 @@ variance explained by common SNPs</li>
 confounding or population stratification in the GWAS</li>
 </ul>
 <p>The pipeline uses pre-computed LD scores from the European 1000
-Genomes reference panel. Summary statistics are first munged using the
-LDSC <code>munge_sumstats.py</code> script to ensure compatibility.</p>
+Genomes reference panel. LDSC is run on the Z-score formatted summary
+statistics written by <code>sumstat_cleaner.R</code> alongside the
+cleaned sumstats (<code>.cleaned.munged.sumstats.gz</code>).</p>
 <p>Results are stored in <code>{outdir}/results/{gwas}/ldsc/</code>.</p>
 <hr />
 </div>
