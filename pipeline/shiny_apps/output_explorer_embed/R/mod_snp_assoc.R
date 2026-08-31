@@ -47,23 +47,20 @@ build_manhattan_plot <- function(md,
   # user's colour choices — ignore any baked-in chr_colour from old bundles.
   ss[, chr_bg := ifelse(CHR %% 2 == 1, col_chr_odd, col_chr_even)]
 
-  # Independent leads that clear the highlight threshold. Clump members are
-  # highlighted only when their PARENT index is in this set — so loosening
-  # the threshold de-highlights the whole clump together, not just the
-  # index diamond. Backward compat: if the bundle's manhattan_data was
-  # produced before we started writing `index_snp`, fall back to
-  # highlighting members by their own P.
-  hi_index_snps <- if (!is.null(idx)) idx$SNP[!is.na(idx$P) & idx$P < highlight_threshold] else character(0)
-  if ("index_snp" %in% names(ss)) {
-    ss_members <- ss[category == "clump_member" & !is.na(index_snp) &
-                       index_snp %in% hi_index_snps]
-  } else {
-    ss_members <- ss[category == "clump_member" & !is.na(P) & P < highlight_threshold]
-  }
+  # ALL clump members (variants in LD with an independent lead) get the
+  # green highlight — "in LD with a lead" is a genotype-relationship fact,
+  # not a threshold-dependent one. `highlight_threshold` only governs which
+  # index variants get the enlarged diamond glyph, below.
+  ss_members <- ss[category == "clump_member"]
 
+  # Layer 1: plot every non-index variant in the chromosome-alternating grey.
+  # This is where "other" AND "clump_member" both live — so members whose
+  # parent index sits above the highlight threshold appear as regular grey
+  # points instead of vanishing. Layer 2 then overlays the highlighted
+  # members subset in green on top.
   p <- ggplot2::ggplot() +
     ggplot2::geom_point(
-      data = ss[category == "other"],
+      data = ss[category != "index"],
       ggplot2::aes(x = cum_bp, y = neglogP, colour = chr_bg),
       size = point_size) +
     ggplot2::scale_colour_identity() +
@@ -80,7 +77,12 @@ build_manhattan_plot <- function(md,
     ggplot2::scale_x_continuous(breaks = offsets$label_pos,
                                 labels = offsets$CHR,
                                 expand = ggplot2::expansion(mult = c(0.01, 0.01))) +
-    ggplot2::expand_limits(y = 0) +
+    # Clip the y-axis at -log10(p_threshold) so we don't leave a huge empty
+    # band below the least-significant plotted variant. p_threshold is the
+    # pipeline's Manhattan filter (default 1e-3); md$p_threshold is 1 in the
+    # fallback case where < 10 variants passed and all were retained.
+    ggplot2::coord_cartesian(
+      ylim = c(-log10(md$p_threshold %||% 1e-3), NA), clip = "off") +
     ggplot2::labs(x = "Chromosome",
                   y = expression(-log[10](italic(P))),
                   title = if (nzchar(title)) title else NULL) +
@@ -297,7 +299,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
                           "Suggestive line at P <:", value = "1e-5")
               ),
               textInput(ns("mh_highlight_threshold"),
-                        "Highlight independent leads at P <:", value = "5e-8"),
+                        "Highlight independent leads at P <:", value = "5e-8",
+                        placeholder = "max 1e-5 (the clumping P threshold)"),
               checkboxInput(ns("mh_label"),
                             "Label nearest gene at lead variants", value = FALSE),
               conditionalPanel(
@@ -346,12 +349,21 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
       # Preferred: raw data → modifiable ggplot render.
       if (!is.null(gwas_qc$manhattan_data)) {
+        p_thr <- gwas_qc$manhattan_data$p_threshold %||% 1e-3
+        variant_filter_note <- if (p_thr < 1) {
+          sprintf(
+            "Only variants with P < %s are plotted (a pipeline-side filter that keeps the plot lightweight). The y-axis starts at -log10(%s) = %.2f so the shown range matches what's actually plotted.",
+            format(p_thr, scientific = TRUE), format(p_thr, scientific = TRUE), -log10(p_thr))
+        } else {
+          "All variants are plotted (fewer than 10 passed the usual P < 1e-3 filter, so the pipeline fell back to showing everything)."
+        }
         return(tagList(
           tags$div(style = "max-width: 1200px;",
             plotOutput(ns("manhattan_plot"), height = "500px")
           ),
           gd_legend(list(
             "Axes" = "Each point is a variant, positioned by chromosome (x) and -log10(P) (y); higher points are more strongly associated.",
+            "Variant filter" = variant_filter_note,
             "Red dashed line" = "Significance line (default P < 5e-8; adjustable in Plot options).",
             "Green points" = "Variants clumped with an index variant (part of the same association signal).",
             "Dark-green diamonds" = "Index (lead) variants below the highlight threshold (adjustable in Plot options).",
@@ -391,7 +403,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         sig_threshold        = parse_p(input$mh_sig_threshold,        5e-8),
         suggestive_line      = isTRUE(input$mh_suggestive),
         suggestive_threshold = parse_p(input$mh_suggestive_threshold, 1e-5),
-        highlight_threshold  = parse_p(input$mh_highlight_threshold,  5e-8),
+        # Cap at 1e-5 — the clumping P threshold. No index variant with
+        # P above that exists in the data, so a looser value is meaningless.
+        highlight_threshold  = min(parse_p(input$mh_highlight_threshold, 5e-8), 1e-5),
         label_variants      = isTRUE(input$mh_label),
         label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
         font_size           = input$mh_font_size  %||% 12,
