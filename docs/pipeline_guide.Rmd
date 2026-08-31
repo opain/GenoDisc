@@ -96,7 +96,7 @@ cd GenoDisc/pipeline
 
 ***
 
-## Step 2: Install conda and Snakemake
+## Step 2: Install conda and the `genodisc` environment
 
 If you do not already have conda installed, install Miniconda:
 
@@ -105,20 +105,16 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 sh Miniconda3-latest-Linux-x86_64.sh
 ```
 
-Then install Snakemake and the required Python packages:
+Then create the `genodisc` environment from the pipeline's env file. This installs Python, Mamba, Snakemake, Pandas and Ghostscript at the exact versions the pipeline expects:
 
 ```{bash}
-conda activate base
-conda install python=3.8
-conda install -c conda-forge mamba
-mamba install -c bioconda -c conda-forge snakemake=7.6.2
-mamba install 'tabulate=0.8.10'
-mamba install pandas
+conda env create -f envs/pipeline.yaml
+conda activate genodisc
 ```
 
 <div class="note-box">
 
-**Note:** If ghostscript is not already installed on your system, you will need to install it. You can check by typing `ghostscript` in the terminal.
+**Note:** The pipeline hard-checks the active env name at startup. Every subsequent step assumes `genodisc` is active — if it isn't, Snakemake will exit immediately with `Error: The genodisc conda environment must be active when running the pipeline.` The env file lives at [`envs/pipeline.yaml`](https://github.com/opain/GenoDisc/blob/main/pipeline/envs/pipeline.yaml).
 
 </div>
 
@@ -268,6 +264,25 @@ COAD01 data/gwas/COAD01.gz EUR NA 0.33 0.03 NA NA "Coronary Artery Disease"
 
 ***
 
+## Bivariate LDSC list file (optional) {#gencor-list}
+
+To run bivariate LDSC genetic-correlation analysis (rG) between the primary GWAS and a set of secondary GWAS, set `gencor_gwas_list` in the config to the path of a second list file. It uses the **same format as the GWAS list above**, but the `path` column must point to summary statistics that have **already been munged** into LDSC's `.sumstats.gz` format.
+
+You can add **any number of additional columns** (e.g. `category`, `ancestry`, `year`) beyond the nine listed above. These extras are preserved through to the results and offered as **facet options** in the Shiny app's rG plot, so no code change is needed each time a new metadata column is introduced.
+
+Bivariate LDSC requires `ldsc: T` in the config; otherwise the pipeline exits with a validation error at startup.
+
+**Example (with a `category` extra column):**
+
+```
+name path population n sampling prevalence mean sd label category
+ADHD06 data/munged/ADHD06.sumstats.gz EUR NA NA NA NA NA "ADHD" Psychiatric
+SCHI04 data/munged/SCHI04.sumstats.gz EUR NA NA NA NA NA "Schizophrenia" Psychiatric
+T2D12  data/munged/T2D12.sumstats.gz  EUR NA NA NA NA NA "Type 2 diabetes" Metabolic
+```
+
+***
+
 ## GWAS summary statistic format {#gwas-format}
 
 GWAS summary statistics files should be plain text (space/tab-delimited) or gzipped. The pipeline accepts a wide range of common column names and will attempt to map them automatically (see [Technical Details](pipeline_technical.html#summary-statistic-qc) for the full list of recognised column name variants).
@@ -335,11 +350,13 @@ This will run with a single core (`-c1`). On an HPC, you can use your Snakemake 
 
 ## Step 3: Check the output
 
-Once the pipeline completes, the results will be in the output directory specified in the test config. The final results package should be at:
+Once the pipeline completes, the results will be in the output directory specified in the test config. The final results bundle should be at:
 
 ```
-tests/output/results/results_package.rds
+tests/output/results/bundle.tar.gz
 ```
+
+(with the unpacked per-block `.rds` files under `tests/output/results/package/`).
 
 ***
 
@@ -427,11 +444,13 @@ Below are the main output files you can request, grouped by analysis. Replace `{
 
 <details><summary>**Final output**</summary>
 
-To generate the full results package containing all requested analyses:
+To generate the full results bundle containing all requested analyses:
 
 ```{bash}
-snakemake {outdir}/results/results_package.rds --configfile config/config.yaml --use-conda -c1
+snakemake {outdir}/results/bundle.tar.gz --configfile config/config.yaml --use-conda -c1
 ```
+
+Or use the convenience alias `run_package_results` (which resolves to the same target).
 
 </details>
 
@@ -441,17 +460,22 @@ snakemake {outdir}/results/results_package.rds --configfile config/config.yaml -
 
 ## Output directory structure
 
-The pipeline organises outputs by GWAS within the specified output directory:
+The pipeline organises intermediate outputs by GWAS within the specified output directory, then collates everything into a single portable bundle:
 
 ```
 {outdir}/
   results/
     {gwas}/
-      gwas_sumstat/        # Cleaned GWAS summary statistics
+      gwas_sumstat/                            # Cleaned GWAS summary statistics
+        {gwas}.manhattan_plot.unlabelled.png   # Manhattan plot (static)
+        {gwas}.manhattan_plot.labelled.png     # Manhattan plot with gene labels
+        {gwas}.manhattan_data.rds              # Raw filtered variants (used
+                                               #   by the Shiny app to rebuild
+                                               #   the Manhattan interactively)
       clump/               # LD clumping results
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
-      ldsc/                # LD score regression results
+      ldsc/                # LD score regression results (incl. gencor)
       magma/               # MAGMA gene-level and enrichment results
       twas/                # TWAS results (combined across panels)
         conditional/       # Conditional TWAS results
@@ -463,35 +487,51 @@ The pipeline organises outputs by GWAS within the specified output directory:
         rosmap/
       pwas/                # PWAS results
       gcsc/                # GCSC drug enrichment results
-    results_package.rds    # Combined results for all GWAS
+    package/               # Unpacked bundle contents (one .rds per block)
+      manifest.json        # Index of every block in the bundle
+      gwas/{gwas}/
+        gwas_qc.rds        # QC + Manhattan data
+        snp_assoc.rds
+        mol_assoc/…        # exp/protein × fusion/smr, magma, nearest, finemap
+        tx/…               # drug, atc, cmap
+        tissue.rds
+      configuration/
+        config.rds
+        gwas_list.rds
+    bundle.tar.gz          # `package/` tarballed — the portable output the
+                           #   Shiny app loads via "Choose a bundle"
 ```
 
 ***
 
 ## Reading results into R
 
-The main output is `results_package.rds`, which contains all results in a structured R list:
+The primary output is `bundle.tar.gz`. It contains one `.rds` per analysis block plus a `manifest.json` describing what's inside, so results can be lazy-loaded block-by-block instead of holding the whole tree in memory. The easiest way to read it in R is via the reader shipped inside the Shiny app:
 
 ```{r}
-results <- readRDS("path/to/results/results_package.rds")
+source("shiny_apps/output_explorer_embed/reader.R")
+gd <- gd_open("path/to/results/bundle.tar.gz")
 
-# View the structure
-str(results, max.level = 2)
+# List the GWAS in the bundle
+gd_gwas(gd)
 
-# Access results for a specific GWAS
-names(results)
+# Read a specific block
+qc     <- gd_read(gd, "COAD01", "gwas_qc")           # per-GWAS QC + Manhattan data
+snp    <- gd_read(gd, "COAD01", "snp_assoc")         # clumping, COJO, SuSiE
+drug   <- gd_read(gd, "COAD01", "tx/drug")           # drug-enrichment results
 ```
+
+Alternatively, unpack the tarball and read individual blocks directly with `readRDS()`; the `package/manifest.json` file lists the path of every block.
+
+For backwards compatibility, `gd_open()` also accepts a legacy monolithic `results_package.rds` produced by older pipeline runs.
 
 ***
 
-## Structure of the results package
+## Structure of a block
 
-`results_package.rds` loads as a list with one entry per GWAS (keyed by the
-`name` column of the GWAS list file) plus a top-level `configuration` entry.
-Any element gated by a config flag that was not enabled is `NULL`, so the tree
-below is a maximum — individual runs will have fewer populated leaves.
+Below is the maximum tree of what a per-GWAS bundle contains — one entry per block, keyed by the `name` column of the GWAS list file. Any block gated by a config flag that was not enabled is missing (or its inner element is `NULL`), so individual runs will have fewer populated leaves.
 
-The per-GWAS list (`results$<gwas>`) is organised as follows:
+The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organised as follows:
 
 ```
 <gwas>/
@@ -499,7 +539,17 @@ The per-GWAS list (`results$<gwas>`) is organised as follows:
     cleaner_dat                 # sumstat cleaner log + parsed values,
                                 #   incl. lambda_GC / max_chi2 / N sig SNPs
     ldsc_dat                    # NULL unless ldsc: T
+    ldsc_gencor_dat             # NULL unless gencor_gwas_list is set;
+                                #   $table has one row per secondary trait
+                                #   with rg, rg_se, rg_p, rg_p_fdr, n_snps
+                                #   + any extra columns from the list file
+    manhattan_data              # list(data, offsets, indexes, p_threshold)
+                                #   consumed by the Shiny app's modifiable
+                                #   Manhattan tab; NULL for old bundles
     maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
+    qq_plot_base64              # base64-encoded QQ plot PNG, or NULL
+    manhattan_plot_*_base64     # legacy base64 Manhattan PNGs (kept for
+                                #   backwards compat with old bundles)
 
   snp_assoc/                    # SNP-level associations
     clump                       # data.frame; NULL unless clump: T
@@ -551,7 +601,7 @@ The per-GWAS list (`results$<gwas>`) is organised as follows:
                                 # the conditional step
 ```
 
-The top-level `configuration` entry captures the provenance of the run:
+The top-level `configuration` block captures the provenance of the run:
 
 ```
 configuration/
@@ -564,24 +614,26 @@ configuration/
   gwas_list                     # data.frame: the parsed gwas_list file
 ```
 
+Read via `gd_config(gd)` from `reader.R`.
+
 A few leaf tables worth flagging:
 
-- `mol_assoc$exp$fusion$res` — one row per TWAS gene x panel, with `TWAS.Z`,
+- `mol_assoc/exp/fusion$res` — one row per TWAS gene x panel, with `TWAS.Z`,
   `TWAS.P`, `TWAS.P.FDR`, `COLOC.PP3`, `COLOC.PP4`, and a derived
   `COLOC_logical` (`(PP4 - PP3) / PP4 > 0.8`).
-- `tx$cmap$drug` — one row per (CMAP signature x TWAS panel). Columns include
+- `tx/cmap$drug` — one row per (CMAP signature x TWAS panel). Columns include
   `cmap_name`, `cell_iname`, `pert_itime`, `pert_idose`, `moa`, `Panel`,
   `Estimate`, `SE`, `Z`, `P`. `P.FDR` is pooled across all panels for
   cross-panel ranking, and `P.FDR (per panel)` preserves the within-panel FDR.
   This table's row count scales as signatures x panels and can dominate the
-  rds size; use the `cmap_cell_iname`, `cmap_pert_itime`, and `cmap_pert_idose`
+  bundle size; use the `cmap_cell_iname`, `cmap_pert_itime`, and `cmap_pert_idose`
   config options to restrict signatures before packaging.
 - `tissue$specific$keep` — a character vector (not a data.frame) listing the
   tissues that survived the conditional-analysis step.
 
 The exact columns of every leaf data.frame can be inspected directly, e.g.
-`str(results$<gwas>$tx, max.level = 2)` or
-`names(results$<gwas>$mol_assoc$exp$fusion$res)`.
+`str(gd_read(gd, "<gwas>", "tx/drug"), max.level = 2)` or
+`names(gd_read(gd, "<gwas>", "mol_assoc/exp/fusion")$res)`.
 
 ***
 

@@ -51,18 +51,14 @@ wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 sh Miniconda3-latest-Linux-x86_64.sh
 ```
 
-Install Python 3.8, Snakemake 7.6.2, and the basic project dependencies. Note. I am installing these packages in an environment called 'base', if you already have an environment called 'base', you may need to create a new environment to avoid conflicts.
+Create the `genodisc` conda environment from the pipeline's env file. This installs Python, Snakemake, Mamba, Pandas and Ghostscript at the exact versions the pipeline expects — every subsequent step assumes this env is active.
 
 ```bash
-conda activate base
-conda install python=3.8
-conda install -c conda-forge mamba
-mamba install -c bioconda -c conda-forge snakemake=7.6.2
-mamba install 'tabulate=0.8.10'
-mamba install pandas
+conda env create -f envs/pipeline.yaml
+conda activate genodisc
 ```
 
-> Note. If ghostscript is not already installed on your system, you will need to install it. You can check this by typing 'ghostscript' into the terminal.
+> Note. The pipeline enforces this environment name at startup — if `genodisc` is not the active env, Snakemake will exit with `Error: The genodisc conda environment must be active when running the pipeline.` The env file lives at [`envs/pipeline.yaml`](envs/pipeline.yaml).
 
 #### Step 3: Prepare a [snakemake profile](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles) for parallel computing.
 I have provided an example for users using a slurm scheduler called 'example_slurm_profile_config.yaml'. Slurm users should create a folder called 'slurm' in '$HOME/.config/snakemake', and then copy in the example_slurm_profile_config.yaml, renaming it to config.yaml.
@@ -90,6 +86,8 @@ snakemake --restart-times 3 --profile slurm --use-conda --conda-frontend mamba r
 ### Running pipeline using your own data
 
 You must specify a [gwas_list file](#gwas_list_file) listing GWAS summary statistics for the pipeline to use.
+
+Optionally, you can also supply a `gencor_gwas_list` in the config to run bivariate LDSC genetic-correlation analysis against a set of already-munged secondary GWAS. The file uses the same format as `gwas_list`; you can add any number of extra columns (e.g. `category`) and they'll be preserved through to the results and surfaced as facet options in the Shiny app. This requires `ldsc: T`.
 
 In addition, some external datasets cannot be downloaded automatically due to data restrictions. If you would like to infer altered protein levels associated with the GWAS phenotype using ROSMAP or Banner datasets, these must be downloaded in advance from [here](https://www.synapse.org/#!Synapse:syn23627957).
 
@@ -129,7 +127,12 @@ The following column names are expected in the GWAS summary statistics files:
 
 ### Output
 
-All the results for a given GWAS will be stored within the folder 'results/\<GWAS ID>'. An .html file summarising the results can be found in 'results/\<GWAS ID>/reports/\<GWAS ID>_report.html'.
+Per-GWAS intermediate results are written under `<outdir>/results/<GWAS ID>/` (sumstats QC, LDSC logs, clumping/COJO, TWAS/SMR, drug enrichment, tissue enrichment, per-locus zoom plots, Manhattan PNGs and the accompanying `<GWAS ID>.manhattan_data.rds`, etc.).
+
+The `package_results` rule (invoked as `run_package_results`) collates everything into a single portable **bundle** at:
+
+- `<outdir>/results/bundle.tar.gz` — tarball containing one .rds per analysis block plus a `manifest.json` describing what's inside. This is what the Shiny app (`shiny_apps/output_explorer_embed`) loads via its "Choose a bundle" button.
+- `<outdir>/results/package/` — the same content unpacked, in case you want to inspect blocks directly.
 
 ### Running parts of the pipeline
 

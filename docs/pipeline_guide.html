@@ -514,22 +514,24 @@ pipeline directory:</p>
 cd GenoDisc/pipeline</code></pre>
 <hr />
 </div>
-<div id="step-2-install-conda-and-snakemake" class="section level2">
-<h2>Step 2: Install conda and Snakemake</h2>
+<div id="step-2-install-conda-and-the-genodisc-environment"
+class="section level2">
+<h2>Step 2: Install conda and the <code>genodisc</code> environment</h2>
 <p>If you do not already have conda installed, install Miniconda:</p>
 <pre class="bash"><code>wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
 sh Miniconda3-latest-Linux-x86_64.sh</code></pre>
-<p>Then install Snakemake and the required Python packages:</p>
-<pre class="bash"><code>conda activate base
-conda install python=3.8
-conda install -c conda-forge mamba
-mamba install -c bioconda -c conda-forge snakemake=7.6.2
-mamba install &#39;tabulate=0.8.10&#39;
-mamba install pandas</code></pre>
+<p>Then create the <code>genodisc</code> environment from the pipeline’s
+env file. This installs Python, Mamba, Snakemake, Pandas and Ghostscript
+at the exact versions the pipeline expects:</p>
+<pre class="bash"><code>conda env create -f envs/pipeline.yaml
+conda activate genodisc</code></pre>
 <div class="note-box">
-<p><strong>Note:</strong> If ghostscript is not already installed on
-your system, you will need to install it. You can check by typing
-<code>ghostscript</code> in the terminal.</p>
+<p><strong>Note:</strong> The pipeline hard-checks the active env name
+at startup. Every subsequent step assumes <code>genodisc</code> is
+active — if it isn’t, Snakemake will exit immediately with
+<code>Error: The genodisc conda environment must be active when running the pipeline.</code>
+The env file lives at <a
+href="https://github.com/opain/GenoDisc/blob/main/pipeline/envs/pipeline.yaml"><code>envs/pipeline.yaml</code></a>.</p>
 </div>
 <hr />
 </div>
@@ -953,6 +955,31 @@ only)</td>
 COAD01 data/gwas/COAD01.gz EUR NA 0.33 0.03 NA NA &quot;Coronary Artery Disease&quot;</code></pre>
 <hr />
 </div>
+<div id="gencor-list" class="section level2">
+<h2>Bivariate LDSC list file (optional)</h2>
+<p>To run bivariate LDSC genetic-correlation analysis (rG) between the
+primary GWAS and a set of secondary GWAS, set
+<code>gencor_gwas_list</code> in the config to the path of a second list
+file. It uses the <strong>same format as the GWAS list above</strong>,
+but the <code>path</code> column must point to summary statistics that
+have <strong>already been munged</strong> into LDSC’s
+<code>.sumstats.gz</code> format.</p>
+<p>You can add <strong>any number of additional columns</strong>
+(e.g. <code>category</code>, <code>ancestry</code>, <code>year</code>)
+beyond the nine listed above. These extras are preserved through to the
+results and offered as <strong>facet options</strong> in the Shiny app’s
+rG plot, so no code change is needed each time a new metadata column is
+introduced.</p>
+<p>Bivariate LDSC requires <code>ldsc: T</code> in the config; otherwise
+the pipeline exits with a validation error at startup.</p>
+<p><strong>Example (with a <code>category</code> extra
+column):</strong></p>
+<pre><code>name path population n sampling prevalence mean sd label category
+ADHD06 data/munged/ADHD06.sumstats.gz EUR NA NA NA NA NA &quot;ADHD&quot; Psychiatric
+SCHI04 data/munged/SCHI04.sumstats.gz EUR NA NA NA NA NA &quot;Schizophrenia&quot; Psychiatric
+T2D12  data/munged/T2D12.sumstats.gz  EUR NA NA NA NA NA &quot;Type 2 diabetes&quot; Metabolic</code></pre>
+<hr />
+</div>
 <div id="gwas-format" class="section level2">
 <h2>GWAS summary statistic format</h2>
 <p>GWAS summary statistics files should be plain text
@@ -1072,9 +1099,11 @@ href="#running-on-an-hpc">Running on an HPC</a>).</p>
 <div id="step-3-check-the-output" class="section level2">
 <h2>Step 3: Check the output</h2>
 <p>Once the pipeline completes, the results will be in the output
-directory specified in the test config. The final results package should
+directory specified in the test config. The final results bundle should
 be at:</p>
-<pre><code>tests/output/results/results_package.rds</code></pre>
+<pre><code>tests/output/results/bundle.tar.gz</code></pre>
+<p>(with the unpacked per-block <code>.rds</code> files under
+<code>tests/output/results/package/</code>).</p>
 <hr />
 </div>
 </div>
@@ -1238,9 +1267,11 @@ Replace <code>{outdir}</code> with your output directory and
 <summary>
 <strong>Final output</strong>
 </summary>
-<p>To generate the full results package containing all requested
+<p>To generate the full results bundle containing all requested
 analyses:</p>
-<pre class="bash"><code>snakemake {outdir}/results/results_package.rds --configfile config/config.yaml --use-conda -c1</code></pre>
+<pre class="bash"><code>snakemake {outdir}/results/bundle.tar.gz --configfile config/config.yaml --use-conda -c1</code></pre>
+<p>Or use the convenience alias <code>run_package_results</code> (which
+resolves to the same target).</p>
 </details>
 <hr />
 </div>
@@ -1249,16 +1280,22 @@ analyses:</p>
 <h1>Output</h1>
 <div id="output-directory-structure" class="section level2">
 <h2>Output directory structure</h2>
-<p>The pipeline organises outputs by GWAS within the specified output
-directory:</p>
+<p>The pipeline organises intermediate outputs by GWAS within the
+specified output directory, then collates everything into a single
+portable bundle:</p>
 <pre><code>{outdir}/
   results/
     {gwas}/
-      gwas_sumstat/        # Cleaned GWAS summary statistics
+      gwas_sumstat/                            # Cleaned GWAS summary statistics
+        {gwas}.manhattan_plot.unlabelled.png   # Manhattan plot (static)
+        {gwas}.manhattan_plot.labelled.png     # Manhattan plot with gene labels
+        {gwas}.manhattan_data.rds              # Raw filtered variants (used
+                                               #   by the Shiny app to rebuild
+                                               #   the Manhattan interactively)
       clump/               # LD clumping results
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
-      ldsc/                # LD score regression results
+      ldsc/                # LD score regression results (incl. gencor)
       magma/               # MAGMA gene-level and enrichment results
       twas/                # TWAS results (combined across panels)
         conditional/       # Conditional TWAS results
@@ -1270,37 +1307,72 @@ directory:</p>
         rosmap/
       pwas/                # PWAS results
       gcsc/                # GCSC drug enrichment results
-    results_package.rds    # Combined results for all GWAS</code></pre>
+    package/               # Unpacked bundle contents (one .rds per block)
+      manifest.json        # Index of every block in the bundle
+      gwas/{gwas}/
+        gwas_qc.rds        # QC + Manhattan data
+        snp_assoc.rds
+        mol_assoc/…        # exp/protein × fusion/smr, magma, nearest, finemap
+        tx/…               # drug, atc, cmap
+        tissue.rds
+      configuration/
+        config.rds
+        gwas_list.rds
+    bundle.tar.gz          # `package/` tarballed — the portable output the
+                           #   Shiny app loads via &quot;Choose a bundle&quot;</code></pre>
 <hr />
 </div>
 <div id="reading-results-into-r" class="section level2">
 <h2>Reading results into R</h2>
-<p>The main output is <code>results_package.rds</code>, which contains
-all results in a structured R list:</p>
-<pre class="r"><code>results &lt;- readRDS(&quot;path/to/results/results_package.rds&quot;)
+<p>The primary output is <code>bundle.tar.gz</code>. It contains one
+<code>.rds</code> per analysis block plus a <code>manifest.json</code>
+describing what’s inside, so results can be lazy-loaded block-by-block
+instead of holding the whole tree in memory. The easiest way to read it
+in R is via the reader shipped inside the Shiny app:</p>
+<pre class="r"><code>source(&quot;shiny_apps/output_explorer_embed/reader.R&quot;)
+gd &lt;- gd_open(&quot;path/to/results/bundle.tar.gz&quot;)
 
-# View the structure
-str(results, max.level = 2)
+# List the GWAS in the bundle
+gd_gwas(gd)
 
-# Access results for a specific GWAS
-names(results)</code></pre>
+# Read a specific block
+qc     &lt;- gd_read(gd, &quot;COAD01&quot;, &quot;gwas_qc&quot;)           # per-GWAS QC + Manhattan data
+snp    &lt;- gd_read(gd, &quot;COAD01&quot;, &quot;snp_assoc&quot;)         # clumping, COJO, SuSiE
+drug   &lt;- gd_read(gd, &quot;COAD01&quot;, &quot;tx/drug&quot;)           # drug-enrichment results</code></pre>
+<p>Alternatively, unpack the tarball and read individual blocks directly
+with <code>readRDS()</code>; the <code>package/manifest.json</code> file
+lists the path of every block.</p>
+<p>For backwards compatibility, <code>gd_open()</code> also accepts a
+legacy monolithic <code>results_package.rds</code> produced by older
+pipeline runs.</p>
 <hr />
 </div>
-<div id="structure-of-the-results-package" class="section level2">
-<h2>Structure of the results package</h2>
-<p><code>results_package.rds</code> loads as a list with one entry per
-GWAS (keyed by the <code>name</code> column of the GWAS list file) plus
-a top-level <code>configuration</code> entry. Any element gated by a
-config flag that was not enabled is <code>NULL</code>, so the tree below
-is a maximum — individual runs will have fewer populated leaves.</p>
-<p>The per-GWAS list (<code>results$&lt;gwas&gt;</code>) is organised as
-follows:</p>
+<div id="structure-of-a-block" class="section level2">
+<h2>Structure of a block</h2>
+<p>Below is the maximum tree of what a per-GWAS bundle contains — one
+entry per block, keyed by the <code>name</code> column of the GWAS list
+file. Any block gated by a config flag that was not enabled is missing
+(or its inner element is <code>NULL</code>), so individual runs will
+have fewer populated leaves.</p>
+<p>The per-GWAS blocks (accessed as
+<code>gd_read(gd, "&lt;gwas&gt;", "&lt;block&gt;")</code>) are organised
+as follows:</p>
 <pre><code>&lt;gwas&gt;/
   gwas_qc/                      # GWAS summary-statistic QC
-    cleaner_dat                 # sumstat cleaner log + parsed values
-    focus_dat                   # FOCUS log + lambda_GC / max_chi2 / N sig SNPs
+    cleaner_dat                 # sumstat cleaner log + parsed values,
+                                #   incl. lambda_GC / max_chi2 / N sig SNPs
     ldsc_dat                    # NULL unless ldsc: T
+    ldsc_gencor_dat             # NULL unless gencor_gwas_list is set;
+                                #   $table has one row per secondary trait
+                                #   with rg, rg_se, rg_p, rg_p_fdr, n_snps
+                                #   + any extra columns from the list file
+    manhattan_data              # list(data, offsets, indexes, p_threshold)
+                                #   consumed by the Shiny app&#39;s modifiable
+                                #   Manhattan tab; NULL for old bundles
     maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
+    qq_plot_base64              # base64-encoded QQ plot PNG, or NULL
+    manhattan_plot_*_base64     # legacy base64 Manhattan PNGs (kept for
+                                #   backwards compat with old bundles)
 
   snp_assoc/                    # SNP-level associations
     clump                       # data.frame; NULL unless clump: T
@@ -1350,7 +1422,7 @@ follows:</p>
       res                       # data.frame of MAGMA tissue results
       keep                      # character vector: tissues retained after
                                 # the conditional step</code></pre>
-<p>The top-level <code>configuration</code> entry captures the
+<p>The top-level <code>configuration</code> block captures the
 provenance of the run:</p>
 <pre><code>configuration/
   repo/
@@ -1360,21 +1432,22 @@ provenance of the run:</p>
   config                        # character vector: full merged config as
                                 # &quot;key: value&quot; strings
   gwas_list                     # data.frame: the parsed gwas_list file</code></pre>
+<p>Read via <code>gd_config(gd)</code> from <code>reader.R</code>.</p>
 <p>A few leaf tables worth flagging:</p>
 <ul>
-<li><code>mol_assoc$exp$fusion$res</code> — one row per TWAS gene x
+<li><code>mol_assoc/exp/fusion$res</code> — one row per TWAS gene x
 panel, with <code>TWAS.Z</code>, <code>TWAS.P</code>,
 <code>TWAS.P.FDR</code>, <code>COLOC.PP3</code>, <code>COLOC.PP4</code>,
 and a derived <code>COLOC_logical</code>
 (<code>(PP4 - PP3) / PP4 &gt; 0.8</code>).</li>
-<li><code>tx$cmap$drug</code> — one row per (CMAP signature x TWAS
+<li><code>tx/cmap$drug</code> — one row per (CMAP signature x TWAS
 panel). Columns include <code>cmap_name</code>, <code>cell_iname</code>,
 <code>pert_itime</code>, <code>pert_idose</code>, <code>moa</code>,
 <code>Panel</code>, <code>Estimate</code>, <code>SE</code>,
 <code>Z</code>, <code>P</code>. <code>P.FDR</code> is pooled across all
 panels for cross-panel ranking, and <code>P.FDR (per panel)</code>
 preserves the within-panel FDR. This table’s row count scales as
-signatures x panels and can dominate the rds size; use the
+signatures x panels and can dominate the bundle size; use the
 <code>cmap_cell_iname</code>, <code>cmap_pert_itime</code>, and
 <code>cmap_pert_idose</code> config options to restrict signatures
 before packaging.</li>
@@ -1383,8 +1456,10 @@ data.frame) listing the tissues that survived the conditional-analysis
 step.</li>
 </ul>
 <p>The exact columns of every leaf data.frame can be inspected directly,
-e.g. <code>str(results$&lt;gwas&gt;$tx, max.level = 2)</code> or
-<code>names(results$&lt;gwas&gt;$mol_assoc$exp$fusion$res)</code>.</p>
+e.g.
+<code>str(gd_read(gd, "&lt;gwas&gt;", "tx/drug"), max.level = 2)</code>
+or
+<code>names(gd_read(gd, "&lt;gwas&gt;", "mol_assoc/exp/fusion")$res)</code>.</p>
 <hr />
 </div>
 <div id="using-the-shiny-explorer" class="section level2">
@@ -1437,6 +1512,47 @@ config. Alternatively, set the corresponding analysis toggles to
 <p>LDSC requires Python 2.7 and uses a separate conda environment
 (<code>envs/ldsc.yaml</code>). If LDSC fails, ensure the conda
 environment can be created successfully.</p>
+<p><strong>Updating GenoUtils without rerunning the
+pipeline</strong></p>
+<p>The <code>install_genoutils</code> rule pins a GenoUtils commit in
+its shell command, and <code>touch</code>es
+<code>resources/software/install_genoutils.done</code> on completion.
+Bumping that pin therefore fires Snakemake’s <code>code</code> rerun
+trigger, the marker’s timestamp is updated, and every job downstream of
+the marker (<code>sumstat_prep_i</code> and everything derived from it)
+goes stale — even when the GenoUtils change does not affect existing
+results.</p>
+<p>To install the new version without invalidating completed work,
+update the pin, rebuild the marker on its own, then restore its original
+timestamp:</p>
+<pre class="bash"><code>MARKER=&lt;resdir&gt;/software/install_genoutils.done
+
+# 1. Record the marker&#39;s current timestamp, BEFORE running snakemake
+STAMP=$(stat -c %y &quot;$MARKER&quot;)
+
+# 2. With the new commit already pinned in rules/dependencies.smk, build the
+#    marker as the target. The DAG then contains only install_genoutils, so no
+#    downstream rule is evaluated during this run.
+snakemake &quot;$MARKER&quot; --configfile=$CONFIG --use-conda --profile slurm
+
+# 3. Restore the timestamp so later runs cannot see that the marker changed
+touch -d &quot;$STAMP&quot; &quot;$MARKER&quot;</code></pre>
+<p>Step 2 matters because it actually runs the rule, which updates
+Snakemake’s recorded code hash for <code>install_genoutils</code> —
+passing <code>--rerun-triggers mtime</code> instead would suppress the
+rerun once and then fire again on every subsequent invocation. Step 3
+undoes the <code>touch</code>, so the <code>mtime</code> trigger stays
+quiet too.</p>
+<p>Step 1 must happen <em>before</em> step 2, and not just for
+convenience: if the install fails (for example
+<code>devtools::install_github</code> hitting a GitHub API rate limit),
+Snakemake deletes the incomplete marker, and the recorded
+<code>$STAMP</code> is then the only way to restore the original
+timestamp on a later successful attempt.</p>
+<p>This deliberately hides the GenoUtils update from Snakemake. When an
+update <em>should</em> invalidate results, skip step 3, or force the
+affected rules explicitly
+(e.g. <code>--forcerun sumstat_prep_i</code>).</p>
 <hr />
 <p>For questions or issues, please contact Oliver Pain (<a
 href="mailto:oliver.pain@kcl.ac.uk"
