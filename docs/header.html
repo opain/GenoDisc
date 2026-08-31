@@ -29,48 +29,9 @@ document.getElementById('toggleNightMode').addEventListener('change', function()
 });
 </script>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-QTZQY06TLF');
-</script>
-
-<!-- Osano Cookie Consent -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"></script>
-<script>
-window.addEventListener("load", function(){
-  window.cookieconsent.initialise({
-    palette: {
-      popup: { background: "#000" },
-      button: { background: "#f1d600" }
-    },
-    theme: "classic",
-    position: "bottom-right",
-    content: {
-      message: "We use a cookie for Google Analytics to understand how people use this site. This helps us improve GenoPred and demonstrate its impact. Please click 'Accept' to help us with this.",
-      dismiss: "Accept",
-      link: "Google's privacy info",
-      href: "https://policies.google.com/technologies/partner-sites"
-    },
-    onStatusChange: function(status) {
-      if (status === 'allow') {
-        // Now load Google Analytics only if user consents
-        var gtagScript = document.createElement('script');
-        gtagScript.setAttribute('async', '');
-        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF';
-        document.head.appendChild(gtagScript);
-
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){ dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'G-QTZQY06TLF');
-      }
-    }
-  });
-});
-</script>
+<!-- Cloudflare Web Analytics (cookieless, no personal data - no consent required).
+     Same token as the hosted service (genodisc.er.kcl.ac.uk) so both surfaces
+     roll up into one dashboard. Replaces the previous Google Analytics setup
+     and its Osano cookie-consent banner. -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7709e512a3d5400a96a68c4893306f2c"}'></script>
+<!-- End Cloudflare Web Analytics -->
