@@ -134,8 +134,11 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
   # no min_height floor). Used by `reserve_legend_space` to pin the panel
   # row when we bump plot_height up to fit the legend.
   panel_h_pt <- num_row * 20 * fs_ratio
+  # +30pt covers the fixed 15pt top + 15pt bottom padding rows that
+  # `reserve_legend_space` inserts, so the device has room for them
+  # without squeezing the panel.
   plot_height <- (max(nchar(df[[x_col]]), na.rm = TRUE) * 3 * fs_ratio) +
-                 panel_h_pt + 100
+                 panel_h_pt + 100 + 30
   plot_height <- max(plot_height, min_height)
 
   # Facet order (left→right)
@@ -238,14 +241,17 @@ reserve_legend_space <- function(gt, panel_h_pt) {
   panel_t <- unique(gt$layout$t[grepl("^panel", gt$layout$name)])
   if (length(panel_t) != 1) return(gt)
   gt$heights[panel_t] <- grid::unit(panel_h_pt, "pt")
-  # Add a null filler row at BOTH ends so any extra device height (from
-  # `min_height` in calc_plot_dims) splits evenly top/bottom instead of
-  # piling up under the plot. Keeps the facet strip from feeling crammed
-  # against the top edge.
-  gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = 0)
+  # Guaranteed 15pt padding at top and bottom (breathing room above the
+  # facet strip and below the axis text) — otherwise the plot content
+  # sits flush against the plot edges when natural height ≈ device
+  # height. A `1null` row at the bottom then absorbs any additional
+  # slack (e.g. from `min_height` in `calc_plot_dims`) without further
+  # shifting the panel.
+  gt <- gtable::gtable_add_rows(gt, grid::unit(15, "pt"), pos = 0)
+  gt <- gtable::gtable_add_rows(gt, grid::unit(15, "pt"), pos = -1)
   gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = -1)
-  # Extend the guide-box to span the full gtable so the legend still has
-  # room to draw at natural size.
+  # Extend the guide-box across the full gtable so the legend has room
+  # to draw at natural size even if the panel row is short.
   gb_idx <- grep("guide", gt$layout$name)
   if (length(gb_idx) > 0) {
     gt$layout$t[gb_idx] <- 1
