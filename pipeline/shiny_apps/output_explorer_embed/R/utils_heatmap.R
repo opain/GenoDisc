@@ -246,17 +246,12 @@ reserve_legend_space <- function(gt, panel_h_pt) {
   # sits flush against the plot edges when natural height ≈ device
   # height. A `1null` row at the bottom then absorbs any additional
   # slack (e.g. from `min_height` in `calc_plot_dims`) without further
-  # shifting the panel.
+  # shifting the panel. The guide-box is left anchored to the panel row
+  # (its default) so the legend stays vertically centred on the plot
+  # itself, not on the full figure including axis labels and padding.
   gt <- gtable::gtable_add_rows(gt, grid::unit(15, "pt"), pos = 0)
   gt <- gtable::gtable_add_rows(gt, grid::unit(15, "pt"), pos = -1)
   gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = -1)
-  # Extend the guide-box across the full gtable so the legend has room
-  # to draw at natural size even if the panel row is short.
-  gb_idx <- grep("guide", gt$layout$name)
-  if (length(gb_idx) > 0) {
-    gt$layout$t[gb_idx] <- 1
-    gt$layout$b[gb_idx] <- nrow(gt)
-  }
   gt
 }
 
