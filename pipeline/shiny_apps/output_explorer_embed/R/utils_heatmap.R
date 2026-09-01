@@ -221,18 +221,22 @@ z_score_colour_scale <- function(z_values) {
 #'
 #' When a heatmap has only a handful of rows the panel is very short, so the
 #' right-hand colourbar legend gets clipped at the top. This helper:
-#'   1. fixes the panel row(s) to `panel_h_pt` (their natural pt height so
-#'      row spacing doesn't change), then
+#'   1. fixes the panel row to `panel_h_pt` (its natural pt height so row
+#'      spacing doesn't change), then
 #'   2. adds a `1null` filler row at the bottom to absorb any extra device
 #'      height, then
 #'   3. extends the guide-box's bottom row index to that new filler so the
 #'      legend has vertical room to draw at full size.
-#' No-op if there is no guide-box (`grep("guide", gt$layout$name)` is empty)
-#' or if `panel_h_pt` is `NA`/`NULL`.
+#' No-op if there is no guide-box, if `panel_h_pt` is `NA`/`NULL`, or if
+#' the gtable has more than one panel row (`facet_grid` layouts). For
+#' multi-row facets `panel_h_pt` is the total across all rows, not per
+#' row, so pinning every row to it would blow the layout up — the legend
+#' also isn't at risk of clipping there because vertical space is already
+#' abundant.
 reserve_legend_space <- function(gt, panel_h_pt) {
   if (is.null(panel_h_pt) || is.na(panel_h_pt) || panel_h_pt <= 0) return(gt)
   panel_t <- unique(gt$layout$t[grepl("^panel", gt$layout$name)])
-  if (length(panel_t) == 0) return(gt)
+  if (length(panel_t) != 1) return(gt)
   gt$heights[panel_t] <- grid::unit(panel_h_pt, "pt")
   gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = -1)
   gb_idx <- grep("guide", gt$layout$name)
