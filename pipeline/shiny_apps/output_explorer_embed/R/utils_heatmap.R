@@ -238,9 +238,19 @@ reserve_legend_space <- function(gt, panel_h_pt) {
   panel_t <- unique(gt$layout$t[grepl("^panel", gt$layout$name)])
   if (length(panel_t) != 1) return(gt)
   gt$heights[panel_t] <- grid::unit(panel_h_pt, "pt")
+  # Add a null filler row at BOTH ends so any extra device height (from
+  # `min_height` in calc_plot_dims) splits evenly top/bottom instead of
+  # piling up under the plot. Keeps the facet strip from feeling crammed
+  # against the top edge.
+  gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = 0)
   gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = -1)
+  # Extend the guide-box to span the full gtable so the legend still has
+  # room to draw at natural size.
   gb_idx <- grep("guide", gt$layout$name)
-  if (length(gb_idx) > 0) gt$layout$b[gb_idx] <- nrow(gt)
+  if (length(gb_idx) > 0) {
+    gt$layout$t[gb_idx] <- 1
+    gt$layout$b[gb_idx] <- nrow(gt)
+  }
   gt
 }
 
