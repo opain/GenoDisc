@@ -970,13 +970,14 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Identify number of drugs
     plot_dim_drug<-reactive({
       all_gs<-tx_drug_summary_data_filtered()
-      # `min_height = 350` gives the two stacked colourbar legends enough
-      # vertical space; the panel row is then pinned to its natural height
-      # via `panel_h_pt` so row spacing stays constant when we bump the
-      # device height.
+      # `min_height = 350` reserves overall device height. `min_panel_h_pt
+      # = 200` floors the panel row so the two stacked colourbar legends
+      # (centred on the panel) don't clip even when only a handful of
+      # drugs are visible — row spacing spreads slightly in that
+      # edge case, in exchange for a fully-visible legend.
       calc_plot_dims(all_gs, y_col = "Name", x_col = "Panel", facet_col = "Method",
                      font_size = input$plot_font_size_drug %||% 14,
-                     min_height = 350)
+                     min_height = 350, min_panel_h_pt = 200)
     })
 
     observeEvent(tx_drug_summary_data_filtered(), {
@@ -1281,12 +1282,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Truncate long ATC names to match what the plot displays
       long <- nchar(all_gs_atc$Name) > 30
       all_gs_atc$Name[long] <- paste0(substr(all_gs_atc$Name[long], 1, 27), '...')
-      # `min_height = 350`: same rationale as plot_dim_drug — reserve
-      # vertical space for the stacked colourbar legends without stretching
-      # the panel rows.
+      # Same rationale as plot_dim_drug — reserve device height for the
+      # stacked colourbar legends and floor the panel row so they don't
+      # clip when only a few ATC classes are visible.
       calc_plot_dims(all_gs_atc, y_col = "Name", x_col = "Panel", facet_col = "Method",
                      font_size = input$plot_font_size_atc %||% 14,
-                     min_height = 350)
+                     min_height = 350, min_panel_h_pt = 200)
     })
 
     observeEvent(tx_atc_summary_data_filtered(), {

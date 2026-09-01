@@ -122,7 +122,8 @@ facet_target_width_pt <- function(group_label, panel_names, font_size = 14) {
 #' @return List with height (pt), width (pt), and left_pad_pt (pt) for the
 #'   `plot.margin(l = ...)` needed to absorb tick-label overflow.
 calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Method",
-                           facet_order = NULL, font_size = 14, min_height = 0) {
+                           facet_order = NULL, font_size = 14, min_height = 0,
+                           min_panel_h_pt = 0) {
   if (nrow(df) == 0) {
     return(list(height = 100, width = 100, left_pad_pt = 0, panel_h_pt = 0))
   }
@@ -130,10 +131,12 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
   # Height: x-label rotation space + rows + padding, scaled by font size.
   fs_ratio <- font_size / 14
   num_row <- length(unique(df[[y_col]]))
-  # Natural panel-only height (what ggplot would give the panel row with
-  # no min_height floor). Used by `reserve_legend_space` to pin the panel
-  # row when we bump plot_height up to fit the legend.
-  panel_h_pt <- num_row * 20 * fs_ratio
+  # Natural panel-only height (num_row * 20 * fs_ratio). We floor it at
+  # `min_panel_h_pt` so short plots have a panel row tall enough to fit
+  # the right-hand legend without clipping — that means row spacing
+  # spreads a bit for very-few-row plots, in exchange for the legend
+  # staying visible and vertically centred on the panel.
+  panel_h_pt <- max(num_row * 20 * fs_ratio, min_panel_h_pt)
   # +30pt covers the fixed 15pt top + 15pt bottom padding rows that
   # `reserve_legend_space` inserts, so the device has room for them
   # without squeezing the panel.
@@ -241,16 +244,13 @@ reserve_legend_space <- function(gt, panel_h_pt) {
   panel_t <- unique(gt$layout$t[grepl("^panel", gt$layout$name)])
   if (length(panel_t) != 1) return(gt)
   gt$heights[panel_t] <- grid::unit(panel_h_pt, "pt")
-  # Guaranteed 15pt padding at top and bottom (breathing room above the
-  # facet strip and below the axis text) — otherwise the plot content
-  # sits flush against the plot edges when natural height ≈ device
-  # height. A `1null` row at the bottom then absorbs any additional
-  # slack (e.g. from `min_height` in `calc_plot_dims`) without further
-  # shifting the panel. The guide-box is left anchored to the panel row
-  # (its default) so the legend stays vertically centred on the plot
-  # itself, not on the full figure including axis labels and padding.
+  # Guaranteed 15pt padding at absolute top and bottom (breathing room
+  # above the facet strip and below the axis text), plus a `1null` row
+  # at each end so any additional device slack from `min_height` splits
+  # evenly top/bottom instead of piling under the plot.
   gt <- gtable::gtable_add_rows(gt, grid::unit(15, "pt"), pos = 0)
   gt <- gtable::gtable_add_rows(gt, grid::unit(15, "pt"), pos = -1)
+  gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = 0)
   gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = -1)
   gt
 }
