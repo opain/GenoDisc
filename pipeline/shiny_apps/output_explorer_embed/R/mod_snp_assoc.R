@@ -47,11 +47,19 @@ build_manhattan_plot <- function(md,
   # user's colour choices — ignore any baked-in chr_colour from old bundles.
   ss[, chr_bg := ifelse(CHR %% 2 == 1, col_chr_odd, col_chr_even)]
 
-  # ALL clump members (variants in LD with an independent lead) get the
-  # green highlight — "in LD with a lead" is a genotype-relationship fact,
-  # not a threshold-dependent one. `highlight_threshold` only governs which
-  # index variants get the enlarged diamond glyph, below.
-  ss_members <- ss[category == "clump_member"]
+  # Only highlight clump members whose parent index variant passes the
+  # user's highlight threshold. Members of indexes above the threshold
+  # fall back to the alternating chromosome grey (drawn by layer 1 below).
+  # Older bundles that predate the `index_snp` column highlight all members
+  # (backwards-compatible fallback).
+  hi_index_snps <- if (!is.null(idx) && nrow(idx) > 0) {
+    idx[P < highlight_threshold, SNP]
+  } else character(0)
+  ss_members <- if ("index_snp" %in% names(ss)) {
+    ss[category == "clump_member" & index_snp %in% hi_index_snps]
+  } else {
+    ss[category == "clump_member"]
+  }
 
   # Layer 1: plot every non-index variant in the chromosome-alternating grey.
   # This is where "other" AND "clump_member" both live — so members whose
