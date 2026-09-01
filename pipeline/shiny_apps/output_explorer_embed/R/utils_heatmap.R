@@ -122,16 +122,21 @@ facet_target_width_pt <- function(group_label, panel_names, font_size = 14) {
 #' @return List with height (pt), width (pt), and left_pad_pt (pt) for the
 #'   `plot.margin(l = ...)` needed to absorb tick-label overflow.
 calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Method",
-                           facet_order = NULL, font_size = 14) {
+                           facet_order = NULL, font_size = 14, min_height = 0) {
   if (nrow(df) == 0) {
-    return(list(height = 100, width = 100, left_pad_pt = 0))
+    return(list(height = 100, width = 100, left_pad_pt = 0, panel_h_pt = 0))
   }
 
   # Height: x-label rotation space + rows + padding, scaled by font size.
   fs_ratio <- font_size / 14
   num_row <- length(unique(df[[y_col]]))
+  # Natural panel-only height (what ggplot would give the panel row with
+  # no min_height floor). Used by `reserve_legend_space` to pin the panel
+  # row when we bump plot_height up to fit the legend.
+  panel_h_pt <- num_row * 20 * fs_ratio
   plot_height <- (max(nchar(df[[x_col]]), na.rm = TRUE) * 3 * fs_ratio) +
-                 (num_row * 20 * fs_ratio) + 100
+                 panel_h_pt + 100
+  plot_height <- max(plot_height, min_height)
 
   # Facet order (left→right)
   present <- unique(df[[facet_col]])
@@ -169,7 +174,8 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
   # Right-side allowance for Z-score legend + panel spacing + margins.
   plot_width <- y_label_width + total_facet_width + 150 + left_pad_pt
 
-  list(height = plot_height, width = plot_width, left_pad_pt = left_pad_pt)
+  list(height = plot_height, width = plot_width, left_pad_pt = left_pad_pt,
+       panel_h_pt = panel_h_pt)
 }
 
 #' Calculate group sizes and proportional widths
@@ -208,6 +214,30 @@ z_score_colour_scale <- function(z_values) {
     limits = c(-max(abs(z_values), na.rm = TRUE), max(abs(z_values), na.rm = TRUE)),
     values = x
   )
+}
+
+#' Reserve legend space by pinning the panel row height and letting the
+#' legend column stretch below it.
+#'
+#' When a heatmap has only a handful of rows the panel is very short, so the
+#' right-hand colourbar legend gets clipped at the top. This helper:
+#'   1. fixes the panel row(s) to `panel_h_pt` (their natural pt height so
+#'      row spacing doesn't change), then
+#'   2. adds a `1null` filler row at the bottom to absorb any extra device
+#'      height, then
+#'   3. extends the guide-box's bottom row index to that new filler so the
+#'      legend has vertical room to draw at full size.
+#' No-op if there is no guide-box (`grep("guide", gt$layout$name)` is empty)
+#' or if `panel_h_pt` is `NA`/`NULL`.
+reserve_legend_space <- function(gt, panel_h_pt) {
+  if (is.null(panel_h_pt) || is.na(panel_h_pt) || panel_h_pt <= 0) return(gt)
+  panel_t <- unique(gt$layout$t[grepl("^panel", gt$layout$name)])
+  if (length(panel_t) == 0) return(gt)
+  gt$heights[panel_t] <- grid::unit(panel_h_pt, "pt")
+  gt <- gtable::gtable_add_rows(gt, grid::unit(1, "null"), pos = -1)
+  gb_idx <- grep("guide", gt$layout$name)
+  if (length(gb_idx) > 0) gt$layout$b[gb_idx] <- nrow(gt)
+  gt
 }
 
 #' Manipulate ggplot gtable to adjust facet panel widths and draw

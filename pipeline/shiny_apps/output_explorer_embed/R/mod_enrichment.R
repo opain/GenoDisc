@@ -70,7 +70,8 @@ build_tissue_plot <- function(d, n_total, sort_choice = "significance",
 #' files match what's on screen. Returns `NULL` if there's no data.
 build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
                                   font_size = 14, point_size = 5,
-                                  theme_fn = ggplot2::theme_bw, title = "") {
+                                  theme_fn = ggplot2::theme_bw, title = "",
+                                  panel_h_pt = NULL) {
   if (is.null(all_gs) || nrow(all_gs) == 0) return(NULL)
   all_gs$`ATC Code` <- NULL
 
@@ -174,13 +175,14 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
     panel_l <- gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]
     gt$widths[panel_l] <- group_siz$Width[i] * gt$widths[panel_l]
   }
-  gt
+  reserve_legend_space(gt, panel_h_pt)
 }
 
 #' Build the ATC-class enrichment summary heatmap as a gtable
 build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
                                  font_size = 14, point_size = 5,
-                                 theme_fn = ggplot2::theme_bw, title = "") {
+                                 theme_fn = ggplot2::theme_bw, title = "",
+                                 panel_h_pt = NULL) {
   if (is.null(all_gs_atc) || nrow(all_gs_atc) == 0) return(NULL)
 
   all_gs_atc_all <- NULL
@@ -287,7 +289,7 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
     panel_l <- gt$layout$l[grep(paste0('panel-', i, '-1'), gt$layout$name)]
     gt$widths[panel_l] <- group_siz$Width[i] * gt$widths[panel_l]
   }
-  gt
+  reserve_legend_space(gt, panel_h_pt)
 }
 
 enrichmentUI <- function(id) {
@@ -968,8 +970,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Identify number of drugs
     plot_dim_drug<-reactive({
       all_gs<-tx_drug_summary_data_filtered()
+      # `min_height = 350` gives the two stacked colourbar legends enough
+      # vertical space; the panel row is then pinned to its natural height
+      # via `panel_h_pt` so row spacing stays constant when we bump the
+      # device height.
       calc_plot_dims(all_gs, y_col = "Name", x_col = "Panel", facet_col = "Method",
-                     font_size = input$plot_font_size_drug %||% 14)
+                     font_size = input$plot_font_size_drug %||% 14,
+                     min_height = 350)
     })
 
     observeEvent(tx_drug_summary_data_filtered(), {
@@ -1004,20 +1011,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         font_size = input$plot_font_size_drug %||% 14,
         point_size = input$plot_point_size_drug %||% 5,
         theme_fn = enr_theme_fn(input$plot_theme_drug),
-        title = input$plot_title_drug %||% ""
+        title = input$plot_title_drug %||% "",
+        panel_h_pt = plot_dim_drug()[['panel_h_pt']]
       )
       if (!is.null(gt)) grid::grid.draw(gt)
     })
 
-    # Seed download width/height defaults from the plot's natural pt dimensions
-    # once data is loaded, then let the user override.
-    dl_defaults_seeded_drug <- reactiveVal(FALSE)
+    # Keep download width/height in sync with the on-screen plot so the
+    # default download matches the current window. User overrides get
+    # replaced whenever the on-screen dims change.
     observeEvent(plot_dim_drug(), {
       dims <- plot_dim_drug()
-      if (!dl_defaults_seeded_drug() && dims$width > 100 && dims$height < 10000) {
+      if (dims$width > 100 && dims$height < 10000) {
         updateNumericInput(session, "dl_width_drug",  value = round(dims$width  / 72, 1))
         updateNumericInput(session, "dl_height_drug", value = round(dims$height / 72, 1))
-        dl_defaults_seeded_drug(TRUE)
       }
     })
 
@@ -1034,7 +1041,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           font_size = input$plot_font_size_drug %||% 14,
           point_size = input$plot_point_size_drug %||% 5,
           theme_fn = enr_theme_fn(input$plot_theme_drug),
-          title = input$plot_title_drug %||% ""
+          title = input$plot_title_drug %||% "",
+          panel_h_pt = plot_dim_drug()[['panel_h_pt']]
         )
         w <- input$dl_width_drug  %||% 12
         h <- input$dl_height_drug %||% 8
@@ -1273,8 +1281,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       # Truncate long ATC names to match what the plot displays
       long <- nchar(all_gs_atc$Name) > 30
       all_gs_atc$Name[long] <- paste0(substr(all_gs_atc$Name[long], 1, 27), '...')
+      # `min_height = 350`: same rationale as plot_dim_drug — reserve
+      # vertical space for the stacked colourbar legends without stretching
+      # the panel rows.
       calc_plot_dims(all_gs_atc, y_col = "Name", x_col = "Panel", facet_col = "Method",
-                     font_size = input$plot_font_size_atc %||% 14)
+                     font_size = input$plot_font_size_atc %||% 14,
+                     min_height = 350)
     })
 
     observeEvent(tx_atc_summary_data_filtered(), {
@@ -1309,18 +1321,17 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         font_size = input$plot_font_size_atc %||% 14,
         point_size = input$plot_point_size_atc %||% 5,
         theme_fn = enr_theme_fn(input$plot_theme_atc),
-        title = input$plot_title_atc %||% ""
+        title = input$plot_title_atc %||% "",
+        panel_h_pt = plot_dim_atc()[['panel_h_pt']]
       )
       if (!is.null(gt)) grid::grid.draw(gt)
     })
 
-    dl_defaults_seeded_atc <- reactiveVal(FALSE)
     observeEvent(plot_dim_atc(), {
       dims <- plot_dim_atc()
-      if (!dl_defaults_seeded_atc() && dims$width > 100 && dims$height < 10000) {
+      if (dims$width > 100 && dims$height < 10000) {
         updateNumericInput(session, "dl_width_atc",  value = round(dims$width  / 72, 1))
         updateNumericInput(session, "dl_height_atc", value = round(dims$height / 72, 1))
-        dl_defaults_seeded_atc(TRUE)
       }
     })
 
@@ -1337,7 +1348,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           font_size = input$plot_font_size_atc %||% 14,
           point_size = input$plot_point_size_atc %||% 5,
           theme_fn = enr_theme_fn(input$plot_theme_atc),
-          title = input$plot_title_atc %||% ""
+          title = input$plot_title_atc %||% "",
+          panel_h_pt = plot_dim_atc()[['panel_h_pt']]
         )
         w <- input$dl_width_atc  %||% 12
         h <- input$dl_height_atc %||% 8

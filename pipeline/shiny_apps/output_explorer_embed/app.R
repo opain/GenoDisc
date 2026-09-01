@@ -233,9 +233,22 @@ ui <- fluidPage(
       background: var(--gd-panel);
       color: var(--gd-text);
     }
-    .selectize-dropdown .active {
-      background: var(--gd-panel-2);
-      color: var(--gd-text);
+    /* Dropdown option base colour — needs !important to defeat selectize's
+       own stylesheet, which otherwise wins with equal specificity. */
+    .selectize-dropdown .option,
+    .selectize-dropdown [data-selectable] {
+      color: var(--gd-text) !important;
+      background: var(--gd-panel) !important;
+    }
+    /* Highlighted / hovered option — accent tint with readable text. The
+       previous panel-2 background was almost indistinguishable from the
+       base panel colour in both themes. */
+    .selectize-dropdown .option:hover,
+    .selectize-dropdown .option.active,
+    .selectize-dropdown [data-selectable]:hover,
+    .selectize-dropdown [data-selectable].active {
+      background: var(--gd-accent) !important;
+      color: var(--gd-accent-text) !important;
     }
     .selectize-input > input { color: var(--gd-text); }
     .selectize-control.multi .selectize-input > div {

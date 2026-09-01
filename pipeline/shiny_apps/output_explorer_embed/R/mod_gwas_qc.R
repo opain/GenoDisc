@@ -332,7 +332,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       }
 
       pre(
-        style = "background-color: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; font-size: 12px; padding: 15px; border-radius: 4px; max-height: 400px; overflow-y: auto; white-space: pre-wrap;",
+        style = "background-color: #1e1e1e; color: #00ff00; font-family: 'Courier New', monospace; font-size: 12px; padding: 15px; border-radius: 4px; white-space: pre-wrap;",
         paste(log_lines, collapse = "\n")
       )
     })
@@ -358,19 +358,26 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
       tab
     })
 
+    # Debounced version used by the (expensive) plot render + dim/download
+    # sync so quick successive filter tweaks (e.g. deselecting many traits
+    # in the selectize) collapse into one plot rebuild. The table renderer
+    # and download handler stay on the immediate reactive.
+    gencor_table_filtered_plot <- gencor_table_filtered %>% debounce(400)
+
     # Plot width adapts to the longest visible trait label — long labels
     # (e.g. "Consumption (AUDIT-C)") were being cut off by the 900px cap.
     # When faceting, add a small extra allowance for the left-side facet strip.
     plot_dim_gencor <- reactive({
-      tab <- gencor_table_filtered()
-      if (is.null(tab) || nrow(tab) == 0) return(list(width_px = 700L))
+      tab <- gencor_table_filtered_plot()
+      if (is.null(tab) || nrow(tab) == 0) return(list(width_px = 700L, height_px = 220L))
       fs <- input$gencor_font_size %||% 13
       label_pt <- max(strwidth_pt(as.character(tab$label), ps = fs)) + 10
       label_px <- label_pt * 96 / 72   # approx pt -> CSS px at 96dpi
       # Chrome: y-axis text padding + plot panel area + right margin.
       chrome_px <- 60 + 480 + 40
       fb <- input$gencor_facet
-      if (!is.null(fb) && nzchar(fb) && fb %in% names(tab)) {
+      has_facet <- !is.null(fb) && nzchar(fb) && fb %in% names(tab)
+      if (has_facet) {
         # Left-side facet strip: measure widest facet value at the current font
         # so long category names ("Endocrine / metabolic") don't get clipped.
         facet_vals <- as.character(tab[[fb]])
@@ -379,7 +386,15 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
         chrome_px  <- chrome_px + strip_pt * 96 / 72
       }
       total_px <- round(label_px + chrome_px)
-      list(width_px = as.integer(min(max(total_px, 700L), 1800L)))
+      width_px <- as.integer(min(max(total_px, 700L), 1800L))
+
+      n <- sum(!is.na(tab$rg))
+      height_px <- as.integer(max(220, 40 + 22 * n))
+      if (has_facet) {
+        n_facets  <- length(unique(tab[[fb]]))
+        height_px <- height_px + as.integer(30 * max(n_facets - 1, 0))
+      }
+      list(width_px = width_px, height_px = height_px)
     })
 
     output$gencor_ui <- renderUI({
@@ -526,7 +541,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
 
     output$gencor_forest <- renderPlot({
       build_gencor_plot(
-        tab = gencor_table_filtered(),
+        tab = gencor_table_filtered_plot(),
         sort_choice = input$gencor_sort %||% "rg",
         facet_by = input$gencor_facet %||% "",
         font_size = input$gencor_font_size %||% 13,
@@ -534,18 +549,17 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
         theme_fn = mol_theme_fn(input$gencor_theme),
         title = input$gencor_title %||% ""
       )
-    }, res = 96, height = function() {
-      tab <- isolate(gencor_table_filtered())
-      if (is.null(tab)) return(220)
-      n <- sum(!is.na(tab$rg))
-      base <- max(220, 40 + 22 * n)
-      # Each facet band adds ~30px of chrome (strip + panel spacing).
-      fb <- isolate(input$gencor_facet)
-      if (!is.null(fb) && nzchar(fb) && fb %in% names(tab)) {
-        n_facets <- length(unique(tab[[fb]]))
-        base <- base + 30 * max(n_facets - 1, 0)
-      }
-      base
+    }, res = 96, height = function() plot_dim_gencor()$height_px)
+
+    # Keep download width/height in sync with the on-screen plot so the
+    # default download matches the current window. User overrides get
+    # replaced whenever the on-screen dims change.
+    observeEvent(plot_dim_gencor(), {
+      dims <- plot_dim_gencor()
+      updateNumericInput(session, "gencor_dl_width",
+                         value = round(dims$width_px  / 96, 1))
+      updateNumericInput(session, "gencor_dl_height",
+                         value = round(dims$height_px / 96, 1))
     })
 
     output$gencor_download <- downloadHandler(

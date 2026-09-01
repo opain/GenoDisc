@@ -84,7 +84,7 @@ mol_theme_fn <- function(name) {
 build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
                                     left_pad_pt = 0, font_size = 14,
                                     point_size = 4, theme_fn = ggplot2::theme_bw,
-                                    title = "") {
+                                    title = "", panel_h_pt = NULL) {
   if (is.null(all_func_res) || nrow(all_func_res) == 0) return(NULL)
 
   # Insert missing Panel × Method combinations so the heatmap grid is complete.
@@ -179,11 +179,15 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   }
 
   gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
+  # Multiplying `1null` × relative width keeps the per-facet proportions but
+  # in relative units, so panels fill the device (see the drug/atc gtables
+  # for the same pattern). Absolute pt units would stay fixed and any extra
+  # download width/height would just pad whitespace instead of scaling rows.
   for (i in seq_along(groups)) {
     panel_l <- unique(gt$layout$l[grepl(paste0('^panel-', i, '-\\d+$'), gt$layout$name)])
-    gt$widths[panel_l] <- grid::unit(group_widths[i], "pt")
+    gt$widths[panel_l] <- group_widths[i] * gt$widths[panel_l]
   }
-  gt
+  reserve_legend_space(gt, panel_h_pt)
 }
 
 #' Molecular Associations module UI
@@ -627,9 +631,13 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     plot_dim_mol <- reactive({
       all_func_res <- mol_assoc_summary_data_filtered()
       all_func_res$Group <- make_group_labels(all_func_res$Method, all_func_res$Type)
+      # `min_height = 250` reserves vertical space for the single Z-score
+      # colourbar even when only a handful of genes are shown. `panel_h_pt`
+      # (below) then pins the panel row so row spacing stays the same.
       dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group",
                              facet_order = get_group_order(),
-                             font_size = input$plot_font_size %||% 14)
+                             font_size = input$plot_font_size %||% 14,
+                             min_height = 250)
 
       # Per-locus layout adds panel spacing between locus bands (rows) plus a
       # right-hand locus strip, so allow extra height/width for that chrome.
@@ -662,7 +670,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         font_size = input$plot_font_size %||% 14,
         point_size = input$plot_point_size %||% 4,
         theme_fn = mol_theme_fn(input$plot_theme),
-        title = input$plot_title %||% ""
+        title = input$plot_title %||% "",
+        panel_h_pt = plot_dim_mol()[['panel_h_pt']]
       )
       if (!is.null(gt)) grid.draw(gt)
     })
@@ -739,17 +748,16 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     ########
-    # Plot download: seed width/height from the plot's natural pt dimensions
-    # once data is loaded, then let the user override.
+    # Plot download: keep width/height in sync with the on-screen plot so
+    # the default download matches what the user is currently looking at.
+    # User overrides get replaced whenever the on-screen dims change.
     ########
 
-    dl_defaults_seeded <- reactiveVal(FALSE)
     observeEvent(plot_dim_mol(), {
       dims <- plot_dim_mol()
-      if (!dl_defaults_seeded() && dims$width > 100 && dims$height < 10000) {
+      if (dims$width > 100 && dims$height < 10000) {
         updateNumericInput(session, "dl_width",  value = round(dims$width  / 72, 1))
         updateNumericInput(session, "dl_height", value = round(dims$height / 72, 1))
-        dl_defaults_seeded(TRUE)
       }
     })
 
@@ -776,7 +784,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
           font_size = input$plot_font_size %||% 14,
           point_size = input$plot_point_size %||% 4,
           theme_fn = mol_theme_fn(input$plot_theme),
-          title = input$plot_title %||% ""
+          title = input$plot_title %||% "",
+          panel_h_pt = plot_dim_mol()[['panel_h_pt']]
         )
         w <- input$dl_width  %||% 12
         h <- input$dl_height %||% 8
