@@ -71,7 +71,7 @@ build_tissue_plot <- function(d, n_total, sort_choice = "significance",
 build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
                                   font_size = 14, point_size = 5,
                                   theme_fn = ggplot2::theme_bw, title = "",
-                                  panel_h_pt = NULL) {
+                                  panel_h_pt = NULL, left_pad_pt = 0) {
   if (is.null(all_gs) || nrow(all_gs) == 0) return(NULL)
   all_gs$`ATC Code` <- NULL
 
@@ -168,7 +168,9 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
     ggplot2::facet_wrap(~ Method, nrow = 1, scales = "free_x") +
-    ggplot2::theme(text = ggplot2::element_text(size = font_size))
+    ggplot2::theme(text = ggplot2::element_text(size = font_size),
+                   plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
+                                                 l = left_pad_pt, unit = "pt"))
 
   gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
   for (i in seq_len(nrow(group_siz))) {
@@ -182,7 +184,7 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
 build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
                                  font_size = 14, point_size = 5,
                                  theme_fn = ggplot2::theme_bw, title = "",
-                                 panel_h_pt = NULL) {
+                                 panel_h_pt = NULL, left_pad_pt = 0) {
   if (is.null(all_gs_atc) || nrow(all_gs_atc) == 0) return(NULL)
 
   all_gs_atc_all <- NULL
@@ -282,7 +284,9 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
     ggplot2::facet_wrap(~ Method, nrow = 1, scales = "free_x") +
-    ggplot2::theme(text = ggplot2::element_text(size = font_size))
+    ggplot2::theme(text = ggplot2::element_text(size = font_size),
+                   plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
+                                                 l = left_pad_pt, unit = "pt"))
 
   gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
   for (i in seq_len(nrow(group_siz))) {
@@ -316,9 +320,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       lg_panel<- "Gene-expression reference panel (tissue or dataset) used for the TWAS."
       lg_est  <- "Enrichment effect size from the gene-set analysis."
       lg_dir  <- paste0(
-        "Direction of effect: 'Opposes disease' = the drug's expression signature counteracts ",
-        "the disease's predicted signature (a candidate therapeutic); 'Matches disease' = it ",
-        "mimics the disease signature.")
+        "Direction of effect (relative to the trait being analysed): ",
+        "'Opposes disease' = the drug's expression signature counteracts the trait's ",
+        "predicted signature; 'Matches disease' = it mimics the trait's signature. ",
+        "(Column labels use 'disease' generically; interpretation is the same for any trait.)")
       items <- switch(which,
         drug_magma = list(
           "Name" = "Drug name.",
@@ -1013,7 +1018,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         point_size = input$plot_point_size_drug %||% 5,
         theme_fn = enr_theme_fn(input$plot_theme_drug),
         title = input$plot_title_drug %||% "",
-        panel_h_pt = plot_dim_drug()[['panel_h_pt']]
+        panel_h_pt = plot_dim_drug()[['panel_h_pt']],
+        left_pad_pt = plot_dim_drug()[['left_pad_pt']]
       )
       if (!is.null(gt)) grid::grid.draw(gt)
     })
@@ -1043,7 +1049,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           point_size = input$plot_point_size_drug %||% 5,
           theme_fn = enr_theme_fn(input$plot_theme_drug),
           title = input$plot_title_drug %||% "",
-          panel_h_pt = plot_dim_drug()[['panel_h_pt']]
+          panel_h_pt = plot_dim_drug()[['panel_h_pt']],
+          left_pad_pt = plot_dim_drug()[['left_pad_pt']]
         )
         w <- input$dl_width_drug  %||% 12
         h <- input$dl_height_drug %||% 8
@@ -1070,12 +1077,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
             "Each point shows a drug-enrichment Z-score for one method/expression-panel combination. ",
             tags$b("Directional TWAS-GSEA"), " uses a diverging palette: ",
             tags$span(style = "color:#FF0000;", tags$b("red")), " indicates the drug-target signature is ",
-            tags$i("opposite"), " to the disease TWAS signature (candidate therapeutic effect), and ",
+            tags$i("opposite"), " to the trait's TWAS signature, and ",
             tags$span(style = "color:#0066FF;", tags$b("blue")), " indicates the drug-target signature ",
-            tags$i("matches"), " the disease signature (candidate to avoid). ",
+            tags$i("matches"), " the trait's signature. ",
             tags$b("MAGMA, GCSC, and non-directional TWAS-GSEA"), " use a sequential white-to-",
             tags$span(style = "color:#00CC66;", tags$b("green")),
-            " palette: green indicates that genes targeted by the drug are enriched for disease association signal (no direction-of-effect interpretation). ",
+            " palette: green indicates that genes targeted by the drug are enriched for the trait's association signal (no direction-of-effect interpretation). ",
             "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
           )
         )
@@ -1323,7 +1330,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         point_size = input$plot_point_size_atc %||% 5,
         theme_fn = enr_theme_fn(input$plot_theme_atc),
         title = input$plot_title_atc %||% "",
-        panel_h_pt = plot_dim_atc()[['panel_h_pt']]
+        panel_h_pt = plot_dim_atc()[['panel_h_pt']],
+        left_pad_pt = plot_dim_atc()[['left_pad_pt']]
       )
       if (!is.null(gt)) grid::grid.draw(gt)
     })
@@ -1350,7 +1358,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           point_size = input$plot_point_size_atc %||% 5,
           theme_fn = enr_theme_fn(input$plot_theme_atc),
           title = input$plot_title_atc %||% "",
-          panel_h_pt = plot_dim_atc()[['panel_h_pt']]
+          panel_h_pt = plot_dim_atc()[['panel_h_pt']],
+          left_pad_pt = plot_dim_atc()[['left_pad_pt']]
         )
         w <- input$dl_width_atc  %||% 12
         h <- input$dl_height_atc %||% 8
@@ -1377,12 +1386,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
             "Each point shows an ATC-class enrichment Z-score for one method/expression-panel combination. ",
             tags$b("Directional TWAS-GSEA"), " uses a diverging palette: ",
             tags$span(style = "color:#FF0000;", tags$b("red")), " indicates drugs in the ATC class collectively ",
-            tags$i("oppose"), " the disease TWAS signature (candidate therapeutic class), and ",
+            tags$i("oppose"), " the trait's TWAS signature, and ",
             tags$span(style = "color:#0066FF;", tags$b("blue")), " indicates the class collectively ",
-            tags$i("matches"), " the disease signature (candidate class to avoid). ",
+            tags$i("matches"), " the trait's signature. ",
             tags$b("MAGMA, GCSC, and non-directional TWAS-GSEA"), " use a sequential white-to-",
             tags$span(style = "color:#00CC66;", tags$b("green")),
-            " palette: green indicates that drugs in the ATC class are enriched for disease association signal (no direction-of-effect interpretation). ",
+            " palette: green indicates that drugs in the ATC class are enriched for the trait's association signal (no direction-of-effect interpretation). ",
             "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
           )
         )
@@ -1493,7 +1502,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # diverging palette + nominal/FDR overlays as the directional DrugTargetor
     # TWAS-GSEA plot. Z is already negated upstream so red = drug reverses
     # disease signature.
-    cmap_heatmap <- function(d, sort_choice, facet_col = NULL){
+    cmap_heatmap <- function(d, sort_choice, facet_col = NULL, left_pad_pt = 0){
       if(is.null(d) || nrow(d) == 0) return(NULL)
       best_z <- tapply(d$Z, d$Name, function(x) max(x, na.rm = TRUE))
       best_z[!is.finite(best_z)] <- NA
@@ -1518,7 +1527,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
         geom_point(aes(fill = Z), shape = 21, stroke = 0, size = 5) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title  = element_text(hjust = 0.5),
-              text        = element_text(size = 14)) +
+              text        = element_text(size = 14),
+              plot.margin = margin(t = 5.5, r = 5.5, b = 5.5, l = left_pad_pt, unit = "pt")) +
         labs(x = '', y = '')
 
       if (!is.null(facet_col)) {
@@ -1531,9 +1541,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       tags$b("Figure legend. "),
       "Each point shows a CMAP TWAS-GSEA Z-score for one expression panel. ",
       tags$span(style = "color:#FF0000;", tags$b("Red")), " = drug signature is ", tags$i("opposite"),
-      " to the disease TWAS signature (candidate therapeutic). ",
+      " to the trait's TWAS signature. ",
       tags$span(style = "color:#0066FF;", tags$b("Blue")), " = drug signature ", tags$i("matches"),
-      " disease (candidate to avoid). ",
+      " the trait. ",
       "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
     )
 
@@ -1541,7 +1551,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       d <- tx_cmap_moa_filtered()
       if(is.null(d) || nrow(d) == 0) return(NULL)
       if(plot_dim_cmap_moa()[['height']] >= 10000) return(NULL)
-      cmap_heatmap(d, input$selected_sort_cmap_moa, facet_col = "Cell_Line")
+      cmap_heatmap(d, input$selected_sort_cmap_moa, facet_col = "Cell_Line",
+                   left_pad_pt = plot_dim_cmap_moa()[['left_pad_pt']])
     })
 
     output$tx_cmap_moa_plot.ui <- renderUI({
@@ -1571,7 +1582,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       d <- tx_cmap_drug_filtered()
       if(is.null(d) || nrow(d) == 0) return(NULL)
       if(plot_dim_cmap_drug()[['height']] >= 10000) return(NULL)
-      cmap_heatmap(d, input$selected_sort_cmap_drug, facet_col = "cell_iname")
+      cmap_heatmap(d, input$selected_sort_cmap_drug, facet_col = "cell_iname",
+                   left_pad_pt = plot_dim_cmap_drug()[['left_pad_pt']])
     })
 
     output$tx_cmap_drug_plot.ui <- renderUI({

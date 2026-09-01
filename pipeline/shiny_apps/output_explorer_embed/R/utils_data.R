@@ -239,8 +239,13 @@ load_gene_positions <- local({
 resolve_feature_positions <- function(ids, gd, gwas, cf) {
   ids <- unique(as.character(ids))
   ids <- ids[!is.na(ids) & ids != "" & ids != "Placeholder"]
+  # data.frame() can't recycle length-1 NA_real_ against a length-0 ids
+  # vector — construct the empty frame explicitly.
+  if (length(ids) == 0) {
+    return(data.frame(ID = character(0), CHR = numeric(0), BP = numeric(0),
+                      stringsAsFactors = FALSE))
+  }
   out <- data.frame(ID = ids, CHR = NA_real_, BP = NA_real_, stringsAsFactors = FALSE)
-  if (nrow(out) == 0) return(out)
 
   fill_from <- function(map, eligible) {
     idx <- match(out$ID, map$ID)

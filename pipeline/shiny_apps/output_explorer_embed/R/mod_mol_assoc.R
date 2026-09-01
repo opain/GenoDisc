@@ -66,53 +66,46 @@ mol_theme_fn <- function(name) {
 
 #' Build the Molecular Associations summary heatmap as a gtable
 #'
-#' Shared by the on-screen `renderPlot` and the file download handler so the
-#' saved file matches what's on screen. Returns `NULL` if there's no data.
+#' Mirrors the drug/atc enrichment plot pattern (`build_tx_drug_gtable`):
+#' returns a gtable that renderPlot draws via grid.draw, per-facet widths
+#' scaled by a min-2 panel-count floor, and legend space reserved via
+#' `reserve_legend_space` so the colourbar stays visible for short plots.
 #'
-#' @param all_func_res Filtered summary data (as returned by the module's
-#'   `mol_assoc_summary_data_filtered()` reactive).
+#' @param all_func_res Filtered summary data (from `mol_assoc_summary_data_filtered()`).
 #' @param locus_mode `TRUE` for the by-locus layout, `FALSE` for alphabetical.
 #' @param locus_map Data frame with `ID`, `BP`, `Locus`, `locus_order` used
 #'   in locus mode (ignored otherwise).
-#' @param left_pad_pt Left `plot.margin` in pt for rotated x-tick overflow
-#'   (from `plot_dim_mol()[["left_pad_pt"]]`).
 #' @param font_size Base font size in pt (default 14).
 #' @param point_size Base point size for the main Z-score dots (default 4).
-#'   Highlight/outline dots are size + 1, coloc squares are size + 2.
 #' @param theme_fn A ggplot theme function (e.g. `ggplot2::theme_bw`).
 #' @param title Optional plot title; empty string draws no title.
+#' @param panel_h_pt Panel-row height (pt) from `plot_dim_mol()[["panel_h_pt"]]`;
+#'   passed to `reserve_legend_space` so the colourbar stays visible on
+#'   short plots.
+#' @param left_pad_pt Left `plot.margin` in pt from
+#'   `plot_dim_mol()[["left_pad_pt"]]` — absorbs rotated x-tick overflow of
+#'   the leftmost facet so long panel names don't run off the screen.
 build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
-                                    left_pad_pt = 0, font_size = 14,
-                                    point_size = 4, theme_fn = ggplot2::theme_bw,
-                                    title = "") {
+                                    font_size = 14, point_size = 4,
+                                    theme_fn = ggplot2::theme_bw, title = "",
+                                    panel_h_pt = NULL, left_pad_pt = 0) {
   if (is.null(all_func_res) || nrow(all_func_res) == 0) return(NULL)
 
-  # Insert missing Panel × Method combinations so the heatmap grid is complete.
-  all_func_res_all <- NULL
-  for (i in unique(all_func_res$Panel)) {
-    for (j in unique(all_func_res$Method[all_func_res$Panel == i])) {
-      all_func_res_panel <- all_func_res[all_func_res$Panel == i & all_func_res$Method == j, ]
-      all_func_res_other <- all_func_res[!(all_func_res$Panel %in% all_func_res_panel$Panel) & !(all_func_res$Method %in% all_func_res_panel$Method), ]
-      all_func_res_other <- all_func_res_other[!(all_func_res_other$ID %in% all_func_res_panel$ID), ]
-      all_func_res_other <- unique(all_func_res_other$ID)
-
-      if (length(all_func_res_other) > 0) {
-        all_func_res_panel_missing <- data.frame(ID = all_func_res_other)
-        all_func_res_panel_missing$Panel <- i
-        all_func_res_panel_missing$ID <- all_func_res_other
-        all_func_res_panel_missing$Z <- NA
-        all_func_res_panel_missing$Sig <- 0
-        all_func_res_panel_missing$Coloc <- 0
-        all_func_res_panel_missing$Method <- j
-        all_func_res_panel_missing$Type <- all_func_res_panel$Type[1]
-        all_func_res_panel_missing$Group <- all_func_res_panel$Group[1]
-        all_func_res_panel_missing <- all_func_res_panel_missing[, names(all_func_res_panel)]
-        all_func_res_all <- rbind(all_func_res_all, all_func_res_panel_missing)
-      }
-      all_func_res_all <- rbind(all_func_res_all, all_func_res_panel)
-    }
-  }
-  all_func_res_all <- all_func_res_all[all_func_res_all$ID != 'Placeholder', ]
+  # Fill missing Panel × Method × ID combos so every facet is present even
+  # when the current gene subset has no data for it. Panel/Method slots
+  # come from the ORIGINAL data (including Placeholder rows added upstream
+  # in mol_assoc_summary_data_filtered), so a Panel/Method whose only
+  # matching row is a Placeholder still shows up as an empty facet.
+  dt <- data.table::as.data.table(all_func_res)
+  if (nrow(dt) == 0) return(NULL)
+  slots   <- unique(dt[, .(Panel, Method, Type)])
+  all_ids <- unique(dt$ID[dt$ID != 'Placeholder'])
+  if (length(all_ids) == 0) return(NULL)
+  grid_dt <- slots[, .(ID = all_ids), by = .(Panel, Method, Type)]
+  vals    <- dt[ID != 'Placeholder', .(Panel, Method, ID, Z, Sig, Coloc)]
+  all_func_res_all <- vals[grid_dt, on = c("Panel", "Method", "ID")]
+  all_func_res_all[is.na(Sig),   Sig   := 0]
+  all_func_res_all[is.na(Coloc), Coloc := 0]
 
   all_func_res_all$Group <- make_group_labels(all_func_res_all$Method, all_func_res_all$Type)
   groups <- get_group_order()
@@ -131,9 +124,12 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     all_func_res_all$locus_order[unplaced] <- max_order + 1
     all_func_res_all$BP[unplaced] <- Inf
 
-    gene_order <- unique(all_func_res_all[order(all_func_res_all$locus_order,
-                                                 all_func_res_all$BP,
-                                                 as.character(all_func_res_all$ID)), "ID"])
+    # NB `dt[i, "ID"]` on a data.table returns a data.table (not a vector),
+    # so use `$ID[order]` to keep this compatible with the data.table pipeline.
+    ord <- order(all_func_res_all$locus_order,
+                 all_func_res_all$BP,
+                 as.character(all_func_res_all$ID))
+    gene_order <- unique(all_func_res_all$ID[ord])
     all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(gene_order))
     locus_levels <- unique(all_func_res_all$Locus[order(all_func_res_all$locus_order)])
     all_func_res_all$Locus <- factor(all_func_res_all$Locus, levels = locus_levels)
@@ -142,6 +138,15 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
   }
 
+  # Per-facet width scaling — mirrors build_tx_drug_gtable: min-2 floor on
+  # panel count so 1-panel facets (MAGMA / SuSiE / Nearest Gene) keep enough
+  # room for their multi-line strip titles.
+  group_siz <- do.call(rbind, lapply(groups, function(g)
+    data.frame(Group = g, Size = length(unique(all_func_res_all$Panel[all_func_res_all$Group == g])))))
+  group_siz$Size[group_siz$Size < 2] <- 2
+  group_siz$Prop  <- group_siz$Size / sum(group_siz$Size)
+  group_siz$Width <- 4 * group_siz$Prop
+
   x <- c(-max(abs(all_func_res_all$Z), na.rm = TRUE), 0, max(abs(all_func_res_all$Z), na.rm = TRUE))
   x <- (x - min(x)) / (max(x) - min(x))
 
@@ -149,6 +154,10 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
 
   heatmap <- ggplot2::ggplot(data = all_func_res_all, ggplot2::aes(x = Panel, y = ID)) +
     theme_fn() +
+    # geom_blank on the full data ensures every facet's x-scale is trained,
+    # so empty facets (Panel/Method combos with no matching gene data) still
+    # show their panel background, x-tick labels, and gridlines.
+    ggplot2::geom_blank() +
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Coloc == TRUE & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
     ggplot2::geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
@@ -158,18 +167,18 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
     ggplot2::theme(text = ggplot2::element_text(size = font_size),
-                   plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5, l = left_pad_pt, unit = "pt"))
-
-  # Absolute per-facet widths matching calc_plot_dims's budget so unaffected
-  # facets keep their width and the two layouts match.
-  group_widths <- vapply(groups, function(g) {
-    panel_names <- unique(all_func_res_all$Panel[all_func_res_all$Group == g])
-    facet_target_width_pt(g, panel_names, font_size = font_size)
-  }, numeric(1))
+                   plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
+                                                 l = left_pad_pt, unit = "pt"))
 
   if (locus_mode) {
+    # `space = "free_y"` gives each locus row a height proportional to its
+    # gene count, while leaving x-widths at 1null each — that lets the
+    # `group_siz$Width` multiplier below apply proportional widths (with
+    # the min-2 floor) exactly as it does in gene mode. Using `space =
+    # "free"` here would pre-scale x-widths by arity and the multiplier
+    # would double-scale.
     heatmap <- heatmap +
-      ggplot2::facet_grid(Locus ~ Group, scales = "free", space = "free") +
+      ggplot2::facet_grid(Locus ~ Group, scales = "free", space = "free_y") +
       ggplot2::theme(strip.text.y = ggplot2::element_text(angle = 0),
                      panel.spacing.y = grid::unit(4, "pt"))
   } else {
@@ -179,14 +188,17 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   }
 
   gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(heatmap))
-  # Multiply per-facet weight by the existing `1null` width so panels stay
-  # proportional but keep their null-unit type. Absolute pt widths hang
-  # off-device when Shiny renders at a different DPI, causing cropping.
-  for (i in seq_along(groups)) {
-    panel_l <- unique(gt$layout$l[grepl(paste0('^panel-', i, '-\\d+$'), gt$layout$name)])
-    gt$widths[panel_l] <- group_widths[i] * gt$widths[panel_l]
+  # Multiply per-facet width by group_siz$Width so 1-panel facets get the
+  # min-2 floor. Panel naming is `panel-<x_facet_index>-<y_facet_index>`
+  # for both facet_wrap (y_index always 1) and facet_grid, so the same
+  # regex targets column i in both modes.
+  for (i in seq_len(nrow(group_siz))) {
+    panel_l <- unique(gt$layout$l[grep(paste0('^panel-', i, '-\\d+$'), gt$layout$name)])
+    if (length(panel_l) > 0) {
+      gt$widths[panel_l] <- group_siz$Width[i] * gt$widths[panel_l]
+    }
   }
-  gt
+  reserve_legend_space(gt, panel_h_pt)
 }
 
 #' Molecular Associations module UI
@@ -576,7 +588,24 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       req(mol_assoc_summary_data(), input$selected_methods_mol)
       all_func_res <- mol_assoc_summary_data()
 
-      # Filter results table by user specified methods
+      # Determine HC genes from the FULL, unfiltered data using the
+      # "high-confidence" method selection. This way a gene identified by
+      # SuSiE fine-mapping still counts as HC even if SNP fine-mapping is
+      # not in the "Include results from these methods:" selection.
+      hc_genes <- NULL
+      if (input$conf_only_mol) {
+        res_group <- paste0(all_func_res$Method, '\n', all_func_res$Type)
+        res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
+        res_group[res_group == 'MAGMA\n']             <- 'MAGMA'
+        res_group[res_group == 'Nearest\nGene\n']     <- 'Nearest\nGene'
+        hc_genes <- all_func_res$ID[which(
+          ((all_func_res$Sig == T & all_func_res$Coloc == T) |
+            all_func_res$Panel == "SuSie (L=1)") &
+          res_group %in% input$selected_group_hc_mol)]
+      }
+
+      # Filter results table by user specified methods (for DISPLAY only —
+      # HC status was already determined above from the full data).
       all_func_res <- all_func_res[all_func_res$Method %in% input$selected_methods_mol, ]
 
       # Filter results table by user specified expression and protein panels
@@ -596,15 +625,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
       all_func_res <- rbind(na_rows, all_func_res)
 
-      # Filter results table if user specifies high confidence genes only
+      # Restrict rows to HC genes (if the toggle was on).
       if (input$conf_only_mol) {
-        # Create group variable
-        res_group <- paste0(all_func_res$Method, '\n', all_func_res$Type)
-        res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
-        res_group[res_group == 'MAGMA\n'] <- 'MAGMA'
-        res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
-
-        hc_genes <- all_func_res$ID[which(((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)") & res_group %in% input$selected_group_hc_mol)]
         all_func_res <- all_func_res[all_func_res$ID %in% c(hc_genes, 'Placeholder'), ]
       }
 
@@ -629,20 +651,27 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     plot_dim_mol <- reactive({
       all_func_res <- mol_assoc_summary_data_filtered()
+      # Filtering to a gene with no HC data returns a 0-row placeholder
+      # frame with no Method/Type columns; short-circuit before touching them.
+      if (is.null(all_func_res) || nrow(all_func_res) == 0) {
+        return(list(height = 100, width = 100, panel_h_pt = 0, left_pad_pt = 0))
+      }
       all_func_res$Group <- make_group_labels(all_func_res$Method, all_func_res$Type)
+      # Similar to plot_dim_drug, but with smaller mins: mol_assoc has a
+      # single Z-score colourbar (drug stacks two), so it needs less
+      # reserved panel height for the legend.
       dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group",
                              facet_order = get_group_order(),
-                             font_size = input$plot_font_size %||% 14)
+                             font_size = input$plot_font_size %||% 14,
+                             min_height = 200, min_panel_h_pt = 120)
 
-      # Per-locus layout adds panel spacing between locus bands (rows) plus a
-      # right-hand locus strip, so allow extra height/width for that chrome.
-      # Vertical overhead is just `panel.spacing.y * (n_loci - 1)` (4pt gaps);
-      # anything more here would inflate gene row heights vs. alphabetical.
+      # Locus mode adds a right-hand Locus strip plus panel spacing between
+      # locus bands (4pt gaps).
       if (identical(input$mol_layout, "locus")) {
         genes <- unique(all_func_res$ID[all_func_res$ID != 'Placeholder'])
         lmap <- mol_locus_map()
         n_loci <- length(unique(lmap$Locus[lmap$ID %in% genes]))
-        if (any(!(genes %in% lmap$ID))) n_loci <- n_loci + 1  # trailing "Unplaced" band
+        if (any(!(genes %in% lmap$ID))) n_loci <- n_loci + 1
         dims$height <- dims$height + 4 * max(n_loci - 1, 0)
         dims$width  <- dims$width + 120
       }
@@ -656,18 +685,18 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     output$mol_assoc_plot <- renderPlot({
       all_func_res <- mol_assoc_summary_data_filtered()
       if (plot_dim_mol()[['height']] >= 10000 || nrow(all_func_res) == 0) return(NULL)
-
       gt <- build_mol_assoc_gtable(
         all_func_res = all_func_res,
         locus_mode = identical(input$mol_layout, "locus") && nrow(mol_locus_map()) > 0,
         locus_map = mol_locus_map(),
-        left_pad_pt = plot_dim_mol()[["left_pad_pt"]],
         font_size = input$plot_font_size %||% 14,
         point_size = input$plot_point_size %||% 4,
         theme_fn = mol_theme_fn(input$plot_theme),
-        title = input$plot_title %||% ""
+        title = input$plot_title %||% "",
+        panel_h_pt = plot_dim_mol()[['panel_h_pt']],
+        left_pad_pt = plot_dim_mol()[['left_pad_pt']]
       )
-      if (!is.null(gt)) grid.draw(gt)
+      if (!is.null(gt)) grid::grid.draw(gt)
     })
 
     ########
@@ -678,7 +707,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
       ns <- session$ns
       filtered <- mol_assoc_summary_data_filtered()
       has_real_genes <- any(filtered$ID != 'Placeholder')
-      if (plot_dim_mol()[['height']] < 10000 & nrow(filtered) > 0 & has_real_genes) {
+      if (plot_dim_mol()[['height']] < 10000 && nrow(filtered) > 0 && has_real_genes) {
         legend_items <- list(
           "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
           "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
@@ -774,11 +803,12 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
           all_func_res = all_func_res,
           locus_mode = identical(input$mol_layout, "locus") && nrow(mol_locus_map()) > 0,
           locus_map = mol_locus_map(),
-          left_pad_pt = plot_dim_mol()[["left_pad_pt"]],
           font_size = input$plot_font_size %||% 14,
           point_size = input$plot_point_size %||% 4,
           theme_fn = mol_theme_fn(input$plot_theme),
-          title = input$plot_title %||% ""
+          title = input$plot_title %||% "",
+          panel_h_pt = plot_dim_mol()[['panel_h_pt']],
+          left_pad_pt = plot_dim_mol()[['left_pad_pt']]
         )
         w <- input$dl_width  %||% 12
         h <- input$dl_height %||% 8
