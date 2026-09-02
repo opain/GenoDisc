@@ -332,6 +332,46 @@ dir.create(file.path(pkg_dir, 'gwas'),          showWarnings = FALSE)
 version_path <- file.path(dirname(opt$pipeline_dir), 'VERSION')
 pipeline_version <- if (file.exists(version_path)) trimws(readLines(version_path, n = 1L)) else NA_character_
 
+# --- Provenance beyond the VERSION string ------------------------------------
+# The VERSION string alone can't distinguish two different dev commits that both
+# read e.g. "1.1.0". Record enough to make each bundle self-describing and to
+# DETECT reference-data drift on a rerun (see the pipeline-versioning work).
+#
+# Exact commit + tag come from the release worktree's RELEASE.json (written by
+# bin/cut_release.sh). For a fallback run off repo/current there is no
+# RELEASE.json, so these stay NA - we deliberately do NOT shell out to git (same
+# non-owner-UID reason the VERSION read replaced `git describe`).
+release_path <- file.path(dirname(opt$pipeline_dir), 'RELEASE.json')
+release <- if (file.exists(release_path)) jsonlite::read_json(release_path) else list()
+pipeline_commit <- if (!is.null(release$commit))  as.character(release$commit)  else NA_character_
+pipeline_tag    <- if (!is.null(release$version)) as.character(release$version) else NA_character_
+
+# Conda env specs the pinned code declares (md5 of each envs/*.yaml). Combined
+# with the pinned commit these determine the built environments, since Snakemake
+# content-addresses conda envs by their YAML.
+env_files <- sort(Sys.glob(file.path(opt$pipeline_dir, 'envs', '*.yaml')))
+conda_envs <- if (length(env_files))
+  as.list(setNames(unname(tools::md5sum(env_files)), basename(env_files))) else NULL
+
+# Reference-data stamp: pipeline_resources is shared + mutable, so record enough
+# to flag drift on a rerun - especially the secondary-GWAS catalog, which grew
+# from 3 to 63 traits mid-project and directly changes gencor results.
+resource_stamp <- NULL
+resdir <- if ('resdir' %in% names(config)) config[['resdir']] else NA_character_
+if (!is.na(resdir) && nzchar(resdir) && dir.exists(resdir)) {
+  lv_path <- file.path(resdir, 'last_version.txt')
+  sec_dir <- file.path(resdir, 'data', 'secondary_gwas')
+  sec_codes <- if (dir.exists(sec_dir))
+    sort(sub('\\.sumstats\\.gz$', '', basename(Sys.glob(file.path(sec_dir, '*.sumstats.gz'))))) else character(0)
+  resource_stamp <- list(
+    resdir               = resdir,
+    last_version         = if (file.exists(lv_path)) trimws(suppressWarnings(readLines(lv_path, n = 1L))) else NA_character_,
+    secondary_gwas_count = length(sec_codes),
+    secondary_gwas_sha1  = if (length(sec_codes))
+      digest::digest(paste(sec_codes, collapse = '\n'), algo = 'sha1', serialize = FALSE) else NA_character_
+  )
+}
+
 blocks_meta <- setNames(vector('list', length(gwas_list$name)), gwas_list$name)
 for (gwas_i in gwas_list$name) {
   gdata <- output[[gwas_i]]
@@ -372,9 +412,16 @@ gwas_meta <- lapply(seq_len(nrow(gwas_list)), function(i) {
   as.list(row)
 })
 
+# schema_version 2 adds pipeline_tag/pipeline_commit/conda_envs/resources. The
+# additions are purely additive (older readers ignore unknown keys) and nothing
+# validates schema_version today, so this doesn't break existing bundles.
 manifest <- list(
-  schema_version   = 1L,
+  schema_version   = 2L,
   pipeline_version = pipeline_version,
+  pipeline_tag     = pipeline_tag,
+  pipeline_commit  = pipeline_commit,
+  conda_envs       = conda_envs,
+  resources        = resource_stamp,
   created_at       = format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z", tz = "UTC"),
   config_file      = opt$config,
   gwas             = gwas_meta,
