@@ -357,8 +357,11 @@ conda_envs <- if (length(env_files))
 # to flag drift on a rerun - especially the secondary-GWAS catalog, which grew
 # from 3 to 63 traits mid-project and directly changes gencor results.
 resource_stamp <- NULL
-resdir <- if ('resdir' %in% names(config)) config[['resdir']] else NA_character_
-if (!is.na(resdir) && nzchar(resdir) && dir.exists(resdir)) {
+# Read the raw path from merged_config: `config` is an UNNAMED, "readLines-style"
+# character vector of "key: value" lines (vapply USE.NAMES=FALSE above), so
+# config[['resdir']] never resolves. merged_config is the parsed yaml list.
+resdir <- merged_config[['resdir']]
+if (!is.null(resdir) && !is.na(resdir) && nzchar(resdir) && dir.exists(resdir)) {
   lv_path <- file.path(resdir, 'last_version.txt')
   sec_dir <- file.path(resdir, 'data', 'secondary_gwas')
   sec_codes <- if (dir.exists(sec_dir))
