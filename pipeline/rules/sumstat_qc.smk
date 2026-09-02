@@ -41,7 +41,14 @@ rule sumstat_prep_i:
     population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     n= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'n'].iloc[0],
     path= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0],
-    resdir=resdir
+    resdir=resdir,
+    # When the run is restricted to a single chromosome (e.g. chromosomes: [22]
+    # for test mode, or a chr-restricted input like the chr22 demo), pass it to
+    # sumstat_cleaner's --test so ref_harmonise only harmonises that chromosome.
+    # Without it, ref_harmonise defaults to chr 1:22 and merge()s an empty target
+    # chunk for the absent chromosomes -> "'by' must specify a uniquely valid
+    # column". Omitted for full genome-wide runs (unchanged behaviour).
+    test_arg=("--test " + str(chromosomes[0])) if len(chromosomes) == 1 else ""
   log:
     f"{outdir}/logs/sumstat_prep_i-{{gwas}}.log"
   shell:
@@ -53,6 +60,7 @@ rule sumstat_prep_i:
       --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
       --munged T \
+      {params.test_arg} \
       --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
 
