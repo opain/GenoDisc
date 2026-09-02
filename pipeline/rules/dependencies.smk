@@ -90,9 +90,16 @@ def write_last_version(major, minor):
 
 # If there has been a change to the major or minor version numbers, we will rerun the entire pipeline
 
-# Define the path for storing the last known version
+# Define the path for storing the last known version. Stored PER JOB (outdir),
+# not in the shared resdir: with per-job pipeline-version pinning (the web app
+# pins each submission to a release and reruns reuse it), a job dir always
+# re-runs the version it was created with, so a per-job stamp keeps this guard
+# correct AND stops it firing spuriously when different pinned versions run
+# concurrently against the same shared resdir. (resdir/last_version.txt is left
+# alone as a separate resource-set stamp, recorded in the results manifest.)
 os.makedirs(resdir, exist_ok=True)
-last_version_file = f"{resdir}/last_version.txt"
+os.makedirs(outdir, exist_ok=True)
+last_version_file = f"{outdir}/last_version.txt"
 
 # Access overwrite flag from config
 overwrite = config.get("overwrite", "false").lower() == "true"
