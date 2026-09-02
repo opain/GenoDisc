@@ -1,78 +1,43 @@
 #!/bin/bash
-#SBATCH --partition=neurohack_cpu
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=4G
-#SBATCH --time=24:00:00
 # ============================================================================
-# run_genodisc.sh
+# run_genodisc.sh  (WORKER, versioned)  -- STAGED FOR REVIEW
 #
-# THIS IS A TRACKED COPY. The web app actually sbatches the live copy at
-# GenoDisc/bin/run_genodisc.sh (sibling of activate_genodisc.sh), not this
-# file directly. They're separate copies, NOT a symlink (symlinks across this
-# CIFS mount don't resolve correctly when accessed from the HPC side - sbatch
-# reads the raw mfsymlinks reparse-point data instead of the script and
-# rejects it). Edit one, then manually copy the change to the other.
-# Whichever you edit first, do the copy in the same sitting - don't let them
-# drift.
+# On activation this REPLACES repo/current/pipeline/misc/run_genodisc.sh (commit
+# it into dev BEFORE cutting a release, so the tag captures it). Each cut release
+# then carries a frozen copy at repo/versions/<version>/pipeline/misc/run_genodisc.sh.
 #
-# SLURM job script that runs the GenoDisc pipeline for one submission.
-# Invoked by the web app via `sbatch run_genodisc.sh <job_dir>`.
+# This is the real orchestrator: it activates the env and runs Snakemake for one
+# submission. Unlike the old script it does NOT hardcode repo/current - it
+# resolves the Snakefile RELATIVE TO ITS OWN LOCATION, so whichever version's
+# worktree it lives in is the version that runs. The stable dispatcher at
+# $GD/bin/run_genodisc.sh (bootstrap) picks which worker to exec.
 #
-# Contract with the web app:
+# No #SBATCH directives here: this script is exec'd by the bootstrap (which is
+# the submitted batch script and carries the scheduling directives), not
+# sbatch'd directly.
 #
-#   INPUT (web app must have written these before invoking):
-#     - <job_dir>/input/<filename>.gz   uploaded sumstats file
-#     - <job_dir>/gwas_list.txt         space-delimited, one row of metadata
-#     - <job_dir>/config.yaml           override config with the 5 MVP keys
+# Contract with the web app (unchanged):
+#   INPUT:  <job_dir>/input/<filename>.gz, <job_dir>/gwas_list.txt, <job_dir>/config.yaml
+#   OUTPUT: <job_dir>/results/..., results/package/manifest.json, results/bundle.tar.gz
+#   Success: results/bundle.tar.gz exists AND exit 0.
+#   Exit codes: 0 ok; 1 pipeline failed; 2 setup error.
 #
-#   OUTPUT (this script produces):
-#     - <job_dir>/results/...                       raw Snakemake outputs
-#     - <job_dir>/results/package/manifest.json     manifest of the split bundle
-#     - <job_dir>/results/bundle.tar.gz             downloadable results bundle
-#     - SLURM stdout/stderr                         logs for human debugging
-#
-# Success signal: presence of <job_dir>/results/bundle.tar.gz AND
-# exit code 0. The web app determines this by polling sacct and stat-ing
-# the bundle file.
-#
-# Exit codes:
-#   0   Pipeline completed and bundle.tar.gz exists.
-#   1   Pipeline failed at some stage. Check SLURM stdout/stderr.
-#   2   Setup error (job dir missing, activation failed, etc.).
-#
-# Usage:
-#   run_genodisc.sh <absolute_path_to_job_dir>
-#
-# Typical SLURM invocation by the web app (paramiko ssh into HPC):
-#   sbatch \
-#     --job-name=genodisc-<uuid> \
-#     --chdir=${GD}/jobs/<uuid> \
-#     --output=${GD}/jobs/<uuid>/slurm.out \
-#     ${GD}/bin/run_genodisc.sh ${GD}/jobs/<uuid>
-#
-# The web app can override partition, time, cpus-per-task, etc. by passing
-# the corresponding sbatch flags — they win over the #SBATCH directives above.
+# Usage: run_genodisc.sh <absolute_path_to_job_dir>
 # ============================================================================
 
 set -uo pipefail
 
 # ---- Config -----------------------------------------------------------------
 GD="/scratch/prj/neurohackpain/GenoDisc"
-SNAKEFILE="${GD}/repo/current/pipeline/Snakefile"
 ACTIVATE_SCRIPT="${GD}/bin/activate_genodisc.sh"
 CONDA_PREFIX_DIR="${GD}/conda-envs"
 
-# Each rule now gets its own right-sized SLURM job via the profile below
-# (profiles/slurm/), so this orchestrator process itself only needs to run the
-# Snakemake scheduler - it no longer executes rules locally, so it no longer
-# needs a CORES/MEM_MB budget of its own. Two non-obvious Snakemake 7.x
-# argument-parsing gotchas that the old local `-c $CORES --resources mem_mb=...`
-# invocation had to work around (see misc/05-status.md) - --resources must
-# precede the positional target since it takes nargs='+' and otherwise
-# swallows it; --default-resources is required alongside --resources or rules
-# without declared mem_mb/disk_mb hit an internal "TBD" placeholder crash -
-# still apply, they just now live inside profiles/slurm/config.yaml's
-# default-resources: list instead of being set here.
+# Self-locate: this file lives at <pipeline>/misc/run_genodisc.sh, so the
+# Snakefile is one level up from misc/. This is what makes the worker run its
+# OWN version's code instead of a hardcoded repo/current.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_DIR="$(dirname "$SCRIPT_DIR")"
+SNAKEFILE="${PIPELINE_DIR}/Snakefile"
 
 # ---- Plain logging (no colour; goes to SLURM stdout) ------------------------
 ts()  { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -95,6 +60,7 @@ TARGET="${JOB_DIR}/results/bundle.tar.gz"
 log "GenoDisc pipeline run starting"
 log "  job_uuid:    ${JOB_UUID}"
 log "  job_dir:     ${JOB_DIR}"
+log "  pipeline:    ${PIPELINE_DIR}"
 log "  slurm_jobid: ${SLURM_JOB_ID:-<not in slurm>}"
 log "  host:        $(hostname)"
 
@@ -120,11 +86,11 @@ source "$ACTIVATE_SCRIPT" || { err "activate_genodisc.sh failed"; exit 2; }
 log "Snakemake version: $(snakemake --version 2>&1)"
 
 # ---- Invoke Snakemake -------------------------------------------------------
-PIPELINE_DIR="$(dirname "$SNAKEFILE")"
 DEFAULT_CONFIG="${PIPELINE_DIR}/config.yaml"
 
 log "Invoking Snakemake"
 log "  target:          $TARGET"
+log "  --snakefile:     $SNAKEFILE"
 log "  --directory:     $JOB_DIR"
 log "  default config:  $DEFAULT_CONFIG"
 log "  override config: $CONFIG_FILE"
