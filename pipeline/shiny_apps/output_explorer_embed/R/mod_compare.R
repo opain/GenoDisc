@@ -51,6 +51,63 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   list(height = round(height), width = round(width))
 }
 
+# Modal-dialog helper that shows every comparison_long row for a given
+# (entity_type, entity_id) pair across all methods, panels and selected
+# GWAS. Called from the row-click observers on each compare view's DT
+# table. Answers "is this entity real across methods / traits, or one
+# LD block / one method?".
+.show_entity_detail <- function(ent_id, ent_type, long, gwas_vec) {
+  if (is.null(ent_id) || is.na(ent_id) || !nzchar(ent_id)) return(invisible())
+  detail <- long[entity_type == ent_type &
+                    entity_id   == ent_id &
+                    gwas %in% gwas_vec]
+  if (nrow(detail) == 0) {
+    showModal(modalDialog(
+      title = paste0(ent_id, " — no rows in current selection"),
+      easyClose = TRUE, size = "m"
+    ))
+    return(invisible())
+  }
+  detail <- detail[order(match(gwas, gwas_vec), method, panel)]
+  out <- data.frame(
+    GWAS       = factor(detail$gwas, levels = gwas_vec),
+    Method     = detail$method,
+    Panel      = ifelse(is.na(detail$panel), "—", detail$panel),
+    Statistic  = signif(detail$statistic, 3),
+    SE         = signif(detail$se, 3),
+    P          = signif(detail$p, 3),
+    `P.FDR`    = signif(detail$fdr, 3),
+    Direction  = ifelse(is.na(detail$direction), "—", detail$direction),
+    Evidence   = ifelse(is.na(detail$evidence), "—",
+                          ifelse(detail$evidence, "Yes", "No")),
+    check.names = FALSE, stringsAsFactors = FALSE
+  )
+  # Drop columns that are entirely "—" so they don't clutter the modal.
+  keep <- vapply(names(out), function(nm) !all(out[[nm]] == "—"), logical(1))
+  out <- out[, keep, drop = FALSE]
+  first_lab <- detail$entity_label[1L]
+  title_txt <- if (nzchar(first_lab) && !identical(first_lab, ent_id)) {
+    sprintf("%s — %s", ent_id, first_lab)
+  } else {
+    ent_id
+  }
+  showModal(modalDialog(
+    title = title_txt,
+    size  = "l",
+    easyClose = TRUE,
+    footer = modalButton("Close"),
+    tags$p(
+      style = "color: var(--gd-text-mute); margin-bottom: 8px;",
+      sprintf("All %s rows for %s across the %d selected GWAS.",
+              ent_type, ent_id, length(gwas_vec))),
+    DT::datatable(
+      out, rownames = FALSE,
+      options = list(pageLength = 25, dom = "tip",
+                      order = list(list(0, "asc")))
+    )
+  ))
+}
+
 # Add the "outline for nominal-sig" (larger solid black circle behind the
 # data circle) and "black square for FDR-sig" (larger solid black square)
 # overlays, then re-draw the data circles on top so the fill shows through.
@@ -322,13 +379,16 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$tissue_compare_tbl <- DT::renderDT({
+    tissue_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- gwas_vec_r()
-      slice <- comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec]
+      comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec_r()]
+    })
+
+    output$tissue_compare_tbl <- DT::renderDT({
+      slice <- tissue_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS     = factor(slice$gwas, levels = gwas_vec),
+        GWAS     = factor(slice$gwas, levels = gwas_vec_r()),
         Tissue   = slice$entity_id,
         BETA     = signif(slice$statistic, 3),
         SE       = signif(slice$se, 3),
@@ -339,10 +399,19 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE,
-                    filter = "top",
+                    filter = "top", selection = "single",
                     options = list(pageLength = 20, server = TRUE,
                                     order = list(list(4, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$tissue_compare_tbl_rows_selected, {
+      sel <- input$tissue_compare_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- tissue_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "tissue", comparison_long(), gwas_vec_r())
+    }, ignoreInit = TRUE)
 
     output$download_plot <- downloadHandler(
       filename = function() sprintf("tissue_compare_%s.%s",
@@ -597,15 +666,18 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$locus_compare_tbl <- DT::renderDT({
+    locus_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- gwas_vec_r()
       picked_method <- input$method %||% "clump"
-      slice <- comparison_long()[method == picked_method & gwas %in% gwas_vec &
-                                    entity_type == "locus"]
+      comparison_long()[method == picked_method & entity_type == "locus" &
+                          gwas %in% gwas_vec_r()]
+    })
+
+    output$locus_compare_tbl <- DT::renderDT({
+      slice <- locus_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = gwas_vec),
+        GWAS       = factor(slice$gwas, levels = gwas_vec_r()),
         Locus      = slice$entity_id,
         BETA       = signif(slice$statistic, 3),
         SE         = signif(slice$se, 3),
@@ -613,9 +685,19 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(4, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$locus_compare_tbl_rows_selected, {
+      sel <- input$locus_compare_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- locus_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "locus", comparison_long(), gwas_vec_r())
+    }, ignoreInit = TRUE)
 
     output$locus_download_plot <- downloadHandler(
       filename = function() sprintf("locus_compare_%s_%s.%s",
@@ -936,18 +1018,22 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$gene_compare_tbl <- DT::renderDT({
+    gene_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- gwas_vec_r()
       picked_method <- input$method %||% "MAGMA-gene"
-      slice <- comparison_long()[method == picked_method & gwas %in% gwas_vec]
+      slice <- comparison_long()[method == picked_method & gwas %in% gwas_vec_r()]
       picked_panel <- input$panel %||% "__best__"
       if (!identical(picked_panel, "__best__") && nzchar(picked_panel)) {
         slice <- slice[panel == picked_panel]
       }
+      slice
+    })
+
+    output$gene_compare_tbl <- DT::renderDT({
+      slice <- gene_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS      = factor(slice$gwas, levels = gwas_vec),
+        GWAS      = factor(slice$gwas, levels = gwas_vec_r()),
         Gene      = slice$entity_id,
         Panel     = slice$panel,
         Statistic = signif(slice$statistic, 3),
@@ -959,9 +1045,19 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(6, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$gene_compare_tbl_rows_selected, {
+      sel <- input$gene_compare_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- gene_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "gene", comparison_long(), gwas_vec_r())
+    }, ignoreInit = TRUE)
 
     output$gene_download_plot <- downloadHandler(
       filename = function() sprintf("gene_compare_%s_%s.%s",
@@ -1367,13 +1463,16 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$atc_magma_tbl <- DT::renderDT({
+    atc_magma_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- magma_gwas_vec()
-      slice <- comparison_long()[method == "MAGMA-ATC" & gwas %in% gwas_vec]
+      comparison_long()[method == "MAGMA-ATC" & gwas %in% magma_gwas_vec()]
+    })
+
+    output$atc_magma_tbl <- DT::renderDT({
+      slice <- atc_magma_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS   = factor(slice$gwas, levels = gwas_vec),
+        GWAS   = factor(slice$gwas, levels = magma_gwas_vec()),
         `ATC Code`  = slice$entity_id,
         Class       = slice$entity_label,
         `N Drugs`   = slice$n_units,
@@ -1382,9 +1481,19 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(5, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$atc_magma_tbl_rows_selected, {
+      sel <- input$atc_magma_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- atc_magma_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "atc", comparison_long(), magma_gwas_vec())
+    }, ignoreInit = TRUE)
 
     output$magma_download_plot <- downloadHandler(
       filename = function() sprintf("atc_magma_compare_%s.%s",
@@ -1466,13 +1575,16 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$atc_gsea_tbl <- DT::renderDT({
+    atc_gsea_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- gsea_gwas_vec()
-      slice <- comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gwas_vec]
+      comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gsea_gwas_vec()]
+    })
+
+    output$atc_gsea_tbl <- DT::renderDT({
+      slice <- atc_gsea_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = gwas_vec),
+        GWAS       = factor(slice$gwas, levels = gsea_gwas_vec()),
         `ATC Code` = slice$entity_id,
         Class      = slice$entity_label,
         Panel      = slice$panel,
@@ -1484,9 +1596,19 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$atc_gsea_tbl_rows_selected, {
+      sel <- input$atc_gsea_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- atc_gsea_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "atc", comparison_long(), gsea_gwas_vec())
+    }, ignoreInit = TRUE)
 
     output$gsea_download_plot <- downloadHandler(
       filename = function() sprintf("atc_gsea_compare_%s.%s",
@@ -1872,13 +1994,16 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$drug_magma_tbl <- DT::renderDT({
+    drug_magma_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- magma_gwas_vec()
-      slice <- comparison_long()[method == "MAGMA-drug" & gwas %in% gwas_vec]
+      comparison_long()[method == "MAGMA-drug" & gwas %in% magma_gwas_vec()]
+    })
+
+    output$drug_magma_tbl <- DT::renderDT({
+      slice <- drug_magma_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS   = factor(slice$gwas, levels = gwas_vec),
+        GWAS   = factor(slice$gwas, levels = magma_gwas_vec()),
         Drug   = slice$entity_id,
         `N Genes` = slice$n_units,
         BETA   = signif(slice$statistic, 3),
@@ -1888,9 +2013,19 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(6, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$drug_magma_tbl_rows_selected, {
+      sel <- input$drug_magma_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- drug_magma_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "drug", comparison_long(), magma_gwas_vec())
+    }, ignoreInit = TRUE)
 
     output$magma_download_plot <- downloadHandler(
       filename = function() sprintf("drug_magma_compare_%s.%s",
@@ -1973,13 +2108,16 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       print(p)
     })
 
-    output$drug_gsea_tbl <- DT::renderDT({
+    drug_gsea_tbl_slice <- reactive({
       req(comparison_long())
-      gwas_vec <- gsea_gwas_vec()
-      slice <- comparison_long()[method == "TWAS-GSEA-drug" & gwas %in% gwas_vec]
+      comparison_long()[method == "TWAS-GSEA-drug" & gwas %in% gsea_gwas_vec()]
+    })
+
+    output$drug_gsea_tbl <- DT::renderDT({
+      slice <- drug_gsea_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = gwas_vec),
+        GWAS       = factor(slice$gwas, levels = gsea_gwas_vec()),
         Drug       = slice$entity_id,
         Panel      = slice$panel,
         `N Genes`  = slice$n_units,
@@ -1991,9 +2129,19 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$drug_gsea_tbl_rows_selected, {
+      sel <- input$drug_gsea_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- drug_gsea_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "drug", comparison_long(), gsea_gwas_vec())
+    }, ignoreInit = TRUE)
 
     output$gsea_download_plot <- downloadHandler(
       filename = function() sprintf("drug_gsea_compare_%s.%s",
