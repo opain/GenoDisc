@@ -8,29 +8,41 @@ option_list = list(
               help="Path to config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl")
-biomartCacheClear()
-Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
+Genes<-Genes[!duplicated(Genes),]
 
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]
 
 # Read in config file
-smr_expression_panel_metabrain_basalganglia_logical<-config[grepl('smr_expression_panel_metabrain_basalganglia:',config)] == "smr_expression_panel_metabrain_basalganglia: T"
-smr_expression_panel_metabrain_cerebellum_logical<-config[grepl('smr_expression_panel_metabrain_cerebellum:',config)] == "smr_expression_panel_metabrain_cerebellum: T"
-smr_expression_panel_metabrain_cortex_logical<-config[grepl('smr_expression_panel_metabrain_cortex:',config)] == "smr_expression_panel_metabrain_cortex: T"
-smr_expression_panel_metabrain_hippocampus_logical<-config[grepl('smr_expression_panel_metabrain_hippocampus:',config)] == "smr_expression_panel_metabrain_hippocampus: T"
-smr_expression_panel_metabrain_spinalcord_logical<-config[grepl('smr_expression_panel_metabrain_spinalcord:',config)] == "smr_expression_panel_metabrain_spinalcord: T"
+# any(grepl(...)) - not config[grepl(...)] == "...: T" - so a key that's absent from
+# the job's config.yaml (the website omits unticked keys) correctly evaluates to FALSE
+# rather than logical(0), which previously corrupted the tissue selector below via R's
+# zero-length recycling (silently dropping/shifting tissues instead of just excluding
+# the unticked one).
+smr_expression_panel_metabrain_basalganglia_logical<-any(grepl('smr_expression_panel_metabrain_basalganglia: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_cerebellum_logical<-any(grepl('smr_expression_panel_metabrain_cerebellum: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_cortex_logical<-any(grepl('smr_expression_panel_metabrain_cortex: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_hippocampus_logical<-any(grepl('smr_expression_panel_metabrain_hippocampus: T',config, fixed=TRUE))
+smr_expression_panel_metabrain_spinalcord_logical<-any(grepl('smr_expression_panel_metabrain_spinalcord: T',config, fixed=TRUE))
 
 metabrain_tissues<-c('Basalganglia','Cerebellum','Cortex','Hippocampus','Spinalcord')
   

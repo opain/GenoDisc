@@ -1,0 +1,61 @@
+############
+# Provide relevent paths
+############
+
+# Specify output directory
+outdir: tests/output_all_resources
+
+# Location of this config file
+config_file: tests/config_test_all_resources.yaml
+
+# Specify location of gwas_list file (unused by the prepare_resources target,
+# but Snakemake still needs a valid file to parse the Snakefile)
+gwas_list: tests/gwas_list_test.txt
+
+# Specify resource directory - matches genodisc-devserver's
+# modules/job_service.py JobService.base_dir + 'pipeline_resources' exactly,
+# so `snakemake prepare_resources -t` touches the same resdir the website uses.
+resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
+
+############
+# Enable every analysis the website can request (hpc_app/forms.py /
+# modules/job_service.py._build_config_yaml), so prepare_resources' resource_inputs
+# (rules/dependencies.smk) requests the full set of outputs a real job could ever
+# need. Deliberately excludes gcsc/twas_conditional/twas_gsea_cmap - none of these
+# are exposed anywhere in the website's form, so a job submitted via the website can
+# never request them; left at the pipeline's own defaults.
+############
+
+clump: T
+cojo: T
+finemap: T
+ldsc: T
+
+magma_gene: T
+magma_drugtargetor: T
+tissue_magma: T
+
+twas_panel_fusion: T
+twas_panel_psychencode: T
+twas_gsea_drugtargetor: T
+twas_gsea_drugtargetor_nondirectional: T
+
+# All 49 GTEx + 5 non-GTEx FUSION panels (sourced from the pipeline's own
+# misc/fusion_gtex_weights.csv / misc/fusion_non_gtex_weights.csv - same source
+# modules/twas_panels.py reads - not hand-transcribed, to avoid the stale-name
+# mismatch already caught once during v3 implementation, e.g. GTEx's rename of
+# "Transformed fibroblasts" to Cells_Cultured_fibroblasts).
+gtex_weights: ['Adipose_Subcutaneous', 'Adipose_Visceral_Omentum', 'Adrenal_Gland', 'Artery_Aorta', 'Artery_Coronary', 'Artery_Tibial', 'Brain_Amygdala', 'Brain_Anterior_cingulate_cortex_BA24', 'Brain_Caudate_basal_ganglia', 'Brain_Cerebellar_Hemisphere', 'Brain_Cerebellum', 'Brain_Cortex', 'Brain_Frontal_Cortex_BA9', 'Brain_Hippocampus', 'Brain_Hypothalamus', 'Brain_Nucleus_accumbens_basal_ganglia', 'Brain_Putamen_basal_ganglia', 'Brain_Spinal_cord_cervical_c-1', 'Brain_Substantia_nigra', 'Breast_Mammary_Tissue', 'Cells_Cultured_fibroblasts', 'Cells_EBV-transformed_lymphocytes', 'Colon_Sigmoid', 'Colon_Transverse', 'Esophagus_Gastroesophageal_Junction', 'Esophagus_Mucosa', 'Esophagus_Muscularis', 'Heart_Atrial_Appendage', 'Heart_Left_Ventricle', 'Kidney_Cortex', 'Liver', 'Lung', 'Minor_Salivary_Gland', 'Muscle_Skeletal', 'Nerve_Tibial', 'Ovary', 'Pancreas', 'Pituitary', 'Prostate', 'Skin_Not_Sun_Exposed_Suprapubic', 'Skin_Sun_Exposed_Lower_leg', 'Small_Intestine_Terminal_Ileum', 'Spleen', 'Stomach', 'Testis', 'Thyroid', 'Uterus', 'Vagina', 'Whole_Blood']
+non_gtex_weights: ['CMC.BRAIN.RNASEQ', 'CMC.BRAIN.RNASEQ_SPLICING', 'METSIM.ADIPOSE.RNASEQ', 'NTR.BLOOD.RNAARR', 'YFS.BLOOD.RNAARR']
+
+pwas_panel_rosmap: T
+pwas_panel_banner: T
+
+smr_expression_panel_psychencode: T
+smr_expression_panel_metabrain_basalganglia: T
+smr_expression_panel_metabrain_cerebellum: T
+smr_expression_panel_metabrain_cortex: T
+smr_expression_panel_metabrain_hippocampus: T
+smr_expression_panel_metabrain_spinalcord: T
+smr_expression_panel_eqtlgen: T
+smr_protein_panel_rosmap: T

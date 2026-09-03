@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>GenoDisc Pipeline - User Guide</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link rel="shortcut icon" href="Images/logo/favicon.ico">
+
+<link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
+
+<script>
+function toggleNightMode() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (stylesheet.disabled) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+}
+</script>
+
+<label class="switch">
+  <input type="checkbox" id="toggleNightMode" checked>
+  <span class="slider round"></span>
+</label>
+
+<script>
+document.getElementById('toggleNightMode').addEventListener('change', function() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (this.checked) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+});
+</script>
+
+<!-- Cloudflare Web Analytics (cookieless, no personal data - no consent required).
+     Same token as the hosted service (genodisc.er.kcl.ac.uk) so both surfaces
+     roll up into one dashboard. Replaces the previous Google Analytics setup
+     and its Osano cookie-consent banner. -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7709e512a3d5400a96a68c4893306f2c"}'></script>
+<!-- End Cloudflare Web Analytics -->
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="styles/styles.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"><img class="logo-img" src="Images/logo/Horizontal_white.png" style="height: 42px;" /></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Pipeline
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="pipeline_guide.html">User Guide</a>
+    </li>
+    <li>
+      <a href="pipeline_technical.html">Technical Details</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://genodisc.er.kcl.ac.uk/">Hosted service ↗</a>
+</li>
+<li>
+  <a href="https://github.com/opain/GenoDisc">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">GenoDisc Pipeline - User Guide</h1>
+
+</div>
+
+
+<hr />
+<p>This guide covers everything you need to install, configure, and run
+the GenoDisc pipeline. It is organised into the following sections:</p>
+<ul>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#installation">Installation</a></li>
+<li><a href="#pipeline-configuration">Pipeline configuration</a></li>
+<li><a href="#running-with-test-data">Running with test data</a></li>
+<li><a href="#running-on-an-hpc">Running on an HPC</a></li>
+<li><a href="#requesting-outputs">Requesting outputs</a></li>
+<li><a href="#output">Output</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+<p>For technical details on the methods used by the pipeline, see the <a
+href="pipeline_technical.html">Technical Details</a> page.</p>
+<hr />
+<div id="overview" class="section level1">
+<h1>Overview</h1>
+<p>GenoDisc (Genomic Discovery Platform) is a Snakemake pipeline for
+comprehensive analysis of GWAS summary statistics. It automates a wide
+range of post-GWAS analyses to identify genes, biological mechanisms,
+and potential drug targets associated with a trait or disease.</p>
+<p>Analyses are organised into three parts:</p>
+<p><strong>Part 1: Descriptive analyses</strong></p>
+<ul>
+<li>GWAS summary statistic quality control</li>
+<li>Confounding and SNP-heritability estimation (LDSC)</li>
+<li>Identification of independent associations (LD clumping,
+GCTA-COJO)</li>
+</ul>
+<p><strong>Part 2: Gene finding analyses</strong></p>
+<ul>
+<li>SNP-based fine-mapping (SuSiE)</li>
+<li>Positional mapping of associated variants</li>
+<li>Gene-level association analysis (MAGMA)</li>
+<li>Transcriptome-wide association (TWAS via FUSION)</li>
+<li>Proteome-wide association (PWAS)</li>
+<li>Summary-data-based Mendelian randomisation (SMR)</li>
+</ul>
+<p><strong>Part 3: Drug finding analyses</strong></p>
+<ul>
+<li>Drug-gene set enrichment (MAGMA and TWAS-GSEA with
+DrugTargetor)</li>
+<li>Disease-reversing drug identification (TWAS-GSEA with CMAP
+signatures)</li>
+<li>Gene co-regulation-based drug scoring (GCSC)</li>
+<li>ATC classification enrichment</li>
+<li>Tissue enrichment (MAGMA)</li>
+</ul>
+<p>All results are packaged into a single <code>.rds</code> file that
+can be read into R or explored interactively using the bundled Shiny
+application.</p>
+<div class="note-box">
+<p><strong>Note:</strong> A web interface for submitting GWAS summary
+statistics for analysis is currently in development at
+<code>genodisc.er.kcl.ac.uk</code>. In the meantime, users can download
+the pipeline and run analyses locally as described below.</p>
+</div>
+<hr />
+<div class="note-box">
+<p><strong>Prefer not to install anything?</strong> GenoDisc is also
+available as a hosted web service at <a
+href="https://genodisc.er.kcl.ac.uk/">https://genodisc.er.kcl.ac.uk/</a>
+— submit your GWAS, run analyses on our servers, and explore the results
+in an interactive viewer, all without setting up conda or Snakemake.</p>
+</div>
+</div>
+<div id="installation" class="section level1">
+<h1>Installation</h1>
+<p>There are three steps:</p>
+<ol style="list-style-type: decimal">
+<li>Download the GenoDisc repository</li>
+<li>Install conda and Snakemake</li>
+<li>Download dependencies (handled automatically on first run)</li>
+</ol>
+<hr />
+<div id="step-1-download-the-repository" class="section level2">
+<h2>Step 1: Download the repository</h2>
+<p>Clone the GenoDisc repository from GitHub and navigate to the
+pipeline directory:</p>
+<pre class="bash"><code>git clone https://github.com/opain/GenoDisc.git
+cd GenoDisc/pipeline</code></pre>
+<hr />
+</div>
+<div id="step-2-install-conda-and-the-genodisc-environment"
+class="section level2">
+<h2>Step 2: Install conda and the <code>genodisc</code> environment</h2>
+<p>If you do not already have conda installed, install Miniconda:</p>
+<pre class="bash"><code>wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+sh Miniconda3-latest-Linux-x86_64.sh</code></pre>
+<p>Then create the <code>genodisc</code> environment from the pipeline’s
+env file. This installs Python, Mamba, Snakemake, Pandas and Ghostscript
+at the exact versions the pipeline expects:</p>
+<pre class="bash"><code>conda env create -f envs/pipeline.yaml
+conda activate genodisc</code></pre>
+<div class="note-box">
+<p><strong>Note:</strong> The pipeline hard-checks the active env name
+at startup. Every subsequent step assumes <code>genodisc</code> is
+active — if it isn’t, Snakemake will exit immediately with
+<code>Error: The genodisc conda environment must be active when running the pipeline.</code>
+The env file lives at <a
+href="https://github.com/opain/GenoDisc/blob/main/pipeline/envs/pipeline.yaml"><code>envs/pipeline.yaml</code></a>.</p>
+</div>
+<hr />
+</div>
+<div id="step-3-prepare-an-hpc-profile-optional" class="section level2">
+<h2>Step 3: Prepare an HPC profile (optional)</h2>
+<p>If you are running on an HPC with a job scheduler (e.g. SLURM), you
+should set up a <a
+href="https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles">Snakemake
+profile</a>. An example SLURM profile is provided in
+<code>example_slurm_profile_config.yaml</code>. SLURM users should:</p>
+<ol style="list-style-type: decimal">
+<li>Create the directory
+<code>$HOME/.config/snakemake/slurm/</code></li>
+<li>Copy <code>example_slurm_profile_config.yaml</code> into that
+directory and rename it to <code>config.yaml</code></li>
+</ol>
+<hr />
+</div>
+</div>
+<div id="pipeline-configuration" class="section level1">
+<h1>Pipeline configuration</h1>
+<p>Running the pipeline requires two configuration files:</p>
+<ol style="list-style-type: decimal">
+<li>A <strong>config file</strong> (YAML) specifying output paths and
+which analyses to run</li>
+<li>A <strong>GWAS list file</strong> (space-delimited text) listing the
+GWAS summary statistics to analyse</li>
+</ol>
+<hr />
+<div id="config-file" class="section level2">
+<h2>Config file</h2>
+<p>The config file is a YAML file that controls all pipeline settings.
+An example is provided at <code>example_input/config.yaml</code>.</p>
+<details>
+<summary>
+<strong>View path configuration parameters</strong>
+</summary>
+<table>
+<colgroup>
+<col width="10%" />
+<col width="72%" />
+<col width="16%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>outdir</code></td>
+<td align="left">Output directory for all results</td>
+<td align="left"><code>my_output</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>config_file</code></td>
+<td align="left">Path to this config file</td>
+<td align="left"><code>config/config.yaml</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>gwas_list</code></td>
+<td align="left">Path to the GWAS list file</td>
+<td align="left"><code>config/gwas_list.txt</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>resdir</code></td>
+<td align="left">Resource directory for downloaded dependencies
+(default: <code>resources</code>). Set to <code>NA</code> to use
+default.</td>
+<td align="left"><code>resources</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>View analysis toggle parameters</strong>
+</summary>
+<p>All analysis toggles accept <code>T</code> (run) or <code>F</code>
+(skip).</p>
+<table>
+<colgroup>
+<col width="40%" />
+<col width="53%" />
+<col width="6%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Part</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>clump</code></td>
+<td align="left">LD clumping to identify independent significant
+SNPs</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="even">
+<td align="left"><code>cojo</code></td>
+<td align="left">GCTA-COJO conditional analysis for independent
+associations</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>finemap</code></td>
+<td align="left">SuSiE fine-mapping analysis</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="even">
+<td align="left"><code>ldsc</code></td>
+<td align="left">LD score regression for heritability and intercept
+estimation</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>magma_gene</code></td>
+<td align="left">MAGMA gene-level association analysis</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>twas_panel_fusion</code></td>
+<td align="left">TWAS using FUSION GTEx and non-GTEx weight panels</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>twas_panel_psychencode</code></td>
+<td align="left">TWAS using PsychENCODE panel</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>twas_conditional</code></td>
+<td align="left">Conditional analysis of significant TWAS hits</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>smr_expression_panel_psychencode</code></td>
+<td align="left">SMR using PsychENCODE eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>smr_expression_panel_metabrain_cortex</code></td>
+<td align="left">SMR using MetaBrain cortex eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td
+align="left"><code>smr_expression_panel_metabrain_basalganglia</code></td>
+<td align="left">SMR using MetaBrain basal ganglia eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td
+align="left"><code>smr_expression_panel_metabrain_cerebellum</code></td>
+<td align="left">SMR using MetaBrain cerebellum eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td
+align="left"><code>smr_expression_panel_metabrain_hippocampus</code></td>
+<td align="left">SMR using MetaBrain hippocampus eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td
+align="left"><code>smr_expression_panel_metabrain_spinalcord</code></td>
+<td align="left">SMR using MetaBrain spinal cord eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>smr_expression_panel_eqtlgen</code></td>
+<td align="left">SMR using eQTLGen blood eQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>pwas_panel_rosmap</code></td>
+<td align="left">PWAS using ROSMAP brain pQTL weights</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>pwas_panel_banner</code></td>
+<td align="left">PWAS using Banner brain pQTL weights</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>smr_protein_panel_rosmap</code></td>
+<td align="left">SMR using ROSMAP pQTL data</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>magma_drugtargetor</code></td>
+<td align="left">MAGMA gene set enrichment using DrugTargetor drug-gene
+sets</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="even">
+<td align="left"><code>twas_gsea_drugtargetor</code></td>
+<td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene
+sets</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>twas_gsea_drugtargetor_nondirectional</code></td>
+<td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="even">
+<td align="left"><code>twas_gsea_cmap</code></td>
+<td align="left">TWAS-GSEA against CMAP level5 drug signatures</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>gcsc</code></td>
+<td align="left">Gene co-regulation-based drug scoring (GCSC)</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="even">
+<td align="left"><code>tissue_magma</code></td>
+<td align="left">MAGMA tissue enrichment analysis</td>
+<td align="left">Part 3</td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>View panel specification parameters</strong>
+</summary>
+<table>
+<colgroup>
+<col width="21%" />
+<col width="40%" />
+<col width="38%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>gtex_weights</code></td>
+<td align="left">List of GTEx tissue panels for TWAS (FUSION
+format)</td>
+<td
+align="left"><code>["Brain_Frontal_Cortex_BA9", "Artery_Coronary"]</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>non_gtex_weights</code></td>
+<td align="left">List of non-GTEx weight panels for TWAS</td>
+<td align="left"><code>["CMC.BRAIN.RNASEQ"]</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>external_weights</code></td>
+<td align="left">Use custom external TWAS weight panels
+(<code>T</code>/<code>F</code>)</td>
+<td align="left"><code>F</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>external_weights_pos_path</code></td>
+<td align="left">Paths to external weight panel position files</td>
+<td align="left"><code>[]</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>gcsc_tissues</code></td>
+<td align="left">GTEx tissues for GCSC analysis</td>
+<td align="left"><code>["Artery_Coronary"]</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>cmap_level5_prop</code></td>
+<td align="left">Path to CMAP level5 propensity file for TWAS-GSEA</td>
+<td align="left"><code>/path/to/lvl5_prop.tsv.gz</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>cmap_compoundinfo</code></td>
+<td align="left">Path to CMAP compound info file</td>
+<td align="left"><code>/path/to/compoundinfo_beta.txt</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>View external data parameters</strong>
+</summary>
+<table>
+<colgroup>
+<col width="19%" />
+<col width="54%" />
+<col width="25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Source</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>rosmap_fusion</code></td>
+<td align="left">Path to ROSMAP PWAS FUSION weights zip file</td>
+<td align="left"><a
+href="https://www.synapse.org/#!Synapse:syn23627957">Synapse:
+syn23627957</a></td>
+</tr>
+<tr class="even">
+<td align="left"><code>banner_fusion</code></td>
+<td align="left">Path to Banner PWAS FUSION weights zip file</td>
+<td align="left"><a
+href="https://www.synapse.org/#!Synapse:syn23627957">Synapse:
+syn23627957</a></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>rosmap_smr</code></td>
+<td align="left">Path to ROSMAP pQTL data for SMR</td>
+<td align="left"><a
+href="https://www.synapse.org/#!Synapse:syn23627957">Synapse:
+syn23627957</a></td>
+</tr>
+</tbody>
+</table>
+<p>These files must be downloaded separately from <a
+href="https://www.synapse.org/#!Synapse:syn23627957">Synapse</a> and the
+paths provided in the config file. If you do not have access to these
+files, set the corresponding analysis toggles to <code>F</code>.</p>
+</details>
+<hr />
+</div>
+<div id="gwas-list" class="section level2">
+<h2>GWAS list file</h2>
+<p>The GWAS list file is a space-delimited text file with one row per
+GWAS. An example is provided at
+<code>example_input/gwas_list_example.txt</code>.</p>
+<table>
+<colgroup>
+<col width="10%" />
+<col width="55%" />
+<col width="12%" />
+<col width="21%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Column</th>
+<th align="left">Description</th>
+<th align="left">Required</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>name</code></td>
+<td align="left">Short identifier for the GWAS (used in output file
+names)</td>
+<td align="left">Yes</td>
+<td align="left"><code>COAD01</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>path</code></td>
+<td align="left">Path to the GWAS summary statistics file (plain text or
+gzipped)</td>
+<td align="left">Yes</td>
+<td align="left"><code>data/COAD01.gz</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>population</code></td>
+<td align="left">Super-population code: AFR, AMR, EAS, EUR, or SAS</td>
+<td align="left">Yes</td>
+<td align="left"><code>EUR</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>n</code></td>
+<td align="left">Total sample size (use <code>NA</code> if provided in
+the summary statistics file)</td>
+<td align="left">No</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>sampling</code></td>
+<td align="left">Proportion of cases in the sample (binary traits
+only)</td>
+<td align="left">Binary only</td>
+<td align="left"><code>0.33</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>prevalence</code></td>
+<td align="left">Population prevalence of the trait (binary traits
+only)</td>
+<td align="left">Binary only</td>
+<td align="left"><code>0.03</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>mean</code></td>
+<td align="left">Phenotype mean (continuous traits only)</td>
+<td align="left">Continuous only</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>sd</code></td>
+<td align="left">Phenotype standard deviation (continuous traits
+only)</td>
+<td align="left">Continuous only</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>label</code></td>
+<td align="left">Human-readable phenotype name (used in reports)</td>
+<td align="left">Yes</td>
+<td align="left"><code>"Coronary Artery Disease"</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Example:</strong></p>
+<pre><code>name path population n sampling prevalence mean sd label
+COAD01 data/gwas/COAD01.gz EUR NA 0.33 0.03 NA NA &quot;Coronary Artery Disease&quot;</code></pre>
+<hr />
+</div>
+<div id="gencor-list" class="section level2">
+<h2>Bivariate LDSC list file (optional)</h2>
+<p>To run bivariate LDSC genetic-correlation analysis (rG) between the
+primary GWAS and a set of secondary GWAS, set
+<code>gencor_gwas_list</code> in the config to the path of a second list
+file. It uses the <strong>same format as the GWAS list above</strong>,
+but the <code>path</code> column must point to summary statistics that
+have <strong>already been munged</strong> into LDSC’s
+<code>.sumstats.gz</code> format.</p>
+<p>You can add <strong>any number of additional columns</strong>
+(e.g. <code>category</code>, <code>ancestry</code>, <code>year</code>)
+beyond the nine listed above. These extras are preserved through to the
+results and offered as <strong>facet options</strong> in the Shiny app’s
+rG plot, so no code change is needed each time a new metadata column is
+introduced.</p>
+<p>Bivariate LDSC requires <code>ldsc: T</code> in the config; otherwise
+the pipeline exits with a validation error at startup.</p>
+<p><strong>Example (with a <code>category</code> extra
+column):</strong></p>
+<pre><code>name path population n sampling prevalence mean sd label category
+ADHD06 data/munged/ADHD06.sumstats.gz EUR NA NA NA NA NA &quot;ADHD&quot; Psychiatric
+SCHI04 data/munged/SCHI04.sumstats.gz EUR NA NA NA NA NA &quot;Schizophrenia&quot; Psychiatric
+T2D12  data/munged/T2D12.sumstats.gz  EUR NA NA NA NA NA &quot;Type 2 diabetes&quot; Metabolic</code></pre>
+<hr />
+</div>
+<div id="gwas-format" class="section level2">
+<h2>GWAS summary statistic format</h2>
+<p>GWAS summary statistics files should be plain text
+(space/tab-delimited) or gzipped. The pipeline accepts a wide range of
+common column names and will attempt to map them automatically (see <a
+href="pipeline_technical.html#summary-statistic-qc">Technical
+Details</a> for the full list of recognised column name variants).</p>
+<p><strong>Required columns:</strong></p>
+<table>
+<colgroup>
+<col width="15%" />
+<col width="52%" />
+<col width="31%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Column</th>
+<th align="left">Description</th>
+<th align="left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">A1</td>
+<td align="left">Effect allele</td>
+<td align="left"></td>
+</tr>
+<tr class="even">
+<td align="left">A2</td>
+<td align="left">Other allele</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">SNP <em>or</em> CHR + BP</td>
+<td align="left">Variant identifier (rsID) or chromosome and base pair
+position</td>
+<td align="left">At least one of these must be present</td>
+</tr>
+<tr class="even">
+<td align="left">BETA, OR, <em>or</em> Z</td>
+<td align="left">Effect size estimate</td>
+<td align="left">At least one of these must be present</td>
+</tr>
+<tr class="odd">
+<td align="left">P</td>
+<td align="left">P-value</td>
+<td align="left"></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Recommended columns:</strong></p>
+<table>
+<colgroup>
+<col width="8%" />
+<col width="40%" />
+<col width="51%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Column</th>
+<th align="left">Description</th>
+<th align="left">Note</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">SE</td>
+<td align="left">Standard error of BETA or log(OR)</td>
+<td align="left">Used by several downstream analyses</td>
+</tr>
+<tr class="even">
+<td align="left">N</td>
+<td align="left">Per-SNP sample size</td>
+<td align="left">Can also be provided in the GWAS list file</td>
+</tr>
+<tr class="odd">
+<td align="left">FREQ</td>
+<td align="left">Effect allele frequency</td>
+<td align="left">Used for QC and harmonisation</td>
+</tr>
+<tr class="even">
+<td align="left">INFO</td>
+<td align="left">Imputation quality score</td>
+<td align="left">Used for QC filtering</td>
+</tr>
+</tbody>
+</table>
+<div class="note-box">
+<p><strong>Note:</strong> The pipeline uses the GRCh37/hg19 genome
+build. If your summary statistics use a different build (e.g. GRCh38),
+the pipeline will attempt to lift over coordinates automatically using
+liftOver.</p>
+</div>
+<hr />
+</div>
+</div>
+<div id="running-with-test-data" class="section level1">
+<h1>Running with test data</h1>
+<p>To verify that your installation is working correctly, you can run
+the pipeline using the provided test data.</p>
+<div id="step-1-download-test-data" class="section level2">
+<h2>Step 1: Download test data</h2>
+<p>From within the <code>pipeline/</code> directory:</p>
+<pre class="bash"><code>wget -O test_data.tar.gz https://zenodo.org/record/6093584/files/test_data.tar.gz?download=1
+tar -xf test_data.tar.gz
+rm test_data.tar.gz</code></pre>
+</div>
+<div id="step-2-run-the-pipeline" class="section level2">
+<h2>Step 2: Run the pipeline</h2>
+<p>The test configuration is set up to analyse a small GWAS dataset
+(chromosome 22 only) using a subset of analyses:</p>
+<pre class="bash"><code>snakemake --configfile tests/config_test.yaml --use-conda -c1</code></pre>
+<p>This will run with a single core (<code>-c1</code>). On an HPC, you
+can use your Snakemake profile for parallel execution (see <a
+href="#running-on-an-hpc">Running on an HPC</a>).</p>
+</div>
+<div id="step-3-check-the-output" class="section level2">
+<h2>Step 3: Check the output</h2>
+<p>Once the pipeline completes, the results will be in the output
+directory specified in the test config. The final results bundle should
+be at:</p>
+<pre><code>tests/output/results/bundle.tar.gz</code></pre>
+<p>(with the unpacked per-block <code>.rds</code> files under
+<code>tests/output/results/package/</code>).</p>
+<hr />
+</div>
+</div>
+<div id="running-on-an-hpc" class="section level1">
+<h1>Running on an HPC</h1>
+<div class="note-box">
+<p><strong>Note:</strong> Do not run the pipeline on the login node. Use
+an interactive session for setup, and submit pipeline jobs via a
+scheduler.</p>
+</div>
+<div id="using-a-snakemake-profile" class="section level2">
+<h2>Using a Snakemake profile</h2>
+<p>For HPC execution, create a <a
+href="https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles">Snakemake
+profile</a> that specifies your scheduler settings. An example SLURM
+profile is provided in
+<code>example_slurm_profile_config.yaml</code>.</p>
+<p>To use the SLURM profile:</p>
+<pre class="bash"><code># Create the profile directory
+mkdir -p $HOME/.config/snakemake/slurm
+
+# Copy and rename the example profile
+cp example_slurm_profile_config.yaml $HOME/.config/snakemake/slurm/config.yaml</code></pre>
+<p>Then run Snakemake with the profile:</p>
+<pre class="bash"><code>snakemake --configfile config/config.yaml --use-conda --profile slurm</code></pre>
+</div>
+<div id="resource-requirements" class="section level2">
+<h2>Resource requirements</h2>
+<p>The pipeline will automatically manage resource allocation for each
+rule. Most rules require modest resources (1 CPU, 5-10 GB RAM), but some
+analyses (e.g. TWAS, fine-mapping) may require more memory for large
+GWAS datasets.</p>
+<hr />
+</div>
+</div>
+<div id="requesting-outputs" class="section level1">
+<h1>Requesting outputs</h1>
+<div id="how-snakemake-targets-work" class="section level2">
+<h2>How Snakemake targets work</h2>
+<p>Snakemake builds a directed acyclic graph (DAG) of jobs based on the
+requested output files. You can request specific outputs rather than
+running the entire pipeline. Specify the target file before the
+flags:</p>
+<pre class="bash"><code>snakemake &lt;target_file&gt; --configfile config/config.yaml --use-conda -c1</code></pre>
+</div>
+<div id="key-output-targets" class="section level2">
+<h2>Key output targets</h2>
+<p>Below are the main output files you can request, grouped by analysis.
+Replace <code>{outdir}</code> with your output directory and
+<code>{gwas}</code> with the GWAS name from your GWAS list file.</p>
+<details>
+<summary>
+<strong>Part 1: Descriptive analyses</strong>
+</summary>
+<table>
+<colgroup>
+<col width="45%" />
+<col width="54%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Analysis</th>
+<th>Target file</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>LD clumping</td>
+<td><code>{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv</code></td>
+</tr>
+<tr class="even">
+<td>GCTA-COJO</td>
+<td><code>{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv</code></td>
+</tr>
+<tr class="odd">
+<td>Fine-mapping</td>
+<td><code>{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv</code></td>
+</tr>
+<tr class="even">
+<td>LDSC</td>
+<td><code>{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>Part 2: Gene finding analyses</strong>
+</summary>
+<table>
+<colgroup>
+<col width="45%" />
+<col width="54%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Analysis</th>
+<th>Target file</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>MAGMA gene-level</td>
+<td><code>{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv</code></td>
+</tr>
+<tr class="even">
+<td>TWAS (combined)</td>
+<td><code>{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz</code></td>
+</tr>
+<tr class="odd">
+<td>SMR (MetaBrain)</td>
+<td><code>{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz</code></td>
+</tr>
+<tr class="even">
+<td>SMR (eQTLGen)</td>
+<td><code>{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz</code></td>
+</tr>
+<tr class="odd">
+<td>SMR (ROSMAP pQTL)</td>
+<td><code>{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>Part 3: Drug finding analyses</strong>
+</summary>
+<table>
+<colgroup>
+<col width="45%" />
+<col width="54%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Analysis</th>
+<th>Target file</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>MAGMA DrugTargetor</td>
+<td><code>{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv</code></td>
+</tr>
+<tr class="even">
+<td>GCSC DrugTargetor</td>
+<td><code>{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv</code></td>
+</tr>
+<tr class="odd">
+<td>TWAS-GSEA DrugTargetor</td>
+<td>(aggregated via checkpoint)</td>
+</tr>
+<tr class="even">
+<td>TWAS-GSEA CMAP</td>
+<td>(aggregated via checkpoint)</td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>Final output</strong>
+</summary>
+<p>To generate the full results bundle containing all requested
+analyses:</p>
+<pre class="bash"><code>snakemake {outdir}/results/bundle.tar.gz --configfile config/config.yaml --use-conda -c1</code></pre>
+<p>Or use the convenience alias <code>run_package_results</code> (which
+resolves to the same target).</p>
+</details>
+<hr />
+</div>
+</div>
+<div id="output" class="section level1">
+<h1>Output</h1>
+<div id="output-directory-structure" class="section level2">
+<h2>Output directory structure</h2>
+<p>The pipeline organises intermediate outputs by GWAS within the
+specified output directory, then collates everything into a single
+portable bundle:</p>
+<pre><code>{outdir}/
+  results/
+    {gwas}/
+      gwas_sumstat/                            # Cleaned GWAS summary statistics
+        {gwas}.manhattan_plot.unlabelled.png   # Manhattan plot (static)
+        {gwas}.manhattan_plot.labelled.png     # Manhattan plot with gene labels
+        {gwas}.manhattan_data.rds              # Raw filtered variants (used
+                                               #   by the Shiny app to rebuild
+                                               #   the Manhattan interactively)
+      clump/               # LD clumping results
+      cojo/                # GCTA-COJO results
+      finemap/             # SuSiE fine-mapping results
+      ldsc/                # LD score regression results (incl. gencor)
+      magma/               # MAGMA gene-level and enrichment results
+      twas/                # TWAS results (combined across panels)
+        conditional/       # Conditional TWAS results
+        cmap/              # TWAS-GSEA CMAP results
+      smr/                 # SMR results by panel
+        psychencode/
+        metabrain/
+        eqtlgen/
+        rosmap/
+      pwas/                # PWAS results
+      gcsc/                # GCSC drug enrichment results
+    package/               # Unpacked bundle contents (one .rds per block)
+      manifest.json        # Index of every block in the bundle
+      gwas/{gwas}/
+        gwas_qc.rds        # QC + Manhattan data
+        snp_assoc.rds
+        mol_assoc/…        # exp/protein × fusion/smr, magma, nearest, finemap
+        tx/…               # drug, atc, cmap
+        tissue.rds
+      configuration/
+        config.rds
+        gwas_list.rds
+    bundle.tar.gz          # `package/` tarballed — the portable output the
+                           #   Shiny app loads via &quot;Choose a bundle&quot;</code></pre>
+<hr />
+</div>
+<div id="reading-results-into-r" class="section level2">
+<h2>Reading results into R</h2>
+<p>The primary output is <code>bundle.tar.gz</code>. It contains one
+<code>.rds</code> per analysis block plus a <code>manifest.json</code>
+describing what’s inside, so results can be lazy-loaded block-by-block
+instead of holding the whole tree in memory. The easiest way to read it
+in R is via the reader shipped inside the Shiny app:</p>
+<pre class="r"><code>source(&quot;shiny_apps/output_explorer_embed/reader.R&quot;)
+gd &lt;- gd_open(&quot;path/to/results/bundle.tar.gz&quot;)
+
+# List the GWAS in the bundle
+gd_gwas(gd)
+
+# Read a specific block
+qc     &lt;- gd_read(gd, &quot;COAD01&quot;, &quot;gwas_qc&quot;)           # per-GWAS QC + Manhattan data
+snp    &lt;- gd_read(gd, &quot;COAD01&quot;, &quot;snp_assoc&quot;)         # clumping, COJO, SuSiE
+drug   &lt;- gd_read(gd, &quot;COAD01&quot;, &quot;tx/drug&quot;)           # drug-enrichment results</code></pre>
+<p>Alternatively, unpack the tarball and read individual blocks directly
+with <code>readRDS()</code>; the <code>package/manifest.json</code> file
+lists the path of every block.</p>
+<p>For backwards compatibility, <code>gd_open()</code> also accepts a
+legacy monolithic <code>results_package.rds</code> produced by older
+pipeline runs.</p>
+<hr />
+</div>
+<div id="structure-of-a-block" class="section level2">
+<h2>Structure of a block</h2>
+<p>Below is the maximum tree of what a per-GWAS bundle contains — one
+entry per block, keyed by the <code>name</code> column of the GWAS list
+file. Any block gated by a config flag that was not enabled is missing
+(or its inner element is <code>NULL</code>), so individual runs will
+have fewer populated leaves.</p>
+<p>The per-GWAS blocks (accessed as
+<code>gd_read(gd, "&lt;gwas&gt;", "&lt;block&gt;")</code>) are organised
+as follows:</p>
+<pre><code>&lt;gwas&gt;/
+  gwas_qc/                      # GWAS summary-statistic QC
+    cleaner_dat                 # sumstat cleaner log + parsed values,
+                                #   incl. lambda_GC / max_chi2 / N sig SNPs
+    ldsc_dat                    # NULL unless ldsc: T
+    ldsc_gencor_dat             # NULL unless gencor_gwas_list is set;
+                                #   $table has one row per secondary trait
+                                #   with rg, rg_se, rg_p, rg_p_fdr, n_snps
+                                #   + any extra columns from the list file
+    manhattan_data              # list(data, offsets, indexes, p_threshold)
+                                #   consumed by the Shiny app&#39;s modifiable
+                                #   Manhattan tab; NULL for old bundles
+    maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
+    qq_plot_base64              # base64-encoded QQ plot PNG, or NULL
+    manhattan_plot_*_base64     # legacy base64 Manhattan PNGs (kept for
+                                #   backwards compat with old bundles)
+
+  snp_assoc/                    # SNP-level associations
+    clump                       # data.frame; NULL unless clump: T
+    cojo                        # data.frame; NULL unless cojo: T
+    susie/                      # NULL unless finemap: T
+      L1                        # SuSiE fine-mapping with L=1
+      L10                       # SuSiE fine-mapping with L=10
+
+  mol_assoc/                    # Molecular (gene-level) associations
+    exp/                        # Expression
+      fusion                    # list(panels, res); NULL unless any
+                                # twas_panel_* flag is T
+      smr                       # list(panels, results); NULL unless any
+                                # smr_expression_panel_* flag is T
+    protein/                    # Protein
+      fusion                    # list(panels, results); NULL unless any
+                                # pwas_panel_* flag is T
+      smr                       # list(panels, results); NULL unless
+                                # smr_protein_panel_rosmap: T
+    magma                       # data.frame; NULL unless magma_gene: T
+    nearest/                    # Nearest genes to clump / cojo lead SNPs
+      clump                     # character vector; present if clump: T
+      cojo                      # character vector; present if cojo: T
+    finemap/                    # Genes overlapping SuSiE credible sets
+      L1                        # character vector; present if finemap: T
+      L10                       # character vector; present if finemap: T
+
+  tx/                           # Drug repurposing / enrichment
+    drug/                       # Per-drug results
+      magma                     # NULL unless magma_drugtargetor: T
+      gcsc                      # NULL unless gcsc: T
+      twas_gsea                 # directional; NULL unless
+                                # twas_gsea_drugtargetor: T
+      twas_gsea_nondir          # non-directional; NULL unless
+                                # twas_gsea_drugtargetor_nondirectional: T
+    atc/                        # ATC-class aggregations of the same four
+      magma                     # sources (same gating flags as tx$drug)
+      gcsc
+      twas_gsea
+      twas_gsea_nondir
+    cmap/                       # NULL unless twas_gsea_cmap: T
+      drug                      # per-signature x panel results
+      moa                       # per-MOA enrichment
+
+  tissue/                       # Tissue enrichment
+    specific/                   # NULL unless tissue_magma: T
+      res                       # data.frame of MAGMA tissue results
+      keep                      # character vector: tissues retained after
+                                # the conditional step</code></pre>
+<p>The top-level <code>configuration</code> block captures the
+provenance of the run:</p>
+<pre><code>configuration/
+  repo/
+    remote                      # git remote URL
+    branch                      # git branch at time of run
+    commit                      # git describe --tags --always output
+  config                        # character vector: full merged config as
+                                # &quot;key: value&quot; strings
+  gwas_list                     # data.frame: the parsed gwas_list file</code></pre>
+<p>Read via <code>gd_config(gd)</code> from <code>reader.R</code>.</p>
+<p>A few leaf tables worth flagging:</p>
+<ul>
+<li><code>mol_assoc/exp/fusion$res</code> — one row per TWAS gene x
+panel, with <code>TWAS.Z</code>, <code>TWAS.P</code>,
+<code>TWAS.P.FDR</code>, <code>COLOC.PP3</code>, <code>COLOC.PP4</code>,
+and a derived <code>COLOC_logical</code>
+(<code>(PP4 - PP3) / PP4 &gt; 0.8</code>).</li>
+<li><code>tx/cmap$drug</code> — one row per (CMAP signature x TWAS
+panel). Columns include <code>cmap_name</code>, <code>cell_iname</code>,
+<code>pert_itime</code>, <code>pert_idose</code>, <code>moa</code>,
+<code>Panel</code>, <code>Estimate</code>, <code>SE</code>,
+<code>Z</code>, <code>P</code>. <code>P.FDR</code> is pooled across all
+panels for cross-panel ranking, and <code>P.FDR (per panel)</code>
+preserves the within-panel FDR. This table’s row count scales as
+signatures x panels and can dominate the bundle size; use the
+<code>cmap_cell_iname</code>, <code>cmap_pert_itime</code>, and
+<code>cmap_pert_idose</code> config options to restrict signatures
+before packaging.</li>
+<li><code>tissue$specific$keep</code> — a character vector (not a
+data.frame) listing the tissues that survived the conditional-analysis
+step.</li>
+</ul>
+<p>The exact columns of every leaf data.frame can be inspected directly,
+e.g.
+<code>str(gd_read(gd, "&lt;gwas&gt;", "tx/drug"), max.level = 2)</code>
+or
+<code>names(gd_read(gd, "&lt;gwas&gt;", "mol_assoc/exp/fusion")$res)</code>.</p>
+<hr />
+</div>
+<div id="using-the-shiny-explorer" class="section level2">
+<h2>Using the Shiny explorer</h2>
+<p>GenoDisc includes an interactive Shiny application for exploring
+results. The app is located at
+<code>shiny_apps/output_explorer_embed/</code>.</p>
+<p>To launch the app:</p>
+<pre class="r"><code># From within the pipeline directory
+shiny::runApp(&quot;shiny_apps/output_explorer_embed/&quot;)</code></pre>
+<p>The Shiny app provides interactive tabs for exploring:</p>
+<ul>
+<li><strong>Data Input &amp; GWAS QC</strong> - Summary statistic
+quality metrics</li>
+<li><strong>SNP Associations</strong> - Clumping and fine-mapping
+results</li>
+<li><strong>Molecular Associations</strong> - TWAS, SMR, MAGMA, and PWAS
+gene-level results</li>
+<li><strong>Enrichment</strong> - Drug enrichment and tissue enrichment
+results</li>
+<li><strong>Configuration</strong> - Pipeline settings used for the
+analysis</li>
+</ul>
+<hr />
+</div>
+</div>
+<div id="troubleshooting" class="section level1">
+<h1>Troubleshooting</h1>
+<div id="common-issues" class="section level2">
+<h2>Common issues</h2>
+<p><strong>Conda environment creation fails</strong></p>
+<p>If conda environment creation fails, try:</p>
+<ul>
+<li>Ensuring you have sufficient disk space</li>
+<li>Updating conda: <code>conda update conda</code></li>
+<li>Using mamba instead of conda for faster dependency resolution</li>
+</ul>
+<p><strong>Pipeline fails with memory errors</strong></p>
+<p>Some rules (particularly fine-mapping and TWAS) can require
+substantial memory. If running on an HPC, ensure your SLURM profile
+allows sufficient memory allocation. You can also try running with fewer
+chromosomes by modifying the <code>chromosomes</code> parameter in the
+config file.</p>
+<p><strong>Missing external data files</strong></p>
+<p>If you see errors related to ROSMAP, Banner, or CMAP data, ensure you
+have downloaded these files and provided the correct paths in the
+config. Alternatively, set the corresponding analysis toggles to
+<code>F</code> to skip these analyses.</p>
+<p><strong>LD score regression fails</strong></p>
+<p>LDSC requires Python 2.7 and uses a separate conda environment
+(<code>envs/ldsc.yaml</code>). If LDSC fails, ensure the conda
+environment can be created successfully.</p>
+<p><strong>Updating GenoUtils without rerunning the
+pipeline</strong></p>
+<p>The <code>install_genoutils</code> rule pins a GenoUtils commit in
+its shell command, and <code>touch</code>es
+<code>resources/software/install_genoutils.done</code> on completion.
+Bumping that pin therefore fires Snakemake’s <code>code</code> rerun
+trigger, the marker’s timestamp is updated, and every job downstream of
+the marker (<code>sumstat_prep_i</code> and everything derived from it)
+goes stale — even when the GenoUtils change does not affect existing
+results.</p>
+<p>To install the new version without invalidating completed work,
+update the pin, rebuild the marker on its own, then restore its original
+timestamp:</p>
+<pre class="bash"><code>MARKER=&lt;resdir&gt;/software/install_genoutils.done
+
+# 1. Record the marker&#39;s current timestamp, BEFORE running snakemake
+STAMP=$(stat -c %y &quot;$MARKER&quot;)
+
+# 2. With the new commit already pinned in rules/dependencies.smk, build the
+#    marker as the target. The DAG then contains only install_genoutils, so no
+#    downstream rule is evaluated during this run.
+snakemake &quot;$MARKER&quot; --configfile=$CONFIG --use-conda --profile slurm
+
+# 3. Restore the timestamp so later runs cannot see that the marker changed
+touch -d &quot;$STAMP&quot; &quot;$MARKER&quot;</code></pre>
+<p>Step 2 matters because it actually runs the rule, which updates
+Snakemake’s recorded code hash for <code>install_genoutils</code> —
+passing <code>--rerun-triggers mtime</code> instead would suppress the
+rerun once and then fire again on every subsequent invocation. Step 3
+undoes the <code>touch</code>, so the <code>mtime</code> trigger stays
+quiet too.</p>
+<p>Step 1 must happen <em>before</em> step 2, and not just for
+convenience: if the install fails (for example
+<code>devtools::install_github</code> hitting a GitHub API rate limit),
+Snakemake deletes the incomplete marker, and the recorded
+<code>$STAMP</code> is then the only way to restore the original
+timestamp on a later successful attempt.</p>
+<p>This deliberately hides the GenoUtils update from Snakemake. When an
+update <em>should</em> invalidate results, skip step 3, or force the
+affected rules explicitly
+(e.g. <code>--forcerun sumstat_prep_i</code>).</p>
+<hr />
+<p>For questions or issues, please contact Oliver Pain (<a
+href="mailto:oliver.pain@kcl.ac.uk"
+class="email">oliver.pain@kcl.ac.uk</a>) or open an issue on the <a
+href="https://github.com/opain/GenoDisc">GitHub repository</a>.</p>
+</div>
+</div>
+
+<!-- footer.html -->
+<hr/>
+
+<div class="centered-container">
+<div class="rounded-image-container" style="width: 500px;">
+<img src="Images/logo/sponsors.png">
+</div>
+</div>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

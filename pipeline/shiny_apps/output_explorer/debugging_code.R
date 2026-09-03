@@ -12,23 +12,28 @@ gwas_data <- function(){
   rds
 }
 
+gwas_data <- function(){
+  rds<-readRDS("~/oliverpainfel/Analyses/GenoDisc_ALS/output/results/results_package.rds")
+  rds
+}
+
 input<-list()
 input$gwas_selector<-'ALS_only'
 
 selected_gwas<-reactive({
   req(gwas_data(), input$gwas_selector)
-  gwas_selected <- ifelse(input$gwas_selector %in% names(gwas_data()), 
-                          input$gwas_selector, 
+  gwas_selected <- ifelse(input$gwas_selector %in% names(gwas_data()),
+                          input$gwas_selector,
                           names(gwas_data())[names(gwas_data()) != 'configuration'][1])
   return(gwas_selected)
 })
 
 mol_assoc_summary_data <- function(){
-  
+
   all_func_res<-NULL
-  
+
   if(finemap_logical){
-    
+
     finemap_L1_tmp<-data.frame(Panel = "SuSie (L=1)",
                                ID=gwas_data()[[gwas_selected]]$mol_assoc$finemap$L1,
                                Z=1,
@@ -36,30 +41,30 @@ mol_assoc_summary_data <- function(){
                                Coloc=F,
                                Method="SNP\nFine-mapping",
                                Type='')
-    
+
     all_func_res<-rbind(all_func_res, finemap_L1_tmp)
-    
+
   }
-  
+
   if(twas_logical){
-    
+
     twas_tmp<-data.table(Panel=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$PANEL,
                          ID=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$`Gene Symbol`,
                          Z=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$TWAS.Z,
                          Sig=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$TWAS.P.FDR < 0.05,
                          Coloc=gwas_data()[[gwas_selected]]$mol_assoc$exp$fusion$res$COLOC_logical)
-    
+
     twas_tmp$Method<-'FUSION'
     twas_tmp$Type<-'Expr.'
     twas_tmp$Type[grepl('SPLIC',twas_tmp$Panel)]<-'Splice'
-    
+
     # Retain only the most significant assoc for each gene within PANEL (only relevent for splice panel)
     twas_tmp<-twas_tmp[order(-abs(twas_tmp$Z)),]
     twas_tmp<-twas_tmp[!duplicated(paste0(twas_tmp$Panel, twas_tmp$ID)),]
-    
+
     all_func_res<-rbind(all_func_res, twas_tmp)
   }
-  
+
   if(smr_expression_logical){
     # SMR expression
     smr_expression_res_tmp<-data.table(Panel=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$PANEL,
@@ -67,50 +72,50 @@ mol_assoc_summary_data <- function(){
                                        Z=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$b_SMR/gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$se_SMR,
                                        Sig=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$p_SMR.FDR < 0.05,
                                        Coloc=gwas_data()[[gwas_selected]]$mol_assoc$exp$smr$res$p_HEIDI > 0.05)
-    
+
     smr_expression_res_tmp$Method<-'SMR'
     smr_expression_res_tmp$Type<-'Expr.'
-    
+
     all_func_res<-rbind(all_func_res, smr_expression_res_tmp)
   }
-  
+
   # PWAS
   if(pwas_panel_rosmap_logical & !(pwas_panel_rosmap_logical & pwas_panel_banner_logical)){
-    
+
     pwas_tmp<-data.table( Panel=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$PANEL,
                           ID=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$`Gene Symbol`,
                           Z=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$pwas_all.Z,
                           Sig=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$pwas_all.P.FDR < 0.05,
                           Coloc=gwas_data()[[gwas_selected]]$mol_assoc$protein$fusion$res$COLOC_logical)
-    
+
     pwas_tmp<-pwas_tmp[order(-abs(pwas_tmp$Z)),]
     pwas_tmp<-pwas_tmp[!duplicated(paste0(pwas_tmp$Panel, pwas_tmp$ID)),]
     pwas_tmp$Method<-'FUSION'
     pwas_tmp$Type<-'Protein'
-    
+
     all_func_res<-rbind(all_func_res, pwas_tmp)
   }
-  
+
   if(smr_protein_panel_rosmap_logical){
-    
+
     # SMR protein
     smr_protein_res_tmp<-data.table(Panel=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$PANEL,
                                     ID=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$`Gene Symbol`,
                                     Z=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$b_SMR/gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$se_SMR,
                                     Sig=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$p_SMR.FDR < 0.05,
                                     Coloc=gwas_data()[[gwas_selected]]$mol_assoc$protein$smr$res$p_HEIDI > 0.05)
-    
+
     smr_protein_res_tmp<-smr_protein_res_tmp[order(-abs(smr_protein_res_tmp$Z)),]
     smr_protein_res_tmp<-smr_protein_res_tmp[!duplicated(paste0(smr_protein_res_tmp$Panel, smr_protein_res_tmp$ID)),]
     smr_protein_res_tmp$Method<-'SMR'
     smr_protein_res_tmp$Type<-'Protein'
-    
+
     all_func_res<-rbind(all_func_res, smr_protein_res_tmp)
-    
+
   }
-  
+
   if(magma_gene_logical){
-    
+
     magma_tmp<-data.frame(Panel = 'MAGMA',
                           ID=gwas_data()[[gwas_selected]]$mol_assoc$magma$ID,
                           Z=abs(qnorm(as.numeric(gwas_data()[[gwas_selected]]$mol_assoc$magma$P))),
@@ -118,13 +123,13 @@ mol_assoc_summary_data <- function(){
                           Coloc=F,
                           Method='MAGMA',
                           Type='')
-    
+
     all_func_res<-rbind(all_func_res, magma_tmp)
-    
+
   }
-  
+
   if(clump_logical){
-    
+
     nearest_tmp<-data.frame(Panel = 'NearestGene',
                             ID=gwas_data()[[gwas_selected]]$mol_assoc$nearest$clump,
                             Z=1,
@@ -132,20 +137,20 @@ mol_assoc_summary_data <- function(){
                             Coloc=F,
                             Method='Nearest\nGene',
                             Type='')
-    
+
     all_func_res<-rbind(all_func_res, nearest_tmp)
-    
+
   }
-  
+
   return(all_func_res)
 }
 
 mol_assoc_summary_data_filtered<-function(){
   all_func_res<-mol_assoc_summary_data()
-  
+
   # Filter results table by user specified methods
   all_func_res<-all_func_res[all_func_res$Method %in% input$selected_methods_mol,]
-  
+
   # Filter results table by user specified expression and protein panels
   if(any(all_func_res$Type == 'Expr.')){
     all_func_res<-all_func_res[!(all_func_res$Type == 'Expr.' & !(all_func_res$Panel %in% input$selected_expr_panels_mol)),]
@@ -153,24 +158,24 @@ mol_assoc_summary_data_filtered<-function(){
   if(any(all_func_res$Type == 'Protein')){
     all_func_res<-all_func_res[!(all_func_res$Type == 'Protein' & !(all_func_res$Panel %in% input$selected_protein_panels_mol)),]
   }
-  
+
   # Filter results table if user specifies high confidence genes only
   if(input$conf_only_mol){
     all_func_res<-all_func_res[all_func_res$ID %in% all_func_res$ID[which((all_func_res$Sig == T & all_func_res$Coloc == T) | all_func_res$Panel == "SuSie (L=1)")],]
   }
-  
+
   input_genes <- unlist(strsplit(input$geneInput_mol, "[, ]"))
   selected_genes <- input_genes[input_genes != ""]
-  
+
   # Insert NA rows for all panels and methods so when filtering by gene, all selected panels and methods remain
   na_rows<-all_func_res[!(duplicated(paste0(all_func_res$Panel, all_func_res$Method))),]
   na_rows$ID<-NA
   na_rows$Z<-NA
   na_rows$Sig<-NA
   na_rows$Coloc<-NA
-  
+
   all_func_res<-rbind(na_rows, all_func_res)
-  
+
   if(length(selected_genes) > 0){
     if(sum(selected_genes %in% all_func_res$ID) > 0){
       all_func_res<-all_func_res[all_func_res$ID %in% selected_genes | is.na(all_func_res$ID),]
@@ -178,43 +183,43 @@ mol_assoc_summary_data_filtered<-function(){
       all_func_res<-data.frame(matrix(nrow=0, ncol=5))
     }
   }
-  
+
   return(all_func_res)
 }
 
 tx_drug_summary_data <- function(){
-  
+
   ###
   # MAGMA
   ###
   magma_gs<-gwas_data()[[gwas_selected]]$tx$drug$magma
-  
+
   # Convert one-sided p to a Z score
   magma_gs$Z<--qnorm(magma_gs$P)
   magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
   magma_gs$Method<-'MAGMA'
   magma_gs$Panel<-'MAGMA'
-  
+
   ###
   # GCSC
   ###
   gcsc_gs<-gwas_data()[[gwas_selected]]$tx$drug$gcsc
-  
+
   gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
   gcsc_gs$Method<-'GCSC'
   gcsc_gs$Panel<-'Brain and Blood'
-  
+
   ###
   # TWAS-GSEA
   ###
-  
+
   gsea_gs<-gwas_data()[[gwas_selected]]$tx$drug$twas_gsea
   gsea_gs$Method<-'TWAS-GSEA'
   gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
   gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
   # Flip Z so >0 indicates reversal of GWAS outcome.
   gsea_gs$Z<--gsea_gs$Z
-  
+
   # Insert missing values
   gsea_gs_all<-gsea_gs
   for(i in unique(gsea_gs_all$Panel)){
@@ -228,52 +233,52 @@ tx_drug_summary_data <- function(){
                              Panel=i,
                              ATC_Code=NA)
     names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
-    
+
     gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
-    
+
   }
   gsea_gs<-gsea_gs_all
-  
+
   ###
   # Combine results
   ###
-  
+
   all_gs<-do.call(rbind, list(magma_gs, gcsc_gs, gsea_gs))
-  
+
   return(all_gs)
 }
 
 tx_drug_summary_data_filtered<-function(){
   all_gs<-tx_drug_summary_data()
-  
+
   # Filter results table by user specified methods
   all_gs<-all_gs[all_gs$Method %in% input$selected_methods_drug,]
-  
+
   # Filter results table by user specified expression
   if(any(all_gs$Method == 'TWAS-GSEA')){
     all_gs<-all_gs[!(all_gs$Method == 'TWAS-GSEA' & !(all_gs$Panel %in% input$selected_expr_panels_drug)),]
   }
-  
+
   # Filter results table if user specifies high confidence genes only
   if(input$conf_only_drug){
     all_gs<-all_gs[all_gs$Name %in% all_gs$Name[which(all_gs$P.FDR < 0.05)],]
   }
-  
+
   input_drugs <- unlist(strsplit(input$drugInput_drug, "[, ]"))
   selected_drugs <- input_drugs[input_drugs != ""]
-  
+
   input_atc <- unlist(strsplit(input$atcInput_drug, "[, ]"))
   selected_atc <- input_atc[input_atc != ""]
-  
+
   # Insert NA rows for all panels and methods so when filtering by drug, all selected panels and methods remain
   na_rows<-all_gs[!(duplicated(paste0(all_gs$Panel, all_gs$Method))),]
   na_rows$Name<-NA
   na_rows$Z<-NA
   na_rows$P<-NA
   na_rows$P.FDR<-NA
-  
+
   all_gs<-rbind(na_rows, all_gs)
-  
+
   if(length(selected_drugs) > 0){
     if(sum(grepl(paste(selected_drugs, collapse='|'), all_gs$Name, ignore.case = T)) > 0){
       all_gs<-all_gs[grepl(paste(selected_drugs, collapse='|'), all_gs$Name, ignore.case = T) | is.na(all_gs$Name),]
@@ -281,7 +286,7 @@ tx_drug_summary_data_filtered<-function(){
       all_gs<-data.frame(matrix(nrow=0, ncol=5))
     }
   }
-  
+
   if(length(selected_atc) > 0){
     if(sum(grepl(paste(selected_atc, collapse='|'), all_gs$`ATC Code`, ignore.case = T)) > 0){
       all_gs<-all_gs[grepl(paste(selected_atc, collapse='|'), all_gs$`ATC Code`, ignore.case = T) | is.na(all_gs$`ATC Code`),]
@@ -289,13 +294,13 @@ tx_drug_summary_data_filtered<-function(){
       all_gs<-data.frame(matrix(nrow=0, ncol=5))
     }
   }
-  
+
   return(all_gs)
 }
 
 plot_dim_drug<-function(){
   all_gs<-tx_drug_summary_data_filtered()
-  
+
   if(nrow(all_gs) > 0){
     num_row <- length(unique(all_gs$Name))
     plot_height<-(max(nchar(all_gs$Panel))*3)+(num_row * 20)+100
@@ -306,62 +311,62 @@ plot_dim_drug<-function(){
     plot_height<-100
     plot_width<-100
   }
-  
+
   return(list(height=plot_height,
               width=plot_width))
 }
 
 tx_atc_summary_data <- function(){
-  
+
   ###
   # MAGMA
   ###
-  
+
   magma_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$magma
-  
+
   magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
   magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
   magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
   magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
   magma_gs_atc$Method<-'MAGMA'
   magma_gs_atc$Panel<-'MAGMA'
-  
+
   magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
-  
+
   ###
   # GCSC
   ###
-  
+
   gcsc_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$gcsc
-  
+
   gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
   gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
   gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
   gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
   gcsc_gs_atc$Method<-'GCSC'
   gcsc_gs_atc$Panel<-'GCSC'
-  
+
   gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
-  
+
   ###
   # TWAS-GSEA
   ###
-  
+
   gsea_gs_atc<-gwas_data()[[gwas_selected]]$tx$atc$twas_gsea
-  
+
   gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
   gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
-  
+
   gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
   gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
   gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
   gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
   gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
-  
+
   gsea_gs_atc$Method<-'TWAS-GSEA'
-  
+
   gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
-  
+
   # Insert missing values
   gsea_gs_atc_all<-gsea_gs_atc
   for(i in unique(gsea_gs_atc_all$Panel)){
@@ -373,45 +378,45 @@ tx_atc_summary_data <- function(){
                                  Nom_Sig=NA,
                                  Method='TWAS-GSEA',
                                  Panel=i)
-    
+
     gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
-    
+
   }
   gsea_gs_atc<-gsea_gs_atc_all
-  
+
   all_gs_atc<-do.call(rbind, list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc))
-  
+
   return(all_gs_atc)
 }
 
 tx_atc_summary_data_filtered<-function(){
   all_gs_atc<-tx_atc_summary_data()
-  
+
   # Filter results table by user specified methods
   all_gs_atc<-all_gs_atc[all_gs_atc$Method %in% input$selected_methods_atc,]
-  
+
   # Filter results table by user specified expression
   if(any(all_gs_atc$Method == 'TWAS-GSEA')){
     all_gs_atc<-all_gs_atc[!(all_gs_atc$Method == 'TWAS-GSEA' & !(all_gs_atc$Panel %in% input$selected_expr_panels_atc)),]
   }
-  
+
   # Filter results table if user specifies high confidence genes only
   if(input$conf_only_atc){
     all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% all_gs_atc$Name[which(all_gs_atc$FDR_Sig == T)],]
   }
-  
+
   input_atcs <- unlist(strsplit(input$atcInput_atc, "[, ]"))
   selected_atcs <- input_atcs[input_atcs != ""]
-  
+
   # Insert NA rows for all panels and methods so when filtering by atc, all selected panels and methods remain
   na_rows<-all_gs_atc[!(duplicated(paste0(all_gs_atc$Panel, all_gs_atc$Method))),]
   na_rows$Name<-NA
   na_rows$Z<-NA
   na_rows$FDR_Sig<-NA
   na_rows$Nom_Sig<-NA
-  
+
   all_gs_atc<-rbind(na_rows, all_gs_atc)
-  
+
   if(length(selected_atcs) > 0){
     if(sum(grepl(paste(selected_atcs, collapse='|'), all_gs_atc$Name, ignore.case = T)) > 0){
       all_gs_atc<-all_gs_atc[grepl(paste(selected_atcs, collapse='|'), all_gs_atc$Name, ignore.case = T) & !is.na(all_gs_atc$Name),]
@@ -419,54 +424,54 @@ tx_atc_summary_data_filtered<-function(){
       all_gs_atc<-data.frame(matrix(nrow=0, ncol=5))
     }
   }
-  
+
   return(all_gs_atc)
 }
 
 read_ss<-function(){
   req(input$sumstats)
-  
+
   print(input$sumstats$datapath)
-  
+
   # Read in the header and interpret column names
   sub_ss<-fread(input$sumstats$datapath, nrows = 1000)
-  
+
   return(sub_ss)
 }
 
 head_interp<-function(){
   sub_ss<-read_ss()
-  
+
   print(head(sub_ss))
-  
+
   # Read in the header and interpret column names
   sub_header<-toupper(names(sub_ss))
-  
+
   # Remove columns that are all NA
   sub_ss_comp<-sub_ss[,apply(sub_ss, 2, function(x) !(all(is.na(x)))), with=F]
   sub_header_comp<-toupper(names(sub_ss_comp))
-  
+
   int_header <- sub_header_comp
   for(i in names(ss_head_dict)){
     int_header[int_header %in% ss_head_dict[[i]]] <- i
   }
   int_header[!(int_header %in% unlist(ss_head_dict))]<-NA
-  
+
   # Show original and interpreted header
   header_interp <- data.frame(Original = sub_header_comp,
                               Interpreted = int_header)
-  
+
   # Show columns that are ignored due to be irrelevant, duplicated, or all NA
   header_interp$Keep<-!(
-    !(int_header %in% names(ss_head_dict)) | 
+    !(int_header %in% names(ss_head_dict)) |
       duplicated(int_header)
   )
-  
+
   # Insert reason it was ignored
   header_interp$Reason<-NA
   header_interp$Reason[!(int_header %in% names(ss_head_dict))]<-'Not recognised'
   header_interp$Reason[duplicated(int_header)]<-'Duplicated'
-  
+
   # Show columns ignored due to missingness
   for(i in sub_header[!(sub_header %in% header_interp$Original)]){
     header_interp<-rbind(header_interp, data.frame(Original = i,
@@ -474,15 +479,15 @@ head_interp<-function(){
                                                    Keep=F,
                                                    Reason = 'First 1000 rows NA'))
   }
-  
+
   header_interp[is.na(header_interp)]<-'NA'
   header_interp$Keep<-as.character(header_interp$Keep)
-  
+
   # Remove ignored columns
   header_interp_keep<-header_interp[header_interp$Keep == T,]
   header_interp_keep$Keep<-NULL
   header_interp_keep$Reason<-NULL
-  
+
   # Insert description of each column after interpretation
   header_labels<-data.frame(Interpreted=c('SNP','CHR','BP','A1','A2','P','OR','BETA','Z','SE','N','N_CAS','N_CON','NEF','FRQ','FRQ_A','FREQ_U','INFO'),
                             Description=c("RSID for variant",
@@ -503,12 +508,12 @@ head_interp<-function(){
                                           "Allele frequency in cases",
                                           "Allele frequency in controls",
                                           "Imputation quality"))
-  
+
   header_interp_keep<-merge(header_interp_keep, header_labels, by='Interpreted')
   header_interp_keep<-header_interp_keep[match(names(ss_head_dict), header_interp_keep$Interpreted),]
   header_interp_keep<-header_interp_keep[complete.cases(header_interp_keep),]
   header_interp_keep<-header_interp_keep[,c('Original','Interpreted','Description')]
-  
+
   return(list(
     sub_ss_head=header_interp_keep,
     sub_ss_head_full=header_interp
@@ -618,7 +623,7 @@ protein_logical<-any( pwas_panel_rosmap_logical,
                       pwas_panel_banner_logical,
                       smr_protein_panel_rosmap_logical)
 
-drug_logical<-any(dgi_db_comp_logical, 
+drug_logical<-any(dgi_db_comp_logical,
                   magma_drugtargetor_logical,
                   twas_gsea_lincs_logical,
                   twas_so_lincs_logical,

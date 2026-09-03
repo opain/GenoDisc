@@ -1,0 +1,56 @@
+# Config used to re-package the existing /work/results outputs with the
+# direction-of-effect normalisation patch applied. Mirrors the flag set in
+# the configuration block of the original results_package.rds, but with
+# outdir/resdir pointed at the in-container locations.
+# Pure ASCII (LANG=C locale chokes on multibyte chars).
+
+outdir: /work
+config_file: /home/claude/genodisc_twas_gsea_internal_report/repackage_config.yaml
+gwas_list: /home/claude/genodisc_twas_gsea_internal_report/repackage_gwas_list.txt
+resdir: NA
+
+rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip
+banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip
+rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt
+
+chromosomes: ['1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17','18','19','20','21','22']
+
+clump: T
+cojo: T
+finemap: T
+ldsc: T
+magma_gene: T
+magma_drugtargetor: T
+
+twas_panel_psychencode: T
+twas_panel_fusion: T
+gtex_weights:
+non_gtex_weights: ['CMC.BRAIN.RNASEQ','CMC.BRAIN.RNASEQ_SPLICING','NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']
+external_weights: F
+external_weights_pos_path:
+twas_conditional: F
+
+twas_gsea_drugtargetor: T
+twas_gsea_drugtargetor_nondirectional: T
+twas_gsea_cmap: T
+cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.rds
+cmap_compoundinfo: /users/k1806347/oliverpainfel/Data/CMAP/compoundinfo_beta.txt
+cmap_cell_iname: ['HT29','A549','HA1E','A375','VCAP','PC3','MCF7']
+cmap_pert_itime: 24h
+cmap_pert_idose: 10uM
+
+smr_expression_panel_psychencode: T
+smr_expression_panel_metabrain_basalganglia: T
+smr_expression_panel_metabrain_cerebellum: T
+smr_expression_panel_metabrain_cortex: T
+smr_expression_panel_metabrain_hippocampus: T
+smr_expression_panel_metabrain_spinalcord: T
+smr_expression_panel_eqtlgen: T
+
+pwas_panel_rosmap: T
+pwas_panel_banner: T
+smr_protein_panel_rosmap: T
+
+gcsc: T
+gcsc_tissues: ['Brain_Amygdala','Brain_Cerebellum','Brain_Cortex','Whole_Blood']
+tissue_magma: T

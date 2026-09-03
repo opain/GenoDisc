@@ -13,16 +13,24 @@ option_list = list(
 )
 
 # Parse parameters from command line
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 # Load required packages
 library(data.table)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config_file<-readLines(opt$config_file)
 
 # Idenitfy outdir
 outdir<-gsub('outdir: ','',config_file[grepl('^outdir:',config_file)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 sink(file = paste(outdir,"/results/",opt$gwas,'/magma/magma_tissue_conditional.log',sep=''), append = F)
 cat(
@@ -65,7 +73,7 @@ if(nrow(property_enrich) > 1){
     tmp_folder<-tempdir()
     
     # Read in property file
-    property_annot<-fread("resources/data/gtex/GTEx_v8_tissue.tsv")
+    property_annot<-fread(paste0(resdir, "/data/gtex/GTEx_v8_tissue.tsv"))
 
     # Subset property file to contain enriched properties
     property_annot<-property_annot[,names(property_annot) %in% c('entrez',property_enrich$FULL_NAME,'Average'), with=F]
@@ -87,7 +95,7 @@ if(nrow(property_enrich) > 1){
         property_i<-property_indep$FULL_NAME[i]
 
         log<-system(paste0(
-            "resources/software/magma/magma",
+            resdir, "/software/magma/magma",
             " --gene-results ",outdir,"/results/",opt$gwas,"/magma/magma_gene_level.genes.raw",
             " --gene-covar ",tmp_folder,"/sig_property.txt",
             " --model direction-covar=greater condition-hide=",paste(c(property_i,'Average'),collapse=','),

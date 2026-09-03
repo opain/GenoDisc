@@ -9,7 +9,13 @@ option_list = list(
 
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
 
@@ -19,7 +25,7 @@ config<-readLines(opt$config_file)
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
-ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.gz'))
 
 if(all(names(ss) != 'BETA')){
   ss$BETA<-log(ss$OR)
@@ -32,5 +38,5 @@ if(any(names(ss) != 'FREQ')){
 ss<-ss[,c('SNP','A1','A2','FREQ','BETA','SE','P','N'),with=F]
 names(ss)<-c('SNP','A1','A2','freq','b','se','p','N')
 
-fwrite(ss, paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.cojo'), sep=' ', na='NA', quote=F)
+fwrite(ss, paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.cojo'), sep=' ', na='NA', quote=F)
 

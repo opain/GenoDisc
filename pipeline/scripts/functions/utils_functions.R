@@ -37,3 +37,75 @@ log_add<-function(log_file = NULL, message, sep = '\n'){
 cat0 <- function(..., sep = '', file = "", append = FALSE) {
   cat(..., sep = sep, file = file, append = append)
 }
+
+# Create function to read in parameters in the config file
+read_param <- function(config, param, return_obj = T, quiet = F){
+  library(yaml)
+  
+  # Read in the config file
+  config_file <- read_yaml(config)
+  
+  if(all(names(config_file) != param)){
+    # Check default config file. Resolve via the global option `pipeline_dir`
+    # (set by each script after parse_args) so this works when CWD is not the
+    # pipeline folder; fall back to CWD-relative for backward compatibility.
+    .default_config_path <- if (!is.null(getOption('pipeline_dir'))) {
+      file.path(getOption('pipeline_dir'), 'config.yaml')
+    } else {
+      'config.yaml'
+    }
+    config_file <- read_yaml(.default_config_path)
+    
+    if(all(names(config_file) != param)){
+      if(quiet == F){
+        cat(param, 'parameter is not present in user specified config file or default config file.\n')
+      }
+      return(NULL)
+    } else {
+      if(quiet == F){
+        cat(param, 'parameter is not present in user specified config file, so will use value in default config file.\n')
+      }
+    }
+  }
+  
+  # Identify value for param
+  file <- config_file[[param]]
+  file[file == 'NA']<-NA
+  
+  # If resdir, and NA, set to 'resources'
+  if(param == 'resdir'){
+    if(is.na(file)){
+      file <- 'resources'
+    }
+  }
+  
+  # If refdir, and NA, set to '<resdir>/data/ref'
+  if(param == 'refdir'){
+    if(is.na(file)){
+      resdir <- read_param(config = config, param = 'resdir', return_obj = F, quiet = quiet)
+      file <- paste0(resdir, '/data/ref')
+    }
+  }
+  
+  if(return_obj){
+    if(!is.na(file)){
+      obj <- fread(file)
+    } else {
+      obj <- NULL
+    }
+    return(obj)
+  } else {
+    file <- file[order(file)]
+    return(file)
+  }
+}
+# Make a function to source all files in a directory
+source_all <- function(directory) {
+  # List all .R files in the specified directory
+  r_files <- list.files(directory, pattern = "\\.R$", full.names = TRUE)
+  
+  # Source each file
+  for (file in r_files) {
+    source(file)
+  }
+}

@@ -8,30 +8,35 @@ option_list = list(
               help="config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
-library(biomaRt)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
+source_all(file.path(opt$pipeline_dir, 'scripts', 'functions'))
 
-# Read in config file
-config<-readLines(opt$config_file)
-
-# Identify outdir
-outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+# Read in config parameters
+outdir <- read_param(config = opt$config_file, param = 'outdir', return_obj = F)
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in database
-pathways<-fread('resources/data/drug_targetor/wholedatabase_for_targetor')
+pathways<-fread(paste0(resdir, '/data/drug_targetor/wholedatabase_for_targetor'))
 
 # Read in GCSC gene universe
-universe<-fread('resources/software/GCSC/gene_universe.txt', header=F)
+universe<-fread(paste0(resdir, '/software/GCSC/gene_universe.txt'), header=F)
 
 gene_id<-data.frame(universe)
 names(gene_id)<-'ID'
 
-# Use BioMart to convert gene IDs
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
+# Read pre-downloaded BioMart gene IDs
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
+Genes<-Genes[!duplicated(Genes),]
 Genes<-Genes[!duplicated(Genes$ensembl_gene_id),]
 
 pathways_id<-merge(pathways, Genes, by.x='gene', by.y='external_gene_name')
@@ -45,13 +50,12 @@ for(i in 1:length(drugs)){
 }
 
 # Remove sets with less than 2 genes present in each gene set and in the TWAS
-config<-readLines(opt$config)
-gcsc_tissues<-config[grepl('^gcsc_tissues', config)]
-gcsc_tissues<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',gcsc_tissues))),','))
+gcsc_tissues <- read_param(config = opt$config_file, param = 'gcsc_tissues', return_obj = F)
+chromosomes <- read_param(config = opt$config_file, param = 'chromosomes', return_obj = F)
 
 twas<-NULL
 for(weight_i in gcsc_tissues){
-  for(chr_i in 1:22){
+  for(chr_i in chromosomes){
     twas<-rbind(
       twas,
       fread(paste0(outdir,'/results/',opt$gwas,'/gcsc/twas/',weight_i,'/',opt$gwas,'_twas_',weight_i,'_chr',chr_i,'.dat')))

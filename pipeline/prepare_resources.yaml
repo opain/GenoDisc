@@ -1,0 +1,174 @@
+############
+# Config for: snakemake --configfile prepare_resources.yaml prepare_resources
+# Downloads and processes all resources without running any analysis.
+############
+
+# Required parameters (not used by prepare_resources, but needed at parse time)
+outdir: prepare_resources_unused
+config_file: prepare_resources.yaml
+gwas_list: example_input/gwas_list_example.txt
+
+# Resource directory
+resdir: resources
+
+############
+# Enable all analyses to trigger all resource downloads
+############
+
+# SNP-level
+clump: T
+cojo: T
+finemap: T
+ldsc: T
+
+# MAGMA
+magma_gene: T
+magma_drugtargetor: T
+tissue_magma: T
+
+# TWAS - PsychENCODE
+twas_panel_psychencode: T
+
+# TWAS - FUSION GTEx v8 EUR panels (all tissues)
+twas_panel_fusion: T
+gtex_weights:
+  - Adipose_Subcutaneous
+  - Adipose_Visceral_Omentum
+  - Adrenal_Gland
+  - Artery_Aorta
+  - Artery_Coronary
+  - Artery_Tibial
+  - Brain_Amygdala
+  - Brain_Anterior_cingulate_cortex_BA24
+  - Brain_Caudate_basal_ganglia
+  - Brain_Cerebellar_Hemisphere
+  - Brain_Cerebellum
+  - Brain_Cortex
+  - Brain_Frontal_Cortex_BA9
+  - Brain_Hippocampus
+  - Brain_Hypothalamus
+  - Brain_Nucleus_accumbens_basal_ganglia
+  - Brain_Putamen_basal_ganglia
+  - Brain_Spinal_cord_cervical_c-1
+  - Brain_Substantia_nigra
+  - Breast_Mammary_Tissue
+  - Cells_Cultured_fibroblasts
+  - Cells_EBV-transformed_lymphocytes
+  - Colon_Sigmoid
+  - Colon_Transverse
+  - Esophagus_Gastroesophageal_Junction
+  - Esophagus_Mucosa
+  - Esophagus_Muscularis
+  - Heart_Atrial_Appendage
+  - Heart_Left_Ventricle
+  - Kidney_Cortex
+  - Liver
+  - Lung
+  - Minor_Salivary_Gland
+  - Muscle_Skeletal
+  - Nerve_Tibial
+  - Ovary
+  - Pancreas
+  - Pituitary
+  - Prostate
+  - Skin_Not_Sun_Exposed_Suprapubic
+  - Skin_Sun_Exposed_Lower_leg
+  - Small_Intestine_Terminal_Ileum
+  - Spleen
+  - Stomach
+  - Testis
+  - Thyroid
+  - Uterus
+  - Vagina
+  - Whole_Blood
+
+# TWAS - FUSION non-GTEx panels (all)
+non_gtex_weights:
+  - NTR.BLOOD.RNAARR
+  - YFS.BLOOD.RNAARR
+  - METSIM.ADIPOSE.RNASEQ
+  - CMC.BRAIN.RNASEQ
+  - CMC.BRAIN.RNASEQ_SPLICING
+
+# External TWAS panels
+external_weights: F
+external_weights_pos_path: []
+
+# TWAS conditional
+twas_conditional: T
+
+# TWAS-GSEA
+twas_gsea_drugtargetor: T
+
+# SMR - expression panels
+smr_expression_panel_psychencode: T
+smr_expression_panel_metabrain_basalganglia: T
+smr_expression_panel_metabrain_cerebellum: T
+smr_expression_panel_metabrain_cortex: T
+smr_expression_panel_metabrain_hippocampus: T
+smr_expression_panel_metabrain_spinalcord: T
+smr_expression_panel_eqtlgen: T
+
+# PWAS
+pwas_panel_rosmap: T
+pwas_panel_banner: T
+
+# SMR - protein panel
+smr_protein_panel_rosmap: T
+
+# ROSMAP and Banner paths (required when pwas/smr_protein panels enabled)
+rosmap_fusion: NA
+banner_fusion: NA
+rosmap_smr: NA
+
+# GCSC (all GTEx v7 tissues)
+gcsc: T
+gcsc_tissues:
+  - Adipose_Subcutaneous
+  - Adipose_Visceral_Omentum
+  - Adrenal_Gland
+  - Artery_Aorta
+  - Artery_Coronary
+  - Artery_Tibial
+  - Brain_Amygdala
+  - Brain_Anterior_cingulate_cortex_BA24
+  - Brain_Caudate_basal_ganglia
+  - Brain_Cerebellar_Hemisphere
+  - Brain_Cerebellum
+  - Brain_Cortex
+  - Brain_Frontal_Cortex_BA9
+  - Brain_Hippocampus
+  - Brain_Hypothalamus
+  - Brain_Nucleus_accumbens_basal_ganglia
+  - Brain_Putamen_basal_ganglia
+  - Brain_Spinal_cord_cervical_c-1
+  - Brain_Substantia_nigra
+  - Breast_Mammary_Tissue
+  - Cells_EBV-transformed_lymphocytes
+  - Cells_Transformed_fibroblasts
+  - Colon_Sigmoid
+  - Colon_Transverse
+  - Esophagus_Gastroesophageal_Junction
+  - Esophagus_Mucosa
+  - Esophagus_Muscularis
+  - Heart_Atrial_Appendage
+  - Heart_Left_Ventricle
+  - Liver
+  - Lung
+  - Minor_Salivary_Gland
+  - Muscle_Skeletal
+  - Nerve_Tibial
+  - Ovary
+  - Pancreas
+  - Pituitary
+  - Prostate
+  - Skin_Not_Sun_Exposed_Suprapubic
+  - Skin_Sun_Exposed_Lower_leg
+  - Small_Intestine_Terminal_Ileum
+  - Spleen
+  - Stomach
+  - Testis
+  - Thyroid
+  - Uterus
+  - Vagina
+  - Whole_Blood

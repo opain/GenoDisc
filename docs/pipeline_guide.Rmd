@@ -1,0 +1,720 @@
+---
+title: "GenoDisc Pipeline - User Guide"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    toc_depth: 2
+    css: styles/styles.css
+    includes:
+      in_header: header.html
+      after_body: footer.html
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+library(knitr)
+library(data.table)
+```
+
+***
+
+This guide covers everything you need to install, configure, and run the GenoDisc pipeline. It is organised into the following sections:
+
+- [Overview](#overview)
+- [Installation](#installation)
+- [Pipeline configuration](#pipeline-configuration)
+- [Running with test data](#running-with-test-data)
+- [Running on an HPC](#running-on-an-hpc)
+- [Requesting outputs](#requesting-outputs)
+- [Output](#output)
+- [Troubleshooting](#troubleshooting)
+
+For technical details on the methods used by the pipeline, see the [Technical Details](pipeline_technical.html) page.
+
+***
+
+# Overview
+
+GenoDisc (Genomic Discovery Platform) is a Snakemake pipeline for comprehensive analysis of GWAS summary statistics. It automates a wide range of post-GWAS analyses to identify genes, biological mechanisms, and potential drug targets associated with a trait or disease.
+
+Analyses are organised into three parts:
+
+**Part 1: Descriptive analyses**
+
+- GWAS summary statistic quality control
+- Confounding and SNP-heritability estimation (LDSC)
+- Identification of independent associations (LD clumping, GCTA-COJO)
+
+**Part 2: Gene finding analyses**
+
+- SNP-based fine-mapping (SuSiE)
+- Positional mapping of associated variants
+- Gene-level association analysis (MAGMA)
+- Transcriptome-wide association (TWAS via FUSION)
+- Proteome-wide association (PWAS)
+- Summary-data-based Mendelian randomisation (SMR)
+
+**Part 3: Drug finding analyses**
+
+- Drug-gene set enrichment (MAGMA and TWAS-GSEA with DrugTargetor)
+- Disease-reversing drug identification (TWAS-GSEA with CMAP signatures)
+- Gene co-regulation-based drug scoring (GCSC)
+- ATC classification enrichment
+- Tissue enrichment (MAGMA)
+
+All results are packaged into a single `.rds` file that can be read into R or explored interactively using the bundled Shiny application.
+
+<div class="note-box">
+
+**Note:** A web interface for submitting GWAS summary statistics for analysis is currently in development at `genodisc.er.kcl.ac.uk`. In the meantime, users can download the pipeline and run analyses locally as described below.
+
+</div>
+
+***
+
+<div class="note-box">
+
+**Prefer not to install anything?** GenoDisc is also available as a hosted web service at [https://genodisc.er.kcl.ac.uk/](https://genodisc.er.kcl.ac.uk/) — submit your GWAS, run analyses on our servers, and explore the results in an interactive viewer, all without setting up conda or Snakemake.
+
+</div>
+
+# Installation
+
+There are three steps:
+
+1. Download the GenoDisc repository
+2. Install conda and Snakemake
+3. Download dependencies (handled automatically on first run)
+
+***
+
+## Step 1: Download the repository
+
+Clone the GenoDisc repository from GitHub and navigate to the pipeline directory:
+
+```{bash}
+git clone https://github.com/opain/GenoDisc.git
+cd GenoDisc/pipeline
+```
+
+***
+
+## Step 2: Install conda and the `genodisc` environment
+
+If you do not already have conda installed, install Miniconda:
+
+```{bash}
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+sh Miniconda3-latest-Linux-x86_64.sh
+```
+
+Then create the `genodisc` environment from the pipeline's env file. This installs Python, Mamba, Snakemake, Pandas and Ghostscript at the exact versions the pipeline expects:
+
+```{bash}
+conda env create -f envs/pipeline.yaml
+conda activate genodisc
+```
+
+<div class="note-box">
+
+**Note:** The pipeline hard-checks the active env name at startup. Every subsequent step assumes `genodisc` is active — if it isn't, Snakemake will exit immediately with `Error: The genodisc conda environment must be active when running the pipeline.` The env file lives at [`envs/pipeline.yaml`](https://github.com/opain/GenoDisc/blob/main/pipeline/envs/pipeline.yaml).
+
+</div>
+
+***
+
+## Step 3: Prepare an HPC profile (optional)
+
+If you are running on an HPC with a job scheduler (e.g. SLURM), you should set up a [Snakemake profile](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles). An example SLURM profile is provided in `example_slurm_profile_config.yaml`. SLURM users should:
+
+1. Create the directory `$HOME/.config/snakemake/slurm/`
+2. Copy `example_slurm_profile_config.yaml` into that directory and rename it to `config.yaml`
+
+***
+
+# Pipeline configuration
+
+Running the pipeline requires two configuration files:
+
+1. A **config file** (YAML) specifying output paths and which analyses to run
+2. A **GWAS list file** (space-delimited text) listing the GWAS summary statistics to analyse
+
+***
+
+## Config file
+
+The config file is a YAML file that controls all pipeline settings. An example is provided at `example_input/config.yaml`.
+
+<details><summary>**View path configuration parameters**</summary>
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`outdir`', Description = 'Output directory for all results', Example = '`my_output`'),
+  list(Parameter = '`config_file`', Description = 'Path to this config file', Example = '`config/config.yaml`'),
+  list(Parameter = '`gwas_list`', Description = 'Path to the GWAS list file', Example = '`config/gwas_list.txt`'),
+  list(Parameter = '`resdir`', Description = 'Resource directory for downloaded dependencies (default: `resources`). Set to `NA` to use default.', Example = '`resources`')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View analysis toggle parameters**</summary>
+
+All analysis toggles accept `T` (run) or `F` (skip).
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`clump`', Description = 'LD clumping to identify independent significant SNPs', Part = 'Part 1'),
+  list(Parameter = '`cojo`', Description = 'GCTA-COJO conditional analysis for independent associations', Part = 'Part 1'),
+  list(Parameter = '`finemap`', Description = 'SuSiE fine-mapping analysis', Part = 'Part 1'),
+  list(Parameter = '`ldsc`', Description = 'LD score regression for heritability and intercept estimation', Part = 'Part 1'),
+  list(Parameter = '`magma_gene`', Description = 'MAGMA gene-level association analysis', Part = 'Part 2'),
+  list(Parameter = '`twas_panel_fusion`', Description = 'TWAS using FUSION GTEx and non-GTEx weight panels', Part = 'Part 2'),
+  list(Parameter = '`twas_panel_psychencode`', Description = 'TWAS using PsychENCODE panel', Part = 'Part 2'),
+  list(Parameter = '`twas_conditional`', Description = 'Conditional analysis of significant TWAS hits', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_psychencode`', Description = 'SMR using PsychENCODE eQTL data', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_metabrain_cortex`', Description = 'SMR using MetaBrain cortex eQTL data', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_metabrain_basalganglia`', Description = 'SMR using MetaBrain basal ganglia eQTL data', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_metabrain_cerebellum`', Description = 'SMR using MetaBrain cerebellum eQTL data', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_metabrain_hippocampus`', Description = 'SMR using MetaBrain hippocampus eQTL data', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_metabrain_spinalcord`', Description = 'SMR using MetaBrain spinal cord eQTL data', Part = 'Part 2'),
+  list(Parameter = '`smr_expression_panel_eqtlgen`', Description = 'SMR using eQTLGen blood eQTL data', Part = 'Part 2'),
+  list(Parameter = '`pwas_panel_rosmap`', Description = 'PWAS using ROSMAP brain pQTL weights', Part = 'Part 2'),
+  list(Parameter = '`pwas_panel_banner`', Description = 'PWAS using Banner brain pQTL weights', Part = 'Part 2'),
+  list(Parameter = '`smr_protein_panel_rosmap`', Description = 'SMR using ROSMAP pQTL data', Part = 'Part 2'),
+  list(Parameter = '`magma_drugtargetor`', Description = 'MAGMA gene set enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
+  list(Parameter = '`twas_gsea_drugtargetor`', Description = 'TWAS-GSEA enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
+  list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment', Part = 'Part 3'),
+  list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
+  list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
+  list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View panel specification parameters**</summary>
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`gtex_weights`', Description = 'List of GTEx tissue panels for TWAS (FUSION format)', Example = '`["Brain_Frontal_Cortex_BA9", "Artery_Coronary"]`'),
+  list(Parameter = '`non_gtex_weights`', Description = 'List of non-GTEx weight panels for TWAS', Example = '`["CMC.BRAIN.RNASEQ"]`'),
+  list(Parameter = '`external_weights`', Description = 'Use custom external TWAS weight panels (`T`/`F`)', Example = '`F`'),
+  list(Parameter = '`external_weights_pos_path`', Description = 'Paths to external weight panel position files', Example = '`[]`'),
+  list(Parameter = '`gcsc_tissues`', Description = 'GTEx tissues for GCSC analysis', Example = '`["Artery_Coronary"]`'),
+  list(Parameter = '`cmap_level5_prop`', Description = 'Path to CMAP level5 propensity file for TWAS-GSEA', Example = '`/path/to/lvl5_prop.tsv.gz`'),
+  list(Parameter = '`cmap_compoundinfo`', Description = 'Path to CMAP compound info file', Example = '`/path/to/compoundinfo_beta.txt`')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View external data parameters**</summary>
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`rosmap_fusion`', Description = 'Path to ROSMAP PWAS FUSION weights zip file', Source = '[Synapse: syn23627957](https://www.synapse.org/#!Synapse:syn23627957)'),
+  list(Parameter = '`banner_fusion`', Description = 'Path to Banner PWAS FUSION weights zip file', Source = '[Synapse: syn23627957](https://www.synapse.org/#!Synapse:syn23627957)'),
+  list(Parameter = '`rosmap_smr`', Description = 'Path to ROSMAP pQTL data for SMR', Source = '[Synapse: syn23627957](https://www.synapse.org/#!Synapse:syn23627957)')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+These files must be downloaded separately from [Synapse](https://www.synapse.org/#!Synapse:syn23627957) and the paths provided in the config file. If you do not have access to these files, set the corresponding analysis toggles to `F`.
+
+</details>
+
+***
+
+## GWAS list file {#gwas-list}
+
+The GWAS list file is a space-delimited text file with one row per GWAS. An example is provided at `example_input/gwas_list_example.txt`.
+
+```{r, eval=T, echo=F, results='asis'}
+cols <- list(
+  list(Column = '`name`', Description = 'Short identifier for the GWAS (used in output file names)', Required = 'Yes', Example = '`COAD01`'),
+  list(Column = '`path`', Description = 'Path to the GWAS summary statistics file (plain text or gzipped)', Required = 'Yes', Example = '`data/COAD01.gz`'),
+  list(Column = '`population`', Description = 'Super-population code: AFR, AMR, EAS, EUR, or SAS', Required = 'Yes', Example = '`EUR`'),
+  list(Column = '`n`', Description = 'Total sample size (use `NA` if provided in the summary statistics file)', Required = 'No', Example = '`NA`'),
+  list(Column = '`sampling`', Description = 'Proportion of cases in the sample (binary traits only)', Required = 'Binary only', Example = '`0.33`'),
+  list(Column = '`prevalence`', Description = 'Population prevalence of the trait (binary traits only)', Required = 'Binary only', Example = '`0.03`'),
+  list(Column = '`mean`', Description = 'Phenotype mean (continuous traits only)', Required = 'Continuous only', Example = '`NA`'),
+  list(Column = '`sd`', Description = 'Phenotype standard deviation (continuous traits only)', Required = 'Continuous only', Example = '`NA`'),
+  list(Column = '`label`', Description = 'Human-readable phenotype name (used in reports)', Required = 'Yes', Example = '`"Coronary Artery Disease"`')
+)
+
+df <- do.call(rbind, lapply(cols, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+**Example:**
+
+```
+name path population n sampling prevalence mean sd label
+COAD01 data/gwas/COAD01.gz EUR NA 0.33 0.03 NA NA "Coronary Artery Disease"
+```
+
+***
+
+## Bivariate LDSC list file (optional) {#gencor-list}
+
+To run bivariate LDSC genetic-correlation analysis (rG) between the primary GWAS and a set of secondary GWAS, set `gencor_gwas_list` in the config to the path of a second list file. It uses the **same format as the GWAS list above**, but the `path` column must point to summary statistics that have **already been munged** into LDSC's `.sumstats.gz` format.
+
+You can add **any number of additional columns** (e.g. `category`, `ancestry`, `year`) beyond the nine listed above. These extras are preserved through to the results and offered as **facet options** in the Shiny app's rG plot, so no code change is needed each time a new metadata column is introduced.
+
+Bivariate LDSC requires `ldsc: T` in the config; otherwise the pipeline exits with a validation error at startup.
+
+**Example (with a `category` extra column):**
+
+```
+name path population n sampling prevalence mean sd label category
+ADHD06 data/munged/ADHD06.sumstats.gz EUR NA NA NA NA NA "ADHD" Psychiatric
+SCHI04 data/munged/SCHI04.sumstats.gz EUR NA NA NA NA NA "Schizophrenia" Psychiatric
+T2D12  data/munged/T2D12.sumstats.gz  EUR NA NA NA NA NA "Type 2 diabetes" Metabolic
+```
+
+***
+
+## GWAS summary statistic format {#gwas-format}
+
+GWAS summary statistics files should be plain text (space/tab-delimited) or gzipped. The pipeline accepts a wide range of common column names and will attempt to map them automatically (see [Technical Details](pipeline_technical.html#summary-statistic-qc) for the full list of recognised column name variants).
+
+**Required columns:**
+
+```{r, eval=T, echo=F, results='asis'}
+cols <- list(
+  list(Column = 'A1', Description = 'Effect allele', Note = ''),
+  list(Column = 'A2', Description = 'Other allele', Note = ''),
+  list(Column = 'SNP *or* CHR + BP', Description = 'Variant identifier (rsID) or chromosome and base pair position', Note = 'At least one of these must be present'),
+  list(Column = 'BETA, OR, *or* Z', Description = 'Effect size estimate', Note = 'At least one of these must be present'),
+  list(Column = 'P', Description = 'P-value', Note = '')
+)
+
+df <- do.call(rbind, lapply(cols, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+**Recommended columns:**
+
+```{r, eval=T, echo=F, results='asis'}
+cols <- list(
+  list(Column = 'SE', Description = 'Standard error of BETA or log(OR)', Note = 'Used by several downstream analyses'),
+  list(Column = 'N', Description = 'Per-SNP sample size', Note = 'Can also be provided in the GWAS list file'),
+  list(Column = 'FREQ', Description = 'Effect allele frequency', Note = 'Used for QC and harmonisation'),
+  list(Column = 'INFO', Description = 'Imputation quality score', Note = 'Used for QC filtering')
+)
+
+df <- do.call(rbind, lapply(cols, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+<div class="note-box">
+
+**Note:** The pipeline uses the GRCh37/hg19 genome build. If your summary statistics use a different build (e.g. GRCh38), the pipeline will attempt to lift over coordinates automatically using liftOver.
+
+</div>
+
+***
+
+# Running with test data
+
+To verify that your installation is working correctly, you can run the pipeline using the provided test data.
+
+## Step 1: Download test data
+
+From within the `pipeline/` directory:
+
+```{bash}
+wget -O test_data.tar.gz https://zenodo.org/record/6093584/files/test_data.tar.gz?download=1
+tar -xf test_data.tar.gz
+rm test_data.tar.gz
+```
+
+## Step 2: Run the pipeline
+
+The test configuration is set up to analyse a small GWAS dataset (chromosome 22 only) using a subset of analyses:
+
+```{bash}
+snakemake --configfile tests/config_test.yaml --use-conda -c1
+```
+
+This will run with a single core (`-c1`). On an HPC, you can use your Snakemake profile for parallel execution (see [Running on an HPC](#running-on-an-hpc)).
+
+## Step 3: Check the output
+
+Once the pipeline completes, the results will be in the output directory specified in the test config. The final results bundle should be at:
+
+```
+tests/output/results/bundle.tar.gz
+```
+
+(with the unpacked per-block `.rds` files under `tests/output/results/package/`).
+
+***
+
+# Running on an HPC
+
+<div class="note-box">
+
+**Note:** Do not run the pipeline on the login node. Use an interactive session for setup, and submit pipeline jobs via a scheduler.
+
+</div>
+
+## Using a Snakemake profile
+
+For HPC execution, create a [Snakemake profile](https://snakemake.readthedocs.io/en/stable/executing/cli.html#profiles) that specifies your scheduler settings. An example SLURM profile is provided in `example_slurm_profile_config.yaml`.
+
+To use the SLURM profile:
+
+```{bash}
+# Create the profile directory
+mkdir -p $HOME/.config/snakemake/slurm
+
+# Copy and rename the example profile
+cp example_slurm_profile_config.yaml $HOME/.config/snakemake/slurm/config.yaml
+```
+
+Then run Snakemake with the profile:
+
+```{bash}
+snakemake --configfile config/config.yaml --use-conda --profile slurm
+```
+
+## Resource requirements
+
+The pipeline will automatically manage resource allocation for each rule. Most rules require modest resources (1 CPU, 5-10 GB RAM), but some analyses (e.g. TWAS, fine-mapping) may require more memory for large GWAS datasets.
+
+***
+
+# Requesting outputs
+
+## How Snakemake targets work
+
+Snakemake builds a directed acyclic graph (DAG) of jobs based on the requested output files. You can request specific outputs rather than running the entire pipeline. Specify the target file before the flags:
+
+```{bash}
+snakemake <target_file> --configfile config/config.yaml --use-conda -c1
+```
+
+## Key output targets
+
+Below are the main output files you can request, grouped by analysis. Replace `{outdir}` with your output directory and `{gwas}` with the GWAS name from your GWAS list file.
+
+<details><summary>**Part 1: Descriptive analyses**</summary>
+
+| Analysis | Target file |
+|----------|------------|
+| LD clumping | `{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv` |
+| GCTA-COJO | `{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv` |
+| Fine-mapping | `{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv` |
+| LDSC | `{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log` |
+
+</details>
+
+<details><summary>**Part 2: Gene finding analyses**</summary>
+
+| Analysis | Target file |
+|----------|------------|
+| MAGMA gene-level | `{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv` |
+| TWAS (combined) | `{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz` |
+| SMR (MetaBrain) | `{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz` |
+| SMR (eQTLGen) | `{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz` |
+| SMR (ROSMAP pQTL) | `{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz` |
+
+</details>
+
+<details><summary>**Part 3: Drug finding analyses**</summary>
+
+| Analysis | Target file |
+|----------|------------|
+| MAGMA DrugTargetor | `{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv` |
+| GCSC DrugTargetor | `{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv` |
+| TWAS-GSEA DrugTargetor | (aggregated via checkpoint) |
+| TWAS-GSEA CMAP | (aggregated via checkpoint) |
+
+</details>
+
+<details><summary>**Final output**</summary>
+
+To generate the full results bundle containing all requested analyses:
+
+```{bash}
+snakemake {outdir}/results/bundle.tar.gz --configfile config/config.yaml --use-conda -c1
+```
+
+Or use the convenience alias `run_package_results` (which resolves to the same target).
+
+</details>
+
+***
+
+# Output
+
+## Output directory structure
+
+The pipeline organises intermediate outputs by GWAS within the specified output directory, then collates everything into a single portable bundle:
+
+```
+{outdir}/
+  results/
+    {gwas}/
+      gwas_sumstat/                            # Cleaned GWAS summary statistics
+        {gwas}.manhattan_plot.unlabelled.png   # Manhattan plot (static)
+        {gwas}.manhattan_plot.labelled.png     # Manhattan plot with gene labels
+        {gwas}.manhattan_data.rds              # Raw filtered variants (used
+                                               #   by the Shiny app to rebuild
+                                               #   the Manhattan interactively)
+      clump/               # LD clumping results
+      cojo/                # GCTA-COJO results
+      finemap/             # SuSiE fine-mapping results
+      ldsc/                # LD score regression results (incl. gencor)
+      magma/               # MAGMA gene-level and enrichment results
+      twas/                # TWAS results (combined across panels)
+        conditional/       # Conditional TWAS results
+        cmap/              # TWAS-GSEA CMAP results
+      smr/                 # SMR results by panel
+        psychencode/
+        metabrain/
+        eqtlgen/
+        rosmap/
+      pwas/                # PWAS results
+      gcsc/                # GCSC drug enrichment results
+    package/               # Unpacked bundle contents (one .rds per block)
+      manifest.json        # Index of every block in the bundle
+      gwas/{gwas}/
+        gwas_qc.rds        # QC + Manhattan data
+        snp_assoc.rds
+        mol_assoc/…        # exp/protein × fusion/smr, magma, nearest, finemap
+        tx/…               # drug, atc, cmap
+        tissue.rds
+      configuration/
+        config.rds
+        gwas_list.rds
+    bundle.tar.gz          # `package/` tarballed — the portable output the
+                           #   Shiny app loads via "Choose a bundle"
+```
+
+***
+
+## Reading results into R
+
+The primary output is `bundle.tar.gz`. It contains one `.rds` per analysis block plus a `manifest.json` describing what's inside, so results can be lazy-loaded block-by-block instead of holding the whole tree in memory. The easiest way to read it in R is via the reader shipped inside the Shiny app:
+
+```{r}
+source("shiny_apps/output_explorer_embed/reader.R")
+gd <- gd_open("path/to/results/bundle.tar.gz")
+
+# List the GWAS in the bundle
+gd_gwas(gd)
+
+# Read a specific block
+qc     <- gd_read(gd, "COAD01", "gwas_qc")           # per-GWAS QC + Manhattan data
+snp    <- gd_read(gd, "COAD01", "snp_assoc")         # clumping, COJO, SuSiE
+drug   <- gd_read(gd, "COAD01", "tx/drug")           # drug-enrichment results
+```
+
+Alternatively, unpack the tarball and read individual blocks directly with `readRDS()`; the `package/manifest.json` file lists the path of every block.
+
+For backwards compatibility, `gd_open()` also accepts a legacy monolithic `results_package.rds` produced by older pipeline runs.
+
+***
+
+## Structure of a block
+
+Below is the maximum tree of what a per-GWAS bundle contains — one entry per block, keyed by the `name` column of the GWAS list file. Any block gated by a config flag that was not enabled is missing (or its inner element is `NULL`), so individual runs will have fewer populated leaves.
+
+The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organised as follows:
+
+```
+<gwas>/
+  gwas_qc/                      # GWAS summary-statistic QC
+    cleaner_dat                 # sumstat cleaner log + parsed values,
+                                #   incl. lambda_GC / max_chi2 / N sig SNPs
+    ldsc_dat                    # NULL unless ldsc: T
+    ldsc_gencor_dat             # NULL unless gencor_gwas_list is set;
+                                #   $table has one row per secondary trait
+                                #   with rg, rg_se, rg_p, rg_p_fdr, n_snps
+                                #   + any extra columns from the list file
+    manhattan_data              # list(data, offsets, indexes, p_threshold)
+                                #   consumed by the Shiny app's modifiable
+                                #   Manhattan tab; NULL for old bundles
+    maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
+    qq_plot_base64              # base64-encoded QQ plot PNG, or NULL
+    manhattan_plot_*_base64     # legacy base64 Manhattan PNGs (kept for
+                                #   backwards compat with old bundles)
+
+  snp_assoc/                    # SNP-level associations
+    clump                       # data.frame; NULL unless clump: T
+    cojo                        # data.frame; NULL unless cojo: T
+    susie/                      # NULL unless finemap: T
+      L1                        # SuSiE fine-mapping with L=1
+      L10                       # SuSiE fine-mapping with L=10
+
+  mol_assoc/                    # Molecular (gene-level) associations
+    exp/                        # Expression
+      fusion                    # list(panels, res); NULL unless any
+                                # twas_panel_* flag is T
+      smr                       # list(panels, results); NULL unless any
+                                # smr_expression_panel_* flag is T
+    protein/                    # Protein
+      fusion                    # list(panels, results); NULL unless any
+                                # pwas_panel_* flag is T
+      smr                       # list(panels, results); NULL unless
+                                # smr_protein_panel_rosmap: T
+    magma                       # data.frame; NULL unless magma_gene: T
+    nearest/                    # Nearest genes to clump / cojo lead SNPs
+      clump                     # character vector; present if clump: T
+      cojo                      # character vector; present if cojo: T
+    finemap/                    # Genes overlapping SuSiE credible sets
+      L1                        # character vector; present if finemap: T
+      L10                       # character vector; present if finemap: T
+
+  tx/                           # Drug repurposing / enrichment
+    drug/                       # Per-drug results
+      magma                     # NULL unless magma_drugtargetor: T
+      gcsc                      # NULL unless gcsc: T
+      twas_gsea                 # directional; NULL unless
+                                # twas_gsea_drugtargetor: T
+      twas_gsea_nondir          # non-directional; NULL unless
+                                # twas_gsea_drugtargetor_nondirectional: T
+    atc/                        # ATC-class aggregations of the same four
+      magma                     # sources (same gating flags as tx$drug)
+      gcsc
+      twas_gsea
+      twas_gsea_nondir
+    cmap/                       # NULL unless twas_gsea_cmap: T
+      drug                      # per-signature x panel results
+      moa                       # per-MOA enrichment
+
+  tissue/                       # Tissue enrichment
+    specific/                   # NULL unless tissue_magma: T
+      res                       # data.frame of MAGMA tissue results
+      keep                      # character vector: tissues retained after
+                                # the conditional step
+```
+
+The top-level `configuration` block captures the provenance of the run:
+
+```
+configuration/
+  repo/
+    remote                      # git remote URL
+    branch                      # git branch at time of run
+    commit                      # git describe --tags --always output
+  config                        # character vector: full merged config as
+                                # "key: value" strings
+  gwas_list                     # data.frame: the parsed gwas_list file
+```
+
+Read via `gd_config(gd)` from `reader.R`.
+
+A few leaf tables worth flagging:
+
+- `mol_assoc/exp/fusion$res` — one row per TWAS gene x panel, with `TWAS.Z`,
+  `TWAS.P`, `TWAS.P.FDR`, `COLOC.PP3`, `COLOC.PP4`, and a derived
+  `COLOC_logical` (`(PP4 - PP3) / PP4 > 0.8`).
+- `tx/cmap$drug` — one row per (CMAP signature x TWAS panel). Columns include
+  `cmap_name`, `cell_iname`, `pert_itime`, `pert_idose`, `moa`, `Panel`,
+  `Estimate`, `SE`, `Z`, `P`. `P.FDR` is pooled across all panels for
+  cross-panel ranking, and `P.FDR (per panel)` preserves the within-panel FDR.
+  This table's row count scales as signatures x panels and can dominate the
+  bundle size; use the `cmap_cell_iname`, `cmap_pert_itime`, and `cmap_pert_idose`
+  config options to restrict signatures before packaging.
+- `tissue$specific$keep` — a character vector (not a data.frame) listing the
+  tissues that survived the conditional-analysis step.
+
+The exact columns of every leaf data.frame can be inspected directly, e.g.
+`str(gd_read(gd, "<gwas>", "tx/drug"), max.level = 2)` or
+`names(gd_read(gd, "<gwas>", "mol_assoc/exp/fusion")$res)`.
+
+***
+
+## Using the Shiny explorer
+
+GenoDisc includes an interactive Shiny application for exploring results. The app is located at `shiny_apps/output_explorer_embed/`.
+
+To launch the app:
+
+```{r}
+# From within the pipeline directory
+shiny::runApp("shiny_apps/output_explorer_embed/")
+```
+
+The Shiny app provides interactive tabs for exploring:
+
+- **Data Input & GWAS QC** - Summary statistic quality metrics
+- **SNP Associations** - Clumping and fine-mapping results
+- **Molecular Associations** - TWAS, SMR, MAGMA, and PWAS gene-level results
+- **Enrichment** - Drug enrichment and tissue enrichment results
+- **Configuration** - Pipeline settings used for the analysis
+
+***
+
+# Troubleshooting
+
+## Common issues
+
+**Conda environment creation fails**
+
+If conda environment creation fails, try:
+
+- Ensuring you have sufficient disk space
+- Updating conda: `conda update conda`
+- Using mamba instead of conda for faster dependency resolution
+
+**Pipeline fails with memory errors**
+
+Some rules (particularly fine-mapping and TWAS) can require substantial memory. If running on an HPC, ensure your SLURM profile allows sufficient memory allocation. You can also try running with fewer chromosomes by modifying the `chromosomes` parameter in the config file.
+
+**Missing external data files**
+
+If you see errors related to ROSMAP, Banner, or CMAP data, ensure you have downloaded these files and provided the correct paths in the config. Alternatively, set the corresponding analysis toggles to `F` to skip these analyses.
+
+**LD score regression fails**
+
+LDSC requires Python 2.7 and uses a separate conda environment (`envs/ldsc.yaml`). If LDSC fails, ensure the conda environment can be created successfully.
+
+**Updating GenoUtils without rerunning the pipeline**
+
+The `install_genoutils` rule pins a GenoUtils commit in its shell command, and `touch`es `resources/software/install_genoutils.done` on completion. Bumping that pin therefore fires Snakemake's `code` rerun trigger, the marker's timestamp is updated, and every job downstream of the marker (`sumstat_prep_i` and everything derived from it) goes stale — even when the GenoUtils change does not affect existing results.
+
+To install the new version without invalidating completed work, update the pin, rebuild the marker on its own, then restore its original timestamp:
+
+```bash
+MARKER=<resdir>/software/install_genoutils.done
+
+# 1. Record the marker's current timestamp, BEFORE running snakemake
+STAMP=$(stat -c %y "$MARKER")
+
+# 2. With the new commit already pinned in rules/dependencies.smk, build the
+#    marker as the target. The DAG then contains only install_genoutils, so no
+#    downstream rule is evaluated during this run.
+snakemake "$MARKER" --configfile=$CONFIG --use-conda --profile slurm
+
+# 3. Restore the timestamp so later runs cannot see that the marker changed
+touch -d "$STAMP" "$MARKER"
+```
+
+Step 2 matters because it actually runs the rule, which updates Snakemake's recorded code hash for `install_genoutils` — passing `--rerun-triggers mtime` instead would suppress the rerun once and then fire again on every subsequent invocation. Step 3 undoes the `touch`, so the `mtime` trigger stays quiet too.
+
+Step 1 must happen *before* step 2, and not just for convenience: if the install fails (for example `devtools::install_github` hitting a GitHub API rate limit), Snakemake deletes the incomplete marker, and the recorded `$STAMP` is then the only way to restore the original timestamp on a later successful attempt.
+
+This deliberately hides the GenoUtils update from Snakemake. When an update *should* invalidate results, skip step 3, or force the affected rules explicitly (e.g. `--forcerun sumstat_prep_i`).
+
+***
+
+For questions or issues, please contact Oliver Pain (oliver.pain@kcl.ac.uk) or open an issue on the [GitHub repository](https://github.com/opain/GenoDisc).

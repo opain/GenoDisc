@@ -530,6 +530,70 @@ ui <- fluidPage(
                   br()
                 )
               )
+            ),
+            tabPanel(
+              title="CMAP",
+              br(),
+              p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation lives under 'MOA'."),
+              tabsetPanel(
+                tabPanel(
+                  title="MOA",
+                  br(),
+                  fluidPage(
+                    sidebarPanel(
+                      selectInput("selected_expr_panels_cmap_moa", "Select expression panels", "", multiple=T),
+                      radioButtons("conf_only_cmap_moa", "Show FDR significant only :",
+                                   choices = c("True" = T, "False" = F),
+                                   selected = T),
+                      selectizeInput("moaInput_cmap_moa", "Search MOA (multi-select):", choices = NULL, multiple = TRUE),
+                      selectInput("selected_sort_cmap_moa", "Sort by:", c('Z (best panel)', 'Alphabetical'), selected='Z (best panel)')
+                    ),
+                    mainPanel(
+                      uiOutput("message_too_large_cmap_moa"),
+                      uiOutput("message_no_cmap_moa"),
+                      uiOutput("tx_cmap_moa_plot.ui")
+                    )
+                  )
+                ),
+                tabPanel(
+                  title="Drug",
+                  br(),
+                  fluidPage(
+                    sidebarPanel(
+                      selectInput("selected_expr_panels_cmap_drug", "Select expression panels", "", multiple=T),
+                      radioButtons("conf_only_cmap_drug", "Show FDR significant only :",
+                                   choices = c("True" = T, "False" = F),
+                                   selected = T),
+                      selectizeInput("drugInput_cmap_drug", "Search drug (cmap_name, multi-select):", choices = NULL, multiple = TRUE),
+                      selectizeInput("moaInput_cmap_drug", "Search MOA (multi-select):", choices = NULL, multiple = TRUE),
+                      selectInput("selected_sort_cmap_drug", "Sort by:", c('Z (best panel)', 'Alphabetical'), selected='Z (best panel)')
+                    ),
+                    mainPanel(
+                      uiOutput("message_too_large_cmap_drug"),
+                      uiOutput("message_no_cmap_drug"),
+                      uiOutput("tx_cmap_drug_plot.ui")
+                    )
+                  )
+                ),
+                tabPanel(
+                  title="Drug table",
+                  br(),
+                  p("All per-signature CMAP TWAS-GSEA results."),
+                  hr(),
+                  br(),
+                  fluidRow(column(width=12, dataTableOutput("tx_cmap_drug_table"))),
+                  br()
+                ),
+                tabPanel(
+                  title="MOA table",
+                  br(),
+                  p("All per-MOA CMAP TWAS-GSEA enrichment results."),
+                  hr(),
+                  br(),
+                  fluidRow(column(width=10, dataTableOutput("tx_cmap_moa_table"))),
+                  br()
+                )
+              )
             )
           )
         ),
@@ -1239,9 +1303,9 @@ server <- function(input, output, session) {
                        n_var_orig=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_var_orig,
                        build=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$build$build,
                        n_snp_final=gwas_data()[[selected_gwas()]]$gwas_qc$cleaner_dat$val$n_snp_final,
-                       lambda_gc=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$lambda_gc,
-                       max_chi2=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$max_chi2,
-                       n_sig_snp=gwas_data()[[selected_gwas()]]$gwas_qc$focus_dat$val$n_sig_snp,
+                       lambda_gc=gd_qc_stat(gwas_data()[[selected_gwas()]]$gwas_qc, "lambda_gc"),
+                       max_chi2=gd_qc_stat(gwas_data()[[selected_gwas()]]$gwas_qc, "max_chi2"),
+                       n_sig_snp=gd_qc_stat(gwas_data()[[selected_gwas()]]$gwas_qc, "n_sig_snp"),
                        obs_h2=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$obs_h2_se,3),")"),
                        int=paste0(round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_est,3), " (",round(gwas_data()[[selected_gwas()]]$gwas_qc$ldsc_dat$val$int_se,3),")"))
 
@@ -1581,8 +1645,10 @@ server <- function(input, output, session) {
 
       if(smr_expression_logical){
         # SMR expression
+        smr_expr_id<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$`Gene Symbol`
+        smr_expr_id[is.na(smr_expr_id)]<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$`Ensembl ID`[is.na(smr_expr_id)]
         smr_expression_res_tmp<-data.table(Panel=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$PANEL,
-                                           ID=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$`Gene Symbol`,
+                                           ID=smr_expr_id,
                                            Z=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$b_SMR/gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$se_SMR,
                                            Sig=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$p_SMR.FDR < 0.05,
                                            Coloc=gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res$p_HEIDI > 0.05)
@@ -1893,6 +1959,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$drug$magma
+      if(is.null(tmp)) return(NULL)
       tmp$BETA<-round(tmp$BETA,3)
       tmp$SE<-round(tmp$SE,3)
 
@@ -1922,6 +1989,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
+      if(is.null(tmp)) return(NULL)
       tmp$Enrichment<-round(tmp$Enrichment, 3)
       tmp$SE<-round(tmp$SE, 3)
       tmp$Z<-round(tmp$Z, 3)
@@ -1952,6 +2020,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
+      if(is.null(tmp)) return(NULL)
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
 
@@ -1980,56 +2049,63 @@ server <- function(input, output, session) {
       ###
       magma_gs<-gwas_data()[[selected_gwas()]]$tx$drug$magma
 
-      # Convert one-sided p to a Z score
-      magma_gs$Z<--qnorm(magma_gs$P)
-      magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
-      magma_gs$Method<-'MAGMA'
-      magma_gs$Panel<-'MAGMA'
+      if(!is.null(magma_gs)){
+        # Convert one-sided p to a Z score
+        magma_gs$Z<--qnorm(magma_gs$P)
+        magma_gs<-magma_gs[,c('Name','Z','P','P.FDR','ATC Code')]
+        magma_gs$Method<-'MAGMA'
+        magma_gs$Panel<-'MAGMA'
+      }
 
       ###
       # GCSC
       ###
       gcsc_gs<-gwas_data()[[selected_gwas()]]$tx$drug$gcsc
 
-      gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
-      gcsc_gs$Method<-'GCSC'
-      gcsc_gs$Panel<-'Brain and Blood'
+      if(!is.null(gcsc_gs)){
+        gcsc_gs<-gcsc_gs[,c('Name','Z','P','P.FDR','ATC Code')]
+        gcsc_gs$Method<-'GCSC'
+        gcsc_gs$Panel<-'Brain and Blood'
+      }
 
       ###
       # TWAS-GSEA
       ###
 
       gsea_gs<-gwas_data()[[selected_gwas()]]$tx$drug$twas_gsea
-      gsea_gs$Method<-'TWAS-GSEA'
-      gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
-      gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
-      # Flip Z so >0 indicates reversal of GWAS outcome.
-      gsea_gs$Z<--gsea_gs$Z
 
-      # Insert missing values
-      gsea_gs_all<-gsea_gs
-      for(i in unique(gsea_gs_all$Panel)){
-        gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
-        gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
-        gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
-                                 Z=NA,
-                                 P=NA,
-                                 P.FDR=NA,
-                                 Method='TWAS-GSEA',
-                                 Panel=i,
-                                 ATC_Code=NA)
-        names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
+      if(!is.null(gsea_gs)){
+        gsea_gs$Method<-'TWAS-GSEA'
+        gsea_gs$Z<-gsea_gs$Estimate/gsea_gs$SE
+        gsea_gs<-gsea_gs[,c('Name','Z','P','P.FDR','Method','Panel','ATC Code')]
+        # Flip Z so >0 indicates reversal of GWAS outcome.
+        gsea_gs$Z<--gsea_gs$Z
 
-        gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+        # Insert missing values
+        gsea_gs_all<-gsea_gs
+        for(i in unique(gsea_gs_all$Panel)){
+          gsea_gs_i<-gsea_gs[gsea_gs$Panel == i,]
+          gsea_gs_other<-gsea_gs[gsea_gs$Panel != i,]
+          gsea_gs_rest<-data.frame(Name=unique(gsea_gs_other$Name[!(gsea_gs_other$Name %in% gsea_gs_i$Name)]),
+                                   Z=NA,
+                                   P=NA,
+                                   P.FDR=NA,
+                                   Method='TWAS-GSEA',
+                                   Panel=i,
+                                   ATC_Code=NA)
+          names(gsea_gs_rest)<-gsub('ATC_Code','ATC Code',names(gsea_gs_rest))
 
+          gsea_gs_all<-rbind(gsea_gs_all, gsea_gs_rest)
+
+        }
+        gsea_gs<-gsea_gs_all
       }
-      gsea_gs<-gsea_gs_all
 
       ###
       # Combine results
       ###
 
-      all_gs<-do.call(rbind, list(magma_gs, gcsc_gs, gsea_gs))
+      all_gs<-do.call(rbind, Filter(Negate(is.null), list(magma_gs, gcsc_gs, gsea_gs)))
 
       return(all_gs)
     })
@@ -2285,6 +2361,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$magma
+      if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
 
@@ -2314,6 +2391,7 @@ server <- function(input, output, session) {
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
+      if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
       tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
 
@@ -2333,6 +2411,7 @@ server <- function(input, output, session) {
 
     output$tx_atc_twas_gsea_table<-renderDataTable({
       tmp<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
+      if(is.null(tmp)) return(NULL)
 
       tmp$P.FDR_all<-p.adjust(tmp$P, method = 'fdr')
       tmp$P.FDR.onside_all<-p.adjust(tmp$P.oneside, method = 'fdr')
@@ -2382,14 +2461,16 @@ server <- function(input, output, session) {
 
       magma_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$magma
 
-      magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
-      magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
-      magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
-      magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
-      magma_gs_atc$Method<-'MAGMA'
-      magma_gs_atc$Panel<-'MAGMA'
+      if(!is.null(magma_gs_atc)){
+        magma_gs_atc$Z<--qnorm(magma_gs_atc$P)
+        magma_gs_atc$FDR_Sig<-magma_gs_atc$P.FDR < 0.05
+        magma_gs_atc$Nom_Sig<-magma_gs_atc$P < 0.05
+        magma_gs_atc$Name<-paste0(magma_gs_atc$`ATC Code`,': ',magma_gs_atc$`ATC Description`)
+        magma_gs_atc$Method<-'MAGMA'
+        magma_gs_atc$Panel<-'MAGMA'
 
-      magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+        magma_gs_atc<-magma_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      }
 
       ###
       # GCSC
@@ -2397,14 +2478,16 @@ server <- function(input, output, session) {
 
       gcsc_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$gcsc
 
-      gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
-      gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
-      gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
-      gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
-      gcsc_gs_atc$Method<-'GCSC'
-      gcsc_gs_atc$Panel<-'GCSC'
+      if(!is.null(gcsc_gs_atc)){
+        gcsc_gs_atc$Z<--qnorm(gcsc_gs_atc$P)
+        gcsc_gs_atc$FDR_Sig<-gcsc_gs_atc$P.FDR < 0.05
+        gcsc_gs_atc$Nom_Sig<-gcsc_gs_atc$P < 0.05
+        gcsc_gs_atc$Name<-paste0(gcsc_gs_atc$`ATC Code`,': ',gcsc_gs_atc$`ATC Description`)
+        gcsc_gs_atc$Method<-'GCSC'
+        gcsc_gs_atc$Panel<-'GCSC'
 
-      gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+        gcsc_gs_atc<-gcsc_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+      }
 
       ###
       # TWAS-GSEA
@@ -2412,37 +2495,39 @@ server <- function(input, output, session) {
 
       gsea_gs_atc<-gwas_data()[[selected_gwas()]]$tx$atc$twas_gsea
 
-      gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
-      gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
+      if(!is.null(gsea_gs_atc)){
+        gsea_gs_atc$P.FDR_all<-p.adjust(gsea_gs_atc$P, method = 'fdr')
+        gsea_gs_atc$P.FDR.onside_all<-p.adjust(gsea_gs_atc$P.oneside, method = 'fdr')
 
-      gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
-      gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
-      gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
-      gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
-      gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
+        gsea_gs_atc$Z<--qnorm(gsea_gs_atc$P)
+        gsea_gs_atc$Z<-gsea_gs_atc$Z*sign(gsea_gs_atc$Estimate)
+        gsea_gs_atc$FDR_Sig<-gsea_gs_atc$P.FDR_all < 0.05
+        gsea_gs_atc$Nom_Sig<-gsea_gs_atc$P < 0.05
+        gsea_gs_atc$Name<-paste0(gsea_gs_atc$`ATC Code`,': ',gsea_gs_atc$`ATC Description`)
 
-      gsea_gs_atc$Method<-'TWAS-GSEA'
+        gsea_gs_atc$Method<-'TWAS-GSEA'
 
-      gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
+        gsea_gs_atc<-gsea_gs_atc[,c("Name","Z","FDR_Sig","Nom_Sig","Method","Panel"), with=F]
 
-      # Insert missing values
-      gsea_gs_atc_all<-gsea_gs_atc
-      for(i in unique(gsea_gs_atc_all$Panel)){
-        gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
-        gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
-        gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
-                                     Z =NA,
-                                     FDR_Sig=NA,
-                                     Nom_Sig=NA,
-                                     Method='TWAS-GSEA',
-                                     Panel=i)
+        # Insert missing values
+        gsea_gs_atc_all<-gsea_gs_atc
+        for(i in unique(gsea_gs_atc_all$Panel)){
+          gsea_gs_atc_i<-gsea_gs_atc[gsea_gs_atc$Panel == i,]
+          gsea_gs_atc_other<-gsea_gs_atc[gsea_gs_atc$Panel != i,]
+          gsea_gs_atc_rest<-data.frame(Name=unique(gsea_gs_atc_other$Name[!(gsea_gs_atc_other$Name %in% gsea_gs_atc_i$Name)]),
+                                       Z =NA,
+                                       FDR_Sig=NA,
+                                       Nom_Sig=NA,
+                                       Method='TWAS-GSEA',
+                                       Panel=i)
 
-        gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
+          gsea_gs_atc_all<-rbind(gsea_gs_atc_all, gsea_gs_atc_rest)
 
+        }
+        gsea_gs_atc<-gsea_gs_atc_all
       }
-      gsea_gs_atc<-gsea_gs_atc_all
 
-      all_gs_atc<-do.call(rbind, list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc))
+      all_gs_atc<-do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc)))
 
       return(all_gs_atc)
     })
@@ -2676,6 +2761,206 @@ server <- function(input, output, session) {
           "No ATC codes remain"
         ))
       }
+    })
+
+    ###############################
+    # CMAP TWAS-GSEA enrichment
+    ###############################
+
+    # ----- raw + reactive data ------------------------------------------------
+    tx_cmap_drug_data <- reactive({
+      d <- gwas_data()[[selected_gwas()]]$tx$cmap$drug
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      d$Name <- paste(d$cmap_name, d$cell_iname, d$pert_itime, d$pert_idose, sep=' / ')
+      d$FDR_Sig <- !is.na(d$P.FDR) & d$P.FDR < 0.05
+      d$Nom_Sig <- !is.na(d$P) & d$P < 0.05
+      d
+    })
+
+    tx_cmap_moa_data <- reactive({
+      d <- gwas_data()[[selected_gwas()]]$tx$cmap$moa
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      d$Name <- d$MOA
+      d$Z <- -qnorm(d$P) * sign(d$Estimate)
+      d$FDR_Sig <- !is.na(d$P.FDR) & d$P.FDR < 0.05
+      d$Nom_Sig <- !is.na(d$P) & d$P < 0.05
+      d
+    })
+
+    # Populate panel + selectize choices when data changes -------------------
+    observeEvent(tx_cmap_drug_data(), {
+      d <- tx_cmap_drug_data()
+      if(is.null(d)) return()
+      panels <- unique(d$Panel)
+      updateSelectInput(session, "selected_expr_panels_cmap_drug", choices = panels, selected = panels)
+      updateSelectizeInput(session, "drugInput_cmap_drug", choices = sort(unique(d$cmap_name)), server = TRUE)
+      updateSelectizeInput(session, "moaInput_cmap_drug",  choices = sort(unique(na.omit(d$moa[d$moa != '']))), server = TRUE)
+    })
+
+    observeEvent(tx_cmap_moa_data(), {
+      d <- tx_cmap_moa_data()
+      if(is.null(d)) return()
+      panels <- unique(d$Panel)
+      updateSelectInput(session, "selected_expr_panels_cmap_moa", choices = panels, selected = panels)
+      updateSelectizeInput(session, "moaInput_cmap_moa", choices = sort(unique(d$MOA)), server = TRUE)
+    })
+
+    # ----- per-MOA filtered + plot dim --------------------------------------
+    tx_cmap_moa_filtered <- reactive({
+      d <- tx_cmap_moa_data()
+      if(is.null(d)) return(d)
+      if(!is.null(input$selected_expr_panels_cmap_moa) && length(input$selected_expr_panels_cmap_moa) > 0)
+        d <- d[d$Panel %in% input$selected_expr_panels_cmap_moa, ]
+      if(input$conf_only_cmap_moa){
+        keep_names <- unique(d$Name[d$FDR_Sig])
+        d <- d[d$Name %in% keep_names, ]
+      }
+      if(length(input$moaInput_cmap_moa) > 0){
+        d <- d[d$MOA %in% input$moaInput_cmap_moa, ]
+      }
+      d
+    }) %>% debounce(500)
+
+    plot_dim_cmap_moa <- reactive({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0) return(list(height=100, width=100))
+      n_row <- length(unique(d$Name))
+      n_col <- length(unique(d$Panel))
+      list(height = 100 + (n_row * 22),
+           width  = 200 + (max(nchar(d$Name), na.rm=T) * 6) + (n_col * 35))
+    })
+
+    # ----- per-signature drug filtered + plot dim ---------------------------
+    tx_cmap_drug_filtered <- reactive({
+      d <- tx_cmap_drug_data()
+      if(is.null(d)) return(d)
+      if(!is.null(input$selected_expr_panels_cmap_drug) && length(input$selected_expr_panels_cmap_drug) > 0)
+        d <- d[d$Panel %in% input$selected_expr_panels_cmap_drug, ]
+      if(input$conf_only_cmap_drug){
+        keep_names <- unique(d$Name[d$FDR_Sig])
+        d <- d[d$Name %in% keep_names, ]
+      }
+      if(length(input$drugInput_cmap_drug) > 0){
+        d <- d[d$cmap_name %in% input$drugInput_cmap_drug, ]
+      }
+      if(length(input$moaInput_cmap_drug) > 0){
+        d <- d[!is.na(d$moa) & d$moa %in% input$moaInput_cmap_drug, ]
+      }
+      d
+    }) %>% debounce(500)
+
+    plot_dim_cmap_drug <- reactive({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0) return(list(height=100, width=100))
+      n_row <- length(unique(d$Name))
+      n_col <- length(unique(d$Panel))
+      list(height = 100 + (n_row * 22),
+           width  = 200 + (max(nchar(d$Name), na.rm=T) * 6) + (n_col * 35))
+    })
+
+    # ----- shared heatmap helper for CMAP -----------------------------------
+    cmap_heatmap <- function(d, sort_choice){
+      # Order rows by best (most negative) Z across panels for repurposing
+      # interpretation, or alphabetical if requested.
+      best_z <- tapply(d$Z, d$Name, function(x) min(x, na.rm=TRUE))
+      if(sort_choice == 'Alphabetical'){
+        lvl <- sort(names(best_z), decreasing = TRUE)
+      } else {
+        lvl <- names(sort(best_z, decreasing = TRUE, na.last = FALSE))
+      }
+      d$Name <- factor(d$Name, levels = lvl)
+
+      z_max <- max(abs(d$Z), na.rm = TRUE)
+      x <- c(-z_max, 0, z_max); x <- (x - min(x)) / (max(x) - min(x))
+
+      ggplot(d, aes(x = Panel, y = Name)) +
+        theme_bw() +
+        geom_point(aes(colour = Z), size = 5) +
+        geom_point(data = d[d$Nom_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 6) +
+        geom_point(data = d[d$FDR_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 7, shape = 15) +
+        geom_point(aes(colour = Z), size = 5) +
+        scale_colour_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
+                               na.value = NA, name = "Z-score",
+                               limits = c(-z_max, z_max), values = x) +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1),
+              plot.title = element_text(hjust = 0.5),
+              text = element_text(size = 14)) +
+        labs(x = '', y = '')
+    }
+
+    # ----- MOA plot ---------------------------------------------------------
+    output$tx_cmap_moa_plot <- renderPlot({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_moa()$height >= 10000) return(NULL)
+      cmap_heatmap(d, input$selected_sort_cmap_moa)
+    })
+
+    output$tx_cmap_moa_plot.ui <- renderUI({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_moa()$height >= 10000) return(NULL)
+      plotOutput("tx_cmap_moa_plot",
+                 height = plot_dim_cmap_moa()$height,
+                 width  = plot_dim_cmap_moa()$width)
+    })
+
+    output$message_too_large_cmap_moa <- renderUI({
+      if(!is.null(plot_dim_cmap_moa()) && plot_dim_cmap_moa()$height >= 10000)
+        HTML("<div style='color: red;'>Plot is too large. Restrict to FDR-significant MOAs or pick specific MOAs in the search box.</div>")
+    })
+
+    output$message_no_cmap_moa <- renderUI({
+      d <- tx_cmap_moa_filtered()
+      if(is.null(d) || nrow(d) == 0)
+        HTML("<div style='color: red;'>No MOAs to display. Disable the FDR filter or check that twas_gsea_cmap was run.</div>")
+    })
+
+    # ----- Drug plot --------------------------------------------------------
+    output$tx_cmap_drug_plot <- renderPlot({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_drug()$height >= 10000) return(NULL)
+      cmap_heatmap(d, input$selected_sort_cmap_drug)
+    })
+
+    output$tx_cmap_drug_plot.ui <- renderUI({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0) return(NULL)
+      if(plot_dim_cmap_drug()$height >= 10000) return(NULL)
+      plotOutput("tx_cmap_drug_plot",
+                 height = plot_dim_cmap_drug()$height,
+                 width  = plot_dim_cmap_drug()$width)
+    })
+
+    output$message_too_large_cmap_drug <- renderUI({
+      if(!is.null(plot_dim_cmap_drug()) && plot_dim_cmap_drug()$height >= 10000)
+        HTML("<div style='color: red;'>Too many signatures to plot. Restrict to FDR-significant rows, or use the search boxes to pick specific drugs / MOAs.</div>")
+    })
+
+    output$message_no_cmap_drug <- renderUI({
+      d <- tx_cmap_drug_filtered()
+      if(is.null(d) || nrow(d) == 0)
+        HTML("<div style='color: red;'>No drug signatures to display. Disable the FDR filter or check that twas_gsea_cmap was run.</div>")
+    })
+
+    # ----- raw tables -------------------------------------------------------
+    output$tx_cmap_drug_table <- renderDataTable({
+      d <- gwas_data()[[selected_gwas()]]$tx$cmap$drug
+      if(is.null(d)) return(NULL)
+      datatable(d, rownames = FALSE,
+                options = list(scrollX = TRUE,
+                               columnDefs = list(list(className = 'dt-center', targets = '_all'))))
+    })
+
+    output$tx_cmap_moa_table <- renderDataTable({
+      d <- gwas_data()[[selected_gwas()]]$tx$cmap$moa
+      if(is.null(d)) return(NULL)
+      datatable(d, rownames = FALSE,
+                options = list(scrollX = TRUE,
+                               columnDefs = list(list(className = 'dt-center', targets = '_all'))))
     })
 
     #######################

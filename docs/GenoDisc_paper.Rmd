@@ -1,0 +1,359 @@
+---
+title: "GenoDisc Analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+```
+
+* Download and format GWAS sumstats for brain related disorders
+* Run pipeline for all GWAS
+* Collate and compare results
+
+***
+
+# Download and format GWAS sumstats
+
+***
+
+## Schizophrenia (SCZ)
+
+PMID: 35396580
+EUR only
+
+```{r, eval=F, echo=T}
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ', recursive = T)
+system('wget --no-check-certificate -O /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ.original.gz https://figshare.com/ndownloader/files/34517828')
+
+ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ.original.gz')
+
+# Update column names. Use NEFF as N
+# I am not sure how PGS is computing NEFF but appears wrong
+names(ss)<-c('CHR','SNP','ORIGBP','A1','A2','FCAS','FCON','INFO','BETA','SE','P','NCAS','NCON','NEFF')
+ss$N<-4/((1/ss$NCAS)+(1/ss$NCON))
+
+# Calculate overall FREQ
+ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
+
+# Keep only relevent columns
+ss<-ss[,c('SNP','A1','A2','INFO','BETA','SE','P','N','FREQ'), with=F]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+## Bipolar Disorder (BIP)
+
+PMID: 39843750 (https://pgc.unc.edu/for-researchers/download-results/)
+
+```{r, eval=F, echo=T}
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP', recursive = T)
+
+ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP/BIP.original.gz')
+
+# Update column names. Use NEFF as N
+# I am not sure how PGS is computing NEFF but appears wrong
+names(ss)<-c('CHR','ORIGBP','SNP','A1','A2','BETA','SE','P','NGT','FCAS','FCON','INFO','NEFFDIV2','NCAS','NCON','DIR')
+ss$N<-4/((1/ss$NCAS)+(1/ss$NCON))
+
+# Calculate overall FREQ
+ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
+
+# Keep only relevent columns
+ss<-ss[,c('CHR','ORIGBP','SNP','A1','A2','INFO','BETA','SE','P','N','FREQ'), with=F]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP/BIP.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+## Major Depressive Disorder (MDD)
+
+I have access to the latest sumstat (incl. 23andMe). Not yet published.
+
+```{r, eval=F, echo=T}
+
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MDD', recursive = T)
+
+# Read in the sumstats
+ss<-fread('/users/k1806347/brc_scratch/Software/mdd-meta_2/mdd-meta/results/distribution/daner_pgc_mdd_full_eur_hg19_v3.49.24.11.gz')
+
+# Update column names
+names(ss)<-c('CHR','SNP','ORIGBP','A1','A2','FCAS','FCON','INFO','OR','SE','P','NGT','DIR','HETISQT','HETDF','HETP','NCAS','NCON','NEFFDIV2')
+ss$N<-4/((1/ss$NCAS)+(1/ss$NCON))
+
+# Calculate overall FREQ
+ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
+
+# Keep only relevent columns
+ss<-ss[,c('SNP','A1','A2','INFO','OR','SE','P','N','FREQ'), with=F]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MDD/MDD.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+## ADHD
+
+PMID: 36702997 (https://pgc.unc.edu/for-researchers/download-results/)
+
+```{r, eval=F, echo=T}
+
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD', recursive = T)
+
+# Read in the sumstats
+ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD/ADHD.original.gz')
+
+names(ss) <- c('CHR','SNP','ORIGBP','A1','A2','FCAS','FCON','INFO','OR','SE','P','NGT','Direction','HetISqt','HetDf','HetPVa','NCAS','NCON','NEFF')
+
+# Update to NEFF
+ss$N <- 4 / ((1 / ss$NCAS) + (1 / ss$NCON))
+
+# Calculate overall FREQ
+ss$FREQ<-((ss$FCAS*ss$NCAS) + (ss$FCON*ss$NCON))/(ss$NCAS + ss$NCON)
+
+ss <- ss[, c('CHR','SNP','ORIGBP','A1','A2','FREQ','INFO','OR','SE','P','N'), with = F]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD/ADHD.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+## Autism Spectrum Disorders (ASD)
+
+PMID: 30804558
+Already available on Rosalind: /scratch/prj/gwas_sumstats/cleaned/AUTI07.gz
+
+```{r, eval=F, echo=T}
+
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ASD', recursive = T)
+
+# Read in the sumstats
+ss<-fread('/scratch/prj/gwas_sumstats/cleaned/AUTI07.gz')
+
+# Update to NEFF
+ss$N <- NULL
+ss$N <- 4 / ((1 / ss$Ncas) + (1 / ss$Ncon))
+ss$Ncas <- NULL
+ss$Ncon <- NULL
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ASD/ASD.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+## Amyotrophic Lateral Sclerosis (ALS)
+
+PMID: 34873335
+European only.
+Already available on Rosalind: /users/k1806347/brc_scratch/Data/GWAS_sumstats/ALS/GWAS/ALS_sumstats_EUR_only_reformat.txt.gz
+
+***
+
+## Alzheimer's Disease (ALZ)
+
+PMID: 34493870
+Excludes 23andMe.
+
+```{r, eval=F, echo=T}
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ', recursive = T)
+system('wget --no-check-certificate -O /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/ALZ.original.gz https://ctg.cncr.nl/documents/p1651/PGCALZ2sumstatsExcluding23andMe.txt.gz')
+
+ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/ALZ.original.gz')
+
+# Update column names.
+names(ss)<-c('CHR','ORIGBP','A1','A2','BETA','P','N')
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/ALZ.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+
+***
+
+## Parkinson's Disease (PRK)
+
+Publicly available version
+PMID: 31701892
+
+```{r, eval=F, echo=T}
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK', recursive = T)
+system('wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN" -O /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/PRK.original.zip && rm -rf /tmp/cookies.txt')
+setwd('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/')
+system('unzip /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/PRK.original.zip')
+system('rm /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/PRK.original.zip')
+
+ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/nallsEtAl2019_excluding23andMe_allVariants.tab')
+
+ss$CHR<-gsub('chr','',gsub(':.*','',ss$SNP))
+ss$BP<-gsub('.*:','',ss$SNP)
+
+# Update column names.
+names(ss)<-c('SNP','A1','A2','FREQ','BETA','SE','P','NCAS','NCON','CHR','ORIGBP')
+
+ss$N<-4/((1/ss$NCAS)+(1/ss$NCON))
+
+# Keep only relevent columns
+ss<-ss[,c('CHR','ORIGBP','A1','A2','BETA','SE','P','N','FREQ'), with=F]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/PRK.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+## Migraine (MIG)
+
+PMID: 35115687
+Excl. 23andMe
+Requested from Dale Nyholt.
+
+```{r, eval=F, echo=T}
+
+dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MIG', recursive = T)
+
+ss<-fread('/users/k1806347/brc_scratch/Data/GWAS_sumstats/Migraine_Hautakangas_excl23andMe/migraine_IHGC2021_no23andMe_gwama_v2.txt.gz')
+
+ss<-ss[,c('chromosome','position','reference_allele','other_allele','eaf','beta','se','p.value','Neff'), with=F]
+names(ss)<-c('CHR','ORIGBP','A1','A2','FREQ','BETA','SE','P','N')
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MIG/MIG.reformat.gz', sep=' ', na='NA', quote=F)
+
+```
+
+***
+
+# Create configuration
+
+```{r}
+
+dir.create('/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/', recursive = T)
+
+library(data.table)
+
+####
+# Create gwas_list
+####
+
+gwas_files <- list.files('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper', pattern = 'reformat', full.names = T, recursive = T)
+
+gwas_list <- data.table(
+  name = gsub('/.*','', gsub('.*GenoDisc_paper/', '', gwas_files)),
+  path = gwas_files,
+  population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = gsub('/.*','', gsub('.*GenoDisc_paper//', '', gwas_files))
+)
+
+write.table(gwas_list, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_neuropsych.txt', row.names = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "outdir: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_neuropsych", 
+  "config_file: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.yaml", 
+  "gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_neuropsych.txt", 
+#  "gtex_weights: ['Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Whole_Blood']", 
+  "clump: T", 
+  "cojo: T", 
+  "finemap: T", 
+  "ldsc: T", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T", 
+  "twas_panel_fusion: T", 
+  "non_gtex_weights: ['CMC.BRAIN.RNASEQ','CMC.BRAIN.RNASEQ_SPLICING','NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']",
+  "twas_panel_psychencode: T",
+  "twas_conditional: F", 
+  "twas_gsea_drugtargetor: T", 
+  "smr_expression_panel_eqtlgen: T",
+  "tissue_magma: T",
+  "rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip",
+  "banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip",
+  "rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt",
+  "smr_expression_panel_psychencode: T",
+  "smr_expression_panel_metabrain_basalganglia: T",
+  "smr_expression_panel_metabrain_cerebellum: T",
+  "smr_expression_panel_metabrain_cortex: T",
+  "smr_expression_panel_metabrain_hippocampus: T",
+  "smr_expression_panel_metabrain_spinalcord: T",
+  "pwas_panel_rosmap: T",
+  "pwas_panel_banner: T",
+  "smr_protein_panel_rosmap: T",
+  "twas_gsea_cmap: T",
+  "cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.rds",
+  "cmap_compoundinfo: /users/k1806347/oliverpainfel/Data/CMAP/compoundinfo_beta.txt",
+  "cmap_cell_iname: ['HT29','A549','HA1E','A375','VCAP','PC3','MCF7']",
+  "cmap_pert_itime: ['24h']",
+  "cmap_pert_idose: ['10uM']",
+  "twas_gsea_drugtargetor_nondirectional: T",
+  "gcsc: T",
+  "gcsc_tissues: ['Brain_Amygdala','Brain_Cerebellum','Brain_Cortex','Whole_Blood']"
+#  "gcsc_tissues: ['Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Whole_Blood']"
+)
+
+
+    
+write.table(config, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.yaml', col.names=F, row.names=F, quote=F)
+```
+
+***
+
+# Run pipeline for all GWAS
+
+```{bash}
+cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
+conda activate genodisc
+  
+snakemake \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  -n
+
+```
+
+***
+
+# Run using neurohack version
+
+```{bash}
+
+# Change resource directory
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+
+snakemake \
+  -n \
+  --profile slurm \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.neurohack.yaml \
+  --use-conda \
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
+
+
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+snakemake \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  -n
+  
+/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.neurohack.yaml
+
+```

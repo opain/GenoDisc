@@ -1,11 +1,19 @@
 name: "GenoDisc"
 output_dir: "."
 navbar:
-  title: "GenoDisc"
+  title: "<img class=\"logo-img\" src=\"Images/logo/Horizontal_white.png\" style=\"height: 42px;\" />"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Pipeline"
+      menu:
+        - text: "User Guide"
+          href: pipeline_guide.html
+        - text: "Technical Details"
+          href: pipeline_technical.html
   right:
+    - text: "Hosted service ↗"
+      href: https://genodisc.er.kcl.ac.uk/
     - icon: fa-github fa-lg
       href: https://github.com/opain/GenoDisc
-html_document:
-    includes:
-      in_header: header.html
-      
+css: styles/styles.css

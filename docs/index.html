@@ -11,12 +11,12 @@
 
 
 
-<title>GenoDiscover: Genomic Discovery Platform</title>
+<title>GenoDisc - Homepage</title>
 
-<script src="site_libs/header-attrs-2.23/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link href="site_libs/bootstrap-3.3.5/css/bootstrap.min.css" rel="stylesheet" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
 <script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
 <script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
@@ -32,8 +32,84 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.4.0/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.0/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link rel="shortcut icon" href="Images/logo/favicon.ico">
+
+<link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
+
+<script>
+function toggleNightMode() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (stylesheet.disabled) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+}
+</script>
+
+<label class="switch">
+  <input type="checkbox" id="toggleNightMode" checked>
+  <span class="slider round"></span>
+</label>
+
+<script>
+document.getElementById('toggleNightMode').addEventListener('change', function() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (this.checked) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+});
+</script>
+
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-QTZQY06TLF');
+</script>
+
+<!-- Osano Cookie Consent -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"></script>
+<script>
+window.addEventListener("load", function(){
+  window.cookieconsent.initialise({
+    palette: {
+      popup: { background: "#000" },
+      button: { background: "#f1d600" }
+    },
+    theme: "classic",
+    position: "bottom-right",
+    content: {
+      message: "We use a cookie for Google Analytics to understand how people use this site. This helps us improve GenoPred and demonstrate its impact. Please click 'Accept' to help us with this.",
+      dismiss: "Accept",
+      link: "Google's privacy info",
+      href: "https://policies.google.com/technologies/partner-sites"
+    },
+    onStatusChange: function(status) {
+      if (status === 'allow') {
+        // Now load Google Analytics only if user consents
+        var gtagScript = document.createElement('script');
+        gtagScript.setAttribute('async', '');
+        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF';
+        document.head.appendChild(gtagScript);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){ dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-QTZQY06TLF');
+      }
+    }
+  });
+});
+</script>
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -60,6 +136,7 @@ if (window.hljs) {
 
 
 
+<link rel="stylesheet" href="styles/styles.css" type="text/css" />
 
 
 
@@ -240,15 +317,32 @@ $(document).ready(function () {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">GenoFunc</a>
+      <a class="navbar-brand" href="index.html"><img class="logo-img" src="Images/logo/Horizontal_white.png" style="height: 42px;" /></a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
-        
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Pipeline
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="pipeline_guide.html">User Guide</a>
+    </li>
+    <li>
+      <a href="pipeline_technical.html">Technical Details</a>
+    </li>
+  </ul>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
-  <a href="https://github.com/opain/GenoFunc">
+  <a href="https://github.com/opain/GenoDisc">
     <span class="fa fa-github fa-lg"></span>
      
   </a>
@@ -262,30 +356,47 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">GenoDiscover: Genomic Discovery
-Platform</h1>
+<h1 class="title toc-ignore">GenoDisc - Homepage</h1>
 
 </div>
 
 
-<hr />
-<p>Welcome! This website documents research regarding the analysis of
-GWAS summary statistics for novel mechanistic and therapeutic
-insights.</p>
-<hr />
-<div id="projects" class="section level3">
-<h3>Projects:</h3>
-<ul>
-<li><a
-href="https://github.com/opain/GenoDiscover/tree/main/pipeline">GenoDiscover
-- Pipeline: A drug target and drug repurposing pipeline</a></li>
-</ul>
-<hr />
+<style>
+h1.title {
+  display: none;
+}
+</style>
+<div style="text-align: center;">
+<p><img src="Images/logo/homepage.png" style="max-width: 1000px; width: 100%; height: auto; flex: 0 0 auto;"/></p>
+</div>
+<p><br/></p>
+<div id="what-is-genodisc" class="section level1">
+<h1>What is GenoDisc?</h1>
+<p>GenoDisc is a research programme based at King’s College London that
+focuses on key issues relating to the clinical utility of polygenic
+scores, investigating polygenic scoring research questions, and
+developing tools that implement current best practises.</p>
+<p><br/></p>
+</div>
+<div id="the-pipeline" class="section level1">
+<h1>The Pipeline</h1>
+<p>We have implemented a range of post-GWAS analyses into our GenoPred
+pipeline - An easy-to-use and robust software pipeline.</p>
+<p><a href="pipeline_guide.html" class="button">Learn More</a></p>
+<p><br/></p>
 <p>Please contact Oliver Pain (<a href="mailto:oliver.pain@kcl.ac.uk"
 class="email">oliver.pain@kcl.ac.uk</a>) for any questions or
 comments.</p>
 </div>
 
+<!-- footer.html -->
+<hr/>
+
+<div class="centered-container">
+<div class="rounded-image-container" style="width: 500px;">
+<img src="Images/logo/sponsors.png">
+</div>
+</div>
 
 
 

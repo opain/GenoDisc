@@ -8,45 +8,51 @@ option_list = list(
               help="config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
-library(biomaRt)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
+source_all(file.path(opt$pipeline_dir, 'scripts', 'functions'))
 
-# Read in config file
-config<-readLines(opt$config_file)
+# Read in config parameters
+outdir <- read_param(config = opt$config_file, param = 'outdir', return_obj = F)
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
-# Identify outdir
-outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
-
-gtex_weights<-config[grepl('^gtex_weights', config)]
-gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',gtex_weights))),','))
-
-non_gtex_weights<-config[grepl('^non_gtex_weights', config)]
-non_gtex_weights<-unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',non_gtex_weights))),','))
+gtex_weights <- read_param(config = opt$config_file, param = 'gtex_weights', return_obj = F)
+non_gtex_weights <- read_param(config = opt$config_file, param = 'non_gtex_weights', return_obj = F)
 
 weights<-c(gtex_weights, non_gtex_weights)
 
-psychencode_weights_log<-config[grepl('^twas_panel_psychencode:', config)]
-if(psychencode_weights_log == "twas_panel_psychencode: T"){
+twas_panel_psychencode <- read_param(config = opt$config_file, param = 'twas_panel_psychencode', return_obj = F)
+if(twas_panel_psychencode == "T"){
   weights<-c(weights, 'psychencode')
 }
 
-external_weights_log<-config[grepl('^external_weights:', config)]
-if(external_weights_log == "external_weights: T"){
-  external_weights<-config[grepl('^external_weights_pos_path', config)]
-  external_weights<-gsub('.pos','',basename(unlist(strsplit(gsub('"','',gsub('\\]','',gsub('.*\\[','',external_weights))),','))))
+external_weights_flag <- read_param(config = opt$config_file, param = 'external_weights', return_obj = F)
+if(external_weights_flag == "T"){
+  external_weights_pos_path <- read_param(config = opt$config_file, param = 'external_weights_pos_path', return_obj = F)
+  external_weights <- gsub('.pos','',basename(external_weights_pos_path))
   weights<-c(weights, external_weights)
 }
 
-# Write out this list of SNP-weights as this might be useful elsewhere
-write.table(weights, paste0(outdir,'/results/',opt$gwas,'/twas/list_of_weights.txt'), col.names=F, row.names=F, quote=F) 
+# Write out this list of SNP-weights as this might be useful elsewhere.
+# Use writeLines so each panel is on its own line; downstream readers
+# (e.g., read_twas_gsea_* in package_results_functions.R) parse this file with
+# read.table(file)$V1, which only picks up the first space-separated token of
+# each row -- so a single-line space-separated file would silently drop all
+# but the first panel.
+writeLines(as.character(weights), paste0(outdir,'/results/',opt$gwas,'/twas/list_of_weights.txt'))
 
-# Read in gene names from biomart
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('ensembl_gene_id','external_gene_name'), mart = ensembl)
+# Read in gene names from pre-downloaded biomart data
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
+Genes<-biomart[,c('ensembl_gene_id','external_gene_name')]
+Genes<-Genes[!duplicated(Genes),]
 
 # Read in TWAS resukts and insert external_gene_name
 all<-NULL

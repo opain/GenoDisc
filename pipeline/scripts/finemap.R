@@ -10,19 +10,27 @@ option_list = list(
               help="Path to config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
 library(susieR)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in the sumstats
-ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.gz'))
 ss<-ss[ss$CHR == opt$chr,]
 
 if(!any(names(ss) == 'BETA')){
@@ -37,6 +45,14 @@ lead<-fread(paste0(outdir,'/results/',opt$gwas,'/clump/',opt$gwas,'.GW.clump.cle
 lead<-lead[lead$P < 5e-8,]
 lead<-lead[lead$CHR == opt$chr,]
 
+# Skip MHC on chr6 (GRCh37 26-34 Mb). The extended LD here makes SuSiE
+# unstable and was the trigger for past OOM kills on this rule.
+if(opt$chr == "6"){
+  n_pre<-nrow(lead)
+  lead<-lead[!(lead$BP > 26e6 & lead$BP < 34e6),]
+  cat("chr6 leads before MHC filter:", n_pre, "; after:", nrow(lead), "\n")
+}
+
 if(nrow(lead) == 0){
   file.create(paste0(outdir,'/results/',opt$gwas,'/checks/',opt$gwas,'.chr',opt$chr,'.finemap.done'))
   q()
@@ -45,7 +61,7 @@ if(nrow(lead) == 0){
 lead$NearestGene<-NULL
 
 # Read in reference SNP data to match alleles
-bim<-fread(paste0('resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
+bim<-fread(paste0(resdir, '/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
 
 # Flip sumstat Z to match alleles across gwas and reference
 ss_bim_match<-merge(ss, bim, by.x=c('SNP','A1','A2'), by.y=c('V2','V5','V6'))
@@ -54,7 +70,21 @@ ss_bim_swap<-merge(ss, bim, by.x=c('SNP','A1','A2'), by.y=c('V2','V6','V5'))
 ss<-ss[ss$SNP %in% ss_bim_match$SNP | ss$SNP %in% ss_bim_swap$SNP,] 
 ss$Z[ss$SNP %in% ss_bim_swap$SNP]<- -ss$Z[ss$SNP %in% ss_bim_swap$SNP]
 
-dir.create(paste0(outdir,'/results/',opt$gwas,'/finemap'), recursive = T)
+finemap_dir <- paste0(outdir,'/results/',opt$gwas,'/finemap')
+dir.create(finemap_dir, recursive = T)
+
+# Remove stale per-lead files for this chromosome so leads dropped from the current
+# clump file do not persist and pollute downstream summaries.
+stale_pattern <- paste0('^', opt$gwas, '\\.chr', opt$chr, '\\..*\\.(rds|png|ld|log|snp_for_ld\\.txt)$')
+stale_files <- list.files(finemap_dir, pattern = stale_pattern, full.names = TRUE)
+keep_prefixes <- paste0(opt$gwas, '.chr', opt$chr, '.', lead$SNP, '.')
+if(length(stale_files) > 0){
+  stale_basenames <- basename(stale_files)
+  keep <- vapply(stale_basenames, function(b) any(startsWith(b, keep_prefixes)), logical(1))
+  to_remove <- stale_files[!keep]
+  if(length(to_remove) > 0) file.remove(to_remove)
+}
+
 for(loc in 1:nrow(lead)){
   # Identify variants within 500kb of lead variants
   ss_subset<-ss[ss$BP > lead$BP[loc] - 5e5 & ss$BP < lead$BP[loc] + 5e5,]
@@ -62,7 +92,7 @@ for(loc in 1:nrow(lead)){
   write.table(ss_subset$SNP, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt'), col.names=F, row.names=F, quote=F)
   
   # Calculate LD matrix for variants surrounding lead variants
-  system(paste0('plink --bfile resources/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
+  system(paste0('plink --bfile ',resdir,'/data/1kg/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
   
   ld<-as.matrix(fread(paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.ld')))
   dimnames(ld)<-list(ss_subset$SNP, ss_subset$SNP)

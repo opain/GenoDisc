@@ -1,11 +1,12 @@
 ####
 # Create results package
 ####
-    
+
 myoutput = list()
 
 if config["clump"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/locus_plots/{gwas}.locus_plots.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
 if config["cojo"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
@@ -15,10 +16,13 @@ if config["finemap"] == "T":
 
 if config["ldsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-    
+
+if config["ldsc"] == "T" and config.get("gencor_gwas_list", "NA") not in (None, "NA"):
+    myoutput.append(expand("{outdir}/results/{gwas}/gencor/{gwas}_gencor_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["magma_gene"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-    
+
 if config["magma_drugtargetor"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
@@ -61,23 +65,43 @@ if config["smr_protein_panel_rosmap"] == "T":
 if config["twas_gsea_drugtargetor"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if config["twas_gsea_drugtargetor_nondirectional"] == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
+if config["twas_gsea_cmap"] == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_cmap_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
+if config["tissue_magma"] == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_property_conditional.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["gcsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.qq_plot.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.manhattan_plot.labelled.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
 rule package_results:
   input:
     myoutput,
-    "scripts/package_results.R",
-    "scripts/functions/package_results_functions.R"
+    f"{workflow.basedir}/scripts/package_results.R",
+    f"{workflow.basedir}/scripts/functions/package_results_functions.R",
+    f"{workflow.basedir}/scripts/reader.R",
+    f"{workflow.basedir}/../VERSION"
   output:
-    "{outdir}/results/results_package.rds"
+    manifest = "{outdir}/results/package/manifest.json",
+    bundle   = "{outdir}/results/bundle.tar.gz"
+  benchmark:
+    "{outdir}/benchmarks/package_results.tsv"
   conda:
     "../envs/main.yaml"
   params:
     config_file= config["config_file"]
+  log:
+    "{outdir}/logs/package_results.log"
   shell:
-    "Rscript scripts/package_results.R \
-    --config {params.config_file}"
+    "Rscript --vanilla {workflow.basedir}/scripts/package_results.R --pipeline_dir {workflow.basedir} \
+    --config {params.config_file} > {log} 2>&1"
 
 rule run_package_results:
-  input: expand("{outdir}/results/results_package.rds", outdir={outdir})
+  input: expand("{outdir}/results/bundle.tar.gz", outdir={outdir})

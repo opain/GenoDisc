@@ -11,11 +11,17 @@ config_file: NA
 # Specify location of gwas_list file
 gwas_list: NA
 
+# Specify resource directory (default: resources)
+resdir: NA
+
 # Specify location of rosmap and banner data for PWAS and SMR
 # These files can be downloaded from here: https://www.synapse.org/#!Synapse:syn23627957
 rosmap_fusion: NA
 banner_fusion: NA
 rosmap_smr: NA
+
+# Chromosomes to analyse (default: all autosomes)
+chromosomes: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
 
 ############
 # Specify desired output
@@ -32,6 +38,10 @@ finemap: F
 
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: F
+
+# Bivariate LDSC genetic correlation (requires ldsc: T).
+# Path to a gwas_list-format file of already-munged secondary GWAS.
+gencor_gwas_list: NA
 
 # MAGMA gene associations analysis
 magma_gene: F
@@ -58,8 +68,27 @@ external_weights_pos_path: []
 # Conditional analyss of TWAS results
 twas_conditional: F
 
-# TWAS-GSEA gene property association analysis using DrugTargetor
+# TWAS-GSEA gene property association analysis using DrugTargetor (directional: signed TWAS Z x signed drug effect)
 twas_gsea_drugtargetor: F
+
+# TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
+twas_gsea_drugtargetor_nondirectional: F
+
+# TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
+# Set the flag to T and provide the path to the prop file produced by
+# DrugRepurposing/Code/Published/make_twas_gsea_prop.R
+# cmap_compoundinfo points at compoundinfo_beta.txt (used for MOA enrichment of
+# the CMAP TWAS-GSEA results); the same file consumed by the DrugRepurposing repo.
+twas_gsea_cmap: F
+cmap_level5_prop: NA
+cmap_compoundinfo: NA
+
+# Restrict CMAP TWAS-GSEA output to a subset of signatures. Each list filters
+# the per-signature CSV and MOA enrichment by the named column; empty list
+# means all values are retained. GSEA still runs on the full prop file.
+cmap_cell_iname: []
+cmap_pert_itime: []
+cmap_pert_idose: []
 
 # Run SMR using below panels
 smr_expression_panel_psychencode: F

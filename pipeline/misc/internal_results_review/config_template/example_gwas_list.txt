@@ -1,0 +1,10 @@
+name path population n sampling prevalence mean sd label
+ADHD /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD/ADHD.reformat.gz EUR NA NA NA NA NA NA
+ALS /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALS/ALS_sumstats_EUR_only_reformat.txt.gz EUR NA NA NA NA NA NA
+ALZ /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/ALZ.reformat.gz EUR NA NA NA NA NA NA
+ASD /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ASD/ASD.reformat.gz EUR NA NA NA NA NA NA
+BIP /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP/BIP.reformat.gz EUR NA NA NA NA NA NA
+MDD /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MDD/MDD.reformat.gz EUR NA NA NA NA NA NA
+MIG /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MIG/MIG.reformat.gz EUR NA NA NA NA NA NA
+PRK /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/PRK.reformat.gz EUR NA NA NA NA NA NA
+SCZ /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ.reformat.gz EUR NA NA NA NA NA NA

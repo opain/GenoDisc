@@ -8,26 +8,34 @@ option_list = list(
               help="Path to config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in the sumstats
-ss<-fread(paste0(outdir,'/data/gwas_sumstat/',opt$gwas,'/',opt$gwas,'.cleaned.gz'))
+ss<-fread(paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.gz'))
 
 # Read in COJO results
 clumped_res<-NULL
 for(i in 1:22){
   if(file.exists(paste0(outdir,'/results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))){
     tmp<-fread(paste0(outdir,'/results/',opt$gwas,'/clump/',opt$gwas,'_chr',i,'.clumped'))
+    clumped_res<-rbind(clumped_res, tmp)
   }
-  clumped_res<-rbind(clumped_res, tmp) 
 }
 
 # Make table with original sumstats but containing only independent associations from clumping
@@ -41,10 +49,9 @@ col_order<-col_order[!is.na(col_order)]
 ss_subset<-ss_subset[,col_order,with=F]
 
 # Insert nearest gene information
-library(biomaRt)
-ensembl = useEnsembl(biomart="ensembl", dataset="hsapiens_gene_ensembl", GRCh=37)
-biomartCacheClear()
-Genes<-getBM(attributes=c('external_gene_name','chromosome_name','start_position','end_position'), mart = ensembl)
+biomart<-read.delim(paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv'), stringsAsFactors=FALSE)
+Genes<-biomart[,c('external_gene_name','chromosome_name','start_position','end_position')]
+Genes<-Genes[!duplicated(Genes),]
 
 window<-50000
 

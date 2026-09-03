@@ -9,15 +9,23 @@ option_list = list(
               help="Path to config file [required]")
 )
 
+option_list <- c(option_list, list(
+  make_option("--pipeline_dir", action="store", default=NA, type="character",
+              help="Path to the pipeline directory [required]")
+))
+
 opt = parse_args(OptionParser(option_list=option_list))
+options(pipeline_dir = opt$pipeline_dir)
 
 library(data.table)
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
 # Read in config file
 config<-readLines(opt$config_file)
 
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
+resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
 # Read in MAGMA gene set results
 res_gs<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",opt$gwas,'/magma/magma_drug_targetor.gsa.out'))
@@ -31,7 +39,7 @@ if(sum(res_gs$P.FDR < 0.05) < 5){
 }
 
 # Read in drug targetor data
-drugtargetor<-fread('resources/data/drug_targetor/wholedatabase_for_targetor')
+drugtargetor<-fread(paste0(resdir, '/data/drug_targetor/wholedatabase_for_targetor'))
 drugtargetor$activity_score<-NA
 drugtargetor$activity_score[drugtargetor$activity_type %in% c('DECREASED_EXPRESSION','NEGATIVE_RESPONSE','OPPOSITE_RESPONSE')]<- -1
 drugtargetor$activity_score[drugtargetor$activity_type %in% c('INCREASED_EXPRESSION','POSITIVE_RESPONSE')]<- 1

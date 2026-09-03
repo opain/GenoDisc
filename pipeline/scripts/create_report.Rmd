@@ -39,8 +39,11 @@ config<-readLines(params$config_file)
 # Identify outdir
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 
-# Read in results package
-output<-readRDS(paste0(outdir,'/results/results_package.rds'))
+# Read in results package via the split-bundle reader. gd_collect() rebuilds
+# the old nested-list shape so the ~1200 lines of `output[[gwas]]$...` below
+# stay untouched.
+source(paste0(outdir,'/results/package/reader.R'))
+output<-gd_collect(gd_open(paste0(outdir,'/results/package')))
 
 # Read in GWAS list
 gwas_list<-fread(gsub('gwas_list: ','', config[grepl('gwas_list: ',config)]))
@@ -172,9 +175,9 @@ qc_val<-data.table(name=params$gwas,
                    n_var_orig=output[[params$gwas]]$gwas_qc$cleaner_dat$val$n_var_orig,
                    build=output[[params$gwas]]$gwas_qc$cleaner_dat$val$build$build,
                    n_snp_final=output[[params$gwas]]$gwas_qc$cleaner_dat$val$n_snp_final,
-                   lambda_gc=output[[params$gwas]]$gwas_qc$focus_dat$val$lambda_gc,
-                   max_chi2=output[[params$gwas]]$gwas_qc$focus_dat$val$max_chi2,
-                   n_sig_snp=output[[params$gwas]]$gwas_qc$focus_dat$val$n_sig_snp,
+                   lambda_gc=gd_qc_stat(output[[params$gwas]]$gwas_qc, "lambda_gc"),
+                   max_chi2=gd_qc_stat(output[[params$gwas]]$gwas_qc, "max_chi2"),
+                   n_sig_snp=gd_qc_stat(output[[params$gwas]]$gwas_qc, "n_sig_snp"),
                    obs_h2=paste0(round(output[[params$gwas]]$gwas_qc$ldsc_dat$val$obs_h2_est,3), " (",round(output[[params$gwas]]$gwas_qc$ldsc_dat$val$obs_h2_se,3),")"),
                    int=paste0(round(output[[params$gwas]]$gwas_qc$ldsc_dat$val$int_est,3), " (",round(output[[params$gwas]]$gwas_qc$ldsc_dat$val$int_se,3),")"))
 
@@ -214,16 +217,6 @@ cat("</details>")
 ```{r, eval=T, echo=F, comment=''}
 
 output[[params$gwas]]$gwas_qc$cleaner_dat$log
-
-```
-
-</details>
-
-<details><summary>Log file: FOCUS munge</summary>
-
-```{r, eval=T, echo=F, comment=''}
-
-output[[params$gwas]]$gwas_qc$focus_dat$log
 
 ```
 

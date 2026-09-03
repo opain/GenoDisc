@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+
+
+
+<title>GenoDisc Pipeline - Technical Details</title>
+
+<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
+<script src="site_libs/bootstrap-3.3.5/js/bootstrap.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/html5shiv.min.js"></script>
+<script src="site_libs/bootstrap-3.3.5/shim/respond.min.js"></script>
+<style>h1 {font-size: 34px;}
+       h1.title {font-size: 38px;}
+       h2 {font-size: 30px;}
+       h3 {font-size: 24px;}
+       h4 {font-size: 18px;}
+       h5 {font-size: 16px;}
+       h6 {font-size: 12px;}
+       code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
+       pre:not([class]) { background-color: white }</style>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
+<script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
+<script src="site_libs/navigation-1.1/tabsets.js"></script>
+<link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
+<script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link rel="shortcut icon" href="Images/logo/favicon.ico">
+
+<link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
+
+<script>
+function toggleNightMode() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (stylesheet.disabled) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+}
+</script>
+
+<label class="switch">
+  <input type="checkbox" id="toggleNightMode" checked>
+  <span class="slider round"></span>
+</label>
+
+<script>
+document.getElementById('toggleNightMode').addEventListener('change', function() {
+    var stylesheet = document.getElementById('nightModeStylesheet');
+    if (this.checked) {
+        stylesheet.disabled = false;
+    } else {
+        stylesheet.disabled = true;
+    }
+});
+</script>
+
+<!-- Cloudflare Web Analytics (cookieless, no personal data - no consent required).
+     Same token as the hosted service (genodisc.er.kcl.ac.uk) so both surfaces
+     roll up into one dashboard. Replaces the previous Google Analytics setup
+     and its Osano cookie-consent banner. -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7709e512a3d5400a96a68c4893306f2c"}'></script>
+<!-- End Cloudflare Web Analytics -->
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+<style type="text/css">code{white-space: pre;}</style>
+<script type="text/javascript">
+if (window.hljs) {
+  hljs.configure({languages: []});
+  hljs.initHighlightingOnLoad();
+  if (document.readyState && document.readyState === "complete") {
+    window.setTimeout(function() { hljs.initHighlighting(); }, 0);
+  }
+}
+</script>
+
+
+
+
+
+
+<link rel="stylesheet" href="styles/styles.css" type="text/css" />
+
+
+
+<style type = "text/css">
+.main-container {
+  max-width: 940px;
+  margin-left: auto;
+  margin-right: auto;
+}
+img {
+  max-width:100%;
+}
+.tabbed-pane {
+  padding-top: 12px;
+}
+.html-widget {
+  margin-bottom: 20px;
+}
+button.code-folding-btn:focus {
+  outline: none;
+}
+summary {
+  display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
+}
+pre code {
+  padding: 0;
+}
+</style>
+
+
+<style type="text/css">
+.dropdown-submenu {
+  position: relative;
+}
+.dropdown-submenu>.dropdown-menu {
+  top: 0;
+  left: 100%;
+  margin-top: -6px;
+  margin-left: -1px;
+  border-radius: 0 6px 6px 6px;
+}
+.dropdown-submenu:hover>.dropdown-menu {
+  display: block;
+}
+.dropdown-submenu>a:after {
+  display: block;
+  content: " ";
+  float: right;
+  width: 0;
+  height: 0;
+  border-color: transparent;
+  border-style: solid;
+  border-width: 5px 0 5px 5px;
+  border-left-color: #cccccc;
+  margin-top: 5px;
+  margin-right: -10px;
+}
+.dropdown-submenu:hover>a:after {
+  border-left-color: #adb5bd;
+}
+.dropdown-submenu.pull-left {
+  float: none;
+}
+.dropdown-submenu.pull-left>.dropdown-menu {
+  left: -100%;
+  margin-left: 10px;
+  border-radius: 6px 0 6px 6px;
+}
+</style>
+
+<script type="text/javascript">
+// manage active state of menu based on current page
+$(document).ready(function () {
+  // active menu anchor
+  href = window.location.pathname
+  href = href.substr(href.lastIndexOf('/') + 1)
+  if (href === "")
+    href = "index.html";
+  var menuAnchor = $('a[href="' + href + '"]');
+
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
+
+  // Navbar adjustments
+  var navHeight = $(".navbar").first().height() + 15;
+  var style = document.createElement('style');
+  var pt = "padding-top: " + navHeight + "px; ";
+  var mt = "margin-top: -" + navHeight + "px; ";
+  var css = "";
+  // offset scroll position for anchor links (for fixed navbar)
+  for (var i = 1; i <= 6; i++) {
+    css += ".section h" + i + "{ " + pt + mt + "}\n";
+  }
+  style.innerHTML = "body {" + pt + "padding-bottom: 40px; }\n" + css;
+  document.head.appendChild(style);
+});
+</script>
+
+<!-- tabsets -->
+
+<style type="text/css">
+.tabset-dropdown > .nav-tabs {
+  display: inline-table;
+  max-height: 500px;
+  min-height: 44px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
+  content: "\e258";
+  font-family: 'Glyphicons Halflings';
+  border: none;
+}
+
+.tabset-dropdown > .nav-tabs > li.active {
+  display: block;
+}
+
+.tabset-dropdown > .nav-tabs > li > a,
+.tabset-dropdown > .nav-tabs > li > a:focus,
+.tabset-dropdown > .nav-tabs > li > a:hover {
+  border: none;
+  display: inline-block;
+  border-radius: 4px;
+  background-color: transparent;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open > li {
+  display: block;
+  float: none;
+}
+
+.tabset-dropdown > .nav-tabs > li {
+  display: none;
+}
+</style>
+
+<!-- code folding -->
+
+
+
+<style type="text/css">
+
+#TOC {
+  margin: 25px 0px 20px 0px;
+}
+@media (max-width: 768px) {
+#TOC {
+  position: relative;
+  width: 100%;
+}
+}
+
+@media print {
+.toc-content {
+  /* see https://github.com/w3c/csswg-drafts/issues/4434 */
+  float: right;
+}
+}
+
+.toc-content {
+  padding-left: 30px;
+  padding-right: 40px;
+}
+
+div.main-container {
+  max-width: 1200px;
+}
+
+div.tocify {
+  width: 20%;
+  max-width: 260px;
+  max-height: 85%;
+}
+
+@media (min-width: 768px) and (max-width: 991px) {
+  div.tocify {
+    width: 25%;
+  }
+}
+
+@media (max-width: 767px) {
+  div.tocify {
+    width: 100%;
+    max-width: none;
+  }
+}
+
+.tocify ul, .tocify li {
+  line-height: 20px;
+}
+
+.tocify-subheader .tocify-item {
+  font-size: 0.90em;
+}
+
+.tocify .list-group-item {
+  border-radius: 0px;
+}
+
+
+</style>
+
+
+
+</head>
+
+<body>
+
+
+<div class="container-fluid main-container">
+
+
+<!-- setup 3col/9col grid for toc_float and main content  -->
+<div class="row">
+<div class="col-xs-12 col-sm-4 col-md-3">
+<div id="TOC" class="tocify">
+</div>
+</div>
+
+<div class="toc-content col-xs-12 col-sm-8 col-md-9">
+
+
+
+
+<div class="navbar navbar-default  navbar-fixed-top" role="navigation">
+  <div class="container">
+    <div class="navbar-header">
+      <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-bs-toggle="collapse" data-target="#navbar" data-bs-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="navbar-brand" href="index.html"><img class="logo-img" src="Images/logo/Horizontal_white.png" style="height: 42px;" /></a>
+    </div>
+    <div id="navbar" class="navbar-collapse collapse">
+      <ul class="nav navbar-nav">
+        <li>
+  <a href="index.html">Home</a>
+</li>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Pipeline
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="pipeline_guide.html">User Guide</a>
+    </li>
+    <li>
+      <a href="pipeline_technical.html">Technical Details</a>
+    </li>
+  </ul>
+</li>
+      </ul>
+      <ul class="nav navbar-nav navbar-right">
+        <li>
+  <a href="https://genodisc.er.kcl.ac.uk/">Hosted service ↗</a>
+</li>
+<li>
+  <a href="https://github.com/opain/GenoDisc">
+    <span class="fa fa-github fa-lg"></span>
+     
+  </a>
+</li>
+      </ul>
+    </div><!--/.nav-collapse -->
+  </div><!--/.container -->
+</div><!--/.navbar -->
+
+<div id="header">
+
+
+
+<h1 class="title toc-ignore">GenoDisc Pipeline - Technical Details</h1>
+
+</div>
+
+
+<hr />
+<p>This document describes the methods and tools used by the GenoDisc
+pipeline. For instructions on how to install and run the pipeline, see
+the <a href="pipeline_guide.html">User Guide</a>.</p>
+<hr />
+<div id="software-and-dependencies" class="section level1">
+<h1>Software and dependencies</h1>
+<p>The pipeline relies on the following tools:</p>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="60%" />
+<col width="26%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Tool</th>
+<th align="left">Purpose</th>
+<th align="left">Reference</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Snakemake</td>
+<td align="left">Workflow management</td>
+<td align="left"><a
+href="https://doi.org/10.12688/f1000research.29032.2">Molder et
+al. 2021</a></td>
+</tr>
+<tr class="even">
+<td align="left">LDSC</td>
+<td align="left">LD score regression for heritability and genetic
+correlation</td>
+<td align="left"><a
+href="https://doi.org/10.1038/ng.3211">Bulik-Sullivan et
+al. 2015</a></td>
+</tr>
+<tr class="odd">
+<td align="left">PLINK 1.9</td>
+<td align="left">LD clumping and general variant-level operations</td>
+<td align="left"><a
+href="https://doi.org/10.1186/s13742-015-0047-8">Chang et
+al. 2015</a></td>
+</tr>
+<tr class="even">
+<td align="left">GCTA-COJO</td>
+<td align="left">Conditional and joint association analysis</td>
+<td align="left"><a href="https://doi.org/10.1038/ng.2213">Yang et
+al. 2012</a></td>
+</tr>
+<tr class="odd">
+<td align="left">SuSiE</td>
+<td align="left">Fine-mapping via Sum of Single Effects model</td>
+<td align="left"><a href="https://doi.org/10.1111/rssb.12388">Wang et
+al. 2020</a></td>
+</tr>
+<tr class="even">
+<td align="left">MAGMA</td>
+<td align="left">Gene-level and gene set association analysis</td>
+<td align="left"><a
+href="https://doi.org/10.1371/journal.pcbi.1004219">de Leeuw et
+al. 2015</a></td>
+</tr>
+<tr class="odd">
+<td align="left">FUSION</td>
+<td align="left">Transcriptome-wide association study</td>
+<td align="left"><a href="https://doi.org/10.1038/ng.3506">Gusev et
+al. 2016</a></td>
+</tr>
+<tr class="even">
+<td align="left">SMR</td>
+<td align="left">Summary-data-based Mendelian randomisation</td>
+<td align="left"><a href="https://doi.org/10.1038/ng.3538">Zhu et
+al. 2016</a></td>
+</tr>
+<tr class="odd">
+<td align="left">TWAS-GSEA</td>
+<td align="left">Gene set enrichment of TWAS results</td>
+<td align="left"><a
+href="https://doi.org/10.1101/2023.07.24.23293084">Pain et
+al. 2023</a></td>
+</tr>
+<tr class="even">
+<td align="left">DrugTargetor</td>
+<td align="left">Drug-gene interaction database for enrichment</td>
+<td align="left"><a
+href="https://doi.org/10.1093/bioinformatics/bty742">Gaspar et
+al. 2019</a></td>
+</tr>
+<tr class="odd">
+<td align="left">liftOver</td>
+<td align="left">Genome build coordinate conversion</td>
+<td align="left"><a
+href="https://genome.ucsc.edu/cgi-bin/hgLiftOver">UCSC Genome
+Browser</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+</div>
+<div id="workflow-overview" class="section level1">
+<h1>Workflow overview</h1>
+<p>The pipeline is implemented as a Snakemake workflow composed of eight
+rule modules:</p>
+<ol style="list-style-type: decimal">
+<li><strong><code>dependencies.smk</code></strong> - Downloads and
+prepares reference data (1000 Genomes, gene annotations, LD scores, TWAS
+weights, drug-gene databases)</li>
+<li><strong><code>sumstat_qc.smk</code></strong> - Cleans, harmonises,
+and quality-controls GWAS summary statistics</li>
+<li><strong><code>finemapping.smk</code></strong> - Performs
+fine-mapping of GWAS loci</li>
+<li><strong><code>magma.smk</code></strong> - Runs gene-level and gene
+set association analyses</li>
+<li><strong><code>twas_pwas.smk</code></strong> - Performs
+transcriptome- and proteome-wide association analyses</li>
+<li><strong><code>smr.smk</code></strong> - Runs summary-data-based
+Mendelian randomisation</li>
+<li><strong><code>gcsc.smk</code></strong> - Performs gene
+co-regulation-based drug scoring</li>
+<li><strong><code>report.smk</code></strong> - Packages all results into
+a single <code>.rds</code> object</li>
+</ol>
+<p>Reference data and tool dependencies are downloaded automatically on
+the first pipeline run.</p>
+<hr />
+</div>
+<div id="part-1-descriptive-analyses" class="section level1">
+<h1>Part 1: Descriptive analyses</h1>
+<div id="summary-statistic-qc" class="section level2">
+<h2>Summary statistic QC</h2>
+<p>GWAS summary statistics undergo a standardised cleaning procedure
+implemented in <code>scripts/sumstat_cleaner.R</code>:</p>
+<ol style="list-style-type: decimal">
+<li><p><strong>Column name mapping</strong>: The pipeline recognises a
+wide range of common column name variants and maps them to a
+standardised set of column names. For example, <code>PVALUE</code>,
+<code>PVAL</code>, <code>P_VALUE</code>, and <code>GC_PVALUE</code> are
+all mapped to <code>P</code>.</p></li>
+<li><p><strong>Allele harmonisation</strong>: Alleles are harmonised
+against the 1000 Genomes reference panel. Strand-ambiguous variants are
+checked against reference allele frequencies and removed if they cannot
+be resolved.</p></li>
+<li><p><strong>Genome build detection and liftover</strong>: If the
+summary statistics do not match the GRCh37/hg19 build, the pipeline
+attempts automatic coordinate liftover using the UCSC liftOver
+tool.</p></li>
+<li><p><strong>Quality filtering</strong>: Variants are filtered based
+on:</p>
+<ul>
+<li>Allele frequency (if available): extreme frequency variants are
+flagged</li>
+<li>Imputation quality (INFO score, if available)</li>
+<li>Duplicate removal</li>
+<li>Multiallelic variant removal</li>
+</ul></li>
+<li><p><strong>Effect size conversion</strong>: If only odds ratios are
+provided, they are converted to log-odds (BETA). Z-scores are converted
+to BETA and SE where possible.</p></li>
+</ol>
+<p>The cleaned summary statistics are stored in
+<code>{outdir}/results/{gwas}/gwas_sumstat/</code>. A munged copy
+(<code>.cleaned.munged.sumstats.gz</code>) is written alongside them,
+containing <code>CHR SNP BP A1 A2 Z N</code> with
+<code>Z = BETA/SE</code>, as required by LDSC and FUSION.</p>
+<details>
+<summary>
+<strong>Recognised column name variants</strong>
+</summary>
+<p>The pipeline accepts many common column name formats. Below are
+examples of recognised names for key columns:</p>
+<ul>
+<li><strong>SNP</strong>: SNP, RSID, MARKERNAME, SNPID, ID, VARIANT_ID,
+HM_RSID, …</li>
+<li><strong>CHR</strong>: CHR, CHROMOSOME, CHROM, CHR_BUILD37,
+CHR_BUILD38, HM_CHROM, …</li>
+<li><strong>BP</strong>: BP, POS, POSITION, PHYSPOS, POS_BUILD37,
+BASE_PAIR_LOCATION, HM_POS, …</li>
+<li><strong>A1</strong>: A1, ALLELE1, EFFECT_ALLELE, EA, REF,
+RISK_ALLELE, HM_EFFECT_ALLELE, …</li>
+<li><strong>A2</strong>: A2, ALLELE2, OTHER_ALLELE, NEA, ALT,
+NON_EFFECT_ALLELE, HM_OTHER_ALLELE, …</li>
+<li><strong>BETA</strong>: BETA, EFFECT, B, SIGNED_SUMSTAT, EST,
+LOG_ODDS, HM_BETA, …</li>
+<li><strong>OR</strong>: OR, ODDS_RATIO, ODDS-RATIO, OR(A1),
+HM_ODDS_RATIO, …</li>
+<li><strong>SE</strong>: SE, STDERR, STDER, STANDARD_ERROR, OR_SE,
+…</li>
+<li><strong>P</strong>: P, PVALUE, PVAL, P_VALUE, P-VALUE, WALD_P,
+P_BOLT_LMM, …</li>
+<li><strong>Z</strong>: Z, ZSCORE, Z-SCORE, ZSTAT, GC_ZSCORE, …</li>
+<li><strong>N</strong>: N, WEIGHT, TOTALSAMPLESIZE, SAMPLESIZE, N_TOTAL,
+N_ANALYZED, …</li>
+<li><strong>FREQ</strong>: FRQ, FREQ, MAF, AF, EAF, EFFECT_ALLELE_FREQ,
+HM_EFFECT_ALLELE_FREQUENCY, …</li>
+<li><strong>INFO</strong>: INFO, IMPINFO, IMPQUALITY, INFO_UKBB, …</li>
+</ul>
+</details>
+<hr />
+</div>
+<div id="ld-score-regression" class="section level2">
+<h2>LD score regression</h2>
+<p><a href="https://github.com/bulik/ldsc">LDSC</a> (LD Score
+Regression) is used to estimate:</p>
+<ul>
+<li><strong>SNP-heritability</strong> (<span
+class="math inline">\(h^2_{SNP}\)</span>): the proportion of phenotypic
+variance explained by common SNPs</li>
+<li><strong>LD score regression intercept</strong>: an indicator of
+confounding or population stratification in the GWAS</li>
+</ul>
+<p>The pipeline uses pre-computed LD scores from the European 1000
+Genomes reference panel. LDSC is run on the Z-score formatted summary
+statistics written by <code>sumstat_cleaner.R</code> alongside the
+cleaned sumstats (<code>.cleaned.munged.sumstats.gz</code>).</p>
+<p>Results are stored in <code>{outdir}/results/{gwas}/ldsc/</code>.</p>
+<hr />
+</div>
+<div id="ld-clumping" class="section level2">
+<h2>LD clumping</h2>
+<p>LD clumping is performed using PLINK to identify independent
+genome-wide significant associations. The procedure uses:</p>
+<ul>
+<li>P-value threshold: 5 x 10<sup>-8</sup></li>
+<li>LD threshold (<span class="math inline">\(r^2\)</span>): 0.1</li>
+<li>Clumping window: 250 kb</li>
+<li>Reference panel: 1000 Genomes European samples</li>
+</ul>
+<p>Results are stored in
+<code>{outdir}/results/{gwas}/clump/</code>.</p>
+<hr />
+</div>
+<div id="gcta-cojo" class="section level2">
+<h2>GCTA-COJO</h2>
+<p><a
+href="https://yanglab.westlake.edu.cn/software/gcta/">GCTA-COJO</a>
+(Conditional and Joint analysis) performs stepwise conditional analysis
+to identify independently associated variants. Unlike simple LD
+clumping, COJO accounts for the joint effects of variants using summary
+statistics and an LD reference panel.</p>
+<p>Results are stored in <code>{outdir}/results/{gwas}/cojo/</code>.</p>
+<hr />
+</div>
+</div>
+<div id="part-2-gene-finding-analyses" class="section level1">
+<h1>Part 2: Gene finding analyses</h1>
+<div id="fine-mapping-susie" class="section level2">
+<h2>Fine-mapping (SuSiE)</h2>
+<p><a href="https://stephenslab.github.io/susieR/">SuSiE</a> (Sum of
+Single Effects) is used for Bayesian fine-mapping. For each genome-wide
+significant locus, SuSiE identifies credible sets of causal variants.
+The analysis:</p>
+<ol style="list-style-type: decimal">
+<li>Defines loci around genome-wide significant variants</li>
+<li>Computes LD matrices from the 1000 Genomes European reference
+panel</li>
+<li>Fits the SuSiE model allowing for up to L=1 causal variants per
+locus (configurable)</li>
+<li>Returns 95% credible sets with posterior inclusion probabilities
+(PIPs) for each variant</li>
+</ol>
+<p>Results are stored in
+<code>{outdir}/results/{gwas}/finemap/</code>.</p>
+<hr />
+</div>
+<div id="magma-gene-level-association" class="section level2">
+<h2>MAGMA gene-level association</h2>
+<p><a href="https://ctg.cncr.nl/software/magma">MAGMA</a> performs
+gene-level association analysis by aggregating SNP-level association
+statistics within gene boundaries. The pipeline:</p>
+<ol style="list-style-type: decimal">
+<li>Maps SNPs to genes using Ensembl gene annotations (with a
+configurable window)</li>
+<li>Computes gene-level test statistics accounting for LD between
+SNPs</li>
+<li>Provides gene-level p-values and effect sizes</li>
+</ol>
+<p>Results are stored in
+<code>{outdir}/results/{gwas}/magma/</code>.</p>
+<hr />
+</div>
+<div id="transcriptome-wide-association-twas" class="section level2">
+<h2>Transcriptome-wide association (TWAS)</h2>
+<p><a href="http://gusevlab.org/projects/fusion/">FUSION</a> performs
+transcriptome-wide association studies by testing whether genetically
+predicted gene expression is associated with the GWAS phenotype. The
+pipeline supports multiple eQTL reference panels:</p>
+<ul>
+<li><strong>GTEx panels</strong>: Tissue-specific eQTL weights from the
+GTEx consortium (user-specified tissues)</li>
+<li><strong>PsychENCODE</strong>: Brain-specific eQTL weights from the
+PsychENCODE consortium</li>
+<li><strong>Non-GTEx panels</strong>: Additional eQTL panels (e.g. CMC
+brain RNA-seq)</li>
+<li><strong>External panels</strong>: User-provided TWAS weight panels
+in FUSION format</li>
+</ul>
+<p>For each panel, the pipeline:</p>
+<ol style="list-style-type: decimal">
+<li>Runs TWAS per chromosome</li>
+<li>Combines results across chromosomes</li>
+<li>Identifies genome-wide significant gene-trait associations
+(Bonferroni-corrected)</li>
+<li>Performs conditional analysis on significant hits to identify
+independently associated genes</li>
+</ol>
+<p>Results are stored in <code>{outdir}/results/{gwas}/twas/</code>.</p>
+<hr />
+</div>
+<div id="summary-data-based-mendelian-randomisation-smr"
+class="section level2">
+<h2>Summary-data-based Mendelian randomisation (SMR)</h2>
+<p><a href="https://yanglab.westlake.edu.cn/software/smr/">SMR</a> tests
+for causal or pleiotropic associations between gene expression and
+complex traits using summary-level data from GWAS and eQTL studies. The
+pipeline supports multiple eQTL/pQTL reference panels:</p>
+<ul>
+<li><strong>PsychENCODE</strong>: Brain eQTL data</li>
+<li><strong>MetaBrain</strong>: eQTL data from multiple brain regions
+(cortex, basal ganglia, cerebellum, hippocampus, spinal cord)</li>
+<li><strong>eQTLGen</strong>: Blood eQTL data</li>
+<li><strong>ROSMAP</strong>: Brain pQTL data</li>
+</ul>
+<p>The HEIDI (Heterogeneity in Dependent Instruments) test is used to
+distinguish causal/pleiotropic associations from linkage.</p>
+<p>Results are stored in <code>{outdir}/results/{gwas}/smr/</code>.</p>
+<hr />
+</div>
+<div id="proteome-wide-association-pwas" class="section level2">
+<h2>Proteome-wide association (PWAS)</h2>
+<p>PWAS extends the TWAS framework to protein levels, using pQTL weights
+to predict genetically determined protein expression. The pipeline
+supports:</p>
+<ul>
+<li><strong>ROSMAP</strong>: Brain pQTL weights (n=376)</li>
+<li><strong>Banner</strong>: Brain pQTL weights (n=152)</li>
+</ul>
+<p>PWAS uses the same FUSION framework as TWAS, with protein expression
+prediction models in place of gene expression models.</p>
+<p>Results are stored in <code>{outdir}/results/{gwas}/pwas/</code>.</p>
+<hr />
+</div>
+</div>
+<div id="part-3-drug-finding-analyses" class="section level1">
+<h1>Part 3: Drug finding analyses</h1>
+<div id="magma-drugtargetor-enrichment" class="section level2">
+<h2>MAGMA DrugTargetor enrichment</h2>
+<p>MAGMA gene set enrichment analysis is performed using <a
+href="https://drugtargetor.com/">DrugTargetor</a> drug-gene interaction
+sets. This tests whether genes targeted by specific drugs are enriched
+for GWAS associations. The analysis also evaluates enrichment at the ATC
+(Anatomical Therapeutic Chemical) classification level.</p>
+<p>Results are stored in
+<code>{outdir}/results/{gwas}/magma/</code>.</p>
+<hr />
+</div>
+<div id="twas-gsea-drugtargetor-enrichment" class="section level2">
+<h2>TWAS-GSEA DrugTargetor enrichment</h2>
+<p><a href="https://github.com/opain/TWAS-GSEA">TWAS-GSEA</a> performs
+gene set enrichment analysis using TWAS results rather than SNP-level
+summary statistics. By leveraging gene expression prediction, TWAS-GSEA
+can detect drug-gene set enrichments that are not captured by
+traditional MAGMA-based approaches.</p>
+<p>Both directional and non-directional enrichment tests are
+available:</p>
+<ul>
+<li><strong>Directional</strong>: Tests whether disease-associated genes
+have expression changes in the same direction as drug effects</li>
+<li><strong>Non-directional</strong>: Tests for enrichment regardless of
+effect direction</li>
+</ul>
+<p>Results are aggregated across TWAS panels and stored alongside other
+enrichment results.</p>
+<hr />
+</div>
+<div id="twas-gsea-cmap-drug-signatures" class="section level2">
+<h2>TWAS-GSEA CMAP drug signatures</h2>
+<p>In addition to DrugTargetor gene sets, TWAS-GSEA is also applied
+using reprocessed <a href="https://clue.io/">CMAP</a> (Connectivity Map)
+level 5 drug expression signatures. This identifies drugs that reverse
+the disease-associated gene expression pattern, which is a key strategy
+in computational drug repurposing.</p>
+<p>The CMAP analysis tests each drug’s expression signature against the
+TWAS results to identify compounds whose effects on gene expression
+oppose the disease-associated pattern. Results include enrichment
+statistics and drug annotations including mechanism of action (MOA).</p>
+<hr />
+</div>
+<div id="gene-co-regulation-scoring-gcsc" class="section level2">
+<h2>Gene co-regulation scoring (GCSC)</h2>
+<p>GCSC (Gene Co-regulation-based Scoring) uses tissue-specific gene
+co-regulation networks from GTEx to score drug-gene interactions. Rather
+than testing individual gene associations, GCSC evaluates whether the
+co-regulation structure of drug target genes is associated with the GWAS
+phenotype.</p>
+<p>The analysis:</p>
+<ol style="list-style-type: decimal">
+<li>Runs TWAS using GTEx v7 weights for specified tissues</li>
+<li>Prepares drug-gene interaction sets from DrugTargetor</li>
+<li>Computes co-regulation-based enrichment scores for each drug</li>
+</ol>
+<p>Results include drug-level scores and ATC classification enrichment,
+stored in <code>{outdir}/results/{gwas}/gcsc/</code>.</p>
+<hr />
+</div>
+<div id="magma-tissue-enrichment" class="section level2">
+<h2>MAGMA tissue enrichment</h2>
+<p>MAGMA tissue enrichment analysis tests whether genes expressed in
+specific tissues are enriched for GWAS associations. This uses GTEx
+tissue expression profiles to identify tissues where GWAS-associated
+genes are preferentially expressed, and performs conditional analysis to
+identify independently enriched tissues.</p>
+<p>Results are stored in
+<code>{outdir}/results/{gwas}/magma/</code>.</p>
+<hr />
+</div>
+</div>
+<div id="results-packaging" class="section level1">
+<h1>Results packaging</h1>
+<p>The <code>package_results</code> rule (<code>rules/report.smk</code>)
+aggregates all analysis results into a single R list object saved as
+<code>results_package.rds</code>. This file is the primary output for
+downstream analysis and visualisation.</p>
+<p>The results package contains nested lists structured by GWAS and
+analysis type, and can be loaded directly into R or explored using the
+bundled <a href="pipeline_guide.html#using-the-shiny-explorer">Shiny
+application</a>.</p>
+<hr />
+<p>For questions or issues, please contact Oliver Pain (<a
+href="mailto:oliver.pain@kcl.ac.uk"
+class="email">oliver.pain@kcl.ac.uk</a>) or open an issue on the <a
+href="https://github.com/opain/GenoDisc">GitHub repository</a>.</p>
+</div>
+
+<!-- footer.html -->
+<hr/>
+
+<div class="centered-container">
+<div class="rounded-image-container" style="width: 500px;">
+<img src="Images/logo/sponsors.png">
+</div>
+</div>
+
+
+</div>
+</div>
+
+</div>
+
+<script>
+
+// add bootstrap table styles to pandoc tables
+function bootstrapStylePandocTables() {
+  $('tr.odd').parent('tbody').parent('table').addClass('table table-condensed');
+}
+$(document).ready(function () {
+  bootstrapStylePandocTables();
+});
+
+
+</script>
+
+<!-- tabsets -->
+
+<script>
+$(document).ready(function () {
+  window.buildTabsets("TOC");
+});
+
+$(document).ready(function () {
+  $('.tabset-dropdown > .nav-tabs > li').click(function () {
+    $(this).parent().toggleClass('nav-tabs-open');
+  });
+});
+</script>
+
+<!-- code folding -->
+
+<script>
+$(document).ready(function ()  {
+
+    // temporarily add toc-ignore selector to headers for the consistency with Pandoc
+    $('.unlisted.unnumbered').addClass('toc-ignore')
+
+    // move toc-ignore selectors from section div to header
+    $('div.section.toc-ignore')
+        .removeClass('toc-ignore')
+        .children('h1,h2,h3,h4,h5').addClass('toc-ignore');
+
+    // establish options
+    var options = {
+      selectors: "h1,h2",
+      theme: "bootstrap3",
+      context: '.toc-content',
+      hashGenerator: function (text) {
+        return text.replace(/[.\\/?&!#<>]/g, '').replace(/\s/g, '_');
+      },
+      ignoreSelector: ".toc-ignore",
+      scrollTo: 0
+    };
+    options.showAndHide = true;
+    options.smoothScroll = true;
+
+    // tocify
+    var toc = $("#TOC").tocify(options).data("toc-tocify");
+});
+</script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

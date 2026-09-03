@@ -1,0 +1,65 @@
+# Snakemake 7.x "classic" cluster profile - each rule instance is submitted
+# as its own sbatch job. NOT compatible with Snakemake 8's executor-plugin
+# --executor slurm; do not "upgrade" this format without also bumping
+# snakemake-minimal in envs/pipeline.yaml and re-testing everything.
+#
+# No rule declares threads: anywhere in this pipeline, so per-rule cpu
+# requests come from the custom resources.cpus (declared on the handful of
+# rules that shell out to multi-core R scripts; defaults to 1 otherwise), not
+# {threads}.
+#
+# jobs / default-resources.runtime / latency-wait below are starting values,
+# not measured ones - see the plan's Risks section for what to validate
+# before relying on this for real submissions.
+
+# --partition reads $GENODISC_PARTITIONS if the calling job's environment
+# sets it - inherited automatically via sbatch's default --export=ALL, all
+# the way down through run_genodisc.sh -> snakemake -> this per-rule sbatch
+# call, with no other changes needed. Falls back to neurohack_cpu when
+# unset, so a plain invocation is unaffected. Double-braced (${{...}})
+# because this whole cluster: string is Python .format()'d by Snakemake
+# with {rule}/{wildcards}/{resources...} below - a single-braced ${VAR}
+# here would be parsed as a (nonexistent) format field instead of reaching
+# the shell.
+cluster:
+  mkdir -p logs/slurm/{rule} &&
+  sbatch
+    --parsable
+    --partition=${{GENODISC_PARTITIONS:-neurohack_cpu}}
+    --job-name=gd-{rule}-{wildcards}
+    --cpus-per-task={resources.cpus}
+    --mem={resources.mem_mb}M
+    --time={resources.runtime}
+    --output=logs/slurm/{rule}/{rule}-{wildcards}-%j.out
+    --error=logs/slurm/{rule}/{rule}-{wildcards}-%j.err
+
+# Absolute path required: run_genodisc.sh invokes snakemake with
+# --directory <job_dir>, which shifts snakemake's cwd (and hence this
+# script's resolution point) to the job directory, not this profile's own
+# directory.
+#
+# Invoked via "bash <script>" rather than relying on the file's own execute
+# bit: this repo is accessed here through a CIFS mount that reports a forced
+# 0770 view which doesn't reliably reflect the real permission bits SLURM
+# jobs see natively on cephfs (confirmed: chmod over the mount errors with
+# "Operation not permitted", so it can't be fixed/verified from this side) -
+# jobs failed with "Permission denied" executing the script directly even
+# though the path itself resolved correctly. "bash <script>" only needs read
+# access.
+cluster-status: "bash /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/profiles/slurm/slurm-status.sh"
+cluster-cancel: "scancel"
+
+default-resources:
+  - mem_mb=4000
+  - disk_mb=4000
+  - cpus=1
+  - runtime=480
+
+jobs: 40
+latency-wait: 90
+restart-times: 2
+max-jobs-per-second: 5
+max-status-checks-per-second: 5
+rerun-incomplete: true
+use-conda: true
+conda-frontend: mamba

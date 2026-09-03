@@ -1,0 +1,188 @@
+---
+title: "SSRI Response"
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    toc_depth: 2
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+library(knitr)
+```
+
+```{r}
+
+dir.create('/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/', recursive = T)
+
+library(data.table)
+
+####
+# Create gwas_list
+####
+
+gwas_list <- NULL
+
+gwas_list <- rbind(
+  gwas_list,
+  data.table(
+    name = 'ssri_response',
+    path = '/scratch/prj/ukbiobank/AMBER/SR_SSRI_Response/postgwas/bcftools/metal202604/SSRIresponse_bcftools_metal_clean_biallelic_20260422.tsv.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'ssri_response'))
+
+write.table(gwas_list, '/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/gwas_list.txt', row.names = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "outdir: /scratch/prj/sgdp_amber/postgwas/GenoDisc/output", 
+  "resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources", 
+  "config_file: /scratch/prj/sgdp_amber/postgwas/GenoDisc/config/config.yaml", 
+  "gwas_list: /scratch/prj/sgdp_amber/postgwas/GenoDisc/config/gwas_list.txt", 
+  "gtex_weights: ['Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Whole_Blood']", 
+  "clump: T", 
+  "cojo: T", 
+  "finemap: T", 
+  "ldsc: T", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T", 
+  "twas_panel_fusion: T", 
+  "non_gtex_weights: ['CMC.BRAIN.RNASEQ','CMC.BRAIN.RNASEQ_SPLICING','NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']",
+  "twas_panel_psychencode: T",
+  "twas_conditional: T", 
+  "twas_gsea_drugtargetor: T", 
+  "smr_expression_panel_eqtlgen: T",
+  "tissue_magma: T",
+  "rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip",
+  "banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip",
+  "rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt",
+  "smr_expression_panel_psychencode: T",
+  "smr_expression_panel_metabrain_basalganglia: T",
+  "smr_expression_panel_metabrain_cerebellum: T",
+  "smr_expression_panel_metabrain_cortex: T",
+  "smr_expression_panel_metabrain_hippocampus: T",
+  "smr_expression_panel_metabrain_spinalcord: T",
+  "pwas_panel_rosmap: T",
+  "pwas_panel_banner: T",
+  "smr_protein_panel_rosmap: T",
+  "gcsc: T",
+  "gcsc_tissues: ['Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Whole_Blood']"
+)
+
+write.table(config, '/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/config.yaml', col.names=F, row.names=F, quote=F)
+```
+
+```{bash}
+# Load conda env
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+
+# Go to pipeline directory
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+  
+snakemake \
+  --configfile=/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/config.yaml \
+  --use-conda \
+  --profile slurm \
+  run_package_results \
+  -n
+
+```
+
+***
+
+### Including 23andMe
+
+```{r}
+
+library(data.table)
+
+####
+# Create gwas_list
+####
+
+gwas_list <- NULL
+
+gwas_list <- rbind(
+  gwas_list,
+  data.table(
+    name = 'ssri_response_incl23andme',
+    path = '/scratch/prj/ukbiobank/AMBER/SR_SSRI_Response/postgwas/bcftools_23andMe/metal/SSRIresponse_bcftools_metal_clean_biallelic_23nMe_20260618.tsv.gz',
+    population = 'EUR',
+    n = NA,
+    sampling = NA,
+    prevalence = NA,
+    mean = NA,
+    sd = NA,
+    label = 'ssri_response_incl23andme'))
+
+write.table(gwas_list, '/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/gwas_list_incl23andme.txt', row.names = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "outdir: /scratch/prj/sgdp_amber/postgwas/GenoDisc/output_incl23andme", 
+  "resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources", 
+  "config_file: /scratch/prj/sgdp_amber/postgwas/GenoDisc/config/config_incl23andme.yaml", 
+  "gwas_list: /scratch/prj/sgdp_amber/postgwas/GenoDisc/config/gwas_list_incl23andme.txt", 
+  "gtex_weights: ['Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Whole_Blood']", 
+  "clump: T", 
+  "cojo: T", 
+  "finemap: T", 
+  "ldsc: T", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T", 
+  "twas_panel_fusion: T", 
+  "non_gtex_weights: ['CMC.BRAIN.RNASEQ','CMC.BRAIN.RNASEQ_SPLICING','NTR.BLOOD.RNAARR','YFS.BLOOD.RNAARR']",
+  "twas_panel_psychencode: T",
+  "twas_conditional: T", 
+  "twas_gsea_drugtargetor: T", 
+  "smr_expression_panel_eqtlgen: T",
+  "tissue_magma: T",
+  "rosmap_fusion: /scratch/prj/oliverpainfel/Data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip",
+  "banner_fusion: /scratch/prj/oliverpainfel/Data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip",
+  "rosmap_smr: /scratch/prj/oliverpainfel/Data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt",
+  "smr_expression_panel_psychencode: T",
+  "smr_expression_panel_metabrain_basalganglia: T",
+  "smr_expression_panel_metabrain_cerebellum: T",
+  "smr_expression_panel_metabrain_cortex: T",
+  "smr_expression_panel_metabrain_hippocampus: T",
+  "smr_expression_panel_metabrain_spinalcord: T",
+  "pwas_panel_rosmap: T",
+  "pwas_panel_banner: T",
+  "smr_protein_panel_rosmap: T",
+  "gcsc: T",
+  "gcsc_tissues: ['Brain_Amygdala','Brain_Anterior_cingulate_cortex_BA24','Brain_Caudate_basal_ganglia','Brain_Cerebellar_Hemisphere','Brain_Cerebellum','Brain_Cortex','Brain_Frontal_Cortex_BA9','Brain_Hippocampus','Brain_Hypothalamus','Brain_Nucleus_accumbens_basal_ganglia','Brain_Putamen_basal_ganglia','Brain_Spinal_cord_cervical_c-1','Brain_Substantia_nigra','Whole_Blood']"
+)
+
+write.table(config, '/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/config_incl23andme.yaml', col.names=F, row.names=F, quote=F)
+```
+
+```{bash}
+# Load conda env
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+
+# Go to pipeline directory
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
+
+snakemake \
+  -n \
+  --profile slurm \
+  --configfile=/scratch/prj/sgdp_amber/postgwas/GenoDisc/config/config_incl23andme.yaml \
+  --use-conda \
+  --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
+  run_package_results
+
+```
