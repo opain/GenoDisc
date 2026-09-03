@@ -541,8 +541,44 @@ ui <- fluidPage(
     )
   ),
 
+  # Shared cross-GWAS filter rail. Sits above the tabs so its state is
+  # preserved across tab switches. Hidden until >= 2 GWAS are selected (see
+  # server-side shinyjs::show/hide keyed on comparison_mode).
+  shinyjs::hidden(
+    tags$div(
+      id = "gd_compare_rail",
+      class = "well",
+      style = "margin: 12px; padding: 12px 16px;",
+      fluidRow(
+        column(3,
+          radioButtons("gd_sig_basis", "Significance basis:",
+                        choices = c("FDR" = "fdr", "P" = "p"),
+                        selected = "fdr", inline = TRUE)
+        ),
+        column(3,
+          numericInput("gd_sig_threshold", "Significance threshold:",
+                        value = 0.05, min = 1e-12, max = 1, step = 0.01)
+        ),
+        column(3,
+          sliderInput("gd_k_min", "Significant in >= k GWAS:",
+                       min = 1, max = 9, value = 2, step = 1)
+        ),
+        column(3,
+          selectInput("gd_gwas_sort", "Order GWAS by:",
+                       choices = c("As selected"   = "as_selected",
+                                    "Alphabetical" = "alphabetical",
+                                    "Sample size"  = "n",
+                                    "N sig SNPs"   = "n_sig_snp",
+                                    "SNP-h²"  = "h2"),
+                       selected = "as_selected")
+        )
+      )
+    )
+  ),
+
   tabsetPanel(id = "main_tabs",
     dataInputUI("data_input"),
+    overviewUI("overview"),
     gwasQcUI("gwas_qc"),
     snpAssocUI("snp_assoc"),
     molAssocUI("mol_assoc"),
@@ -555,10 +591,12 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output, session) {
 
-  # Hide all tabs except Data Input on startup
+  # Hide all downstream tabs on startup (including the new Overview tab, which
+  # only appears once the user selects >= 2 GWAS).
   observeEvent(session$clientData, {
-    for (tab in c("GWAS QC", "SNP Associations", "Molecular Associations",
-                   "Enrichment Analysis", "References", "Configuration")) {
+    for (tab in c("Overview", "GWAS QC", "SNP Associations",
+                   "Molecular Associations", "Enrichment Analysis",
+                   "References", "Configuration")) {
       hideTab("main_tabs", tab)
     }
   }, once = TRUE)
@@ -596,11 +634,66 @@ server <- function(input, output, session) {
     shinyjs::runjs("document.documentElement.setAttribute('data-app-ready', '1');")
   })
 
+  # ---- Comparison mode plumbing ----
+
+  # Show/hide the Overview tab and the shared filter rail based on how many
+  # GWAS the user has selected. Auto-focus Overview the first time the user
+  # crosses into comparison mode; respect their tab choice afterwards.
+  seen_multi <- reactiveVal(FALSE)
+  observe({
+    is_multi <- shared$comparison_mode()
+    if (is_multi) {
+      showTab("main_tabs", "Overview")
+      shinyjs::show("gd_compare_rail")
+      if (!seen_multi()) {
+        updateTabsetPanel(session, "main_tabs", selected = "Overview")
+        seen_multi(TRUE)
+      }
+      # Cap k slider at the number of selected GWAS
+      n_sel <- length(shared$selected_gwas_multi())
+      updateSliderInput(session, "gd_k_min",
+                        max = n_sel,
+                        value = min(input$gd_k_min %||% 2L, n_sel))
+    } else {
+      hideTab("main_tabs", "Overview")
+      shinyjs::hide("gd_compare_rail")
+    }
+  })
+
+  # Collect the sidebar controls into one reactive to pass into modules.
+  shared_filters <- reactive({
+    list(
+      sig_basis     = if (is.null(input$gd_sig_basis)) "fdr" else input$gd_sig_basis,
+      sig_threshold = if (is.null(input$gd_sig_threshold)) 0.05 else as.numeric(input$gd_sig_threshold),
+      k_min         = if (is.null(input$gd_k_min)) 2L else as.integer(input$gd_k_min),
+      gwas_sort     = if (is.null(input$gd_gwas_sort)) "as_selected" else input$gd_gwas_sort
+    )
+  })
+
+  # Cross-GWAS long tibble; rebuilds only when the bundle or the GWAS set
+  # changes, not when filters change.
+  comparison_long <- reactive({
+    req(shared$gwas_data())
+    req(length(shared$selected_gwas_multi()) >= 1)
+    build_comparison_long(shared$gwas_data(),
+                           shared$selected_gwas_multi(),
+                           entity_types = c("tissue", "atc"))
+  })
+
+  # Null-coalesce helper (defined in mod_compare.R, but server may fire first)
+  `%||%` <- function(a, b) if (is.null(a)) b else a
+
   # Wire up all modules
+  overviewServer("overview", shared$gwas_data, shared$selected_gwas_multi,
+                  shared$comparison_mode, shared_filters, comparison_long)
   gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags)
   snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
   molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
-  enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags)
+  enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags,
+                    selected_gwas_multi = shared$selected_gwas_multi,
+                    comparison_mode     = shared$comparison_mode,
+                    shared_filters      = shared_filters,
+                    comparison_long     = comparison_long)
   referencesServer("references")
   configurationServer("configuration", shared$gwas_data)
 }

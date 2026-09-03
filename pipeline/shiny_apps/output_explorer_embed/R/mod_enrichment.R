@@ -308,9 +308,25 @@ enrichmentUI <- function(id) {
   )
 }
 
-enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
+enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
+                              selected_gwas_multi = NULL,
+                              comparison_mode = NULL,
+                              shared_filters = NULL,
+                              comparison_long = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Cross-GWAS compare-mode sub-modules. Registered unconditionally so their
+    # outputs exist for the DOM; they self-guard on comparison_mode() and
+    # only render content when >=2 GWAS are selected.
+    if (!is.null(selected_gwas_multi) && !is.null(comparison_long)) {
+      tissue_compare_server("tissue_compare",
+                             gwas_data, selected_gwas_multi,
+                             shared_filters, comparison_long)
+      atc_compare_server("atc_compare",
+                          gwas_data, selected_gwas_multi,
+                          shared_filters, comparison_long)
+    }
 
     # Column-guide legend for an enrichment results table. Text is centralised
     # here so each table sub-tab just inserts enr_legend("<key>").
@@ -683,8 +699,17 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       }
 
       # Build Tissue tab (MAGMA tissue-specific enrichment)
+      # Compare-mode swap: when >=2 GWAS are selected, replace the tissue tab
+      # body with the cross-GWAS heatmap. The single-GWAS UI is unchanged.
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+
       tissue_tab <- NULL
-      if (cf$tissue_magma) {
+      if (cf$tissue_magma && in_compare) {
+        tissue_tab <- tabPanel(
+          title = "Tissue", br(),
+          tissue_compare_ui(NS(ns("tissue_compare")))
+        )
+      } else if (cf$tissue_magma) {
         tissue_data <- build_tissue_data(gwas_data(), selected_gwas())
         if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
           tissue_tab <- tabPanel(
@@ -779,9 +804,31 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       outer_tabs <- list()
       if (!is.null(tissue_tab)) outer_tabs <- c(outer_tabs, list(tissue_tab))
       if (drug_targetor_available) {
+        # Compare-mode swap for the ATC inner tab. Drug-level compare view is
+        # deferred to a later phase, so the Drug inner tab keeps single-GWAS
+        # behaviour with a small "Viewing:" caption above the existing content.
+        atc_body <- if (in_compare) {
+          tagList(
+            tags$p(style = "color: var(--gd-text-mute); margin-bottom: 6px;",
+                    "Cross-GWAS comparison view. Adjust k, threshold and basis at the top of the page."),
+            atc_compare_ui(NS(ns("atc_compare")))
+          )
+        } else {
+          do.call(tabsetPanel, atc_tabs)
+        }
+        drug_body <- if (in_compare) {
+          tagList(
+            tags$p(style = "color: var(--gd-text-mute);",
+                    "Showing single-GWAS view for ", tags$b(selected_gwas()),
+                    ". Drug-level cross-GWAS comparison arrives in a later phase."),
+            do.call(tabsetPanel, drug_tabs)
+          )
+        } else {
+          do.call(tabsetPanel, drug_tabs)
+        }
         drug_targetor_inner <- list(
-          do.call(tabPanel, c(list(title="Drug", br()), list(do.call(tabsetPanel, drug_tabs)))),
-          do.call(tabPanel, c(list(title="ATC", br()),  list(do.call(tabsetPanel, atc_tabs))))
+          tabPanel(title = "Drug", br(), drug_body),
+          tabPanel(title = "ATC",  br(), atc_body)
         )
         outer_tabs <- c(outer_tabs, list(
           do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
