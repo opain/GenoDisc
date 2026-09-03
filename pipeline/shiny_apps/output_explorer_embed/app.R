@@ -602,20 +602,11 @@ server <- function(input, output, session) {
   # ---- Comparison mode plumbing ----
 
   # Show/hide the Overview tab based on how many GWAS the user has selected.
-  # Auto-focus Overview the first time the user crosses into comparison mode;
-  # respect their tab choice afterwards.
-  seen_multi <- reactiveVal(FALSE)
+  # The user stays on whichever tab they were on; they can pick Overview
+  # themselves when they want to see it.
   observe({
-    is_multi <- shared$comparison_mode()
-    if (is_multi) {
-      showTab("main_tabs", "Overview")
-      if (!seen_multi()) {
-        updateTabsetPanel(session, "main_tabs", selected = "Overview")
-        seen_multi(TRUE)
-      }
-    } else {
-      hideTab("main_tabs", "Overview")
-    }
+    if (shared$comparison_mode()) showTab("main_tabs", "Overview")
+    else                          hideTab("main_tabs", "Overview")
   })
 
   # Cross-GWAS long tibble; rebuilds only when the bundle or the GWAS set

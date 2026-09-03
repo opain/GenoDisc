@@ -76,7 +76,9 @@ tissue_compare_ui <- function(ns) {
                                       "Sample size"  = "n",
                                       "N sig SNPs"   = "n_sig_snp",
                                       "SNP-h²"       = "h2"),
-                         selected = "as_selected")
+                         selected = "as_selected"),
+            sliderInput(ns("plot_font_size"), "Font size (pt):",
+                         min = 8, max = 20, value = 12, step = 1)
           ),
           column(3,
             selectInput(ns("dl_format"), "Download format:",
@@ -93,7 +95,7 @@ tissue_compare_ui <- function(ns) {
       )
     ),
     br(),
-    tags$div(style = "overflow-x: auto;",
+    tags$div(style = "max-width: 1100px; overflow-x: auto;",
       plotOutput(ns("tissue_compare_plot"), height = "720px")
     ),
     gd_legend(list(
@@ -104,8 +106,10 @@ tissue_compare_ui <- function(ns) {
       "Not tested (hatched)"   = "Tissue was not present in this GWAS's results."
     ), heading = "How to read this heatmap"),
     br(),
-    h4("Underlying data"),
-    DT::DTOutput(ns("tissue_compare_tbl"))
+    tags$div(style = "max-width: 1100px;",
+      h4("Underlying data"),
+      DT::DTOutput(ns("tissue_compare_tbl"))
+    )
   )
 }
 
@@ -150,7 +154,8 @@ tissue_compare_ui <- function(ns) {
 .tissue_compare_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                     metric = "fdr",
                                     sig_basis = "fdr",
-                                    sig_threshold = 0.05) {
+                                    sig_threshold = 0.05,
+                                    font_size = 12) {
   packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
                                     sig_basis, sig_threshold)
   if (is.null(packed)) return(NULL)
@@ -174,14 +179,15 @@ tissue_compare_ui <- function(ns) {
                                 name = "Cell tier") +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
                                 expand = c(0, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
                    caption = "Numbers show -log10(FDR) where cell is FDR- or retained-significant.") +
-    ggplot2::theme_minimal(base_size = 12) +
+    ggplot2::theme_minimal(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid = ggplot2::element_blank(),
       legend.position = "bottom",
-      plot.margin = ggplot2::margin(35, 25, 5, 5, "pt")
+      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -214,7 +220,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
         metric         = if (is.null(input$cell_metric)) "fdr" else input$cell_metric,
         sig_basis      = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
-        sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold)
+        sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
+        font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size)
       )
     })
 
@@ -358,19 +365,23 @@ atc_compare_ui <- function(ns) {
             column(3,
               selectInput(ns("magma_gwas_sort"), "Order GWAS by:",
                            choices = .compare_gwas_sort_choices,
-                           selected = "as_selected")
+                           selected = "as_selected"),
+              sliderInput(ns("magma_plot_font_size"), "Font size (pt):",
+                           min = 8, max = 20, value = 11, step = 1)
             ),
             .dl_and_download_column(ns, "magma", default_h = 12)
           )
         )
       ),
       br(),
-      tags$div(style = "overflow-x: auto;",
+      tags$div(style = "max-width: 1100px; overflow-x: auto;",
         plotOutput(ns("atc_magma_plot"), height = "800px")
       ),
       br(),
-      h4("Underlying data"),
-      DT::DTOutput(ns("atc_magma_tbl"))
+      tags$div(style = "max-width: 1100px;",
+        h4("Underlying data"),
+        DT::DTOutput(ns("atc_magma_tbl"))
+      )
     ),
     tabPanel("TWAS-GSEA", br(),
       p("Cross-GWAS TWAS-GSEA drug-class enrichment. Cell colour is signed by ",
@@ -402,14 +413,16 @@ atc_compare_ui <- function(ns) {
                           selected = "__best__"),
               selectInput(ns("gsea_gwas_sort"), "Order GWAS by:",
                            choices = .compare_gwas_sort_choices,
-                           selected = "as_selected")
+                           selected = "as_selected"),
+              sliderInput(ns("gsea_plot_font_size"), "Font size (pt):",
+                           min = 8, max = 20, value = 11, step = 1)
             ),
             .dl_and_download_column(ns, "gsea", default_h = 12)
           )
         )
       ),
       br(),
-      tags$div(style = "overflow-x: auto;",
+      tags$div(style = "max-width: 1100px; overflow-x: auto;",
         plotOutput(ns("atc_gsea_plot"), height = "800px")
       ),
       gd_legend(list(
@@ -419,8 +432,10 @@ atc_compare_ui <- function(ns) {
         "Hatched" = "Not tested in this GWAS."
       ), heading = "Colour key"),
       br(),
-      h4("Underlying data"),
-      DT::DTOutput(ns("atc_gsea_tbl"))
+      tags$div(style = "max-width: 1100px;",
+        h4("Underlying data"),
+        DT::DTOutput(ns("atc_gsea_tbl"))
+      )
     )
   )
 }
@@ -455,7 +470,8 @@ atc_compare_ui <- function(ns) {
 }
 
 .atc_magma_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
-                                 sig_basis = "fdr", sig_threshold = 0.05) {
+                                 sig_basis = "fdr", sig_threshold = 0.05,
+                                 font_size = 11) {
   slice <- long[method == "MAGMA-ATC" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
@@ -482,13 +498,16 @@ atc_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
                                    name = "-log10(FDR)",
                                    na.value = .gd_grey, limits = c(0, 12)) +
-    ggplot2::scale_x_discrete(position = "top", drop = FALSE) +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = c(0, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL) +
-    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme_minimal(base_size = font_size) +
     ggplot2::theme(
-      axis.text.x = ggplot2::element_text(angle = 45, hjust = 0),
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid = ggplot2::element_blank(),
-      legend.position = "bottom"
+      legend.position = "bottom",
+      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -540,7 +559,8 @@ atc_compare_ui <- function(ns) {
 }
 
 .atc_gsea_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
-                                panel_pick, sig_basis, sig_threshold) {
+                                panel_pick, sig_basis, sig_threshold,
+                                font_size = 11) {
   filled <- .atc_gsea_frame(long, gwas_vec, only_recurrent, k_min,
                              panel_pick, sig_basis, sig_threshold)
   if (is.null(filled)) return(NULL)
@@ -552,13 +572,16 @@ atc_compare_ui <- function(ns) {
                         linetype = "dotted", linewidth = 0.6) +
     ggplot2::geom_tile(data = filled[fdr_sig == TRUE & tested == TRUE],
                         fill = NA, colour = "black", linewidth = 0.7) +
-    ggplot2::scale_x_discrete(position = "top", drop = FALSE) +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = c(0, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL) +
-    ggplot2::theme_minimal(base_size = 11) +
+    ggplot2::theme_minimal(base_size = font_size) +
     ggplot2::theme(
-      axis.text.x = ggplot2::element_text(angle = 45, hjust = 0),
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid = ggplot2::element_blank(),
-      legend.position = "none"
+      legend.position = "none",
+      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
     )
   p
 }
@@ -612,7 +635,8 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         only_recurrent = isTRUE(input$magma_only_recurrent),
         k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
         sig_basis      = if (is.null(input$magma_sig_basis)) "fdr" else input$magma_sig_basis,
-        sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold)
+        sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
+        font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size)
       )
     })
 
@@ -692,7 +716,8 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         k_min          = if (is.null(input$gsea_k_min)) 2L else as.integer(input$gsea_k_min),
         panel_pick     = input$gsea_panel,
         sig_basis      = if (is.null(input$gsea_sig_basis)) "fdr" else input$gsea_sig_basis,
-        sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold)
+        sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
+        font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size)
       )
     })
 

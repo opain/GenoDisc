@@ -37,21 +37,23 @@ overviewUI <- function(id) {
       )
     ),
     br(),
-    h4("Per-GWAS QC and power"),
-    p(
-      style = "color: var(--gd-text-mute);",
-      "Sample size, genomic inflation (λ", tags$sub("GC"),
-      "), SNP-h² (LDSC observed-scale), and genome-wide significant SNP count for each selected GWAS."
+    tags$div(style = "max-width: 1100px;",
+      h4("Per-GWAS QC and power"),
+      p(
+        style = "color: var(--gd-text-mute);",
+        "Sample size, genomic inflation (λ", tags$sub("GC"),
+        "), SNP-h² (LDSC observed-scale), and genome-wide significant SNP count for each selected GWAS."
+      ),
+      DT::DTOutput(ns("qc_tbl")),
+      br(),
+      h4("Yield: counts of significant entities per GWAS"),
+      p(
+        style = "color: var(--gd-text-mute);",
+        "Counts respect the significance basis and threshold above. ",
+        "ATC counts use best-per-cell across TWAS-GSEA panels."
+      ),
+      DT::DTOutput(ns("yield_tbl"))
     ),
-    DT::DTOutput(ns("qc_tbl")),
-    br(),
-    h4("Yield: counts of significant entities per GWAS"),
-    p(
-      style = "color: var(--gd-text-mute);",
-      "Counts respect the significance basis and threshold above. ",
-      "ATC counts use best-per-cell across TWAS-GSEA panels."
-    ),
-    DT::DTOutput(ns("yield_tbl")),
     br(),
     gd_legend(list(
       "N" = "Approximate per-GWAS sample size, taken as the maximum N across clumped lead SNPs.",
