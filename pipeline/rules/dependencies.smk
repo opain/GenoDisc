@@ -455,10 +455,11 @@ rule format_drug_targetor:
 
 rule prep_tissue_exp:
   input:
-    rules.download_magma_gene_loc.output,
-    f"{workflow.basedir}/scripts/prep_tissue_exp.R"
+    rules.download_magma_gene_loc.output
   output:
     f"{resdir}/data/gtex/GTEx_v8_group.tsv"
+  params:
+    resdir=resdir
   benchmark:
     f"{resdir}/benchmarks/prep_tissue_exp.tsv"
   conda:
@@ -466,7 +467,7 @@ rule prep_tissue_exp:
   log:
     f"{resdir}/logs/prep_tissue_exp.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/prep_tissue_exp.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_tissue_exp.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download software required for TWAS-related analysis
