@@ -32,6 +32,48 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 .gd_hatch_bg <- "#f6f7f9" # not tested background
 .gd_hatch_fg <- "#c4cad5" # not tested stroke
 
+# Plot dimensions for a compare heatmap given its row and column counts. Mimics
+# the sizing used by calc_plot_dims() for the single-GWAS heatmaps but does not
+# require a facet column. Returns pixel dimensions suitable for plotOutput().
+.compare_plot_dims <- function(n_rows, n_cols, font_size = 11,
+                                 y_labels = NULL,
+                                 min_height = 350, min_width = 500) {
+  fs_ratio <- font_size / 11
+  y_label_px <- if (!is.null(y_labels) && length(y_labels) > 0) {
+    max(nchar(as.character(y_labels)), na.rm = TRUE) * font_size * 0.55 + 20
+  } else 160
+  panel_w <- max(30, 40 * fs_ratio) * max(1L, n_cols)
+  panel_h <- max(18, 22 * fs_ratio) * max(1L, n_rows)
+  x_label_h <- 6 * font_size + 30
+  legend_h <- 70
+  height <- max(min_height, x_label_h + panel_h + legend_h + 40)
+  width  <- max(min_width, y_label_px + panel_w + 180)
+  list(height = round(height), width = round(width))
+}
+
+# Add the "outline for nominal-sig" (larger solid black circle behind the
+# data circle) and "black square for FDR-sig" (larger solid black square)
+# overlays, then re-draw the data circles on top so the fill shows through.
+# Matches build_tx_atc_gtable / build_tx_drug_gtable in the single-GWAS
+# code path. The base data layer must already be added to `gg`.
+.compare_add_sig_overlays <- function(gg, data, base_layer,
+                                        nominal_flag = "nom_sig",
+                                        fdr_flag = "fdr_sig",
+                                        point_size = 4) {
+  nom <- data[data[[nominal_flag]] %in% TRUE, ]
+  fdr <- data[data[[fdr_flag]]     %in% TRUE, ]
+  if (nrow(nom) > 0) {
+    gg <- gg + ggplot2::geom_point(data = nom, colour = "black", fill = NA,
+                                     size = point_size + 1)
+  }
+  if (nrow(fdr) > 0) {
+    gg <- gg + ggplot2::geom_point(data = fdr, colour = "black", fill = NA,
+                                     size = point_size + 2, shape = 15)
+  }
+  # Re-draw the data layer so the fill sits on top of the overlay markers.
+  gg + base_layer
+}
+
 ########################################
 # TISSUE COMPARE
 ########################################
@@ -81,7 +123,9 @@ tissue_compare_ui <- function(ns) {
                                       "SNP-h²"       = "h2"),
                          selected = "as_selected"),
             sliderInput(ns("plot_font_size"), "Font size (pt):",
-                         min = 8, max = 20, value = 12, step = 1)
+                         min = 8, max = 20, value = 12, step = 1),
+            sliderInput(ns("plot_point_size"), "Point size:",
+                         min = 2, max = 10, value = 4, step = 1)
           ),
           column(3,
             selectInput(ns("dl_format"), "Download format:",
@@ -99,7 +143,7 @@ tissue_compare_ui <- function(ns) {
     ),
     br(),
     tags$div(style = "max-width: 1100px; overflow-x: auto;",
-      plotOutput(ns("tissue_compare_plot"), height = "720px")
+      uiOutput(ns("tissue_compare_plot_ui"))
     ),
     gd_legend(list(
       "Retained (dark teal)"   = "FDR-significant and kept after the conditional analysis.",
@@ -158,39 +202,62 @@ tissue_compare_ui <- function(ns) {
                                     metric = "fdr",
                                     sig_basis = "fdr",
                                     sig_threshold = 0.05,
-                                    font_size = 12) {
+                                    font_size = 12,
+                                    point_size = 4) {
   packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
                                     sig_basis, sig_threshold)
   if (is.null(packed)) return(NULL)
   slice <- packed$slice
 
-  fill_map <- c(
-    "Not significant" = .gd_grey,
-    "Nominal-sig"     = .gd_hex_alpha(.gd_teal, 0.35),
-    "FDR-sig"         = .gd_hex_alpha(.gd_teal, 0.7),
-    "Retained"        = .gd_teal
-  )
+  # Point-style heatmap: filled coloured circle by -log10(FDR) (or -log10(P)
+  # when metric = "p"), with a solid-black-circle overlay for nominal-sig,
+  # a solid-black-square overlay for FDR-sig, and the data circle re-drawn
+  # on top so the fill sits inside the overlay markers. Retained tissues
+  # get an inner black dot (shape 19) so they are distinguishable from
+  # FDR-sig-but-not-retained.
+  slice[, minus_log10 := pmin(-log10(if (identical(metric, "p")) p else fdr), 12)]
+  slice[, nom_sig := !is.na(p) & p < 0.05]
+  slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+  slice[, retained := !is.na(evidence) & evidence]
 
-  intensity <- if (identical(metric, "p")) -log10(slice$p) else -log10(slice$fdr)
-  slice[, label := ifelse(!is.na(intensity) & intensity >= -log10(0.05),
-                          sprintf("%.1f", pmin(intensity, 20)), "")]
+  scale_lab <- if (identical(metric, "p")) "-log10(P)" else "-log10(FDR)"
 
-  ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id, fill = tier)) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.4) +
-    ggplot2::geom_text(ggplot2::aes(label = label), size = 3, colour = "black") +
-    ggplot2::scale_fill_manual(values = fill_map, drop = FALSE,
-                                name = "Cell tier") +
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = minus_log10), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+    base_layer +
+    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
+                                   name = scale_lab,
+                                   na.value = .gd_grey,
+                                   limits = c(0, 12))
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+  # Retained tissues get a small solid black dot inside the circle.
+  ret <- slice[slice$retained, ]
+  if (nrow(ret) > 0) {
+    gg <- gg + ggplot2::geom_point(data = ret, shape = 19,
+                                     colour = "black", size = point_size / 2)
+  }
+
+  gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0, 0.5)) +
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Numbers show -log10(FDR) where cell is FDR- or retained-significant.") +
-    ggplot2::theme_minimal(base_size = font_size) +
+                   caption = "Ring = nominal-sig (P<0.05). Black square = FDR-sig. Inner dot = retained after conditional.") +
+    ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
-      panel.grid = ggplot2::element_blank(),
-      legend.position = "bottom",
-      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -224,8 +291,26 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         metric         = if (is.null(input$cell_metric)) "fdr" else input$cell_metric,
         sig_basis      = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
         sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
-        font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size)
+        font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
+        point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
       )
+    })
+
+    plot_dims <- reactive({
+      req(comparison_long())
+      slice <- comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec_r()]
+      .compare_plot_dims(
+        n_rows    = length(unique(slice$entity_id)),
+        n_cols    = length(gwas_vec_r()),
+        font_size = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
+        y_labels  = unique(slice$entity_id)
+      )
+    })
+
+    output$tissue_compare_plot_ui <- renderUI({
+      dims <- plot_dims()
+      plotOutput(session$ns("tissue_compare_plot"),
+                  height = dims$height, width = dims$width)
     })
 
     output$tissue_compare_plot <- renderPlot({
@@ -308,6 +393,269 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         writeLines(header, con)
         writeLines("# Cells: P.FDR (R = retained after conditional). NT = not tested.", con)
         out <- data.frame(Tissue = rownames(display), display,
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+  })
+}
+
+########################################
+# LOCUS COMPARE
+########################################
+
+.locus_methods <- c("clump", "COJO")
+
+locus_compare_ui <- function(ns) {
+  tagList(
+    br(),
+    p(
+      "Cross-GWAS locus-level associations. Loci are keyed by their nearest ",
+      "gene (from the clump / COJO table). Each cell shows the smallest p-value ",
+      "at that locus for the selected GWAS. Blank cell = the locus has no ",
+      "clumped / independent signal in that GWAS. Default significance threshold ",
+      "is P < 5×10⁻⁸ (genome-wide significance)."
+    ),
+    hr(),
+    tags$details(class = "gd-details",
+      tags$summary("Filter data"),
+      tags$div(class = "gd-details-body",
+        fluidRow(
+          column(3,
+            selectInput(ns("method"), "Method:",
+                        choices = .locus_methods,
+                        selected = "clump")
+          ),
+          column(3,
+            radioButtons(ns("sig_basis"), "Significance basis:",
+                          choices = c("P" = "p"),
+                          selected = "p", inline = TRUE),
+            numericInput(ns("sig_threshold"), "Significance threshold:",
+                          value = 5e-8, min = 1e-20, max = 1, step = 1e-8)
+          ),
+          column(3,
+            checkboxInput(ns("only_recurrent"),
+                          "Only show loci significant in ≥ k GWAS",
+                          value = TRUE),
+            conditionalPanel(
+              condition = sprintf("input['%s'] == true", ns("only_recurrent")),
+              sliderInput(ns("k_min"), "k:",
+                           min = 1, max = 9, value = 2, step = 1)
+            ),
+            numericInput(ns("row_cap"), "Rows shown in heatmap:",
+                          value = 50, min = 5, max = 500, step = 5)
+          ),
+          column(3,
+            selectInput(ns("gwas_sort"), "Order GWAS by:",
+                         choices = .compare_gwas_sort_choices,
+                         selected = "as_selected"),
+            sliderInput(ns("plot_font_size"), "Font size (pt):",
+                         min = 8, max = 20, value = 11, step = 1),
+            sliderInput(ns("plot_point_size"), "Point size:",
+                         min = 2, max = 10, value = 4, step = 1)
+          )
+        ),
+        fluidRow(
+          .dl_and_download_column(ns, "locus", default_h = 12)
+        )
+      )
+    ),
+    br(),
+    tags$div(style = "max-width: 1100px; overflow-x: auto;",
+      uiOutput(ns("locus_compare_plot_ui"))
+    ),
+    br(),
+    tags$div(style = "max-width: 1100px;",
+      h4("Underlying data"),
+      DT::DTOutput(ns("locus_compare_tbl"))
+    )
+  )
+}
+
+.locus_compare_ggplot <- function(long, gwas_vec, method_pick,
+                                     only_recurrent, k_min,
+                                     sig_threshold = 5e-8,
+                                     row_cap = 50, font_size = 11,
+                                     point_size = 4) {
+  slice <- long[method == method_pick & gwas %in% gwas_vec &
+                    entity_type == "locus"]
+  if (nrow(slice) == 0) return(NULL)
+  slice <- pick_best_per_cell(slice, c("gwas", "entity_id"))
+
+  rec <- slice[, .(
+    k       = sum(!is.na(p) & p < sig_threshold),
+    min_val = suppressWarnings(min(p, na.rm = TRUE))
+  ), by = entity_id]
+  rec <- rec[order(-k, min_val)]
+
+  if (isTRUE(only_recurrent)) rec <- rec[k >= k_min]
+  if (nrow(rec) == 0) return(NULL)
+
+  cap <- max(1L, min(as.integer(row_cap), nrow(rec)))
+  rec <- rec[seq_len(cap)]
+  slice <- slice[entity_id %in% rec$entity_id]
+
+  # Loci use a wide p-value range; clamp at 40 (P ~ 1e-40) which is generous
+  # for most GWAS. Anything beyond that saturates at the top of the ramp.
+  slice[, minus_log10 := pmin(-log10(p), 40)]
+  slice[, nom_sig := !is.na(p) & p < 5e-8]   # GWS threshold as the "hit" mark
+  slice[, fdr_sig := !is.na(p) & p < sig_threshold]
+  slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = minus_log10), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+    base_layer +
+    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
+                                   name = "-log10(P)",
+                                   na.value = .gd_grey, limits = c(0, 40))
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = sprintf(
+                     "Ring = GWS (P<5x10^-8). Black square = P<%.0e. Blank cell = no clumped / independent signal for this GWAS.",
+                     sig_threshold)) +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+    )
+}
+
+locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
+                                    comparison_long) {
+  moduleServer(id, function(input, output, session) {
+
+    observeEvent(selected_gwas_multi(), {
+      n_sel <- length(selected_gwas_multi())
+      if (n_sel < 1) return()
+      cur <- if (is.null(input$k_min)) 2L else as.integer(input$k_min)
+      updateSliderInput(session, "k_min",
+                        max = max(n_sel, 1L),
+                        value = min(cur, n_sel))
+    })
+
+    gwas_vec_r <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort,
+                  NULL)
+    })
+
+    plot_obj <- reactive({
+      req(comparison_long())
+      .locus_compare_ggplot(
+        long           = comparison_long(),
+        gwas_vec       = gwas_vec_r(),
+        method_pick    = input$method %||% "clump",
+        only_recurrent = isTRUE(input$only_recurrent),
+        k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
+        sig_threshold  = if (is.null(input$sig_threshold)) 5e-8 else as.numeric(input$sig_threshold),
+        row_cap        = if (is.null(input$row_cap)) 50L else as.integer(input$row_cap),
+        font_size      = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
+      )
+    })
+
+    plot_dims <- reactive({
+      p <- plot_obj()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(gwas_vec_r()),
+        font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+      )
+    })
+
+    output$locus_compare_plot_ui <- renderUI({
+      dims <- plot_dims()
+      plotOutput(session$ns("locus_compare_plot"),
+                  height = dims$height, width = dims$width)
+    })
+
+    output$locus_compare_plot <- renderPlot({
+      p <- plot_obj()
+      if (is.null(p)) {
+        plot.new(); title("No loci meet the current filter")
+        return(invisible())
+      }
+      print(p)
+    })
+
+    output$locus_compare_tbl <- DT::renderDT({
+      req(comparison_long())
+      gwas_vec <- gwas_vec_r()
+      picked_method <- input$method %||% "clump"
+      slice <- comparison_long()[method == picked_method & gwas %in% gwas_vec &
+                                    entity_type == "locus"]
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        GWAS       = factor(slice$gwas, levels = gwas_vec),
+        Locus      = slice$entity_id,
+        BETA       = signif(slice$statistic, 3),
+        SE         = signif(slice$se, 3),
+        P          = signif(slice$p, 3),
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(4, "asc"))))
+    }, server = TRUE)
+
+    output$locus_download_plot <- downloadHandler(
+      filename = function() sprintf("locus_compare_%s_%s.%s",
+                                     input$method %||% "clump",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$locus_dl_format),
+      content = function(file) {
+        p <- plot_obj(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$locus_dl_format
+        w <- input$locus_dl_width; h <- input$locus_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$locus_download_csv <- downloadHandler(
+      filename = function() sprintf("locus_compare_%s_matrix_%s.csv",
+                                     input$method %||% "clump",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- gwas_vec_r()
+        picked_method <- input$method %||% "clump"
+        long <- comparison_long()[method == picked_method & gwas %in% gwas_vec &
+                                    entity_type == "locus"]
+        long <- pick_best_per_cell(long, c("gwas", "entity_id"))
+        wide <- pivot_matrix(long, "p", gwas_vec)
+        display <- ifelse(is.na(wide), "",
+                          format(wide, scientific = TRUE, digits = 3))
+        display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
+        header <- sprintf("# GenoDisc locus compare CSV | %s | method=%s threshold=%g k_min=%s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                           picked_method,
+                           input$sig_threshold %||% 5e-8,
+                           input$k_min %||% 2L)
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: P (best per locus x GWAS). Empty = no clumped / independent signal for that GWAS.", con)
+        out <- data.frame(Locus = rownames(display), display,
                           check.names = FALSE, stringsAsFactors = FALSE)
         utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
       }
@@ -403,7 +751,9 @@ gene_compare_ui <- function(ns) {
                          choices = .compare_gwas_sort_choices,
                          selected = "as_selected"),
             sliderInput(ns("plot_font_size"), "Font size (pt):",
-                         min = 8, max = 20, value = 11, step = 1)
+                         min = 8, max = 20, value = 11, step = 1),
+            sliderInput(ns("plot_point_size"), "Point size:",
+                         min = 2, max = 10, value = 4, step = 1)
           )
         ),
         fluidRow(
@@ -413,7 +763,7 @@ gene_compare_ui <- function(ns) {
     ),
     br(),
     tags$div(style = "max-width: 1100px; overflow-x: auto;",
-      plotOutput(ns("gene_compare_plot"), height = "800px")
+      uiOutput(ns("gene_compare_plot_ui"))
     ),
     br(),
     tags$div(style = "max-width: 1100px;",
@@ -427,7 +777,8 @@ gene_compare_ui <- function(ns) {
                                     only_recurrent, k_min,
                                     sig_basis = "fdr", sig_threshold = 0.05,
                                     evidence_required = FALSE,
-                                    row_cap = 50, font_size = 11) {
+                                    row_cap = 50, font_size = 11,
+                                    point_size = 4) {
   slice <- long[method == method_pick & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
@@ -465,33 +816,43 @@ gene_compare_ui <- function(ns) {
   # Fill: -log10(FDR) or -log10(P) depending on user's basis; MAGMA/
   # unsigned methods -> single-hue teal. Direction is shown in the DT
   # table for methods that carry it.
-  val_col <- if (identical(sig_basis, "p")) "p" else "fdr"
-  slice[, minus_log10 := pmin(-log10(.SD[[1L]]), 12), .SDcols = val_col]
-  slice[, sig_flag := !is.na(.SD[[1L]]) & .SD[[1L]] < sig_threshold,
-        .SDcols = val_col]
+  slice[, minus_log10 := pmin(-log10(.SD[[1L]]), 12), .SDcols = basis_col]
+  slice[, nom_sig := !is.na(p)   & p   < 0.05]
+  slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
   slice[, gwas := factor(gwas, levels = gwas_vec)]
 
   scale_lab <- if (identical(sig_basis, "p")) "-log10(P)" else "-log10(FDR)"
 
-  ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id,
-                                        fill = minus_log10)) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.3) +
-    ggplot2::geom_tile(data = slice[sig_flag == TRUE],
-                        fill = NA, colour = "black", linewidth = 0.7) +
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = minus_log10), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+    base_layer +
     ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
                                    name = scale_lab,
-                                   na.value = .gd_grey, limits = c(0, 12)) +
+                                   na.value = .gd_grey, limits = c(0, 12))
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0, 0.5)) +
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL) +
-    ggplot2::theme_minimal(base_size = font_size) +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring = nominal-sig. Black square = FDR-sig.") +
+    ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
-      panel.grid = ggplot2::element_blank(),
-      legend.position = "bottom",
-      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -544,8 +905,26 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         sig_threshold     = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
         evidence_required = isTRUE(input$evidence_required),
         row_cap           = if (is.null(input$row_cap)) 50L else as.integer(input$row_cap),
-        font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size)
+        font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        point_size        = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
       )
+    })
+
+    plot_dims <- reactive({
+      p <- plot_obj()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(gwas_vec_r()),
+        font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+      )
+    })
+
+    output$gene_compare_plot_ui <- renderUI({
+      dims <- plot_dims()
+      plotOutput(session$ns("gene_compare_plot"),
+                  height = dims$height, width = dims$width)
     })
 
     output$gene_compare_plot <- renderPlot({
@@ -667,7 +1046,9 @@ atc_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("magma_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1)
+                           min = 8, max = 20, value = 11, step = 1),
+              sliderInput(ns("magma_plot_point_size"), "Point size:",
+                           min = 2, max = 10, value = 4, step = 1)
             ),
             .dl_and_download_column(ns, "magma", default_h = 12)
           )
@@ -675,7 +1056,7 @@ atc_compare_ui <- function(ns) {
       ),
       br(),
       tags$div(style = "max-width: 1100px; overflow-x: auto;",
-        plotOutput(ns("atc_magma_plot"), height = "800px")
+        uiOutput(ns("atc_magma_plot_ui"))
       ),
       br(),
       tags$div(style = "max-width: 1100px;",
@@ -718,7 +1099,9 @@ atc_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("gsea_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1)
+                           min = 8, max = 20, value = 11, step = 1),
+              sliderInput(ns("gsea_plot_point_size"), "Point size:",
+                           min = 2, max = 10, value = 4, step = 1)
             ),
             .dl_and_download_column(ns, "gsea", default_h = 12)
           )
@@ -726,7 +1109,7 @@ atc_compare_ui <- function(ns) {
       ),
       br(),
       tags$div(style = "max-width: 1100px; overflow-x: auto;",
-        plotOutput(ns("atc_gsea_plot"), height = "800px")
+        uiOutput(ns("atc_gsea_plot_ui"))
       ),
       gd_legend(list(
         "Blue" = "Direction 'Matches disease' — drug class shares the trait's TWAS signature.",
@@ -753,7 +1136,7 @@ atc_compare_ui <- function(ns) {
 
 .atc_magma_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                  sig_basis = "fdr", sig_threshold = 0.05,
-                                 font_size = 11) {
+                                 font_size = 11, point_size = 4) {
   slice <- long[method == "MAGMA-ATC" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
@@ -770,26 +1153,38 @@ atc_compare_ui <- function(ns) {
     levels = rev(label_map$entity_label[match(rec$entity_id, label_map$entity_id)]))]
   slice[, gwas := factor(gwas, levels = gwas_vec)]
   slice[, minus_log10_fdr := pmin(-log10(fdr), 12)]
+  slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
 
-  ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_label,
-                                        fill = minus_log10_fdr)) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.3) +
-    ggplot2::geom_tile(data = slice[fdr_sig == TRUE],
-                        fill = NA, colour = "black", linewidth = 0.7) +
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = minus_log10_fdr), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_label)) +
+    base_layer +
     ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
                                    name = "-log10(FDR)",
-                                   na.value = .gd_grey, limits = c(0, 12)) +
+                                   na.value = .gd_grey, limits = c(0, 12))
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0, 0.5)) +
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL) +
-    ggplot2::theme_minimal(base_size = font_size) +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring = nominal-sig (P<0.05). Black square = FDR-sig.") +
+    ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
-      panel.grid = ggplot2::element_blank(),
-      legend.position = "bottom",
-      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -848,33 +1243,46 @@ atc_compare_ui <- function(ns) {
 
 .atc_gsea_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                 panel_pick, sig_basis, sig_threshold,
-                                font_size = 11) {
+                                font_size = 11, point_size = 4) {
   filled <- .atc_gsea_frame(long, gwas_vec, only_recurrent, k_min,
                              panel_pick, sig_basis, sig_threshold)
   if (is.null(filled)) return(NULL)
-  ggplot2::ggplot(filled, ggplot2::aes(x = gwas, y = entity_label,
-                                          fill = signed_score)) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.3) +
-    ggplot2::geom_tile(data = filled[tested == FALSE],
-                        fill = .gd_hatch_bg, colour = .gd_hatch_fg,
-                        linetype = "dotted", linewidth = 0.6) +
-    ggplot2::geom_tile(data = filled[fdr_sig == TRUE & tested == TRUE],
-                        fill = NA, colour = "black", linewidth = 0.7) +
+  filled[, nom_sig := !is.na(p)   & p   < 0.05]
+  filled[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+  # Points only drawn for tested cells; blank cells = "not tested".
+  tested_dat <- filled[filled$tested, ]
+
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(tested_dat, ggplot2::aes(x = gwas, y = entity_label)) +
+    base_layer +
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
-      limits = c(-12, 12), na.value = "white",
+      limits = c(-12, 12), na.value = .gd_grey,
       name = "signed -log10(FDR)  (+ matches / − opposes)"
-    ) +
+    )
+
+  gg <- .compare_add_sig_overlays(gg, tested_dat, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0, 0.5)) +
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL) +
-    ggplot2::theme_minimal(base_size = font_size) +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring = nominal-sig. Black square = FDR-sig. Blank cell = not tested in that GWAS.") +
+    ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
-      panel.grid = ggplot2::element_blank(),
-      legend.position = "bottom",
-      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -928,8 +1336,26 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
         sig_basis      = if (is.null(input$magma_sig_basis)) "fdr" else input$magma_sig_basis,
         sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
-        font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size)
+        font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
+        point_size     = if (is.null(input$magma_plot_point_size)) 4 else as.numeric(input$magma_plot_point_size)
       )
+    })
+
+    magma_dims <- reactive({
+      p <- magma_plot()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_label))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(magma_gwas_vec()),
+        font_size = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
+      )
+    })
+
+    output$atc_magma_plot_ui <- renderUI({
+      dims <- magma_dims()
+      plotOutput(session$ns("atc_magma_plot"),
+                  height = dims$height, width = dims$width)
     })
 
     output$atc_magma_plot <- renderPlot({
@@ -1009,8 +1435,26 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         panel_pick     = input$gsea_panel,
         sig_basis      = if (is.null(input$gsea_sig_basis)) "fdr" else input$gsea_sig_basis,
         sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
-        font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size)
+        font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
+        point_size     = if (is.null(input$gsea_plot_point_size)) 4 else as.numeric(input$gsea_plot_point_size)
       )
+    })
+
+    gsea_dims <- reactive({
+      p <- gsea_plot()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_label))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(gsea_gwas_vec()),
+        font_size = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
+      )
+    })
+
+    output$atc_gsea_plot_ui <- renderUI({
+      dims <- gsea_dims()
+      plotOutput(session$ns("atc_gsea_plot"),
+                  height = dims$height, width = dims$width)
     })
 
     output$atc_gsea_plot <- renderPlot({

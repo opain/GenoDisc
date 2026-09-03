@@ -161,28 +161,9 @@ snpAssocUI <- function(id) {
         title = "Lead variants",
         value = "lead_variants",
         br(),
-        fluidPage(
-          sidebarPanel(
-            radioButtons(ns("clumping_type"), "Select method:",
-                         choices = c("COJO" = "cojo_analysis",
-                                     "LD-based clumping" = "ld_clumping"),
-                         selected = "cojo_analysis"),
-            radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
-                         choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
-                         selected = 5e-8),
-            width = 3
-          ),
-
-          mainPanel(
-            uiOutput(ns("cojo_status_message")),
-            uiOutput(ns("lead_status_message")),
-            dataTableOutput(ns("snp_assoc_lead_table")),
-            uiOutput(ns("lead_legend")),
-            br(),
-            uiOutput(ns("locus_plot_ui")),
-            width = 9
-          )
-        )
+        # Body swaps between the single-GWAS lead-variants UI and the
+        # cross-GWAS locus compare UI when >= 2 GWAS are selected.
+        uiOutput(ns("lead_body"))
       ),
       tabPanel(
         title = "Fine-mapping",
@@ -222,9 +203,49 @@ snpAssocUI <- function(id) {
 #' @param id Module namespace id
 #' @param gwas_data Reactive returning the loaded GWAS data list
 #' @param selected_gwas Reactive returning the currently selected GWAS name
-snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
+snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
+                            selected_gwas_multi = NULL,
+                            comparison_mode = NULL,
+                            comparison_long = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Cross-GWAS locus compare sub-module. Registered unconditionally; it
+    # self-guards on its own reactives.
+    if (!is.null(selected_gwas_multi) && !is.null(comparison_long)) {
+      locus_compare_server("locus_compare",
+                             gwas_data, selected_gwas_multi, comparison_long)
+    }
+
+    # Lead variants body: swap between single-GWAS UI and cross-GWAS locus
+    # compare UI depending on selection count.
+    output$lead_body <- renderUI({
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+      if (in_compare) {
+        return(locus_compare_ui(NS(ns("locus_compare"))))
+      }
+      fluidPage(
+        sidebarPanel(
+          radioButtons(ns("clumping_type"), "Select method:",
+                       choices = c("COJO" = "cojo_analysis",
+                                   "LD-based clumping" = "ld_clumping"),
+                       selected = "cojo_analysis"),
+          radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
+                       choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
+                       selected = 5e-8),
+          width = 3
+        ),
+        mainPanel(
+          uiOutput(ns("cojo_status_message")),
+          uiOutput(ns("lead_status_message")),
+          dataTableOutput(ns("snp_assoc_lead_table")),
+          uiOutput(ns("lead_legend")),
+          br(),
+          uiOutput(ns("locus_plot_ui")),
+          width = 9
+        )
+      )
+    })
 
     observeEvent(config_flags(), {
       cf <- config_flags()

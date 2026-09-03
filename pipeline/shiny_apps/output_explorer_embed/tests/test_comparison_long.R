@@ -51,7 +51,7 @@ suppressPackageStartupMessages({
 
 gd <- gd_open(BUNDLE)
 all9 <- gd_gwas(gd)
-long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene"))
+long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene", "locus"))
 
 expect <- if (testthat_available) testthat::expect_true else function(x, info = "") {
   if (!isTRUE(x)) stop("ASSERT FAILED: ", info, call. = FALSE)
@@ -286,6 +286,40 @@ expect(setequal(intersect(chr17, survivors), chr17),
                paste(sort(survivors), collapse = ","),
                paste(sort(chr17), collapse = ",")))
 pass("All 5 chr17q21.31 genes survive k=4 filter")
+
+# ---------------------------------------------------------------------------
+# Test 9: locus entity type — clump and COJO builders.
+
+message("Test 9 — Locus layer (clump / COJO)")
+
+for (m in c("clump", "COJO")) {
+  n_rows <- long[method == m & entity_type == "locus", .N]
+  expect(n_rows > 0, sprintf("%s locus rows > 0 (got %d)", m, n_rows))
+  pass(sprintf("%s locus rows = %d", m, n_rows))
+}
+
+# The literal string "None" in the NearestGene column must not be used as a
+# shared entity_id (that would collapse unrelated SNPs across GWAS). The
+# builder falls back to the SNP identifier for those rows.
+none_rows <- long[entity_id == "None" & entity_type == "locus", .N]
+expect(none_rows == 0, sprintf("Locus rows with entity_id == 'None' = %d (expected 0)", none_rows))
+pass("No locus rows use 'None' as entity_id")
+
+# Cross-GWAS recurrence at k=4 on clump surfaces at least KANSL1 (chr17q21.31)
+# which is FDR-sig in the gene layer for the same 5 traits.
+clump <- long[method == "clump" & entity_type == "locus"]
+best <- pick_best_per_cell(clump, c("gwas", "entity_id"))
+recur <- best[, .(k = .N), by = entity_id][k >= 4]
+expect("KANSL1" %in% recur$entity_id,
+       "KANSL1 should appear as a clumped-locus hit in >= 4 GWAS")
+pass(sprintf("KANSL1 recurrence >= 4 GWAS (actual k = %d)",
+             recur$k[recur$entity_id == "KANSL1"]))
+
+# Column-preservation invariant for the locus layer.
+m <- pivot_matrix(best, "p", all9)
+expect(ncol(m) == 9,
+       sprintf("Locus pivot ncol = %d (expected 9)", ncol(m)))
+pass(sprintf("Locus pivot preserves %d columns", ncol(m)))
 
 # ---------------------------------------------------------------------------
 

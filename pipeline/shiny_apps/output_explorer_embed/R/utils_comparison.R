@@ -107,6 +107,77 @@
   )
 }
 
+# The NearestGene column in snp_assoc$clump / $cojo is a comma-separated list
+# of neighbouring gene annotations, e.g.:
+#   "C1orf222, TMEM52 (+24.56kb), CALML6 (+26.53kb)"
+# The first entry has no distance suffix (it is inside / directly beside the
+# lead SNP). Extract just that first gene as the canonical locus label so
+# rows match across GWAS.
+.gd_first_nearest_gene <- function(x) {
+  first <- sub(",.*$", "", x)
+  first <- sub("\\s*\\([-+][0-9.]+\\s*kb\\)\\s*$", "", first)
+  trimws(first)
+}
+
+.gd_long_locus_clump <- function(gd, gwas) {
+  d <- safe_access(gd_read(gd, gwas, "snp_assoc"), "clump")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)
+  gene <- .gd_first_nearest_gene(d$NearestGene)
+  missing <- is.na(gene) | !nzchar(gene) | tolower(gene) == "none"
+  gene[missing] <- d$SNP[missing]
+  # Drop duplicate (gene) hits per GWAS: keep the row with the smallest p.
+  ord <- order(suppressWarnings(as.numeric(d$P)), na.last = TRUE)
+  d <- d[ord, , drop = FALSE]
+  gene <- gene[ord]
+  dup <- duplicated(gene)
+  d <- d[!dup, , drop = FALSE]; gene <- gene[!dup]
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "locus",
+    entity_id    = gene,
+    method       = "clump",
+    entity_label = gene,
+    panel        = NA_character_,
+    statistic    = suppressWarnings(as.numeric(d$BETA)),
+    se           = suppressWarnings(as.numeric(d$SE)),
+    p            = suppressWarnings(as.numeric(d$P)),
+    fdr          = NA_real_,
+    n_units      = 1L
+  )
+}
+
+.gd_long_locus_cojo <- function(gd, gwas) {
+  d <- safe_access(gd_read(gd, gwas, "snp_assoc"), "cojo")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)
+  gene <- .gd_first_nearest_gene(d$NearestGene)
+  missing <- is.na(gene) | !nzchar(gene) | tolower(gene) == "none"
+  gene[missing] <- d$SNP[missing]
+  # COJO reports both marginal (P) and conditional-joint (pJ) p-values.
+  # The pJ is what identifies signals that stay significant after
+  # conditioning; that is the value users want to compare across traits.
+  pj <- suppressWarnings(as.numeric(d$pJ))
+  ord <- order(pj, na.last = TRUE)
+  d <- d[ord, , drop = FALSE]
+  gene <- gene[ord]; pj <- pj[ord]
+  dup <- duplicated(gene)
+  d <- d[!dup, , drop = FALSE]; gene <- gene[!dup]; pj <- pj[!dup]
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "locus",
+    entity_id    = gene,
+    method       = "COJO",
+    entity_label = gene,
+    panel        = NA_character_,
+    statistic    = suppressWarnings(as.numeric(d$BETA)),
+    se           = suppressWarnings(as.numeric(d$SE)),
+    p            = pj,
+    fdr          = NA_real_,
+    n_units      = 1L
+  )
+}
+
 .gd_long_gene_magma <- function(gd, gwas) {
   m <- gd_read(gd, gwas, "mol_assoc/magma")
   if (is.null(m) || nrow(m) == 0) return(NULL)
@@ -241,7 +312,8 @@
 #'   "tissue" and "atc".
 #' @return data.table with the canonical long-format columns (see .gd_long_cols)
 build_comparison_long <- function(gd, gwas_vec,
-                                  entity_types = c("tissue", "atc", "gene")) {
+                                  entity_types = c("tissue", "atc", "gene",
+                                                    "locus")) {
   if (length(gwas_vec) == 0) return(.gd_empty_long())
   parts <- list()
   for (g in gwas_vec) {
@@ -256,6 +328,10 @@ build_comparison_long <- function(gd, gwas_vec,
       parts[[length(parts) + 1L]] <- .gd_long_gene_smr_exp(gd, g)
       parts[[length(parts) + 1L]] <- .gd_long_gene_pwas_fusion(gd, g)
       parts[[length(parts) + 1L]] <- .gd_long_gene_smr_prot(gd, g)
+    }
+    if ("locus"  %in% entity_types) {
+      parts[[length(parts) + 1L]] <- .gd_long_locus_clump(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_locus_cojo(gd, g)
     }
   }
   parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)
