@@ -55,6 +55,15 @@ if resdir is None or resdir == 'NA':
 # Set chromosomes to analyse
 chromosomes = config.get("chromosomes", list(range(1, 23)))
 
+# Pinned commit SHAs for the GitHub-installed R packages. Encoded into the
+# install rules' marker filenames below so that bumping a SHA changes the
+# expected output and forces a reinstall. (The markers live in the shared
+# resdir; from a fresh job dir Snakemake has no code-provenance to notice the
+# SHA changed in the shell command, so a plain 'install_*.done' marker would be
+# treated as up-to-date and the reinstall silently skipped.)
+GENOUTILS_SHA = "374c27c02467f450d41cec81e8de6406fd23b381"
+LME4QTL_SHA = "0c173ea8d8386b205f62ad642698519a861650b4"
+
 ########
 # Create required functions
 ########
@@ -282,7 +291,9 @@ rule install_genoutils:
   input:
     f"{workflow.basedir}/envs/main.yaml"
   output:
-    touch(f"{resdir}/software/install_genoutils.done")
+    touch(f"{resdir}/software/install_genoutils.{GENOUTILS_SHA}.done")
+  params:
+    sha=GENOUTILS_SHA
   benchmark:
     f"{resdir}/benchmarks/install_genoutils.tsv"
   conda:
@@ -290,7 +301,7 @@ rule install_genoutils:
   log:
     f"{resdir}/logs/install_genoutils.log"
   shell:
-    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@374c27c02467f450d41cec81e8de6406fd23b381\", upgrade = \"never\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@{params.sha}\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Download MAGMA
@@ -821,7 +832,9 @@ rule install_lme4qtl:
   input:
     f"{workflow.basedir}/envs/main.yaml"
   output:
-    touch(f"{resdir}/software/install_lme4qtl.done")
+    touch(f"{resdir}/software/install_lme4qtl.{LME4QTL_SHA}.done")
+  params:
+    sha=LME4QTL_SHA
   benchmark:
     f"{resdir}/benchmarks/install_lme4qtl.tsv"
   conda:
@@ -829,7 +842,7 @@ rule install_lme4qtl:
   log:
     f"{resdir}/logs/install_lme4qtl.log"
   shell:
-    "Rscript --vanilla -e 'devtools::install_github(\"variani/lme4qtl@0c173ea8d8386b205f62ad642698519a861650b4\", upgrade = \"never\")' > {log} 2>&1"
+    "Rscript --vanilla -e 'devtools::install_github(\"variani/lme4qtl@{params.sha}\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Format ROSMAP and Banner PWAS data
