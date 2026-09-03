@@ -2247,11 +2247,12 @@ gencor_compare_ui <- function(ns) {
   tagList(
     br(),
     p(
-      "Symmetric genetic-correlation (rG) matrix across the selected GWAS. ",
-      "Cell colour is rG on a diverging red-white-blue scale (rG = -1 red, ",
-      "rG = 0 white, rG = +1 blue). Ring around a cell = nominal-sig ",
-      "(p < 0.05); black square = FDR-sig (p.FDR < 0.05). Diagonal (self-",
-      "correlation) is fixed at rG = 1. Blank cell = pair was not tested."
+      "Genetic-correlation (rG) matrix between the selected bundle GWAS ",
+      "(columns) and each external reference trait tested by bivariate LDSC ",
+      "(rows). Cell colour is rG on a diverging red-white-blue scale ",
+      "(rG = -1 red, rG = 0 white, rG = +1 blue). Ring = nominal-sig ",
+      "(p < 0.05); black square = FDR-sig (p.FDR < 0.05). Blank cell = ",
+      "rG could not be estimated for this pair (e.g. sumstats missing)."
     ),
     hr(),
     tags$details(class = "gd-details",
@@ -2261,7 +2262,10 @@ gencor_compare_ui <- function(ns) {
           column(3,
             selectInput(ns("gwas_sort"), "Order GWAS by:",
                          choices = .compare_gwas_sort_choices,
-                         selected = "as_selected")
+                         selected = "as_selected"),
+            checkboxInput(ns("group_by_category"),
+                          "Group rows by trait category",
+                          value = TRUE)
           ),
           column(3,
             sliderInput(ns("plot_font_size"), "Font size (pt):",
@@ -2287,24 +2291,40 @@ gencor_compare_ui <- function(ns) {
   )
 }
 
-.gencor_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 6) {
+.gencor_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 6,
+                             group_by_category = TRUE) {
   if (nrow(long) == 0) return(NULL)
-  slice <- long[gwas_i %in% gwas_vec & gwas_j %in% gwas_vec]
+  slice <- long[gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
-  slice[, gwas_i := factor(gwas_i, levels = gwas_vec)]
-  slice[, gwas_j := factor(gwas_j, levels = rev(gwas_vec))]
+  # Row order: group by trait_category (alphabetical) then trait label
+  # alphabetical within category, so semantically related traits sit
+  # together. If the user turns grouping off, sort by trait label only.
+  ref_order <- unique(slice[, .(ref_label, trait_category)])
+  if (isTRUE(group_by_category)) {
+    ref_order <- ref_order[order(is.na(trait_category), trait_category, ref_label)]
+  } else {
+    ref_order <- ref_order[order(ref_label)]
+  }
+
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, ref_label := factor(ref_label, levels = rev(ref_order$ref_label))]
   slice[, nom_sig := !is.na(rg_p)     & rg_p     < 0.05]
   slice[, fdr_sig := !is.na(rg_p_fdr) & rg_p_fdr < 0.05]
   # Clamp rg to [-1.2, 1.2] so occasional out-of-bounds estimates don't
   # push the fill scale off the diverging endpoints.
   slice[, rg_plot := pmax(-1.2, pmin(rg, 1.2))]
 
+  # Drop cells with no rG estimate — they render as truly blank (no point
+  # drawn), matching the caption's "Blank: rG not estimated."
+  slice <- slice[!is.na(rg)]
+  if (nrow(slice) == 0) return(NULL)
+
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = rg_plot), shape = 21, stroke = 0,
     size = point_size)
 
-  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas_i, y = gwas_j)) +
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = ref_label)) +
     base_layer +
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
@@ -2320,10 +2340,11 @@ gencor_compare_ui <- function(ns) {
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
                                 expand = ggplot2::expansion(add = 0.5)) +
-    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(drop = FALSE,
+                                expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: p<0.05.  Square: FDR<0.05.  Blank: pair not tested.") +
+                   caption = "Ring: p<0.05.  Square: FDR<0.05.  Blank: rG not estimated.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
@@ -2353,20 +2374,23 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
 
     plot_obj <- reactive({
       .gencor_ggplot(
-        long       = gencor_long(),
-        gwas_vec   = gwas_vec_r(),
-        font_size  = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
-        point_size = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size)
+        long              = gencor_long(),
+        gwas_vec          = gwas_vec_r(),
+        font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        point_size        = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size),
+        group_by_category = isTRUE(input$group_by_category)
       )
     })
 
     plot_dims <- reactive({
-      n <- length(gwas_vec_r())
+      long <- gencor_long()
+      # Union of reference-trait labels across selected GWAS drives row count.
+      ref_labels <- unique(long[gwas %in% gwas_vec_r(), ref_label])
       .compare_plot_dims(
-        n_rows    = n,
-        n_cols    = n,
+        n_rows    = length(ref_labels),
+        n_cols    = length(gwas_vec_r()),
         font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
-        y_labels  = gwas_vec_r(),
+        y_labels  = ref_labels,
         min_width = 400, min_height = 300
       )
     })
@@ -2401,29 +2425,60 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
     gencor_tbl_slice <- reactive({
       long <- gencor_long()
       if (nrow(long) == 0) return(long)
-      # Drop the diagonal from the underlying-data table since rg=1 is
-      # tautological.
-      long[gwas_i != gwas_j & gwas_i %in% gwas_vec_r() & gwas_j %in% gwas_vec_r()]
+      long[gwas %in% gwas_vec_r()]
     })
 
     output$gencor_tbl <- DT::renderDT({
       slice <- gencor_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        `GWAS 1`   = factor(slice$gwas_i, levels = gwas_vec_r()),
-        `GWAS 2`   = factor(slice$gwas_j, levels = gwas_vec_r()),
-        rG         = signif(slice$rg, 3),
-        SE         = signif(slice$rg_se, 3),
-        P          = signif(slice$rg_p, 3),
-        `P.FDR`    = signif(slice$rg_p_fdr, 3),
-        `N SNPs`   = slice$n_snps,
+        GWAS          = factor(slice$gwas, levels = gwas_vec_r()),
+        `Ref trait`   = slice$ref_label,
+        Category      = ifelse(is.na(slice$trait_category), "—",
+                                slice$trait_category),
+        rG            = signif(slice$rg, 3),
+        SE            = signif(slice$rg_se, 3),
+        P             = signif(slice$rg_p, 3),
+        `P.FDR`       = signif(slice$rg_p_fdr, 3),
+        `N SNPs`      = slice$n_snps,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
                      selection = "single",
                      options = list(pageLength = 20, server = TRUE,
-                                     order = list(list(4, "asc"))))
+                                     order = list(list(5, "asc"))))
     }, server = TRUE)
+
+    observeEvent(input$gencor_tbl_rows_selected, {
+      sel <- input$gencor_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- gencor_tbl_slice()
+      if (nrow(slice) < sel) return()
+      # Detail modal: show all bundle GWAS' rG values for the picked ref
+      # trait (rows = GWAS, so users can compare a single trait across
+      # selected GWAS at a glance).
+      ref_lab <- as.character(slice$ref_label[sel])
+      long <- gencor_long()
+      d <- long[ref_label == ref_lab & gwas %in% gwas_vec_r()]
+      if (nrow(d) == 0) return()
+      d <- d[order(match(gwas, gwas_vec_r()))]
+      out <- data.frame(
+        GWAS   = factor(d$gwas, levels = gwas_vec_r()),
+        rG     = signif(d$rg, 3),
+        SE     = signif(d$rg_se, 3),
+        P      = signif(d$rg_p, 3),
+        `P.FDR` = signif(d$rg_p_fdr, 3),
+        `N SNPs` = d$n_snps,
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      showModal(modalDialog(
+        title = sprintf("%s (%s)", ref_lab, unique(d$ref_name)[1L]),
+        size  = "l", easyClose = TRUE, footer = modalButton("Close"),
+        DT::datatable(out, rownames = FALSE,
+                      options = list(pageLength = 25, dom = "tip",
+                                      order = list(list(0, "asc"))))
+      ))
+    }, ignoreInit = TRUE)
 
     output$gencor_download_plot <- downloadHandler(
       filename = function() sprintf("gencor_compare_%s.%s",
@@ -2446,22 +2501,17 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
         gwas_vec <- gwas_vec_r()
-        long <- gencor_long()
-        wide <- matrix(NA_real_, nrow = length(gwas_vec), ncol = length(gwas_vec),
-                        dimnames = list(gwas_vec, gwas_vec))
-        for (i in seq_len(nrow(long))) {
-          r <- long$gwas_i[i]; c <- long$gwas_j[i]
-          if (r %in% gwas_vec && c %in% gwas_vec) wide[r, c] <- long$rg[i]
-        }
+        long <- gencor_long()[gwas %in% gwas_vec]
+        # Reshape to reference-trait x GWAS wide matrix; retain trait label +
+        # category as leading columns so the CSV is self-describing.
+        wide <- data.table::dcast(long, ref_name + ref_label + trait_category ~ gwas,
+                                    value.var = "rg")
         header <- sprintf("# GenoDisc gencor compare CSV | %s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
-        writeLines("# Cells: rG (genetic correlation, LDSC).", con)
-        out <- data.frame(GWAS = rownames(wide),
-                          format(wide, digits = 3),
-                          check.names = FALSE, stringsAsFactors = FALSE)
-        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+        writeLines("# Rows: external reference traits.  Columns: bundle GWAS.  Cells: rG (LDSC).", con)
+        utils::write.csv(wide, con, row.names = FALSE, quote = FALSE, na = "")
       }
     )
   })

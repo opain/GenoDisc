@@ -559,79 +559,56 @@ pivot_matrix_chr <- function(long, values_col, gwas_vec, entity_order = NULL) {
   m
 }
 
-#' Build a long tibble of pairwise genetic correlations (LDSC gencor)
+#' Build a long tibble of genetic correlations (LDSC gencor)
 #'
-#' Reads each selected GWAS's `gwas_qc$ldsc_gencor_dat` block and keeps only
-#' pairs (i, j) where BOTH i and j are in `gwas_vec`. Where both directions
-#' are present, the two rows are averaged (LDSC rg is symmetric; identical
-#' point estimates in practice, but bundles may report slightly different
-#' SEs). Returns an empty data.table (with the expected columns) when the
-#' bundle carries no gencor data.
+#' The GenoDisc pipeline computes bivariate LDSC between each in-bundle GWAS
+#' and a fixed set of external reference traits (the `gencor_gwas_list` in
+#' the config). This helper reads each selected bundle GWAS's
+#' `gwas_qc$ldsc_gencor_dat$table` and returns the rows in a long tibble
+#' keyed on (bundle_gwas, reference_trait).
+#'
+#' Returns an empty data.table (with the expected columns) when the bundle
+#' has no gencor data.
 #'
 #' @param gd A gd_result opened with gd_open()
-#' @param gwas_vec Character vector of GWAS names to include
-#' @return data.table with columns: gwas_i, gwas_j, rg, rg_se, rg_p,
-#'   rg_p_fdr, n_snps
+#' @param gwas_vec Character vector of selected bundle GWAS names
+#' @return data.table with columns: gwas, ref_name, ref_label, rg, rg_se,
+#'   rg_p, rg_p_fdr, n_snps, gcov_int, trait_category
 build_gencor_long <- function(gd, gwas_vec) {
   empty <- data.table::data.table(
-    gwas_i = character(0), gwas_j = character(0),
+    gwas = character(0),
+    ref_name = character(0), ref_label = character(0),
     rg = numeric(0), rg_se = numeric(0),
     rg_p = numeric(0), rg_p_fdr = numeric(0),
-    n_snps = integer(0)
+    n_snps = integer(0), gcov_int = numeric(0),
+    trait_category = character(0)
   )
   if (length(gwas_vec) == 0) return(empty)
 
   parts <- lapply(gwas_vec, function(g) {
-    tab <- safe_access(gd_read(gd, g, "gwas_qc"), "ldsc_gencor_dat")
+    tab <- safe_access(gd_read(gd, g, "gwas_qc"), "ldsc_gencor_dat", "table")
     if (is.null(tab) || nrow(tab) == 0) return(NULL)
     tab <- as.data.frame(tab)
-    # `name` in the gencor block is the OTHER trait's canonical name. Keep
-    # only pairs whose other trait is also in the selection.
-    keep <- tab$name %in% gwas_vec
-    if (!any(keep)) return(NULL)
-    tab <- tab[keep, , drop = FALSE]
     data.table::data.table(
-      gwas_i   = g,
-      gwas_j   = as.character(tab$name),
-      rg       = suppressWarnings(as.numeric(tab$rg)),
-      rg_se    = suppressWarnings(as.numeric(tab$rg_se)),
-      rg_p     = suppressWarnings(as.numeric(tab$rg_p)),
-      rg_p_fdr = suppressWarnings(as.numeric(tab$rg_p_fdr)),
-      n_snps   = suppressWarnings(as.integer(tab$n_snps))
+      gwas          = g,
+      ref_name      = as.character(tab$name),
+      ref_label     = as.character(tab$label),
+      rg            = suppressWarnings(as.numeric(tab$rg)),
+      rg_se         = suppressWarnings(as.numeric(tab$rg_se)),
+      rg_p          = suppressWarnings(as.numeric(tab$rg_p)),
+      rg_p_fdr      = suppressWarnings(as.numeric(tab$rg_p_fdr)),
+      n_snps        = suppressWarnings(as.integer(tab$n_snps)),
+      gcov_int      = if ("gcov_int" %in% names(tab))
+                        suppressWarnings(as.numeric(tab$gcov_int))
+                      else NA_real_,
+      trait_category = if ("trait_category" %in% names(tab))
+                         as.character(tab$trait_category)
+                       else NA_character_
     )
   })
   parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)
   if (length(parts) == 0) return(empty)
-  long <- data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
-
-  # Symmetrise: for every (i, j) present, also emit (j, i) with the same
-  # values; where both directions exist naturally we average them.
-  long[, pair_key := paste(pmin(gwas_i, gwas_j), pmax(gwas_i, gwas_j), sep = "|")]
-  avg <- long[, .(
-    rg       = mean(rg, na.rm = TRUE),
-    rg_se    = mean(rg_se, na.rm = TRUE),
-    rg_p     = mean(rg_p, na.rm = TRUE),
-    rg_p_fdr = mean(rg_p_fdr, na.rm = TRUE),
-    n_snps   = suppressWarnings(as.integer(mean(n_snps, na.rm = TRUE)))
-  ), by = pair_key]
-  # Expand each averaged pair back into two directional rows.
-  parts_ij <- strsplit(avg$pair_key, "|", fixed = TRUE)
-  a <- vapply(parts_ij, `[[`, character(1), 1L)
-  b <- vapply(parts_ij, `[[`, character(1), 2L)
-  out <- rbind(
-    data.table::data.table(gwas_i = a, gwas_j = b, rg = avg$rg, rg_se = avg$rg_se,
-                            rg_p = avg$rg_p, rg_p_fdr = avg$rg_p_fdr, n_snps = avg$n_snps),
-    data.table::data.table(gwas_i = b, gwas_j = a, rg = avg$rg, rg_se = avg$rg_se,
-                            rg_p = avg$rg_p, rg_p_fdr = avg$rg_p_fdr, n_snps = avg$n_snps)
-  )
-  # Add the diagonal (rg = 1 for self-correlation) so heatmaps render a full
-  # square without gaps on the identity.
-  diag_rows <- data.table::data.table(
-    gwas_i = gwas_vec, gwas_j = gwas_vec,
-    rg = 1, rg_se = NA_real_, rg_p = NA_real_, rg_p_fdr = NA_real_,
-    n_snps = NA_integer_
-  )
-  data.table::rbindlist(list(out, diag_rows), use.names = TRUE, fill = TRUE)
+  data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
 }
 
 #' Order the selected GWAS for display
