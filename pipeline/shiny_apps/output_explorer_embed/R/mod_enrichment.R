@@ -311,7 +311,6 @@ enrichmentUI <- function(id) {
 enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                               selected_gwas_multi = NULL,
                               comparison_mode = NULL,
-                              shared_filters = NULL,
                               comparison_long = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
@@ -322,10 +321,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     if (!is.null(selected_gwas_multi) && !is.null(comparison_long)) {
       tissue_compare_server("tissue_compare",
                              gwas_data, selected_gwas_multi,
-                             shared_filters, comparison_long)
+                             comparison_long)
       atc_compare_server("atc_compare",
                           gwas_data, selected_gwas_multi,
-                          shared_filters, comparison_long)
+                          comparison_long)
     }
 
     # Column-guide legend for an enrichment results table. Text is centralised
@@ -808,11 +807,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         # deferred to a later phase, so the Drug inner tab keeps single-GWAS
         # behaviour with a small "Viewing:" caption above the existing content.
         atc_body <- if (in_compare) {
-          tagList(
-            tags$p(style = "color: var(--gd-text-mute); margin-bottom: 6px;",
-                    "Cross-GWAS comparison view. Adjust k, threshold and basis at the top of the page."),
-            atc_compare_ui(NS(ns("atc_compare")))
-          )
+          atc_compare_ui(NS(ns("atc_compare")))
         } else {
           do.call(tabsetPanel, atc_tabs)
         }

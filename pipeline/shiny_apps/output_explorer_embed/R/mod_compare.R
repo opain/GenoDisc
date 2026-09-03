@@ -47,30 +47,49 @@ tissue_compare_ui <- function(ns) {
       "then by minimum p-value."
     ),
     hr(),
-    fluidRow(
-      column(3,
-        checkboxInput(ns("only_recurrent_tissue"),
-                      "Only show tissues significant in ≥ k GWAS", value = FALSE),
-        helpText("k is set at the top of the page.")
-      ),
-      column(3,
-        radioButtons(ns("cell_metric_tissue"), "Cell colour:",
-                     choices = c("-log10(FDR)" = "fdr", "-log10(P)" = "p"),
-                     selected = "fdr", inline = TRUE)
-      ),
-      column(3,
-        numericInput(ns("dl_width_tissue_cmp"), "Download width (in):",
-                     value = 10, min = 4, max = 24, step = 0.5),
-        numericInput(ns("dl_height_tissue_cmp"), "Download height (in):",
-                     value = 10, min = 4, max = 24, step = 0.5)
-      ),
-      column(3,
-        selectInput(ns("dl_format_tissue_cmp"), "Download format:",
-                    choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
-                    selected = "png"),
-        downloadButton(ns("download_plot_tissue_cmp"), "Download plot"),
-        br(), br(),
-        downloadButton(ns("download_csv_tissue_cmp"), "Download matrix CSV")
+    tags$details(class = "gd-details",
+      tags$summary("Filter data"),
+      tags$div(class = "gd-details-body",
+        fluidRow(
+          column(3,
+            radioButtons(ns("sig_basis"), "Significance basis:",
+                          choices = c("FDR" = "fdr", "P" = "p"),
+                          selected = "fdr", inline = TRUE),
+            numericInput(ns("sig_threshold"), "Significance threshold:",
+                          value = 0.05, min = 1e-12, max = 1, step = 0.01)
+          ),
+          column(3,
+            checkboxInput(ns("only_recurrent"),
+                          "Only show tissues significant in ≥ k GWAS",
+                          value = FALSE),
+            sliderInput(ns("k_min"), "k:",
+                         min = 1, max = 9, value = 2, step = 1)
+          ),
+          column(3,
+            radioButtons(ns("cell_metric"), "Cell colour:",
+                         choices = c("-log10(FDR)" = "fdr",
+                                      "-log10(P)"   = "p"),
+                         selected = "fdr", inline = TRUE),
+            selectInput(ns("gwas_sort"), "Order GWAS by:",
+                         choices = c("As selected"   = "as_selected",
+                                      "Alphabetical" = "alphabetical",
+                                      "Sample size"  = "n",
+                                      "N sig SNPs"   = "n_sig_snp",
+                                      "SNP-h²"       = "h2"),
+                         selected = "as_selected")
+          ),
+          column(3,
+            selectInput(ns("dl_format"), "Download format:",
+                        choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                        selected = "png"),
+            numericInput(ns("dl_width"), "Width (in):",
+                         value = 10, min = 4, max = 24, step = 0.5),
+            numericInput(ns("dl_height"), "Height (in):",
+                         value = 10, min = 4, max = 24, step = 0.5),
+            downloadButton(ns("download_plot"), "Download plot"),
+            downloadButton(ns("download_csv"), "Download matrix CSV")
+          )
+        )
       )
     ),
     br(),
@@ -91,21 +110,25 @@ tissue_compare_ui <- function(ns) {
 }
 
 # Long -> tidy plotting frame with tier categorisation
-.tissue_compare_frame <- function(long, gwas_vec, only_recurrent, k_min) {
+.tissue_compare_frame <- function(long, gwas_vec, only_recurrent, k_min,
+                                    sig_basis = "fdr", sig_threshold = 0.05) {
   # Slice to tissue rows and to the selected GWAS
   slice <- long[method == "MAGMA-tissue" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
-  # Determine row order: recurrence (FDR<0.05) desc, then min p asc.
+  # Recurrence uses the user-chosen basis + threshold; row order is by
+  # recurrence desc then min p asc.
+  basis_col <- if (identical(sig_basis, "p")) "p" else "fdr"
   rec <- slice[, .(
+    k         = sum(!is.na(.SD[[1L]]) & .SD[[1L]] < sig_threshold),
     n_fdr_sig = sum(!is.na(fdr) & fdr < 0.05),
-    n_nom_sig = sum(!is.na(p) & p < 0.05),
+    n_nom_sig = sum(!is.na(p)   & p   < 0.05),
     min_p     = suppressWarnings(min(p, na.rm = TRUE))
-  ), by = entity_id]
-  rec <- rec[order(-n_fdr_sig, -n_nom_sig, min_p)]
+  ), by = entity_id, .SDcols = basis_col]
+  rec <- rec[order(-k, min_p)]
 
   if (isTRUE(only_recurrent) && k_min > 1L) {
-    rec <- rec[n_fdr_sig >= k_min | n_nom_sig >= k_min]
+    rec <- rec[k >= k_min]
   }
 
   if (nrow(rec) == 0) return(NULL)
@@ -113,7 +136,8 @@ tissue_compare_ui <- function(ns) {
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
   slice[, gwas := factor(gwas, levels = gwas_vec)]
 
-  # Three-tier: retained > FDR-sig > nominal > not sig
+  # Tier fill uses standard fixed thresholds (P<0.05, FDR<0.05) so the
+  # legend is unambiguous regardless of the user's recurrence basis.
   slice[, tier := "Not significant"]
   slice[!is.na(p) & p < 0.05,        tier := "Nominal-sig"]
   slice[!is.na(fdr) & fdr < 0.05,    tier := "FDR-sig"]
@@ -124,8 +148,11 @@ tissue_compare_ui <- function(ns) {
 }
 
 .tissue_compare_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
-                                    metric = "fdr") {
-  packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min)
+                                    metric = "fdr",
+                                    sig_basis = "fdr",
+                                    sig_threshold = 0.05) {
+  packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
+                                    sig_basis, sig_threshold)
   if (is.null(packed)) return(NULL)
   slice <- packed$slice
 
@@ -159,19 +186,35 @@ tissue_compare_ui <- function(ns) {
 }
 
 tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
-                                    shared_filters, comparison_long) {
+                                    comparison_long) {
   moduleServer(id, function(input, output, session) {
+
+    # Cap the k slider at the number of selected GWAS.
+    observeEvent(selected_gwas_multi(), {
+      n_sel <- length(selected_gwas_multi())
+      if (n_sel < 1) return()
+      cur <- if (is.null(input$k_min)) 2L else as.integer(input$k_min)
+      updateSliderInput(session, "k_min",
+                        max = max(n_sel, 1L),
+                        value = min(cur, n_sel))
+    })
+
+    gwas_vec_r <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort,
+                  NULL)
+    })
 
     plot_obj <- reactive({
       req(comparison_long())
-      sf <- shared_filters()
-      gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
       .tissue_compare_ggplot(
         long           = comparison_long(),
-        gwas_vec       = gwas_vec,
-        only_recurrent = isTRUE(input$only_recurrent_tissue),
-        k_min          = as.integer(sf$k_min %||% 2L),
-        metric         = if (is.null(input$cell_metric_tissue)) "fdr" else input$cell_metric_tissue
+        gwas_vec       = gwas_vec_r(),
+        only_recurrent = isTRUE(input$only_recurrent),
+        k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
+        metric         = if (is.null(input$cell_metric)) "fdr" else input$cell_metric,
+        sig_basis      = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
+        sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold)
       )
     })
 
@@ -186,8 +229,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     output$tissue_compare_tbl <- DT::renderDT({
       req(comparison_long())
-      sf <- shared_filters()
-      gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
+      gwas_vec <- gwas_vec_r()
       slice <- comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec]
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
@@ -207,18 +249,17 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     order = list(list(4, "asc"))))
     }, server = TRUE)
 
-    output$download_plot_tissue_cmp <- downloadHandler(
+    output$download_plot <- downloadHandler(
       filename = function() sprintf("tissue_compare_%s.%s",
                                      format(Sys.time(), "%Y%m%d_%H%M%S"),
-                                     input$dl_format_tissue_cmp),
+                                     input$dl_format),
       content = function(file) {
         p <- plot_obj()
         if (is.null(p)) {
-          # write a placeholder so the download completes
           grDevices::png(file, width = 400, height = 200); dev.off(); return()
         }
-        fmt <- input$dl_format_tissue_cmp
-        w <- input$dl_width_tissue_cmp; h <- input$dl_height_tissue_cmp
+        fmt <- input$dl_format
+        w <- input$dl_width; h <- input$dl_height
         if (fmt == "png") {
           grDevices::png(file, width = w, height = h, units = "in", res = 300)
         } else if (fmt == "pdf") {
@@ -231,16 +272,14 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       }
     )
 
-    output$download_csv_tissue_cmp <- downloadHandler(
+    output$download_csv <- downloadHandler(
       filename = function() sprintf("tissue_compare_matrix_%s.csv",
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
-        sf <- shared_filters()
-        gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
+        gwas_vec <- gwas_vec_r()
         long <- comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec]
-        # matrix P.FDR + retained flag concatenated as "0.012 (R)"
         wide <- pivot_matrix(long, "fdr", gwas_vec)
-        ret  <- pivot_matrix(long, "evidence", gwas_vec)   # 1/0 encoding
+        ret  <- pivot_matrix(long, "evidence", gwas_vec)
         display <- ifelse(
           is.na(wide), "NT",
           ifelse(!is.na(ret) & ret == 1,
@@ -251,7 +290,9 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
                           dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc tissue compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                          sf$sig_basis, sf$sig_threshold, sf$k_min %||% "NA")
+                          input$sig_basis %||% "fdr",
+                          input$sig_threshold %||% 0.05,
+                          input$k_min %||% 2L)
         con <- file(file, "w")
         on.exit(close(con))
         writeLines(header, con)
@@ -268,31 +309,59 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
 # ATC COMPARE
 ########################################
 
+.compare_gwas_sort_choices <- c(
+  "As selected"  = "as_selected",
+  "Alphabetical" = "alphabetical",
+  "Sample size"  = "n",
+  "N sig SNPs"   = "n_sig_snp",
+  "SNP-h²"       = "h2"
+)
+
+.dl_and_download_column <- function(ns, prefix, default_w = 10, default_h = 12) {
+  column(3,
+    selectInput(ns(paste0(prefix, "_dl_format")), "Download format:",
+                choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                selected = "png"),
+    numericInput(ns(paste0(prefix, "_dl_width")), "Width (in):",
+                 value = default_w, min = 4, max = 24, step = 0.5),
+    numericInput(ns(paste0(prefix, "_dl_height")), "Height (in):",
+                 value = default_h, min = 4, max = 32, step = 0.5),
+    downloadButton(ns(paste0(prefix, "_download_plot")), "Download plot"),
+    downloadButton(ns(paste0(prefix, "_download_csv")), "Download matrix CSV")
+  )
+}
+
 atc_compare_ui <- function(ns) {
   tabsetPanel(
     tabPanel("MAGMA", br(),
       p("Cross-GWAS MAGMA drug-class enrichment. Cell colour intensity is ",
         "-log10(FDR); cells with FDR < 0.05 are outlined in black."),
       hr(),
-      fluidRow(
-        column(3,
-          checkboxInput(ns("only_recurrent_atc_magma"),
-                        "Only show classes significant in ≥ k GWAS",
-                        value = TRUE)
-        ),
-        column(3,
-          numericInput(ns("dl_width_atc_magma"), "Download width (in):",
-                       value = 10, min = 4, max = 24, step = 0.5),
-          numericInput(ns("dl_height_atc_magma"), "Download height (in):",
-                       value = 12, min = 4, max = 32, step = 0.5)
-        ),
-        column(3,
-          selectInput(ns("dl_format_atc_magma"), "Download format:",
-                      choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
-                      selected = "png"),
-          downloadButton(ns("download_plot_atc_magma"), "Download plot"),
-          br(), br(),
-          downloadButton(ns("download_csv_atc_magma"), "Download matrix CSV")
+      tags$details(class = "gd-details",
+        tags$summary("Filter data"),
+        tags$div(class = "gd-details-body",
+          fluidRow(
+            column(3,
+              radioButtons(ns("magma_sig_basis"), "Significance basis:",
+                            choices = c("FDR" = "fdr", "P" = "p"),
+                            selected = "fdr", inline = TRUE),
+              numericInput(ns("magma_sig_threshold"), "Significance threshold:",
+                            value = 0.05, min = 1e-12, max = 1, step = 0.01)
+            ),
+            column(3,
+              checkboxInput(ns("magma_only_recurrent"),
+                            "Only show classes significant in ≥ k GWAS",
+                            value = TRUE),
+              sliderInput(ns("magma_k_min"), "k:",
+                           min = 1, max = 9, value = 2, step = 1)
+            ),
+            column(3,
+              selectInput(ns("magma_gwas_sort"), "Order GWAS by:",
+                           choices = .compare_gwas_sort_choices,
+                           selected = "as_selected")
+            ),
+            .dl_and_download_column(ns, "magma", default_h = 12)
+          )
         )
       ),
       br(),
@@ -309,30 +378,34 @@ atc_compare_ui <- function(ns) {
         "disease signature). Intensity is -log10(FDR). Hatched cells = the ",
         "class was not tested in that GWAS (not the same as 'not significant')."),
       hr(),
-      fluidRow(
-        column(3,
-          selectInput(ns("atc_gsea_panel"), "Panel:",
-                      choices = c("Best-per-cell (min P)" = "__best__"),
-                      selected = "__best__")
-        ),
-        column(3,
-          checkboxInput(ns("only_recurrent_atc_gsea"),
-                        "Only show classes significant in ≥ k GWAS",
-                        value = TRUE)
-        ),
-        column(3,
-          numericInput(ns("dl_width_atc_gsea"), "Download width (in):",
-                       value = 10, min = 4, max = 24, step = 0.5),
-          numericInput(ns("dl_height_atc_gsea"), "Download height (in):",
-                       value = 12, min = 4, max = 32, step = 0.5)
-        ),
-        column(3,
-          selectInput(ns("dl_format_atc_gsea"), "Download format:",
-                      choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
-                      selected = "png"),
-          downloadButton(ns("download_plot_atc_gsea"), "Download plot"),
-          br(), br(),
-          downloadButton(ns("download_csv_atc_gsea"), "Download matrix CSV")
+      tags$details(class = "gd-details",
+        tags$summary("Filter data"),
+        tags$div(class = "gd-details-body",
+          fluidRow(
+            column(3,
+              radioButtons(ns("gsea_sig_basis"), "Significance basis:",
+                            choices = c("FDR" = "fdr", "P" = "p"),
+                            selected = "fdr", inline = TRUE),
+              numericInput(ns("gsea_sig_threshold"), "Significance threshold:",
+                            value = 0.05, min = 1e-12, max = 1, step = 0.01)
+            ),
+            column(3,
+              checkboxInput(ns("gsea_only_recurrent"),
+                            "Only show classes significant in ≥ k GWAS",
+                            value = TRUE),
+              sliderInput(ns("gsea_k_min"), "k:",
+                           min = 1, max = 9, value = 2, step = 1)
+            ),
+            column(3,
+              selectInput(ns("gsea_panel"), "Panel:",
+                          choices = c("Best-per-cell (min P)" = "__best__"),
+                          selected = "__best__"),
+              selectInput(ns("gsea_gwas_sort"), "Order GWAS by:",
+                           choices = .compare_gwas_sort_choices,
+                           selected = "as_selected")
+            ),
+            .dl_and_download_column(ns, "gsea", default_h = 12)
+          )
         )
       ),
       br(),
@@ -491,33 +564,55 @@ atc_compare_ui <- function(ns) {
 }
 
 atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
-                                 shared_filters, comparison_long) {
+                                 comparison_long) {
   moduleServer(id, function(input, output, session) {
 
-    # Update panel dropdown with the panels actually present in the data.
+    # Update the TWAS-GSEA panel dropdown with the panels actually present.
     observeEvent(comparison_long(), {
       long <- comparison_long()
       panels <- unique(long[method == "TWAS-GSEA-ATC", panel])
       panels <- panels[!is.na(panels)]
       choices <- c("Best-per-cell (min P)" = "__best__",
                     setNames(panels, panels))
-      updateSelectInput(session, "atc_gsea_panel",
+      updateSelectInput(session, "gsea_panel",
                          choices = choices, selected = "__best__")
+    })
+
+    # Cap the k sliders (one per sub-tab) at the number of selected GWAS.
+    observeEvent(selected_gwas_multi(), {
+      n_sel <- length(selected_gwas_multi())
+      if (n_sel < 1) return()
+      for (which_slider in c("magma_k_min", "gsea_k_min")) {
+        cur <- input[[which_slider]]
+        cur <- if (is.null(cur)) 2L else as.integer(cur)
+        updateSliderInput(session, which_slider,
+                          max = max(n_sel, 1L),
+                          value = min(cur, n_sel))
+      }
+    })
+
+    magma_gwas_vec <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$magma_gwas_sort)) "as_selected" else input$magma_gwas_sort,
+                  NULL)
+    })
+    gsea_gwas_vec <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$gsea_gwas_sort)) "as_selected" else input$gsea_gwas_sort,
+                  NULL)
     })
 
     # ---------- MAGMA plot / table ----------
 
     magma_plot <- reactive({
       req(comparison_long())
-      sf <- shared_filters()
-      gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
       .atc_magma_ggplot(
         long           = comparison_long(),
-        gwas_vec       = gwas_vec,
-        only_recurrent = isTRUE(input$only_recurrent_atc_magma),
-        k_min          = as.integer(sf$k_min %||% 2L),
-        sig_basis      = sf$sig_basis,
-        sig_threshold  = as.numeric(sf$sig_threshold %||% 0.05)
+        gwas_vec       = magma_gwas_vec(),
+        only_recurrent = isTRUE(input$magma_only_recurrent),
+        k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
+        sig_basis      = if (is.null(input$magma_sig_basis)) "fdr" else input$magma_sig_basis,
+        sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold)
       )
     })
 
@@ -532,8 +627,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     output$atc_magma_tbl <- DT::renderDT({
       req(comparison_long())
-      sf <- shared_filters()
-      gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
+      gwas_vec <- magma_gwas_vec()
       slice <- comparison_long()[method == "MAGMA-ATC" & gwas %in% gwas_vec]
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
@@ -550,14 +644,14 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      order = list(list(5, "asc"))))
     }, server = TRUE)
 
-    output$download_plot_atc_magma <- downloadHandler(
+    output$magma_download_plot <- downloadHandler(
       filename = function() sprintf("atc_magma_compare_%s.%s",
                                      format(Sys.time(), "%Y%m%d_%H%M%S"),
-                                     input$dl_format_atc_magma),
+                                     input$magma_dl_format),
       content = function(file) {
         p <- magma_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$dl_format_atc_magma
-        w <- input$dl_width_atc_magma; h <- input$dl_height_atc_magma
+        fmt <- input$magma_dl_format
+        w <- input$magma_dl_width; h <- input$magma_dl_height
         if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
         else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
         else grDevices::svg(file, width = w, height = h)
@@ -565,17 +659,18 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       }
     )
 
-    output$download_csv_atc_magma <- downloadHandler(
+    output$magma_download_csv <- downloadHandler(
       filename = function() sprintf("atc_magma_compare_matrix_%s.csv",
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
-        sf <- shared_filters()
-        gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
+        gwas_vec <- magma_gwas_vec()
         long <- comparison_long()[method == "MAGMA-ATC" & gwas %in% gwas_vec]
         wide <- pivot_matrix(long, "fdr", gwas_vec)
         header <- sprintf("# GenoDisc ATC MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           sf$sig_basis, sf$sig_threshold, sf$k_min %||% "NA")
+                           input$magma_sig_basis %||% "fdr",
+                           input$magma_sig_threshold %||% 0.05,
+                           input$magma_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
         writeLines("# Cells: P.FDR", con)
@@ -590,16 +685,14 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     gsea_plot <- reactive({
       req(comparison_long())
-      sf <- shared_filters()
-      gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
       .atc_gsea_ggplot(
         long           = comparison_long(),
-        gwas_vec       = gwas_vec,
-        only_recurrent = isTRUE(input$only_recurrent_atc_gsea),
-        k_min          = as.integer(sf$k_min %||% 2L),
-        panel_pick     = input$atc_gsea_panel,
-        sig_basis      = sf$sig_basis,
-        sig_threshold  = as.numeric(sf$sig_threshold %||% 0.05)
+        gwas_vec       = gsea_gwas_vec(),
+        only_recurrent = isTRUE(input$gsea_only_recurrent),
+        k_min          = if (is.null(input$gsea_k_min)) 2L else as.integer(input$gsea_k_min),
+        panel_pick     = input$gsea_panel,
+        sig_basis      = if (is.null(input$gsea_sig_basis)) "fdr" else input$gsea_sig_basis,
+        sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold)
       )
     })
 
@@ -614,8 +707,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     output$atc_gsea_tbl <- DT::renderDT({
       req(comparison_long())
-      sf <- shared_filters()
-      gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
+      gwas_vec <- gsea_gwas_vec()
       slice <- comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gwas_vec]
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
@@ -635,14 +727,14 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
 
-    output$download_plot_atc_gsea <- downloadHandler(
+    output$gsea_download_plot <- downloadHandler(
       filename = function() sprintf("atc_gsea_compare_%s.%s",
                                      format(Sys.time(), "%Y%m%d_%H%M%S"),
-                                     input$dl_format_atc_gsea),
+                                     input$gsea_dl_format),
       content = function(file) {
         p <- gsea_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$dl_format_atc_gsea
-        w <- input$dl_width_atc_gsea; h <- input$dl_height_atc_gsea
+        fmt <- input$gsea_dl_format
+        w <- input$gsea_dl_width; h <- input$gsea_dl_height
         if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
         else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
         else grDevices::svg(file, width = w, height = h)
@@ -650,15 +742,13 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       }
     )
 
-    output$download_csv_atc_gsea <- downloadHandler(
+    output$gsea_download_csv <- downloadHandler(
       filename = function() sprintf("atc_gsea_compare_matrix_%s.csv",
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
-        sf <- shared_filters()
-        gwas_vec <- order_gwas(selected_gwas_multi(), sf$gwas_sort, NULL)
+        gwas_vec <- gsea_gwas_vec()
         long <- comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gwas_vec]
         best <- pick_best_per_cell(long, c("gwas", "entity_id"))
-        # Signed -log10(FDR) or NT tag
         best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
                                  -(-log10(fdr)), -log10(fdr))]
         wide <- pivot_matrix(best, "signed", gwas_vec)
@@ -666,8 +756,10 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc ATC TWAS-GSEA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s panel=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           sf$sig_basis, sf$sig_threshold, sf$k_min %||% "NA",
-                           input$atc_gsea_panel %||% "__best__")
+                           input$gsea_sig_basis %||% "fdr",
+                           input$gsea_sig_threshold %||% 0.05,
+                           input$gsea_k_min %||% 2L,
+                           input$gsea_panel %||% "__best__")
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
         writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)

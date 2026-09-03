@@ -11,6 +11,32 @@ overviewUI <- function(id) {
   tabPanel(
     title = "Overview",
     br(),
+    tags$details(class = "gd-details",
+      tags$summary("Filter data"),
+      tags$div(class = "gd-details-body",
+        fluidRow(
+          column(4,
+            radioButtons(ns("sig_basis"), "Significance basis (yield counts):",
+                          choices = c("FDR" = "fdr", "P" = "p"),
+                          selected = "fdr", inline = TRUE)
+          ),
+          column(4,
+            numericInput(ns("sig_threshold"), "Significance threshold:",
+                          value = 0.05, min = 1e-12, max = 1, step = 0.01)
+          ),
+          column(4,
+            selectInput(ns("gwas_sort"), "Order GWAS by:",
+                         choices = c("As selected"   = "as_selected",
+                                      "Alphabetical" = "alphabetical",
+                                      "Sample size"  = "n",
+                                      "N sig SNPs"   = "n_sig_snp",
+                                      "SNP-h²"       = "h2"),
+                         selected = "as_selected")
+          )
+        )
+      )
+    ),
+    br(),
     h4("Per-GWAS QC and power"),
     p(
       style = "color: var(--gd-text-mute);",
@@ -22,7 +48,7 @@ overviewUI <- function(id) {
     h4("Yield: counts of significant entities per GWAS"),
     p(
       style = "color: var(--gd-text-mute);",
-      "Counts respect the significance basis and threshold set at the top of the page. ",
+      "Counts respect the significance basis and threshold above. ",
       "ATC counts use best-per-cell across TWAS-GSEA panels."
     ),
     DT::DTOutput(ns("yield_tbl")),
@@ -41,8 +67,7 @@ overviewUI <- function(id) {
 }
 
 overviewServer <- function(id, gwas_data, selected_gwas_multi,
-                            comparison_mode, shared_filters,
-                            comparison_long) {
+                            comparison_mode, comparison_long) {
   moduleServer(id, function(input, output, session) {
 
     qc_dat <- reactive({
@@ -52,8 +77,8 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
 
     ordered_gwas <- reactive({
       req(comparison_mode())
-      sf <- shared_filters()
-      order_gwas(selected_gwas_multi(), sf$gwas_sort, qc_dat())
+      sort_mode <- if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort
+      order_gwas(selected_gwas_multi(), sort_mode, qc_dat())
     })
 
     output$qc_tbl <- DT::renderDT({
@@ -83,10 +108,10 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
 
     yield_dat <- reactive({
       req(comparison_mode(), comparison_long())
-      sf <- shared_filters()
       build_overview_yield(
         comparison_long(), gwas_data(), selected_gwas_multi(),
-        sig_basis = sf$sig_basis, sig_threshold = sf$sig_threshold
+        sig_basis     = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
+        sig_threshold = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold)
       )
     })
 
