@@ -338,6 +338,297 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
   )
 }
 
+########################################
+# GENE COMPARE
+########################################
+
+.gene_methods <- c("MAGMA-gene", "TWAS-FUSION", "SMR-expression",
+                    "PWAS-FUSION", "SMR-protein")
+
+# Methods where "evidence" is meaningful (colocalisation / HEIDI).
+.gene_evidence_methods <- c("TWAS-FUSION", "SMR-expression",
+                             "PWAS-FUSION", "SMR-protein")
+
+gene_compare_ui <- function(ns) {
+  tagList(
+    br(),
+    p(
+      "Cross-GWAS gene-level associations. Pick a method to compare a ",
+      "gene x GWAS matrix; where a method has multiple panels, the default ",
+      "reduces to the smallest p-value per (gene, GWAS) cell. Rows are ",
+      "ordered by recurrence (how many GWAS meet the chosen significance ",
+      "basis) then by minimum p-value; the top rows are shown in the ",
+      "heatmap and the full slice appears in the table below."
+    ),
+    hr(),
+    tags$details(class = "gd-details",
+      tags$summary("Filter data"),
+      tags$div(class = "gd-details-body",
+        fluidRow(
+          column(3,
+            selectInput(ns("method"), "Method:",
+                        choices = .gene_methods,
+                        selected = "MAGMA-gene"),
+            selectInput(ns("panel"), "Panel:",
+                        choices = c("Best-per-cell (min P)" = "__best__"),
+                        selected = "__best__"),
+            checkboxInput(ns("evidence_required"),
+                          "Require colocalisation / HEIDI evidence",
+                          value = FALSE)
+          ),
+          column(3,
+            radioButtons(ns("sig_basis"), "Significance basis:",
+                          choices = c("FDR" = "fdr", "P" = "p"),
+                          selected = "fdr", inline = TRUE),
+            numericInput(ns("sig_threshold"), "Significance threshold:",
+                          value = 0.05, min = 1e-12, max = 1, step = 0.01)
+          ),
+          column(3,
+            checkboxInput(ns("only_recurrent"),
+                          "Only show genes significant in ≥ k GWAS",
+                          value = TRUE),
+            sliderInput(ns("k_min"), "k:",
+                         min = 1, max = 9, value = 2, step = 1),
+            numericInput(ns("row_cap"), "Rows shown in heatmap:",
+                          value = 50, min = 5, max = 500, step = 5)
+          ),
+          column(3,
+            selectInput(ns("gwas_sort"), "Order GWAS by:",
+                         choices = .compare_gwas_sort_choices,
+                         selected = "as_selected"),
+            sliderInput(ns("plot_font_size"), "Font size (pt):",
+                         min = 8, max = 20, value = 11, step = 1)
+          )
+        ),
+        fluidRow(
+          .dl_and_download_column(ns, "gene", default_h = 12)
+        )
+      )
+    ),
+    br(),
+    tags$div(style = "max-width: 1100px; overflow-x: auto;",
+      plotOutput(ns("gene_compare_plot"), height = "800px")
+    ),
+    br(),
+    tags$div(style = "max-width: 1100px;",
+      h4("Underlying data"),
+      DT::DTOutput(ns("gene_compare_tbl"))
+    )
+  )
+}
+
+.gene_compare_ggplot <- function(long, gwas_vec, method_pick, panel_pick,
+                                    only_recurrent, k_min,
+                                    sig_basis = "fdr", sig_threshold = 0.05,
+                                    evidence_required = FALSE,
+                                    row_cap = 50, font_size = 11) {
+  slice <- long[method == method_pick & gwas %in% gwas_vec]
+  if (nrow(slice) == 0) return(NULL)
+
+  # panel reduction (best-per-cell or single panel)
+  if (!identical(panel_pick, "__best__") && !is.null(panel_pick) &&
+      nzchar(panel_pick)) {
+    slice <- slice[panel == panel_pick]
+  } else {
+    slice <- pick_best_per_cell(slice, c("gwas", "entity_id"))
+  }
+  if (nrow(slice) == 0) return(NULL)
+
+  # evidence-required only meaningful for methods that have evidence
+  if (isTRUE(evidence_required) && method_pick %in% .gene_evidence_methods) {
+    slice <- slice[!is.na(evidence) & evidence == TRUE]
+  }
+  if (nrow(slice) == 0) return(NULL)
+
+  # recurrence ordering
+  basis_col <- if (identical(sig_basis, "p")) "p" else "fdr"
+  rec <- slice[, .(
+    k       = sum(!is.na(.SD[[1L]]) & .SD[[1L]] < sig_threshold),
+    min_val = suppressWarnings(min(.SD[[1L]], na.rm = TRUE))
+  ), by = entity_id, .SDcols = basis_col]
+  rec <- rec[order(-k, min_val)]
+
+  if (isTRUE(only_recurrent) && k_min > 1L) rec <- rec[k >= k_min]
+  if (nrow(rec) == 0) return(NULL)
+
+  # Cap heatmap rows
+  cap <- max(1L, min(as.integer(row_cap), nrow(rec)))
+  rec <- rec[seq_len(cap)]
+  slice <- slice[entity_id %in% rec$entity_id]
+
+  # Fill: -log10(FDR) or -log10(P) depending on user's basis; MAGMA/
+  # unsigned methods -> single-hue teal. Direction is shown in the DT
+  # table for methods that carry it.
+  val_col <- if (identical(sig_basis, "p")) "p" else "fdr"
+  slice[, minus_log10 := pmin(-log10(.SD[[1L]]), 12), .SDcols = val_col]
+  slice[, sig_flag := !is.na(.SD[[1L]]) & .SD[[1L]] < sig_threshold,
+        .SDcols = val_col]
+  slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+
+  scale_lab <- if (identical(sig_basis, "p")) "-log10(P)" else "-log10(FDR)"
+
+  ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id,
+                                        fill = minus_log10)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.3) +
+    ggplot2::geom_tile(data = slice[sig_flag == TRUE],
+                        fill = NA, colour = "black", linewidth = 0.7) +
+    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
+                                   name = scale_lab,
+                                   na.value = .gd_grey, limits = c(0, 12)) +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = c(0, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::labs(x = NULL, y = NULL) +
+    ggplot2::theme_minimal(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
+      panel.grid = ggplot2::element_blank(),
+      legend.position = "bottom",
+      plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
+    )
+}
+
+gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
+                                  comparison_long) {
+  moduleServer(id, function(input, output, session) {
+
+    # Cap k slider at number of selected GWAS
+    observeEvent(selected_gwas_multi(), {
+      n_sel <- length(selected_gwas_multi())
+      if (n_sel < 1) return()
+      cur <- if (is.null(input$k_min)) 2L else as.integer(input$k_min)
+      updateSliderInput(session, "k_min",
+                        max = max(n_sel, 1L),
+                        value = min(cur, n_sel))
+    })
+
+    # When method changes, refresh panel dropdown to only include panels
+    # present for that method. MAGMA-gene has no panels.
+    observeEvent(list(comparison_long(), input$method), {
+      long <- comparison_long()
+      picked_method <- input$method %||% "MAGMA-gene"
+      panels <- unique(long[method == picked_method, panel])
+      panels <- panels[!is.na(panels)]
+      if (length(panels) == 0) {
+        choices <- c("N/A (single-panel method)" = "__best__")
+      } else {
+        choices <- c("Best-per-cell (min P)" = "__best__",
+                      setNames(panels, panels))
+      }
+      updateSelectInput(session, "panel", choices = choices, selected = "__best__")
+    })
+
+    gwas_vec_r <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort,
+                  NULL)
+    })
+
+    plot_obj <- reactive({
+      req(comparison_long())
+      .gene_compare_ggplot(
+        long              = comparison_long(),
+        gwas_vec          = gwas_vec_r(),
+        method_pick       = input$method %||% "MAGMA-gene",
+        panel_pick        = input$panel %||% "__best__",
+        only_recurrent    = isTRUE(input$only_recurrent),
+        k_min             = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
+        sig_basis         = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
+        sig_threshold     = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
+        evidence_required = isTRUE(input$evidence_required),
+        row_cap           = if (is.null(input$row_cap)) 50L else as.integer(input$row_cap),
+        font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size)
+      )
+    })
+
+    output$gene_compare_plot <- renderPlot({
+      p <- plot_obj()
+      if (is.null(p)) {
+        plot.new(); title("No genes meet the current filter")
+        return(invisible())
+      }
+      print(p)
+    })
+
+    output$gene_compare_tbl <- DT::renderDT({
+      req(comparison_long())
+      gwas_vec <- gwas_vec_r()
+      picked_method <- input$method %||% "MAGMA-gene"
+      slice <- comparison_long()[method == picked_method & gwas %in% gwas_vec]
+      picked_panel <- input$panel %||% "__best__"
+      if (!identical(picked_panel, "__best__") && nzchar(picked_panel)) {
+        slice <- slice[panel == picked_panel]
+      }
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        GWAS      = factor(slice$gwas, levels = gwas_vec),
+        Gene      = slice$entity_id,
+        Panel     = slice$panel,
+        Statistic = signif(slice$statistic, 3),
+        SE        = signif(slice$se, 3),
+        P         = signif(slice$p, 3),
+        `P.FDR`   = signif(slice$fdr, 3),
+        Evidence  = ifelse(is.na(slice$evidence), "—",
+                            ifelse(slice$evidence, "Yes", "No")),
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(6, "asc"))))
+    }, server = TRUE)
+
+    output$gene_download_plot <- downloadHandler(
+      filename = function() sprintf("gene_compare_%s_%s.%s",
+                                     gsub("[^A-Za-z0-9]+", "_", input$method %||% "MAGMA-gene"),
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$gene_dl_format),
+      content = function(file) {
+        p <- plot_obj(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$gene_dl_format
+        w <- input$gene_dl_width; h <- input$gene_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$gene_download_csv <- downloadHandler(
+      filename = function() sprintf("gene_compare_%s_matrix_%s.csv",
+                                     gsub("[^A-Za-z0-9]+", "_", input$method %||% "MAGMA-gene"),
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- gwas_vec_r()
+        picked_method <- input$method %||% "MAGMA-gene"
+        long <- comparison_long()[method == picked_method & gwas %in% gwas_vec]
+        picked_panel <- input$panel %||% "__best__"
+        if (!identical(picked_panel, "__best__") && nzchar(picked_panel)) {
+          long <- long[panel == picked_panel]
+        } else {
+          long <- pick_best_per_cell(long, c("gwas", "entity_id"))
+        }
+        wide <- pivot_matrix(long, "fdr", gwas_vec)
+        display <- ifelse(is.na(wide), "",
+                          format(wide, scientific = TRUE, digits = 3))
+        display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
+        header <- sprintf("# GenoDisc gene compare CSV | %s | method=%s panel=%s sig_basis=%s threshold=%g k_min=%s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                           picked_method, picked_panel,
+                           input$sig_basis %||% "fdr",
+                           input$sig_threshold %||% 0.05,
+                           input$k_min %||% 2L)
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: P.FDR. Empty cell = gene not present in that GWAS's method output.", con)
+        out <- data.frame(Gene = rownames(display), display,
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+  })
+}
+
 atc_compare_ui <- function(ns) {
   tabsetPanel(
     tabPanel("MAGMA", br(),

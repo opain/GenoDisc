@@ -218,6 +218,75 @@ molAssocUI <- function(id) {
       tabPanel(
         title = "Summary",
         br(),
+        # Body swaps between the single-GWAS UI (rendered server-side) and
+        # the cross-GWAS gene compare UI when >= 2 GWAS are selected.
+        uiOutput(ns("summary_body"))
+      ),
+      tabPanel(title = "MAGMA", br(),
+        p("This tab shows MAGMA gene association results."), hr(), br(),
+        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
+        mol_table_legend("magma"), br()
+      ),
+      tabPanel(title = "Expression - FUSION", br(),
+        p("This tab shows differential expression association results from FUSION."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
+        mol_table_legend("fusion"), br()
+      ),
+      tabPanel(title = "Protein - FUSION", br(),
+        p("This tab shows differential protein level association results from FUSION."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
+        mol_table_legend("fusion"), br()
+      ),
+      tabPanel(title = "Expression - SMR", br(),
+        p("This tab shows differential expression association results from SMR"), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
+        mol_table_legend("smr_expr"), br()
+      ),
+      tabPanel(title = "Protein - SMR", br(),
+        p("This tab shows differential protein level association results from SMR"), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
+        mol_table_legend("smr_protein"), br()
+      ),
+      tabPanel(title = "Panel Info.", br(),
+        p("This tab shows the number of features and individuals for each panel."), hr(), br(),
+        fluidRow(column(width = 7, dataTableOutput(ns("panel_info_table")))),
+        mol_table_legend("panel"), br()
+      )
+    )
+  )
+}
+
+#' Molecular Associations module server
+#'
+#' @param id Module namespace id
+#' @param gwas_data Reactive returning the loaded GWAS data list
+#' @param selected_gwas Reactive returning the currently selected GWAS name
+#' @param config_flags Reactive returning a list from parse_config_flags()
+molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
+                            selected_gwas_multi = NULL,
+                            comparison_mode = NULL,
+                            comparison_long = NULL) {
+  moduleServer(id, function(input, output, session) {
+    ns <- session$ns
+
+    # Cross-GWAS gene compare sub-module. Registered unconditionally so its
+    # outputs exist even when we're in single-GWAS mode; it self-guards via
+    # its own reactives.
+    if (!is.null(selected_gwas_multi) && !is.null(comparison_long)) {
+      gene_compare_server("gene_compare",
+                            gwas_data, selected_gwas_multi, comparison_long)
+    }
+
+    # Summary tab body: single-GWAS UI unless >= 2 GWAS are selected, in
+    # which case swap to the cross-GWAS gene compare UI. The rest of the
+    # method-specific tabs (MAGMA, FUSION, SMR, etc.) continue to show
+    # single-GWAS content for the first-selected GWAS.
+    output$summary_body <- renderUI({
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+      if (in_compare) {
+        return(gene_compare_ui(NS(ns("gene_compare"))))
+      }
+      tagList(
         p("This tab shows a heatmap summarising, for each gene, whether it is associated with the trait across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
         hr(),
         tags$details(class = "gd-details",
@@ -295,50 +364,8 @@ molAssocUI <- function(id) {
         uiOutput(ns("message_no_genes_mol")),
         uiOutput(ns("message_no_positions_mol")),
         uiOutput(ns("mol_assoc_plot.ui"))
-      ),
-      tabPanel(title = "MAGMA", br(),
-        p("This tab shows MAGMA gene association results."), hr(), br(),
-        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
-        mol_table_legend("magma"), br()
-      ),
-      tabPanel(title = "Expression - FUSION", br(),
-        p("This tab shows differential expression association results from FUSION."), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
-        mol_table_legend("fusion"), br()
-      ),
-      tabPanel(title = "Protein - FUSION", br(),
-        p("This tab shows differential protein level association results from FUSION."), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
-        mol_table_legend("fusion"), br()
-      ),
-      tabPanel(title = "Expression - SMR", br(),
-        p("This tab shows differential expression association results from SMR"), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
-        mol_table_legend("smr_expr"), br()
-      ),
-      tabPanel(title = "Protein - SMR", br(),
-        p("This tab shows differential protein level association results from SMR"), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
-        mol_table_legend("smr_protein"), br()
-      ),
-      tabPanel(title = "Panel Info.", br(),
-        p("This tab shows the number of features and individuals for each panel."), hr(), br(),
-        fluidRow(column(width = 7, dataTableOutput(ns("panel_info_table")))),
-        mol_table_legend("panel"), br()
       )
-    )
-  )
-}
-
-#' Molecular Associations module server
-#'
-#' @param id Module namespace id
-#' @param gwas_data Reactive returning the loaded GWAS data list
-#' @param selected_gwas Reactive returning the currently selected GWAS name
-#' @param config_flags Reactive returning a list from parse_config_flags()
-molAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
-  moduleServer(id, function(input, output, session) {
-    ns <- session$ns
+    })
 
     ########
     # Show/hide tabs based on config

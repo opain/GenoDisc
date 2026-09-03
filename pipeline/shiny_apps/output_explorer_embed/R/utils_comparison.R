@@ -107,6 +107,106 @@
   )
 }
 
+.gd_long_gene_magma <- function(gd, gwas) {
+  m <- gd_read(gd, gwas, "mol_assoc/magma")
+  if (is.null(m) || nrow(m) == 0) return(NULL)
+  m <- as.data.frame(m)
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "gene",
+    entity_id    = m$ID,
+    method       = "MAGMA-gene",
+    entity_label = m$ID,
+    panel        = NA_character_,
+    p            = suppressWarnings(as.numeric(m$P)),
+    fdr          = suppressWarnings(as.numeric(m$P.FDR))
+  )
+}
+
+.gd_long_gene_twas_fusion <- function(gd, gwas) {
+  r <- safe_access(gd_read(gd, gwas, "mol_assoc/exp/fusion"), "res")
+  if (is.null(r) || nrow(r) == 0) return(NULL)
+  r <- as.data.frame(r)
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "gene",
+    entity_id    = r[["Gene Symbol"]],
+    method       = "TWAS-FUSION",
+    entity_label = r[["Gene Symbol"]],
+    panel        = as.character(r$PANEL),
+    statistic    = suppressWarnings(as.numeric(r$TWAS.Z)),
+    p            = suppressWarnings(as.numeric(r$TWAS.P)),
+    fdr          = suppressWarnings(as.numeric(r$TWAS.P.FDR)),
+    evidence     = as.logical(r$COLOC_logical)
+  )
+}
+
+.gd_long_gene_smr_exp <- function(gd, gwas) {
+  r <- safe_access(gd_read(gd, gwas, "mol_assoc/exp/smr"), "results")
+  if (is.null(r) || nrow(r) == 0) return(NULL)
+  r <- as.data.frame(r)
+  # HEIDI evidence: p_HEIDI > 0.05 supports colocalisation (no evidence of
+  # heterogeneity). NA HEIDI cannot be interpreted as supportive.
+  ev <- !is.na(r$p_HEIDI) & suppressWarnings(as.numeric(r$p_HEIDI)) > 0.05
+  ev[is.na(r$p_HEIDI)] <- NA
+  gene_id <- r[["Gene Symbol"]]
+  gene_id[is.na(gene_id)] <- r[["Ensembl ID"]][is.na(gene_id)]
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "gene",
+    entity_id    = gene_id,
+    method       = "SMR-expression",
+    entity_label = gene_id,
+    panel        = as.character(r$PANEL),
+    statistic    = suppressWarnings(as.numeric(r$b_SMR)),
+    se           = suppressWarnings(as.numeric(r$se_SMR)),
+    p            = suppressWarnings(as.numeric(r$p_SMR)),
+    fdr          = suppressWarnings(as.numeric(r$p_SMR.FDR)),
+    evidence     = ev
+  )
+}
+
+.gd_long_gene_pwas_fusion <- function(gd, gwas) {
+  r <- safe_access(gd_read(gd, gwas, "mol_assoc/protein/fusion"), "results")
+  if (is.null(r) || nrow(r) == 0) return(NULL)
+  r <- as.data.frame(r)
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "gene",
+    entity_id    = r[["Gene Symbol"]],
+    method       = "PWAS-FUSION",
+    entity_label = r[["Gene Symbol"]],
+    panel        = as.character(r$PANEL),
+    statistic    = suppressWarnings(as.numeric(r$pwas_all.Z)),
+    p            = suppressWarnings(as.numeric(r$pwas_all.P)),
+    fdr          = suppressWarnings(as.numeric(r$pwas_all.P.FDR)),
+    evidence     = as.logical(r$COLOC_logical)
+  )
+}
+
+.gd_long_gene_smr_prot <- function(gd, gwas) {
+  r <- safe_access(gd_read(gd, gwas, "mol_assoc/protein/smr"), "results")
+  if (is.null(r) || nrow(r) == 0) return(NULL)
+  r <- as.data.frame(r)
+  ev <- !is.na(r$p_HEIDI) & suppressWarnings(as.numeric(r$p_HEIDI)) > 0.05
+  ev[is.na(r$p_HEIDI)] <- NA
+  gene_id <- r[["Gene Symbol"]]
+  gene_id[is.na(gene_id)] <- r[["Ensembl ID"]][is.na(gene_id)]
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "gene",
+    entity_id    = gene_id,
+    method       = "SMR-protein",
+    entity_label = gene_id,
+    panel        = as.character(r$PANEL),
+    statistic    = suppressWarnings(as.numeric(r$b_SMR)),
+    se           = suppressWarnings(as.numeric(r$se_SMR)),
+    p            = suppressWarnings(as.numeric(r$p_SMR)),
+    fdr          = suppressWarnings(as.numeric(r$p_SMR.FDR)),
+    evidence     = ev
+  )
+}
+
 .gd_long_atc_gsea <- function(gd, gwas) {
   g <- safe_access(gd_read(gd, gwas, "tx/atc"), "twas_gsea")
   if (is.null(g) || nrow(g) == 0) return(NULL)
@@ -141,7 +241,7 @@
 #'   "tissue" and "atc".
 #' @return data.table with the canonical long-format columns (see .gd_long_cols)
 build_comparison_long <- function(gd, gwas_vec,
-                                  entity_types = c("tissue", "atc")) {
+                                  entity_types = c("tissue", "atc", "gene")) {
   if (length(gwas_vec) == 0) return(.gd_empty_long())
   parts <- list()
   for (g in gwas_vec) {
@@ -149,6 +249,13 @@ build_comparison_long <- function(gd, gwas_vec,
     if ("atc"    %in% entity_types) {
       parts[[length(parts) + 1L]] <- .gd_long_atc_magma(gd, g)
       parts[[length(parts) + 1L]] <- .gd_long_atc_gsea(gd, g)
+    }
+    if ("gene"   %in% entity_types) {
+      parts[[length(parts) + 1L]] <- .gd_long_gene_magma(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_gene_twas_fusion(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_gene_smr_exp(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_gene_pwas_fusion(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_gene_smr_prot(gd, g)
     }
   }
   parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)

@@ -51,7 +51,7 @@ suppressPackageStartupMessages({
 
 gd <- gd_open(BUNDLE)
 all9 <- gd_gwas(gd)
-long <- build_comparison_long(gd, all9, c("tissue", "atc"))
+long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene"))
 
 expect <- if (testthat_available) testthat::expect_true else function(x, info = "") {
   if (!isTRUE(x)) stop("ASSERT FAILED: ", info, call. = FALSE)
@@ -223,6 +223,69 @@ pass(sprintf("Overview QC: %d rows, all lambda_GC populated", nrow(qc)))
 yield <- build_overview_yield(long, gd, all9, sig_basis = "fdr", sig_threshold = 0.05)
 expect(nrow(yield) == 9, sprintf("Overview yield rows = %d (expected 9)", nrow(yield)))
 pass(sprintf("Overview yield: %d rows", nrow(yield)))
+
+# ---------------------------------------------------------------------------
+# Test 7: gene entity type — PWAS-FUSION empty-ASD column invariant.
+#
+# ASD has zero FDR-significant PWAS-FUSION rows in this bundle, but pivoting
+# a PWAS-FUSION slice across all 9 GWAS must still produce a 9-column matrix
+# with ASD present as an all-NA column. This is the invariant the plan
+# specifically calls out.
+
+message("Test 7 — Gene layer PWAS-FUSION empty-column invariant")
+
+pwas <- long[method == "PWAS-FUSION"]
+expect(nrow(pwas) > 0, "PWAS-FUSION rows must exist in the long tibble")
+
+# Sig PWAS-FUSION per GWAS - ASD should be zero
+sig_by_gwas <- pwas[fdr < 0.05, .N, by = gwas]
+asd_sig <- sig_by_gwas[gwas == "ASD", N]
+expect(length(asd_sig) == 0 || asd_sig == 0,
+       sprintf("ASD FDR-sig PWAS-FUSION rows = %s (expected 0)",
+               if (length(asd_sig) == 0) "0" else as.character(asd_sig)))
+pass("ASD has 0 FDR-sig PWAS-FUSION genes")
+
+# Pivot the sig-only slice and confirm ASD column is preserved (all NA)
+sig_pwas <- pick_best_per_cell(pwas[fdr < 0.05], c("gwas", "entity_id"))
+m <- pivot_matrix(sig_pwas, "fdr", all9)
+expect(ncol(m) == 9,
+       sprintf("Sig-PWAS pivot ncol = %d (expected 9)", ncol(m)))
+expect(all(is.na(m[, "ASD"])),
+       "ASD column should be all-NA in the sig-only pivoted matrix")
+pass("Sig-PWAS pivot preserves 9 columns; ASD column is all-NA")
+
+# ---------------------------------------------------------------------------
+# Test 8: gene entity type — chr17q21.31 recurrence at k=4 for TWAS-FUSION.
+#
+# MAPT and the surrounding chr17q21.31 genes (ARHGAP27, DND1, KANSL1,
+# LRRC37A4P) are FDR-significant in ALZ, ASD, MDD, PRK, SCZ under
+# TWAS-FUSION. Plan text listed 4 traits; actual bundle shows 5 (MDD
+# additionally). All 5 genes should therefore survive a k >= 4 recurrence
+# filter.
+
+message("Test 8 — Gene layer TWAS-FUSION chr17q21.31 recurrence (k >= 4)")
+
+chr17 <- c("MAPT", "ARHGAP27", "DND1", "KANSL1", "LRRC37A4P")
+twas_chr17 <- long[method == "TWAS-FUSION" & entity_id %in% chr17]
+best <- pick_best_per_cell(twas_chr17, c("gwas", "entity_id"))
+recurrence <- best[, .(k = sum(fdr < 0.05, na.rm = TRUE)), by = entity_id]
+for (g in chr17) {
+  actual_k <- recurrence[entity_id == g, k]
+  expect(length(actual_k) == 1 && actual_k >= 4,
+         sprintf("%s recurrence k = %s (expected >= 4)",
+                 g, if (length(actual_k) == 0) "0" else as.character(actual_k)))
+  pass(sprintf("%s FDR-sig in %d GWAS", g, actual_k))
+}
+
+# Apply the recurrence filter at k=4 - all 5 chr17q21.31 genes must survive.
+filt <- apply_comparison_filters(best,
+  list(sig_basis = "fdr", sig_threshold = 0.05, k_min = 4L))
+survivors <- unique(filt$entity_id)
+expect(setequal(intersect(chr17, survivors), chr17),
+       sprintf("Survivors of k=4 filter = %s (expected superset of %s)",
+               paste(sort(survivors), collapse = ","),
+               paste(sort(chr17), collapse = ",")))
+pass("All 5 chr17q21.31 genes survive k=4 filter")
 
 # ---------------------------------------------------------------------------
 

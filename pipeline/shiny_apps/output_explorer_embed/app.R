@@ -616,7 +616,7 @@ server <- function(input, output, session) {
     req(length(shared$selected_gwas_multi()) >= 1)
     build_comparison_long(shared$gwas_data(),
                            shared$selected_gwas_multi(),
-                           entity_types = c("tissue", "atc"))
+                           entity_types = c("tissue", "atc", "gene"))
   })
 
   # Wire up all modules
@@ -624,7 +624,10 @@ server <- function(input, output, session) {
                   shared$comparison_mode, comparison_long)
   gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags)
   snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
-  molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
+  molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags,
+                  selected_gwas_multi = shared$selected_gwas_multi,
+                  comparison_mode     = shared$comparison_mode,
+                  comparison_long     = comparison_long)
   enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags,
                     selected_gwas_multi = shared$selected_gwas_multi,
                     comparison_mode     = shared$comparison_mode,
