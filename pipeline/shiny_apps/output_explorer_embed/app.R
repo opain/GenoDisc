@@ -623,7 +623,9 @@ server <- function(input, output, session) {
   # Wire up all modules
   overviewServer("overview", shared$gwas_data, shared$selected_gwas_multi,
                   shared$comparison_mode, comparison_long)
-  gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags)
+  gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags,
+                selected_gwas_multi = shared$selected_gwas_multi,
+                comparison_mode     = shared$comparison_mode)
   snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags,
                   selected_gwas_multi = shared$selected_gwas_multi,
                   comparison_mode     = shared$comparison_mode,

@@ -2233,3 +2233,236 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
     )
   })
 }
+
+########################################
+# GENCOR COMPARE (Bivariate LDSC)
+########################################
+#
+# Cross-trait genetic-correlation heatmap. Reads from each selected GWAS's
+# gwas_qc$ldsc_gencor_dat block (built by build_gencor_long). Bundles that
+# didn't run bivariate LDSC get a "no data" placeholder instead of an empty
+# plot.
+
+gencor_compare_ui <- function(ns) {
+  tagList(
+    br(),
+    p(
+      "Symmetric genetic-correlation (rG) matrix across the selected GWAS. ",
+      "Cell colour is rG on a diverging red-white-blue scale (rG = -1 red, ",
+      "rG = 0 white, rG = +1 blue). Ring around a cell = nominal-sig ",
+      "(p < 0.05); black square = FDR-sig (p.FDR < 0.05). Diagonal (self-",
+      "correlation) is fixed at rG = 1. Blank cell = pair was not tested."
+    ),
+    hr(),
+    tags$details(class = "gd-details",
+      tags$summary("Filter data"),
+      tags$div(class = "gd-details-body",
+        fluidRow(
+          column(3,
+            selectInput(ns("gwas_sort"), "Order GWAS by:",
+                         choices = .compare_gwas_sort_choices,
+                         selected = "as_selected")
+          ),
+          column(3,
+            sliderInput(ns("plot_font_size"), "Font size (pt):",
+                         min = 8, max = 20, value = 11, step = 1)
+          ),
+          column(3,
+            sliderInput(ns("plot_point_size"), "Point size:",
+                         min = 2, max = 14, value = 6, step = 1)
+          ),
+          .dl_and_download_column(ns, "gencor", default_w = 10, default_h = 10)
+        )
+      )
+    ),
+    br(),
+    tags$div(style = "max-width: 1100px; overflow-x: auto;",
+      uiOutput(ns("gencor_plot_ui"))
+    ),
+    br(),
+    tags$div(style = "max-width: 1100px;",
+      h4("Underlying data"),
+      DT::DTOutput(ns("gencor_tbl"))
+    )
+  )
+}
+
+.gencor_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 6) {
+  if (nrow(long) == 0) return(NULL)
+  slice <- long[gwas_i %in% gwas_vec & gwas_j %in% gwas_vec]
+  if (nrow(slice) == 0) return(NULL)
+
+  slice[, gwas_i := factor(gwas_i, levels = gwas_vec)]
+  slice[, gwas_j := factor(gwas_j, levels = rev(gwas_vec))]
+  slice[, nom_sig := !is.na(rg_p)     & rg_p     < 0.05]
+  slice[, fdr_sig := !is.na(rg_p_fdr) & rg_p_fdr < 0.05]
+  # Clamp rg to [-1.2, 1.2] so occasional out-of-bounds estimates don't
+  # push the fill scale off the diverging endpoints.
+  slice[, rg_plot := pmax(-1.2, pmin(rg, 1.2))]
+
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = rg_plot), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas_i, y = gwas_j)) +
+    base_layer +
+    ggplot2::scale_fill_gradient2(
+      low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
+      limits = c(-1.2, 1.2), na.value = .gd_grey,
+      name = expression("Genetic correlation ("*r[g]*")")
+    )
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring: p<0.05.  Square: FDR<0.05.  Blank: pair not tested.") +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
+    )
+}
+
+gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
+  moduleServer(id, function(input, output, session) {
+
+    gwas_vec_r <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort,
+                  NULL)
+    })
+
+    gencor_long <- reactive({
+      req(gwas_data())
+      req(length(selected_gwas_multi()) >= 1)
+      build_gencor_long(gwas_data(), selected_gwas_multi())
+    })
+
+    plot_obj <- reactive({
+      .gencor_ggplot(
+        long       = gencor_long(),
+        gwas_vec   = gwas_vec_r(),
+        font_size  = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        point_size = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size)
+      )
+    })
+
+    plot_dims <- reactive({
+      n <- length(gwas_vec_r())
+      .compare_plot_dims(
+        n_rows    = n,
+        n_cols    = n,
+        font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        y_labels  = gwas_vec_r(),
+        min_width = 400, min_height = 300
+      )
+    })
+
+    .sync_dl_dims(session, plot_dims, "gencor")
+
+    output$gencor_plot_ui <- renderUI({
+      long <- gencor_long()
+      if (nrow(long) == 0) {
+        return(tags$div(
+          class = "well",
+          style = "max-width: 720px; margin-top: 12px;",
+          tags$p(
+            tags$b("No genetic-correlation data in this bundle."),
+            " Bivariate LDSC was not run for the selected GWAS. Enable ",
+            tags$code("gencor_gwas_list"),
+            " in the pipeline config to populate this view."
+          )
+        ))
+      }
+      dims <- plot_dims()
+      plotOutput(session$ns("gencor_plot"),
+                  height = dims$height, width = dims$width)
+    })
+
+    output$gencor_plot <- renderPlot({
+      p <- plot_obj()
+      if (is.null(p)) { plot.new(); title("No gencor data"); return(invisible()) }
+      print(p)
+    })
+
+    gencor_tbl_slice <- reactive({
+      long <- gencor_long()
+      if (nrow(long) == 0) return(long)
+      # Drop the diagonal from the underlying-data table since rg=1 is
+      # tautological.
+      long[gwas_i != gwas_j & gwas_i %in% gwas_vec_r() & gwas_j %in% gwas_vec_r()]
+    })
+
+    output$gencor_tbl <- DT::renderDT({
+      slice <- gencor_tbl_slice()
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        `GWAS 1`   = factor(slice$gwas_i, levels = gwas_vec_r()),
+        `GWAS 2`   = factor(slice$gwas_j, levels = gwas_vec_r()),
+        rG         = signif(slice$rg, 3),
+        SE         = signif(slice$rg_se, 3),
+        P          = signif(slice$rg_p, 3),
+        `P.FDR`    = signif(slice$rg_p_fdr, 3),
+        `N SNPs`   = slice$n_snps,
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(4, "asc"))))
+    }, server = TRUE)
+
+    output$gencor_download_plot <- downloadHandler(
+      filename = function() sprintf("gencor_compare_%s.%s",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$gencor_dl_format),
+      content = function(file) {
+        p <- plot_obj()
+        if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$gencor_dl_format
+        w <- input$gencor_dl_width; h <- input$gencor_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$gencor_download_csv <- downloadHandler(
+      filename = function() sprintf("gencor_compare_matrix_%s.csv",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- gwas_vec_r()
+        long <- gencor_long()
+        wide <- matrix(NA_real_, nrow = length(gwas_vec), ncol = length(gwas_vec),
+                        dimnames = list(gwas_vec, gwas_vec))
+        for (i in seq_len(nrow(long))) {
+          r <- long$gwas_i[i]; c <- long$gwas_j[i]
+          if (r %in% gwas_vec && c %in% gwas_vec) wide[r, c] <- long$rg[i]
+        }
+        header <- sprintf("# GenoDisc gencor compare CSV | %s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"))
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: rG (genetic correlation, LDSC).", con)
+        out <- data.frame(GWAS = rownames(wide),
+                          format(wide, digits = 3),
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+  })
+}

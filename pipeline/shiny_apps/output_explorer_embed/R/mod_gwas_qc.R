@@ -141,10 +141,19 @@ gwasQcUI <- function(id) {
   )
 }
 
-gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) {
+gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
+                          selected_gwas_multi = NULL,
+                          comparison_mode = NULL) {
   moduleServer(id, function(input, output, session) {
 
     ns <- session$ns
+
+    # Cross-GWAS gencor sub-module. Registered unconditionally; self-guards
+    # on selected_gwas_multi being length >= 1.
+    if (!is.null(selected_gwas_multi)) {
+      gencor_compare_server("gencor_compare",
+                              gwas_data, selected_gwas_multi)
+    }
 
     # Plain-text explanations for the QC metrics, used by the legend under the table.
     qc_help <- list(
@@ -399,6 +408,14 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags) 
 
     output$gencor_ui <- renderUI({
       req(gwas_data(), selected_gwas(), config_flags())
+
+      # In compare mode, swap to the cross-GWAS gencor matrix view; the
+      # single-GWAS forest-plot layout below is untouched.
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+      if (in_compare) {
+        return(gencor_compare_ui(NS(ns("gencor_compare"))))
+      }
+
       cf  <- config_flags()
       tab <- gencor_table()
 
