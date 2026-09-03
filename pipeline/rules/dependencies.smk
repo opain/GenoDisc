@@ -218,10 +218,12 @@ rule prep_1kg:
     f"{resdir}/benchmarks/prep_1kg.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/prep_1kg.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/prep_1kg.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_1kg.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download LDSC
@@ -444,10 +446,12 @@ rule format_drug_targetor:
     f"{resdir}/benchmarks/format_drug_targetor.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/format_drug_targetor.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download and format GTEx TPM data
@@ -576,10 +580,12 @@ rule format_psychencode:
     f"{resdir}/benchmarks/format_psychencode.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/format_psychencode.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/format_psychENCODE.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_psychENCODE.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 # Download FUSION GTEx v8 EUR SNP-weights
 # I am using EUR instead of full sample to avoid LD mismatch
@@ -610,11 +616,13 @@ rule update_gtex_coord:
     f"{resdir}/benchmarks/update_gtex_coord_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/update_gtex_coord-{{weight}}.log"
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/update_gtex_coord.R --pipeline_dir {workflow.basedir} \
-      --panel {wildcards.weight} > {log} 2>&1"
+      --panel {wildcards.weight} --resdir {params.resdir} > {log} 2>&1"
 
 rule update_gtex_coord_all_panel:
     input: expand(f"{resdir}/data/update_gtex_coord_{{weight}}.done", weight=gtex_weights)
@@ -647,11 +655,13 @@ rule insert_n_nongtex:
     f"{resdir}/benchmarks/insert_n_nongtex_{{weight}}.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/insert_n_nongtex-{{weight}}.log"
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/insert_n_nongtex.R --pipeline_dir {workflow.basedir} \
-      --panel {wildcards.weight} > {log} 2>&1"
+      --panel {wildcards.weight} --resdir {params.resdir} > {log} 2>&1"
 
 rule insert_n_nongtex_all_panel:
     input: expand(f"{resdir}/data/insert_n_nongtex_{{weight}}.done", weight=non_gtex_weights)
@@ -858,13 +868,14 @@ rule format_pwas_data:
     "../envs/main.yaml"
   params:
     rosmap_fusion= config["rosmap_fusion"],
-    banner_fusion= config["banner_fusion"]
+    banner_fusion= config["banner_fusion"],
+    resdir=resdir
   log:
     f"{resdir}/logs/format_pwas_data.log"
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/format_pwas_data.R --pipeline_dir {workflow.basedir} \
       --rosmap {params.rosmap_fusion} \
-      --banner {params.banner_fusion} > {log} 2>&1"
+      --banner {params.banner_fusion} --resdir {params.resdir} > {log} 2>&1"
 
 # Format drugtargetor database for TWAS-GSEA
 rule format_drug_targetor_for_twas_gsea:
@@ -877,10 +888,12 @@ rule format_drug_targetor_for_twas_gsea:
     f"{resdir}/benchmarks/format_drug_targetor_for_twas_gsea.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/format_drug_targetor_for_twas_gsea.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor_for_twas_gsea.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor_for_twas_gsea.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download SMR
@@ -920,11 +933,12 @@ rule format_rosmap_smr_data:
     "../envs/main.yaml"
   params:
     rosmap_smr= config["rosmap_smr"],
+    resdir=resdir
   log:
     f"{resdir}/logs/format_rosmap_smr_data.log"
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/format_rosmap_smr_data.R --pipeline_dir {workflow.basedir} \
-      --rosmap {params.rosmap_smr} > {log} 2>&1"
+      --rosmap {params.rosmap_smr} --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download PsychENCODE data for SMR
@@ -1062,10 +1076,12 @@ rule format_metabrain_esi:
     f"{resdir}/benchmarks/format_metabrain_esi.tsv"
   conda:
     "../envs/main.yaml"
+  params:
+    resdir=resdir
   log:
     f"{resdir}/logs/format_metabrain_esi.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/format_metabrain_esi.R --pipeline_dir {workflow.basedir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/format_metabrain_esi.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
 # Download eQTLGen data in SMR format
 rule download_eqtlgen:
