@@ -108,6 +108,23 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   ))
 }
 
+# Sync the download Width/Height numericInputs to the current on-screen plot
+# dimensions. Whenever `dims_reactive()` changes (font size, row count, GWAS
+# selection etc.), the numericInputs update to match. User edits get
+# overwritten on the next dims change - that's acceptable since the correct
+# default is more useful than persistent overrides.
+.sync_dl_dims <- function(session, dims_reactive, prefix = "") {
+  w_key <- if (nzchar(prefix)) paste0(prefix, "_dl_width")  else "dl_width"
+  h_key <- if (nzchar(prefix)) paste0(prefix, "_dl_height") else "dl_height"
+  observe({
+    dims <- dims_reactive()
+    w_in <- max(2, round(dims$width  / 96 * 2) / 2)
+    h_in <- max(2, round(dims$height / 96 * 2) / 2)
+    updateNumericInput(session, w_key, value = w_in)
+    updateNumericInput(session, h_key, value = h_in)
+  })
+}
+
 # Add the "outline for nominal-sig" (larger solid black circle behind the
 # data circle) and "black square for FDR-sig" (larger solid black square)
 # overlays, then re-draw the data circles on top so the fill shows through.
@@ -163,8 +180,7 @@ tissue_compare_ui <- function(ns) {
                           value = FALSE),
             conditionalPanel(
               condition = sprintf("input['%s'] == true", ns("only_recurrent")),
-              sliderInput(ns("k_min"), "k:",
-                           min = 1, max = 9, value = 2, step = 1)
+              uiOutput(ns("k_slider_ui"))
             )
           ),
           column(3,
@@ -303,18 +319,20 @@ tissue_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring = nominal-sig (P<0.05). Black square = FDR-sig. Inner dot = retained after conditional.") +
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Dot: retained.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -322,14 +340,14 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     comparison_long) {
   moduleServer(id, function(input, output, session) {
 
-    # Cap the k slider at the number of selected GWAS.
-    observeEvent(selected_gwas_multi(), {
+    # Server-side k slider so max always tracks the current selection.
+    output$k_slider_ui <- renderUI({
       n_sel <- length(selected_gwas_multi())
-      if (n_sel < 1) return()
-      cur <- if (is.null(input$k_min)) 2L else as.integer(input$k_min)
-      updateSliderInput(session, "k_min",
-                        max = max(n_sel, 1L),
-                        value = min(cur, n_sel))
+      cur <- isolate(input$k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
     gwas_vec_r <- reactive({
@@ -363,6 +381,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = unique(slice$entity_id)
       )
     })
+
+    .sync_dl_dims(session, plot_dims)
 
     output$tissue_compare_plot_ui <- renderUI({
       dims <- plot_dims()
@@ -508,8 +528,7 @@ locus_compare_ui <- function(ns) {
                           value = TRUE),
             conditionalPanel(
               condition = sprintf("input['%s'] == true", ns("only_recurrent")),
-              sliderInput(ns("k_min"), "k:",
-                           min = 1, max = 9, value = 2, step = 1)
+              uiOutput(ns("k_slider_ui"))
             ),
             numericInput(ns("row_cap"), "Rows shown in heatmap:",
                           value = 50, min = 5, max = 500, step = 5)
@@ -589,12 +608,12 @@ locus_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
                    caption = sprintf(
-                     "Ring = GWS (P<5x10^-8). Black square = P<%.0e. Blank cell = no clumped / independent signal for this GWAS.",
+                     "Ring: P<5e-8.  Square: P<%.0e.  Blank: no signal.",
                      sig_threshold)) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
@@ -602,7 +621,9 @@ locus_compare_ui <- function(ns) {
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -610,13 +631,13 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     comparison_long) {
   moduleServer(id, function(input, output, session) {
 
-    observeEvent(selected_gwas_multi(), {
+    output$k_slider_ui <- renderUI({
       n_sel <- length(selected_gwas_multi())
-      if (n_sel < 1) return()
-      cur <- if (is.null(input$k_min)) 2L else as.integer(input$k_min)
-      updateSliderInput(session, "k_min",
-                        max = max(n_sel, 1L),
-                        value = min(cur, n_sel))
+      cur <- isolate(input$k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
     gwas_vec_r <- reactive({
@@ -650,6 +671,8 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
+
+    .sync_dl_dims(session, plot_dims, "locus")
 
     output$locus_compare_plot_ui <- renderUI({
       dims <- plot_dims()
@@ -822,8 +845,7 @@ gene_compare_ui <- function(ns) {
                           value = TRUE),
             conditionalPanel(
               condition = sprintf("input['%s'] == true", ns("only_recurrent")),
-              sliderInput(ns("k_min"), "k:",
-                           min = 1, max = 9, value = 2, step = 1)
+              uiOutput(ns("k_slider_ui"))
             ),
             numericInput(ns("row_cap"), "Rows shown in heatmap:",
                           value = 50, min = 5, max = 500, step = 5)
@@ -923,18 +945,20 @@ gene_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring = nominal-sig. Black square = FDR-sig.") +
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -942,14 +966,13 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                   comparison_long) {
   moduleServer(id, function(input, output, session) {
 
-    # Cap k slider at number of selected GWAS
-    observeEvent(selected_gwas_multi(), {
+    output$k_slider_ui <- renderUI({
       n_sel <- length(selected_gwas_multi())
-      if (n_sel < 1) return()
-      cur <- if (is.null(input$k_min)) 2L else as.integer(input$k_min)
-      updateSliderInput(session, "k_min",
-                        max = max(n_sel, 1L),
-                        value = min(cur, n_sel))
+      cur <- isolate(input$k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
     # When method changes, refresh panel dropdown to only include panels
@@ -1002,6 +1025,8 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
+
+    .sync_dl_dims(session, plot_dims, "gene")
 
     output$gene_compare_plot_ui <- renderUI({
       dims <- plot_dims()
@@ -1133,8 +1158,7 @@ atc_compare_ui <- function(ns) {
                             value = TRUE),
               conditionalPanel(
                 condition = sprintf("input['%s'] == true", ns("magma_only_recurrent")),
-                sliderInput(ns("magma_k_min"), "k:",
-                             min = 1, max = 9, value = 2, step = 1)
+                uiOutput(ns("magma_k_slider_ui"))
               )
             ),
             column(3,
@@ -1183,8 +1207,7 @@ atc_compare_ui <- function(ns) {
                             value = TRUE),
               conditionalPanel(
                 condition = sprintf("input['%s'] == true", ns("gsea_only_recurrent")),
-                sliderInput(ns("gsea_k_min"), "k:",
-                             min = 1, max = 9, value = 2, step = 1)
+                uiOutput(ns("gsea_k_slider_ui"))
               )
             ),
             column(3,
@@ -1269,18 +1292,20 @@ atc_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring = nominal-sig (P<0.05). Black square = FDR-sig.") +
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -1367,18 +1392,20 @@ atc_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring = nominal-sig. Black square = FDR-sig. Blank cell = not tested in that GWAS.") +
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Blank: not tested.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -1397,17 +1424,22 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                          choices = choices, selected = "__best__")
     })
 
-    # Cap the k sliders (one per sub-tab) at the number of selected GWAS.
-    observeEvent(selected_gwas_multi(), {
+    # Server-side k sliders so max always tracks the current selection.
+    output$magma_k_slider_ui <- renderUI({
       n_sel <- length(selected_gwas_multi())
-      if (n_sel < 1) return()
-      for (which_slider in c("magma_k_min", "gsea_k_min")) {
-        cur <- input[[which_slider]]
-        cur <- if (is.null(cur)) 2L else as.integer(cur)
-        updateSliderInput(session, which_slider,
-                          max = max(n_sel, 1L),
-                          value = min(cur, n_sel))
-      }
+      cur <- isolate(input$magma_k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("magma_k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
+    })
+    output$gsea_k_slider_ui <- renderUI({
+      n_sel <- length(selected_gwas_multi())
+      cur <- isolate(input$gsea_k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("gsea_k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
     magma_gwas_vec <- reactive({
@@ -1447,6 +1479,8 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
       )
     })
+
+    .sync_dl_dims(session, magma_dims, "magma")
 
     output$atc_magma_plot_ui <- renderUI({
       dims <- magma_dims()
@@ -1559,6 +1593,8 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
       )
     })
+
+    .sync_dl_dims(session, gsea_dims, "gsea")
 
     output$atc_gsea_plot_ui <- renderUI({
       dims <- gsea_dims()
@@ -1687,8 +1723,7 @@ drug_compare_ui <- function(ns) {
                             value = FALSE),
               conditionalPanel(
                 condition = sprintf("input['%s'] == true", ns("magma_only_recurrent")),
-                sliderInput(ns("magma_k_min"), "k:",
-                             min = 1, max = 9, value = 2, step = 1)
+                uiOutput(ns("magma_k_slider_ui"))
               ),
               numericInput(ns("magma_row_cap"), "Rows shown in heatmap:",
                             value = 50, min = 5, max = 500, step = 5)
@@ -1739,8 +1774,7 @@ drug_compare_ui <- function(ns) {
                             value = FALSE),
               conditionalPanel(
                 condition = sprintf("input['%s'] == true", ns("gsea_only_recurrent")),
-                sliderInput(ns("gsea_k_min"), "k:",
-                             min = 1, max = 9, value = 2, step = 1)
+                uiOutput(ns("gsea_k_slider_ui"))
               ),
               numericInput(ns("gsea_row_cap"), "Rows shown in heatmap:",
                             value = 50, min = 5, max = 500, step = 5)
@@ -1820,18 +1854,20 @@ drug_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring = nominal-sig (P<0.05). Black square = FDR-sig.") +
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -1898,18 +1934,20 @@ drug_compare_ui <- function(ns) {
 
   gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
-                                expand = c(0.5, 0.5)) +
-    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring = nominal-sig. Black square = FDR-sig. Blank cell = not tested in that GWAS.") +
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Blank: not tested.") +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
     )
 }
 
@@ -1928,16 +1966,21 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
                          choices = choices, selected = "__best__")
     })
 
-    observeEvent(selected_gwas_multi(), {
+    output$magma_k_slider_ui <- renderUI({
       n_sel <- length(selected_gwas_multi())
-      if (n_sel < 1) return()
-      for (slider_id in c("magma_k_min", "gsea_k_min")) {
-        cur <- input[[slider_id]]
-        cur <- if (is.null(cur)) 2L else as.integer(cur)
-        updateSliderInput(session, slider_id,
-                          max = max(n_sel, 1L),
-                          value = min(cur, n_sel))
-      }
+      cur <- isolate(input$magma_k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("magma_k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
+    })
+    output$gsea_k_slider_ui <- renderUI({
+      n_sel <- length(selected_gwas_multi())
+      cur <- isolate(input$gsea_k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("gsea_k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
     magma_gwas_vec <- reactive({
@@ -1978,6 +2021,8 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
+
+    .sync_dl_dims(session, magma_dims, "magma")
 
     output$drug_magma_plot_ui <- renderUI({
       dims <- magma_dims()
@@ -2092,6 +2137,8 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
+
+    .sync_dl_dims(session, gsea_dims, "gsea")
 
     output$drug_gsea_plot_ui <- renderUI({
       dims <- gsea_dims()
