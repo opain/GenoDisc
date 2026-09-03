@@ -247,20 +247,45 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
-    observeEvent(config_flags(), {
+    # In compare mode the per-GWAS Manhattan plot and per-GWAS SuSiE
+    # fine-mapping tabs would silently show only the first-selected GWAS.
+    # Hide them; users drop back to single-GWAS mode to inspect them.
+    apply_snp_assoc_visibility <- function() {
       cf <- config_flags()
+      if (is.null(cf)) return()
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
 
+      # Manhattan: hidden in compare mode, always shown otherwise.
+      if (in_compare) {
+        hideTab("snp_assoc_tabs", "manhattan", session = session)
+      } else {
+        showTab("snp_assoc_tabs", "manhattan", session = session)
+      }
+
+      # Lead variants: swaps to locus compare in-place; always shown when
+      # any clump / cojo data is present.
       if (any(cf$clump, cf$cojo)) {
         showTab("snp_assoc_tabs", "lead_variants", session = session)
       } else {
         hideTab("snp_assoc_tabs", "lead_variants", session = session)
       }
 
-      if (isTRUE(cf$finemap)) {
+      # Fine-mapping: shown only when config enables it AND not in
+      # compare mode.
+      if (isTRUE(cf$finemap) && !in_compare) {
         showTab("snp_assoc_tabs", "finemapping", session = session)
       } else {
         hideTab("snp_assoc_tabs", "finemapping", session = session)
       }
+    }
+
+    observeEvent(config_flags(), apply_snp_assoc_visibility())
+    if (!is.null(comparison_mode)) {
+      observeEvent(comparison_mode(), apply_snp_assoc_visibility())
+    }
+
+    observeEvent(config_flags(), {
+      cf <- config_flags()
 
       lead_choices <- c()
       if (isTRUE(cf$cojo)) lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")

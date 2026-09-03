@@ -2516,3 +2516,470 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
     )
   })
 }
+
+########################################
+# CMAP COMPARE
+########################################
+#
+# Two sub-tabs (Perturbation and MOA) mirroring the ATC / drug compare
+# pattern. Both use signed colouring (Direction from CMap output).
+# Perturbation rows are keyed on cmap_name; MOA rows on the MOA string.
+# For both, best-per-cell reduces over the compound panel key that
+# encodes Panel / cell line / dose / time.
+
+cmap_compare_ui <- function(ns) {
+  tabsetPanel(
+    tabPanel("Perturbation", br(),
+      p("Cross-GWAS CMap perturbation compare. Rows are compound / shRNA ",
+        "perturbations (cmap_name). Best-per-cell reduction picks the ",
+        "smallest p across (panel, cell line, treatment time, dose). Cell ",
+        "colour is signed by Direction (blue = matches disease, red = ",
+        "opposes disease). Ring = nominal-sig (P<0.05); black square = ",
+        "FDR-sig; blank = not tested in that GWAS."),
+      hr(),
+      tags$details(class = "gd-details",
+        tags$summary("Filter data"),
+        tags$div(class = "gd-details-body",
+          fluidRow(
+            column(3,
+              radioButtons(ns("pert_sig_basis"), "Significance basis:",
+                            choices = c("FDR" = "fdr", "P" = "p"),
+                            selected = "fdr", inline = TRUE),
+              numericInput(ns("pert_sig_threshold"), "Significance threshold:",
+                            value = 0.05, min = 1e-12, max = 1, step = 0.01)
+            ),
+            column(3,
+              checkboxInput(ns("pert_only_recurrent"),
+                            "Only show perturbations significant in ≥ k GWAS",
+                            value = TRUE),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("pert_only_recurrent")),
+                uiOutput(ns("pert_k_slider_ui"))
+              ),
+              numericInput(ns("pert_row_cap"), "Rows shown in heatmap:",
+                            value = 50, min = 5, max = 500, step = 5)
+            ),
+            column(3,
+              selectInput(ns("pert_gwas_sort"), "Order GWAS by:",
+                           choices = .compare_gwas_sort_choices,
+                           selected = "as_selected"),
+              sliderInput(ns("pert_plot_font_size"), "Font size (pt):",
+                           min = 8, max = 20, value = 11, step = 1),
+              sliderInput(ns("pert_plot_point_size"), "Point size:",
+                           min = 2, max = 10, value = 4, step = 1)
+            ),
+            .dl_and_download_column(ns, "pert", default_h = 12)
+          )
+        )
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px; overflow-x: auto;",
+        uiOutput(ns("cmap_pert_plot_ui"))
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px;",
+        h4("Underlying data"),
+        DT::DTOutput(ns("cmap_pert_tbl"))
+      )
+    ),
+    tabPanel("MOA", br(),
+      p("Cross-GWAS CMap mechanism-of-action compare. Rows are MOA classes. ",
+        "Best-per-cell reduction picks the smallest p across (panel, cell ",
+        "line). Same colouring / overlay conventions as the Perturbation ",
+        "view."),
+      hr(),
+      tags$details(class = "gd-details",
+        tags$summary("Filter data"),
+        tags$div(class = "gd-details-body",
+          fluidRow(
+            column(3,
+              radioButtons(ns("moa_sig_basis"), "Significance basis:",
+                            choices = c("FDR" = "fdr", "P" = "p"),
+                            selected = "fdr", inline = TRUE),
+              numericInput(ns("moa_sig_threshold"), "Significance threshold:",
+                            value = 0.05, min = 1e-12, max = 1, step = 0.01)
+            ),
+            column(3,
+              checkboxInput(ns("moa_only_recurrent"),
+                            "Only show MOAs significant in ≥ k GWAS",
+                            value = TRUE),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("moa_only_recurrent")),
+                uiOutput(ns("moa_k_slider_ui"))
+              ),
+              numericInput(ns("moa_row_cap"), "Rows shown in heatmap:",
+                            value = 50, min = 5, max = 500, step = 5)
+            ),
+            column(3,
+              selectInput(ns("moa_gwas_sort"), "Order GWAS by:",
+                           choices = .compare_gwas_sort_choices,
+                           selected = "as_selected"),
+              sliderInput(ns("moa_plot_font_size"), "Font size (pt):",
+                           min = 8, max = 20, value = 11, step = 1),
+              sliderInput(ns("moa_plot_point_size"), "Point size:",
+                           min = 2, max = 10, value = 4, step = 1)
+            ),
+            .dl_and_download_column(ns, "moa", default_h = 12)
+          )
+        )
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px; overflow-x: auto;",
+        uiOutput(ns("cmap_moa_plot_ui"))
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px;",
+        h4("Underlying data"),
+        DT::DTOutput(ns("cmap_moa_tbl"))
+      )
+    )
+  )
+}
+
+# Shared point-style signed heatmap for CMap. `method_pick` selects
+# "CMAP-perturbation" or "CMAP-MOA".
+.cmap_signed_ggplot <- function(long, gwas_vec, method_pick,
+                                    only_recurrent, k_min,
+                                    sig_basis = "fdr", sig_threshold = 0.05,
+                                    row_cap = 50, font_size = 11,
+                                    point_size = 4) {
+  slice <- long[method == method_pick & entity_type == "cmap" &
+                    gwas %in% gwas_vec]
+  if (nrow(slice) == 0) return(NULL)
+  slice <- pick_best_per_cell(slice, c("gwas", "entity_id"))
+
+  rec <- .atc_row_order(slice, sig_basis, sig_threshold)
+  if (isTRUE(only_recurrent)) rec <- rec[n_sig >= k_min]
+  if (nrow(rec) == 0) return(NULL)
+  cap <- max(1L, min(as.integer(row_cap), nrow(rec)))
+  rec <- rec[seq_len(cap)]
+  slice <- slice[entity_id %in% rec$entity_id]
+
+  slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, nom_sig := !is.na(p)   & p   < 0.05]
+  slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+  neg_log_fdr <- pmin(-log10(slice$fdr), 12)
+  slice[, signed_score := ifelse(
+    is.na(direction), NA_real_,
+    ifelse(direction == "Matches disease",  neg_log_fdr,
+    ifelse(direction == "Opposes disease", -neg_log_fdr, NA_real_)))]
+  # Drop rows with no signed score so blanks are truly blank (matches the
+  # caption "Blank: not tested in that GWAS.").
+  slice <- slice[!is.na(signed_score)]
+  if (nrow(slice) == 0) return(NULL)
+
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+    base_layer +
+    ggplot2::scale_fill_gradient2(
+      low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
+      limits = c(-12, 12), na.value = .gd_grey,
+      name = "signed -log10(FDR)  (+ matches / − opposes)"
+    )
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Blank: not tested.") +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
+      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
+                                             colour = "#454c5a")
+    )
+}
+
+.cmap_pert_ggplot <- function(...) .cmap_signed_ggplot(..., method_pick = "CMAP-perturbation")
+.cmap_moa_ggplot  <- function(...) .cmap_signed_ggplot(..., method_pick = "CMAP-MOA")
+
+cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
+                                    comparison_long) {
+  moduleServer(id, function(input, output, session) {
+
+    output$pert_k_slider_ui <- renderUI({
+      n_sel <- length(selected_gwas_multi())
+      cur <- isolate(input$pert_k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("pert_k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
+    })
+    output$moa_k_slider_ui <- renderUI({
+      n_sel <- length(selected_gwas_multi())
+      cur <- isolate(input$moa_k_min)
+      cur <- if (is.null(cur)) 2L else as.integer(cur)
+      sliderInput(session$ns("moa_k_min"), "k:",
+                   min = 1, max = max(n_sel, 1L),
+                   value = min(cur, max(n_sel, 1L)), step = 1)
+    })
+
+    pert_gwas_vec <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$pert_gwas_sort)) "as_selected" else input$pert_gwas_sort,
+                  NULL)
+    })
+    moa_gwas_vec <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$moa_gwas_sort)) "as_selected" else input$moa_gwas_sort,
+                  NULL)
+    })
+
+    # ---------- Perturbation plot / table ----------
+
+    pert_plot <- reactive({
+      req(comparison_long())
+      .cmap_pert_ggplot(
+        long           = comparison_long(),
+        gwas_vec       = pert_gwas_vec(),
+        only_recurrent = isTRUE(input$pert_only_recurrent),
+        k_min          = if (is.null(input$pert_k_min)) 2L else as.integer(input$pert_k_min),
+        sig_basis      = if (is.null(input$pert_sig_basis)) "fdr" else input$pert_sig_basis,
+        sig_threshold  = if (is.null(input$pert_sig_threshold)) 0.05 else as.numeric(input$pert_sig_threshold),
+        row_cap        = if (is.null(input$pert_row_cap)) 50L else as.integer(input$pert_row_cap),
+        font_size      = if (is.null(input$pert_plot_font_size)) 11 else as.numeric(input$pert_plot_font_size),
+        point_size     = if (is.null(input$pert_plot_point_size)) 4 else as.numeric(input$pert_plot_point_size)
+      )
+    })
+
+    pert_dims <- reactive({
+      p <- pert_plot()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(pert_gwas_vec()),
+        font_size = if (is.null(input$pert_plot_font_size)) 11 else as.numeric(input$pert_plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+      )
+    })
+
+    .sync_dl_dims(session, pert_dims, "pert")
+
+    output$cmap_pert_plot_ui <- renderUI({
+      dims <- pert_dims()
+      plotOutput(session$ns("cmap_pert_plot"),
+                  height = dims$height, width = dims$width)
+    })
+
+    output$cmap_pert_plot <- renderPlot({
+      p <- pert_plot()
+      if (is.null(p)) { plot.new(); title("No perturbations meet the current filter"); return(invisible()) }
+      print(p)
+    })
+
+    pert_tbl_slice <- reactive({
+      req(comparison_long())
+      comparison_long()[method == "CMAP-perturbation" & entity_type == "cmap" &
+                          gwas %in% pert_gwas_vec()]
+    })
+
+    output$cmap_pert_tbl <- DT::renderDT({
+      slice <- pert_tbl_slice()
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        GWAS       = factor(slice$gwas, levels = pert_gwas_vec()),
+        Perturbation = slice$entity_id,
+        Panel      = slice$panel,
+        Estimate   = signif(slice$statistic, 3),
+        SE         = signif(slice$se, 3),
+        Direction  = slice$direction,
+        Reversal_Z = signif(slice$reversal_z, 3),
+        P          = signif(slice$p, 3),
+        `P.FDR`    = signif(slice$fdr, 3),
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(8, "asc"))))
+    }, server = TRUE)
+
+    observeEvent(input$cmap_pert_tbl_rows_selected, {
+      sel <- input$cmap_pert_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- pert_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "cmap", comparison_long(), pert_gwas_vec())
+    }, ignoreInit = TRUE)
+
+    output$pert_download_plot <- downloadHandler(
+      filename = function() sprintf("cmap_pert_compare_%s.%s",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$pert_dl_format),
+      content = function(file) {
+        p <- pert_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$pert_dl_format
+        w <- input$pert_dl_width; h <- input$pert_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$pert_download_csv <- downloadHandler(
+      filename = function() sprintf("cmap_pert_compare_matrix_%s.csv",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- pert_gwas_vec()
+        long <- comparison_long()[method == "CMAP-perturbation" &
+                                    entity_type == "cmap" &
+                                    gwas %in% gwas_vec]
+        best <- pick_best_per_cell(long, c("gwas", "entity_id"))
+        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
+                                 -(-log10(fdr)), -log10(fdr))]
+        wide <- pivot_matrix(best, "signed", gwas_vec)
+        display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
+        display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
+        header <- sprintf("# GenoDisc CMap perturbation compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                           input$pert_sig_basis %||% "fdr",
+                           input$pert_sig_threshold %||% 0.05,
+                           input$pert_k_min %||% 2L)
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        out <- data.frame(Perturbation = rownames(display), display,
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+
+    # ---------- MOA plot / table ----------
+
+    moa_plot <- reactive({
+      req(comparison_long())
+      .cmap_moa_ggplot(
+        long           = comparison_long(),
+        gwas_vec       = moa_gwas_vec(),
+        only_recurrent = isTRUE(input$moa_only_recurrent),
+        k_min          = if (is.null(input$moa_k_min)) 2L else as.integer(input$moa_k_min),
+        sig_basis      = if (is.null(input$moa_sig_basis)) "fdr" else input$moa_sig_basis,
+        sig_threshold  = if (is.null(input$moa_sig_threshold)) 0.05 else as.numeric(input$moa_sig_threshold),
+        row_cap        = if (is.null(input$moa_row_cap)) 50L else as.integer(input$moa_row_cap),
+        font_size      = if (is.null(input$moa_plot_font_size)) 11 else as.numeric(input$moa_plot_font_size),
+        point_size     = if (is.null(input$moa_plot_point_size)) 4 else as.numeric(input$moa_plot_point_size)
+      )
+    })
+
+    moa_dims <- reactive({
+      p <- moa_plot()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(moa_gwas_vec()),
+        font_size = if (is.null(input$moa_plot_font_size)) 11 else as.numeric(input$moa_plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+      )
+    })
+
+    .sync_dl_dims(session, moa_dims, "moa")
+
+    output$cmap_moa_plot_ui <- renderUI({
+      dims <- moa_dims()
+      plotOutput(session$ns("cmap_moa_plot"),
+                  height = dims$height, width = dims$width)
+    })
+
+    output$cmap_moa_plot <- renderPlot({
+      p <- moa_plot()
+      if (is.null(p)) { plot.new(); title("No MOAs meet the current filter"); return(invisible()) }
+      print(p)
+    })
+
+    moa_tbl_slice <- reactive({
+      req(comparison_long())
+      comparison_long()[method == "CMAP-MOA" & entity_type == "cmap" &
+                          gwas %in% moa_gwas_vec()]
+    })
+
+    output$cmap_moa_tbl <- DT::renderDT({
+      slice <- moa_tbl_slice()
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        GWAS       = factor(slice$gwas, levels = moa_gwas_vec()),
+        MOA        = slice$entity_id,
+        Panel      = slice$panel,
+        `N Drugs`  = slice$n_units,
+        Estimate   = signif(slice$statistic, 3),
+        Direction  = slice$direction,
+        Reversal_Z = signif(slice$reversal_z, 3),
+        P          = signif(slice$p, 3),
+        `P.FDR`    = signif(slice$fdr, 3),
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     selection = "single",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(8, "asc"))))
+    }, server = TRUE)
+
+    observeEvent(input$cmap_moa_tbl_rows_selected, {
+      sel <- input$cmap_moa_tbl_rows_selected
+      if (length(sel) != 1) return()
+      slice <- moa_tbl_slice()
+      if (nrow(slice) < sel) return()
+      .show_entity_detail(as.character(slice$entity_id[sel]),
+                            "cmap", comparison_long(), moa_gwas_vec())
+    }, ignoreInit = TRUE)
+
+    output$moa_download_plot <- downloadHandler(
+      filename = function() sprintf("cmap_moa_compare_%s.%s",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$moa_dl_format),
+      content = function(file) {
+        p <- moa_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$moa_dl_format
+        w <- input$moa_dl_width; h <- input$moa_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$moa_download_csv <- downloadHandler(
+      filename = function() sprintf("cmap_moa_compare_matrix_%s.csv",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- moa_gwas_vec()
+        long <- comparison_long()[method == "CMAP-MOA" &
+                                    entity_type == "cmap" &
+                                    gwas %in% gwas_vec]
+        best <- pick_best_per_cell(long, c("gwas", "entity_id"))
+        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
+                                 -(-log10(fdr)), -log10(fdr))]
+        wide <- pivot_matrix(best, "signed", gwas_vec)
+        display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
+        display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
+        header <- sprintf("# GenoDisc CMap MOA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                           input$moa_sig_basis %||% "fdr",
+                           input$moa_sig_threshold %||% 0.05,
+                           input$moa_k_min %||% 2L)
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        out <- data.frame(MOA = rownames(display), display,
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+  })
+}

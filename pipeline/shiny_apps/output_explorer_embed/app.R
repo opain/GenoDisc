@@ -617,7 +617,7 @@ server <- function(input, output, session) {
     build_comparison_long(shared$gwas_data(),
                            shared$selected_gwas_multi(),
                            entity_types = c("tissue", "atc", "gene",
-                                             "locus", "drug"))
+                                             "locus", "drug", "cmap"))
   })
 
   # Wire up all modules

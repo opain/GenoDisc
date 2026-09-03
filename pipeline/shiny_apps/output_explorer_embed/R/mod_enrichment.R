@@ -328,6 +328,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       drug_compare_server("drug_compare",
                            gwas_data, selected_gwas_multi,
                            comparison_long)
+      cmap_compare_server("cmap_compare",
+                           gwas_data, selected_gwas_multi,
+                           comparison_long)
     }
 
     # Column-guide legend for an enrichment results table. Text is centralised
@@ -694,10 +697,18 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           fluidRow(column(width=10, dataTableOutput(ns("tx_cmap_moa_table")))), enr_legend("cmap_moa"), br()
         )))
 
+        # Compare-mode swap for CMap: two-sub-tab cross-GWAS view when
+        # >=2 GWAS are selected, single-GWAS content otherwise.
+        cmap_in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+        cmap_body <- if (cmap_in_compare) {
+          cmap_compare_ui(NS(ns("cmap_compare")))
+        } else {
+          do.call(tabsetPanel, cmap_inner)
+        }
         cmap_tab <- do.call(tabPanel,
                             c(list(title="CMAP", br(),
                                    p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'.")),
-                              list(do.call(tabsetPanel, cmap_inner))))
+                              list(cmap_body)))
       }
 
       # Build Tissue tab (MAGMA tissue-specific enrichment)

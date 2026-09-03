@@ -371,15 +371,36 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Show/hide tabs based on config
     ########
 
-    observeEvent(config_flags(), {
+    # Per-method sub-tabs that duplicate what the compare Summary tab
+    # already shows via its Method dropdown. Hidden in compare mode; shown
+    # (subject to config-flag gates below) in single-GWAS mode.
+    .redundant_method_tabs <- c("MAGMA", "Expression - FUSION",
+                                  "Protein - FUSION", "Expression - SMR",
+                                  "Protein - SMR")
+
+    apply_mol_assoc_visibility <- function() {
       cf <- config_flags()
+      if (is.null(cf)) return()
       tab_id <- "mol_assoc_tabset"
-      if (!cf$magma_gene) hideTab(tab_id, "MAGMA")
-      if (!cf$twas) hideTab(tab_id, "Expression - FUSION")
-      if (!any(cf$pwas_panel_rosmap, cf$pwas_panel_banner)) hideTab(tab_id, "Protein - FUSION")
-      if (!cf$smr_expression) hideTab(tab_id, "Expression - SMR")
-      if (!cf$smr_protein_panel_rosmap) hideTab(tab_id, "Protein - SMR")
-    })
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+
+      if (in_compare) {
+        for (t in .redundant_method_tabs) hideTab(tab_id, t)
+        return()
+      }
+
+      if (cf$magma_gene) showTab(tab_id, "MAGMA") else hideTab(tab_id, "MAGMA")
+      if (cf$twas) showTab(tab_id, "Expression - FUSION") else hideTab(tab_id, "Expression - FUSION")
+      if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner))
+        showTab(tab_id, "Protein - FUSION") else hideTab(tab_id, "Protein - FUSION")
+      if (cf$smr_expression) showTab(tab_id, "Expression - SMR") else hideTab(tab_id, "Expression - SMR")
+      if (cf$smr_protein_panel_rosmap) showTab(tab_id, "Protein - SMR") else hideTab(tab_id, "Protein - SMR")
+    }
+
+    observeEvent(config_flags(), apply_mol_assoc_visibility())
+    if (!is.null(comparison_mode)) {
+      observeEvent(comparison_mode(), apply_mol_assoc_visibility())
+    }
 
     ########
     # Update selectInputs when summary data changes

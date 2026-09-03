@@ -111,29 +111,35 @@ gwasQcUI <- function(id) {
     p("This tab shows key quality control statistics for your selected GWAS."),
     hr(),
     tabsetPanel(
+      id = ns("gwas_qc_tabs"),
       tabPanel(
         title = "QC Summary",
+        value = "qc_summary",
         br(),
         div(style = "max-width: 700px;", tableOutput(ns("qc_table"))),
         uiOutput(ns("qc_legend"))
       ),
       tabPanel(
         title = "Allele Frequency Plot",
+        value = "maf_plot",
         br(),
         uiOutput(ns("maf_plot_ui"))
       ),
       tabPanel(
         title = "QQ Plot",
+        value = "qq_plot",
         br(),
         uiOutput(ns("qq_plot_ui"))
       ),
       tabPanel(
         title = "Sumstat QC Log",
+        value = "cleaner_log",
         br(),
         uiOutput(ns("cleaner_log_ui"))
       ),
       tabPanel(
         title = "Bivariate LDSC",
+        value = "gencor",
         br(),
         uiOutput(ns("gencor_ui"))
       )
@@ -153,6 +159,22 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
     if (!is.null(selected_gwas_multi)) {
       gencor_compare_server("gencor_compare",
                               gwas_data, selected_gwas_multi)
+    }
+
+    # In compare mode, hide the per-GWAS QC sub-tabs (QC Summary,
+    # Allele Frequency Plot, QQ Plot, Sumstat QC Log). The Overview tab
+    # covers the QC row cross-trait; the per-GWAS PNGs / logs have no
+    # cross-trait rendering, so we hide them until users drop back to
+    # single-GWAS mode.
+    if (!is.null(comparison_mode)) {
+      .per_gwas_qc_tabs <- c("qc_summary", "maf_plot", "qq_plot", "cleaner_log")
+      observeEvent(comparison_mode(), {
+        in_compare <- isTRUE(comparison_mode())
+        for (t in .per_gwas_qc_tabs) {
+          if (in_compare) hideTab("gwas_qc_tabs", t, session = session)
+          else            showTab("gwas_qc_tabs", t, session = session)
+        }
+      })
     }
 
     # Plain-text explanations for the QC metrics, used by the legend under the table.

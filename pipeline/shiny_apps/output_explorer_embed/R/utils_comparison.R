@@ -319,6 +319,52 @@
   )
 }
 
+.gd_long_cmap_pert <- function(gd, gwas) {
+  d <- safe_access(gd_read(gd, gwas, "tx/cmap"), "drug")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)
+  # Reduction dims collapsed into one panel key so pick_best_per_cell can
+  # take the min-P representative across cell / dose / time / panel per
+  # (gwas, cmap_name).
+  panel_key <- paste(d$Panel, d$cell_iname, d$pert_itime, d$pert_idose,
+                      sep = " / ")
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "cmap",
+    entity_id    = d$cmap_name,
+    method       = "CMAP-perturbation",
+    entity_label = d$cmap_name,
+    panel        = panel_key,
+    statistic    = suppressWarnings(as.numeric(d$Estimate)),
+    se           = suppressWarnings(as.numeric(d$SE)),
+    p            = suppressWarnings(as.numeric(d$P)),
+    fdr          = suppressWarnings(as.numeric(d$P.FDR)),
+    direction    = as.character(d$Direction),
+    reversal_z   = suppressWarnings(as.numeric(d$Reversal_Z))
+  )
+}
+
+.gd_long_cmap_moa <- function(gd, gwas) {
+  d <- safe_access(gd_read(gd, gwas, "tx/cmap"), "moa")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)
+  panel_key <- paste(d$Panel, d$Cell_Line, sep = " / ")
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "cmap",
+    entity_id    = d$MOA,
+    method       = "CMAP-MOA",
+    entity_label = d$MOA,
+    panel        = panel_key,
+    statistic    = suppressWarnings(as.numeric(d$Estimate)),
+    p            = suppressWarnings(as.numeric(d$P)),
+    fdr          = suppressWarnings(as.numeric(d$P.FDR)),
+    direction    = as.character(d$Direction),
+    reversal_z   = suppressWarnings(as.numeric(d$Reversal_Z)),
+    n_units      = suppressWarnings(as.integer(d[["N Drugs"]]))
+  )
+}
+
 .gd_long_atc_gsea <- function(gd, gwas) {
   g <- safe_access(gd_read(gd, gwas, "tx/atc"), "twas_gsea")
   if (is.null(g) || nrow(g) == 0) return(NULL)
@@ -354,7 +400,7 @@
 #' @return data.table with the canonical long-format columns (see .gd_long_cols)
 build_comparison_long <- function(gd, gwas_vec,
                                   entity_types = c("tissue", "atc", "gene",
-                                                    "locus", "drug")) {
+                                                    "locus", "drug", "cmap")) {
   if (length(gwas_vec) == 0) return(.gd_empty_long())
   parts <- list()
   for (g in gwas_vec) {
@@ -377,6 +423,10 @@ build_comparison_long <- function(gd, gwas_vec,
     if ("drug"   %in% entity_types) {
       parts[[length(parts) + 1L]] <- .gd_long_drug_magma(gd, g)
       parts[[length(parts) + 1L]] <- .gd_long_drug_gsea(gd, g)
+    }
+    if ("cmap"   %in% entity_types) {
+      parts[[length(parts) + 1L]] <- .gd_long_cmap_pert(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_cmap_moa(gd, g)
     }
   }
   parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)

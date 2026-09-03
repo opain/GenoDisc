@@ -51,7 +51,7 @@ suppressPackageStartupMessages({
 
 gd <- gd_open(BUNDLE)
 all9 <- gd_gwas(gd)
-long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene", "locus", "drug"))
+long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene", "locus", "drug", "cmap"))
 
 expect <- if (testthat_available) testthat::expect_true else function(x, info = "") {
   if (!isTRUE(x)) stop("ASSERT FAILED: ", info, call. = FALSE)
@@ -351,6 +351,33 @@ m <- pivot_matrix(best, "fdr", all9)
 expect(ncol(m) == 9,
        sprintf("Drug pivot ncol = %d (expected 9)", ncol(m)))
 pass(sprintf("Drug pivot preserves %d columns", ncol(m)))
+
+# ---------------------------------------------------------------------------
+# Test 11: CMap entity type — perturbation and MOA builders.
+
+message("Test 11 — CMap layer (Perturbation / MOA)")
+
+for (m in c("CMAP-perturbation", "CMAP-MOA")) {
+  n_rows <- long[method == m & entity_type == "cmap", .N]
+  expect(n_rows > 0, sprintf("%s rows > 0 (got %d)", m, n_rows))
+  pass(sprintf("%s rows = %d", m, n_rows))
+}
+
+cmap_dir <- long[entity_type == "cmap", unique(direction)]
+expect(all(c("Matches disease", "Opposes disease") %in% cmap_dir),
+       sprintf("CMap Direction values = %s (expected includes 'Matches disease' + 'Opposes disease')",
+               paste(sort(cmap_dir), collapse = ",")))
+pass("CMap Direction populated with expected labels")
+
+# Column-preservation invariant on both methods.
+for (m in c("CMAP-perturbation", "CMAP-MOA")) {
+  best <- pick_best_per_cell(long[method == m & entity_type == "cmap"],
+                              c("gwas", "entity_id"))
+  mat <- pivot_matrix(best, "fdr", all9)
+  expect(ncol(mat) == 9,
+         sprintf("%s pivot ncol = %d (expected 9)", m, ncol(mat)))
+  pass(sprintf("%s pivot preserves %d columns", m, ncol(mat)))
+}
 
 # ---------------------------------------------------------------------------
 
