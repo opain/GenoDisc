@@ -1532,3 +1532,509 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
   })
 }
 
+########################################
+# DRUG COMPARE
+########################################
+#
+# Two sub-tabs (MAGMA and TWAS-GSEA) mirroring the ATC compare view but keyed
+# on drug Name. Because the neuropsych bundle carries ~1500 drugs per GWAS,
+# the default is to show all drugs with the row cap (50) trimming the
+# heatmap; users toggle "only recurrent" to filter to drugs sig in >= k GWAS.
+
+drug_compare_ui <- function(ns) {
+  tabsetPanel(
+    tabPanel("MAGMA", br(),
+      p("Cross-GWAS MAGMA drug-level enrichment. Each row is one drug; ",
+        "cell colour is -log10(FDR); cells with FDR < 0.05 are outlined ",
+        "with a black square."),
+      hr(),
+      tags$details(class = "gd-details",
+        tags$summary("Filter data"),
+        tags$div(class = "gd-details-body",
+          fluidRow(
+            column(3,
+              radioButtons(ns("magma_sig_basis"), "Significance basis:",
+                            choices = c("FDR" = "fdr", "P" = "p"),
+                            selected = "fdr", inline = TRUE),
+              numericInput(ns("magma_sig_threshold"), "Significance threshold:",
+                            value = 0.05, min = 1e-12, max = 1, step = 0.01)
+            ),
+            column(3,
+              checkboxInput(ns("magma_only_recurrent"),
+                            "Only show drugs significant in ≥ k GWAS",
+                            value = FALSE),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("magma_only_recurrent")),
+                sliderInput(ns("magma_k_min"), "k:",
+                             min = 1, max = 9, value = 2, step = 1)
+              ),
+              numericInput(ns("magma_row_cap"), "Rows shown in heatmap:",
+                            value = 50, min = 5, max = 500, step = 5)
+            ),
+            column(3,
+              selectInput(ns("magma_gwas_sort"), "Order GWAS by:",
+                           choices = .compare_gwas_sort_choices,
+                           selected = "as_selected"),
+              sliderInput(ns("magma_plot_font_size"), "Font size (pt):",
+                           min = 8, max = 20, value = 11, step = 1),
+              sliderInput(ns("magma_plot_point_size"), "Point size:",
+                           min = 2, max = 10, value = 4, step = 1)
+            ),
+            .dl_and_download_column(ns, "magma", default_h = 12)
+          )
+        )
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px; overflow-x: auto;",
+        uiOutput(ns("drug_magma_plot_ui"))
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px;",
+        h4("Underlying data"),
+        DT::DTOutput(ns("drug_magma_tbl"))
+      )
+    ),
+    tabPanel("TWAS-GSEA", br(),
+      p("Cross-GWAS TWAS-GSEA drug-level enrichment. Cell colour is signed ",
+        "by direction of effect (blue = matches disease signature, red = ",
+        "opposes disease signature). Intensity is -log10(FDR). Blank cell = ",
+        "drug was not tested in that GWAS."),
+      hr(),
+      tags$details(class = "gd-details",
+        tags$summary("Filter data"),
+        tags$div(class = "gd-details-body",
+          fluidRow(
+            column(3,
+              radioButtons(ns("gsea_sig_basis"), "Significance basis:",
+                            choices = c("FDR" = "fdr", "P" = "p"),
+                            selected = "fdr", inline = TRUE),
+              numericInput(ns("gsea_sig_threshold"), "Significance threshold:",
+                            value = 0.05, min = 1e-12, max = 1, step = 0.01)
+            ),
+            column(3,
+              checkboxInput(ns("gsea_only_recurrent"),
+                            "Only show drugs significant in ≥ k GWAS",
+                            value = FALSE),
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("gsea_only_recurrent")),
+                sliderInput(ns("gsea_k_min"), "k:",
+                             min = 1, max = 9, value = 2, step = 1)
+              ),
+              numericInput(ns("gsea_row_cap"), "Rows shown in heatmap:",
+                            value = 50, min = 5, max = 500, step = 5)
+            ),
+            column(3,
+              selectInput(ns("gsea_panel"), "Panel:",
+                          choices = c("Best-per-cell (min P)" = "__best__"),
+                          selected = "__best__"),
+              selectInput(ns("gsea_gwas_sort"), "Order GWAS by:",
+                           choices = .compare_gwas_sort_choices,
+                           selected = "as_selected"),
+              sliderInput(ns("gsea_plot_font_size"), "Font size (pt):",
+                           min = 8, max = 20, value = 11, step = 1),
+              sliderInput(ns("gsea_plot_point_size"), "Point size:",
+                           min = 2, max = 10, value = 4, step = 1)
+            ),
+            .dl_and_download_column(ns, "gsea", default_h = 12)
+          )
+        )
+      ),
+      br(),
+      tags$div(style = "max-width: 1100px; overflow-x: auto;",
+        uiOutput(ns("drug_gsea_plot_ui"))
+      ),
+      gd_legend(list(
+        "Blue" = "Direction 'Matches disease' — drug's TWAS signature matches the trait's.",
+        "Red"  = "Direction 'Opposes disease' — drug's TWAS signature counteracts the trait's (therapeutic hypothesis).",
+        "Ring" = "Nominal-sig (P<0.05).",
+        "Black square" = "FDR-sig.",
+        "Blank" = "Drug not tested in that GWAS."
+      ), heading = "Colour key"),
+      br(),
+      tags$div(style = "max-width: 1100px;",
+        h4("Underlying data"),
+        DT::DTOutput(ns("drug_gsea_tbl"))
+      )
+    )
+  )
+}
+
+# Reuses the ATC row-order helper (.atc_row_order) since the row-sorting
+# logic is method-agnostic.
+
+.drug_magma_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
+                                  sig_basis = "fdr", sig_threshold = 0.05,
+                                  row_cap = 50, font_size = 11,
+                                  point_size = 4) {
+  slice <- long[method == "MAGMA-drug" & gwas %in% gwas_vec]
+  if (nrow(slice) == 0) return(NULL)
+  rec <- .atc_row_order(slice, sig_basis, sig_threshold)
+  if (isTRUE(only_recurrent)) rec <- rec[n_sig >= k_min]
+  if (nrow(rec) == 0) return(NULL)
+  cap <- max(1L, min(as.integer(row_cap), nrow(rec)))
+  rec <- rec[seq_len(cap)]
+  slice <- slice[entity_id %in% rec$entity_id]
+
+  slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, minus_log10_fdr := pmin(-log10(fdr), 12)]
+  slice[, nom_sig := !is.na(p)   & p   < 0.05]
+  slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = minus_log10_fdr), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+    base_layer +
+    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
+                                   name = "-log10(FDR)",
+                                   na.value = .gd_grey, limits = c(0, 12))
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring = nominal-sig (P<0.05). Black square = FDR-sig.") +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+    )
+}
+
+.drug_gsea_frame <- function(long, gwas_vec, only_recurrent, k_min,
+                                panel_pick = "__best__",
+                                sig_basis = "fdr", sig_threshold = 0.05,
+                                row_cap = 50) {
+  slice <- long[method == "TWAS-GSEA-drug" & gwas %in% gwas_vec]
+  if (nrow(slice) == 0) return(NULL)
+
+  if (identical(panel_pick, "__best__") || is.null(panel_pick) ||
+      !nzchar(panel_pick)) {
+    slice <- pick_best_per_cell(slice, c("gwas", "entity_id"))
+  } else {
+    slice <- slice[panel == panel_pick]
+  }
+  if (nrow(slice) == 0) return(NULL)
+
+  rec <- .atc_row_order(slice, sig_basis, sig_threshold)
+  if (isTRUE(only_recurrent)) rec <- rec[n_sig >= k_min]
+  if (nrow(rec) == 0) return(NULL)
+  cap <- max(1L, min(as.integer(row_cap), nrow(rec)))
+  rec <- rec[seq_len(cap)]
+  slice <- slice[entity_id %in% rec$entity_id]
+
+  # Blank cells for "not tested" — we simply leave them out; the heatmap
+  # renders no point where there's no data.
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
+  slice[, nom_sig := !is.na(p)   & p   < 0.05]
+  slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+  neg_log_fdr <- pmin(-log10(slice$fdr), 12)
+  slice[, signed_score := ifelse(
+    is.na(direction), NA_real_,
+    ifelse(direction == "Matches disease",  neg_log_fdr,
+    ifelse(direction == "Opposes disease", -neg_log_fdr, NA_real_)))]
+  slice
+}
+
+.drug_gsea_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
+                                 panel_pick, sig_basis, sig_threshold,
+                                 row_cap = 50, font_size = 11,
+                                 point_size = 4) {
+  slice <- .drug_gsea_frame(long, gwas_vec, only_recurrent, k_min,
+                              panel_pick, sig_basis, sig_threshold, row_cap)
+  if (is.null(slice)) return(NULL)
+
+  base_layer <- ggplot2::geom_point(
+    ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
+    size = point_size)
+
+  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+    base_layer +
+    ggplot2::scale_fill_gradient2(
+      low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
+      limits = c(-12, 12), na.value = .gd_grey,
+      name = "signed -log10(FDR)  (+ matches / − opposes)"
+    )
+
+  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+                                    nominal_flag = "nom_sig",
+                                    fdr_flag = "fdr_sig",
+                                    point_size = point_size)
+
+  gg +
+    ggplot2::scale_x_discrete(position = "top", drop = FALSE,
+                                expand = c(0.5, 0.5)) +
+    ggplot2::scale_y_discrete(expand = c(0.5, 0.5)) +
+    ggplot2::coord_cartesian(clip = "off") +
+    ggplot2::labs(x = NULL, y = NULL,
+                   caption = "Ring = nominal-sig. Black square = FDR-sig. Blank cell = not tested in that GWAS.") +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
+      panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
+      panel.grid.minor = ggplot2::element_blank(),
+      legend.position = "right",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+    )
+}
+
+drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
+                                   comparison_long) {
+  moduleServer(id, function(input, output, session) {
+
+    # Refresh the TWAS-GSEA panel dropdown with panels actually present.
+    observeEvent(comparison_long(), {
+      long <- comparison_long()
+      panels <- unique(long[method == "TWAS-GSEA-drug", panel])
+      panels <- panels[!is.na(panels)]
+      choices <- c("Best-per-cell (min P)" = "__best__",
+                    setNames(panels, panels))
+      updateSelectInput(session, "gsea_panel",
+                         choices = choices, selected = "__best__")
+    })
+
+    observeEvent(selected_gwas_multi(), {
+      n_sel <- length(selected_gwas_multi())
+      if (n_sel < 1) return()
+      for (slider_id in c("magma_k_min", "gsea_k_min")) {
+        cur <- input[[slider_id]]
+        cur <- if (is.null(cur)) 2L else as.integer(cur)
+        updateSliderInput(session, slider_id,
+                          max = max(n_sel, 1L),
+                          value = min(cur, n_sel))
+      }
+    })
+
+    magma_gwas_vec <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$magma_gwas_sort)) "as_selected" else input$magma_gwas_sort,
+                  NULL)
+    })
+    gsea_gwas_vec <- reactive({
+      order_gwas(selected_gwas_multi(),
+                  if (is.null(input$gsea_gwas_sort)) "as_selected" else input$gsea_gwas_sort,
+                  NULL)
+    })
+
+    # ---------- MAGMA plot / table ----------
+
+    magma_plot <- reactive({
+      req(comparison_long())
+      .drug_magma_ggplot(
+        long           = comparison_long(),
+        gwas_vec       = magma_gwas_vec(),
+        only_recurrent = isTRUE(input$magma_only_recurrent),
+        k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
+        sig_basis      = if (is.null(input$magma_sig_basis)) "fdr" else input$magma_sig_basis,
+        sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
+        row_cap        = if (is.null(input$magma_row_cap)) 50L else as.integer(input$magma_row_cap),
+        font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
+        point_size     = if (is.null(input$magma_plot_point_size)) 4 else as.numeric(input$magma_plot_point_size)
+      )
+    })
+
+    magma_dims <- reactive({
+      p <- magma_plot()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(magma_gwas_vec()),
+        font_size = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+      )
+    })
+
+    output$drug_magma_plot_ui <- renderUI({
+      dims <- magma_dims()
+      plotOutput(session$ns("drug_magma_plot"),
+                  height = dims$height, width = dims$width)
+    })
+
+    output$drug_magma_plot <- renderPlot({
+      p <- magma_plot()
+      if (is.null(p)) {
+        plot.new(); title("No drugs meet the current filter")
+        return(invisible())
+      }
+      print(p)
+    })
+
+    output$drug_magma_tbl <- DT::renderDT({
+      req(comparison_long())
+      gwas_vec <- magma_gwas_vec()
+      slice <- comparison_long()[method == "MAGMA-drug" & gwas %in% gwas_vec]
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        GWAS   = factor(slice$gwas, levels = gwas_vec),
+        Drug   = slice$entity_id,
+        `N Genes` = slice$n_units,
+        BETA   = signif(slice$statistic, 3),
+        SE     = signif(slice$se, 3),
+        P      = signif(slice$p, 3),
+        `P.FDR` = signif(slice$fdr, 3),
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(6, "asc"))))
+    }, server = TRUE)
+
+    output$magma_download_plot <- downloadHandler(
+      filename = function() sprintf("drug_magma_compare_%s.%s",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$magma_dl_format),
+      content = function(file) {
+        p <- magma_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$magma_dl_format
+        w <- input$magma_dl_width; h <- input$magma_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$magma_download_csv <- downloadHandler(
+      filename = function() sprintf("drug_magma_compare_matrix_%s.csv",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- magma_gwas_vec()
+        long <- comparison_long()[method == "MAGMA-drug" & gwas %in% gwas_vec]
+        wide <- pivot_matrix(long, "fdr", gwas_vec)
+        header <- sprintf("# GenoDisc drug MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                           input$magma_sig_basis %||% "fdr",
+                           input$magma_sig_threshold %||% 0.05,
+                           input$magma_k_min %||% 2L)
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: P.FDR", con)
+        out <- data.frame(Drug = rownames(wide),
+                          format(wide, scientific = TRUE, digits = 3),
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+
+    # ---------- TWAS-GSEA plot / table ----------
+
+    gsea_plot <- reactive({
+      req(comparison_long())
+      .drug_gsea_ggplot(
+        long           = comparison_long(),
+        gwas_vec       = gsea_gwas_vec(),
+        only_recurrent = isTRUE(input$gsea_only_recurrent),
+        k_min          = if (is.null(input$gsea_k_min)) 2L else as.integer(input$gsea_k_min),
+        panel_pick     = input$gsea_panel,
+        sig_basis      = if (is.null(input$gsea_sig_basis)) "fdr" else input$gsea_sig_basis,
+        sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
+        row_cap        = if (is.null(input$gsea_row_cap)) 50L else as.integer(input$gsea_row_cap),
+        font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
+        point_size     = if (is.null(input$gsea_plot_point_size)) 4 else as.numeric(input$gsea_plot_point_size)
+      )
+    })
+
+    gsea_dims <- reactive({
+      p <- gsea_plot()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      .compare_plot_dims(
+        n_rows    = n_rows,
+        n_cols    = length(gsea_gwas_vec()),
+        font_size = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+      )
+    })
+
+    output$drug_gsea_plot_ui <- renderUI({
+      dims <- gsea_dims()
+      plotOutput(session$ns("drug_gsea_plot"),
+                  height = dims$height, width = dims$width)
+    })
+
+    output$drug_gsea_plot <- renderPlot({
+      p <- gsea_plot()
+      if (is.null(p)) {
+        plot.new(); title("No drugs meet the current filter")
+        return(invisible())
+      }
+      print(p)
+    })
+
+    output$drug_gsea_tbl <- DT::renderDT({
+      req(comparison_long())
+      gwas_vec <- gsea_gwas_vec()
+      slice <- comparison_long()[method == "TWAS-GSEA-drug" & gwas %in% gwas_vec]
+      if (nrow(slice) == 0) return(NULL)
+      out <- data.frame(
+        GWAS       = factor(slice$gwas, levels = gwas_vec),
+        Drug       = slice$entity_id,
+        Panel      = slice$panel,
+        `N Genes`  = slice$n_units,
+        Estimate   = signif(slice$statistic, 3),
+        Direction  = slice$direction,
+        Reversal_Z = signif(slice$reversal_z, 3),
+        P          = signif(slice$p, 3),
+        `P.FDR`    = signif(slice$fdr, 3),
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(out, rownames = FALSE, filter = "top",
+                     options = list(pageLength = 20, server = TRUE,
+                                     order = list(list(8, "asc"))))
+    }, server = TRUE)
+
+    output$gsea_download_plot <- downloadHandler(
+      filename = function() sprintf("drug_gsea_compare_%s.%s",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S"),
+                                     input$gsea_dl_format),
+      content = function(file) {
+        p <- gsea_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
+        fmt <- input$gsea_dl_format
+        w <- input$gsea_dl_width; h <- input$gsea_dl_height
+        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
+        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
+        else grDevices::svg(file, width = w, height = h)
+        print(p); grDevices::dev.off()
+      }
+    )
+
+    output$gsea_download_csv <- downloadHandler(
+      filename = function() sprintf("drug_gsea_compare_matrix_%s.csv",
+                                     format(Sys.time(), "%Y%m%d_%H%M%S")),
+      content = function(file) {
+        gwas_vec <- gsea_gwas_vec()
+        long <- comparison_long()[method == "TWAS-GSEA-drug" & gwas %in% gwas_vec]
+        best <- pick_best_per_cell(long, c("gwas", "entity_id"))
+        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
+                                 -(-log10(fdr)), -log10(fdr))]
+        wide <- pivot_matrix(best, "signed", gwas_vec)
+        display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
+        display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
+        header <- sprintf("# GenoDisc drug TWAS-GSEA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s panel=%s",
+                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+                           input$gsea_sig_basis %||% "fdr",
+                           input$gsea_sig_threshold %||% 0.05,
+                           input$gsea_k_min %||% 2L,
+                           input$gsea_panel %||% "__best__")
+        con <- file(file, "w"); on.exit(close(con))
+        writeLines(header, con)
+        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        out <- data.frame(Drug = rownames(display), display,
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
+      }
+    )
+  })
+}

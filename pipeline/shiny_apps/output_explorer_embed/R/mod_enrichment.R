@@ -325,6 +325,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       atc_compare_server("atc_compare",
                           gwas_data, selected_gwas_multi,
                           comparison_long)
+      drug_compare_server("drug_compare",
+                           gwas_data, selected_gwas_multi,
+                           comparison_long)
     }
 
     # Column-guide legend for an enrichment results table. Text is centralised
@@ -812,12 +815,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           do.call(tabsetPanel, atc_tabs)
         }
         drug_body <- if (in_compare) {
-          tagList(
-            tags$p(style = "color: var(--gd-text-mute);",
-                    "Showing single-GWAS view for ", tags$b(selected_gwas()),
-                    ". Drug-level cross-GWAS comparison arrives in a later phase."),
-            do.call(tabsetPanel, drug_tabs)
-          )
+          drug_compare_ui(NS(ns("drug_compare")))
         } else {
           do.call(tabsetPanel, drug_tabs)
         }

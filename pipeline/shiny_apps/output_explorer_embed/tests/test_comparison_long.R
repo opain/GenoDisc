@@ -51,7 +51,7 @@ suppressPackageStartupMessages({
 
 gd <- gd_open(BUNDLE)
 all9 <- gd_gwas(gd)
-long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene", "locus"))
+long <- build_comparison_long(gd, all9, c("tissue", "atc", "gene", "locus", "drug"))
 
 expect <- if (testthat_available) testthat::expect_true else function(x, info = "") {
   if (!isTRUE(x)) stop("ASSERT FAILED: ", info, call. = FALSE)
@@ -320,6 +320,37 @@ m <- pivot_matrix(best, "p", all9)
 expect(ncol(m) == 9,
        sprintf("Locus pivot ncol = %d (expected 9)", ncol(m)))
 pass(sprintf("Locus pivot preserves %d columns", ncol(m)))
+
+# ---------------------------------------------------------------------------
+# Test 10: drug entity type — MAGMA and TWAS-GSEA builders.
+
+message("Test 10 — Drug layer (MAGMA / TWAS-GSEA)")
+
+for (m in c("MAGMA-drug", "TWAS-GSEA-drug")) {
+  n_rows <- long[method == m & entity_type == "drug", .N]
+  expect(n_rows > 0, sprintf("%s drug rows > 0 (got %d)", m, n_rows))
+  pass(sprintf("%s rows = %d", m, n_rows))
+}
+
+# Direction is carried through verbatim for TWAS-GSEA-drug and only there.
+gsea_dir <- long[method == "TWAS-GSEA-drug", unique(direction)]
+expect(all(c("Matches disease", "Opposes disease") %in% gsea_dir),
+       sprintf("TWAS-GSEA-drug Direction values = %s (expected includes 'Matches disease' + 'Opposes disease')",
+               paste(sort(gsea_dir), collapse = ",")))
+pass("TWAS-GSEA-drug Direction populated with expected labels")
+
+magma_dir <- long[method == "MAGMA-drug", unique(direction)]
+expect(length(magma_dir) == 1 && is.na(magma_dir),
+       sprintf("MAGMA-drug Direction should be all-NA (got %s)",
+               paste(magma_dir, collapse = ",")))
+pass("MAGMA-drug Direction is NA (undirected)")
+
+# Column-preservation invariant on the drug layer.
+best <- pick_best_per_cell(long[method == "TWAS-GSEA-drug"], c("gwas", "entity_id"))
+m <- pivot_matrix(best, "fdr", all9)
+expect(ncol(m) == 9,
+       sprintf("Drug pivot ncol = %d (expected 9)", ncol(m)))
+pass(sprintf("Drug pivot preserves %d columns", ncol(m)))
 
 # ---------------------------------------------------------------------------
 

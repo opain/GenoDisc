@@ -278,6 +278,47 @@
   )
 }
 
+.gd_long_drug_magma <- function(gd, gwas) {
+  m <- safe_access(gd_read(gd, gwas, "tx/drug"), "magma")
+  if (is.null(m) || nrow(m) == 0) return(NULL)
+  m <- as.data.frame(m)
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "drug",
+    entity_id    = m$Name,
+    method       = "MAGMA-drug",
+    entity_label = m$Name,
+    panel        = NA_character_,
+    statistic    = suppressWarnings(as.numeric(m$BETA)),
+    se           = suppressWarnings(as.numeric(m$SE)),
+    p            = suppressWarnings(as.numeric(m$P)),
+    fdr          = suppressWarnings(as.numeric(m$P.FDR)),
+    n_units      = suppressWarnings(as.integer(m[["N Genes"]]))
+  )
+}
+
+.gd_long_drug_gsea <- function(gd, gwas) {
+  g <- safe_access(gd_read(gd, gwas, "tx/drug"), "twas_gsea")
+  if (is.null(g) || nrow(g) == 0) return(NULL)
+  g <- as.data.frame(g)
+  # Direction is authoritative for sign; do not derive from Estimate.
+  .gd_long_row(
+    gwas         = gwas,
+    entity_type  = "drug",
+    entity_id    = g$Name,
+    method       = "TWAS-GSEA-drug",
+    entity_label = g$Name,
+    panel        = as.character(g$Panel),
+    statistic    = suppressWarnings(as.numeric(g$Estimate)),
+    se           = suppressWarnings(as.numeric(g$SE)),
+    p            = suppressWarnings(as.numeric(g$P)),
+    fdr          = suppressWarnings(as.numeric(g$P.FDR)),
+    direction    = as.character(g$Direction),
+    reversal_z   = suppressWarnings(as.numeric(g$Reversal_Z)),
+    n_units      = suppressWarnings(as.integer(g[["N Genes"]]))
+  )
+}
+
 .gd_long_atc_gsea <- function(gd, gwas) {
   g <- safe_access(gd_read(gd, gwas, "tx/atc"), "twas_gsea")
   if (is.null(g) || nrow(g) == 0) return(NULL)
@@ -313,7 +354,7 @@
 #' @return data.table with the canonical long-format columns (see .gd_long_cols)
 build_comparison_long <- function(gd, gwas_vec,
                                   entity_types = c("tissue", "atc", "gene",
-                                                    "locus")) {
+                                                    "locus", "drug")) {
   if (length(gwas_vec) == 0) return(.gd_empty_long())
   parts <- list()
   for (g in gwas_vec) {
@@ -332,6 +373,10 @@ build_comparison_long <- function(gd, gwas_vec,
     if ("locus"  %in% entity_types) {
       parts[[length(parts) + 1L]] <- .gd_long_locus_clump(gd, g)
       parts[[length(parts) + 1L]] <- .gd_long_locus_cojo(gd, g)
+    }
+    if ("drug"   %in% entity_types) {
+      parts[[length(parts) + 1L]] <- .gd_long_drug_magma(gd, g)
+      parts[[length(parts) + 1L]] <- .gd_long_drug_gsea(gd, g)
     }
   }
   parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)
