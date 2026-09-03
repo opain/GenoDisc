@@ -62,8 +62,11 @@ tissue_compare_ui <- function(ns) {
             checkboxInput(ns("only_recurrent"),
                           "Only show tissues significant in ≥ k GWAS",
                           value = FALSE),
-            sliderInput(ns("k_min"), "k:",
-                         min = 1, max = 9, value = 2, step = 1)
+            conditionalPanel(
+              condition = sprintf("input['%s'] == true", ns("only_recurrent")),
+              sliderInput(ns("k_min"), "k:",
+                           min = 1, max = 9, value = 2, step = 1)
+            )
           ),
           column(3,
             radioButtons(ns("cell_metric"), "Cell colour:",
@@ -131,7 +134,7 @@ tissue_compare_ui <- function(ns) {
   ), by = entity_id, .SDcols = basis_col]
   rec <- rec[order(-k, min_p)]
 
-  if (isTRUE(only_recurrent) && k_min > 1L) {
+  if (isTRUE(only_recurrent)) {
     rec <- rec[k >= k_min]
   }
 
@@ -387,8 +390,11 @@ gene_compare_ui <- function(ns) {
             checkboxInput(ns("only_recurrent"),
                           "Only show genes significant in ≥ k GWAS",
                           value = TRUE),
-            sliderInput(ns("k_min"), "k:",
-                         min = 1, max = 9, value = 2, step = 1),
+            conditionalPanel(
+              condition = sprintf("input['%s'] == true", ns("only_recurrent")),
+              sliderInput(ns("k_min"), "k:",
+                           min = 1, max = 9, value = 2, step = 1)
+            ),
             numericInput(ns("row_cap"), "Rows shown in heatmap:",
                           value = 50, min = 5, max = 500, step = 5)
           ),
@@ -448,7 +454,7 @@ gene_compare_ui <- function(ns) {
   ), by = entity_id, .SDcols = basis_col]
   rec <- rec[order(-k, min_val)]
 
-  if (isTRUE(only_recurrent) && k_min > 1L) rec <- rec[k >= k_min]
+  if (isTRUE(only_recurrent)) rec <- rec[k >= k_min]
   if (nrow(rec) == 0) return(NULL)
 
   # Cap heatmap rows
@@ -650,8 +656,11 @@ atc_compare_ui <- function(ns) {
               checkboxInput(ns("magma_only_recurrent"),
                             "Only show classes significant in ≥ k GWAS",
                             value = TRUE),
-              sliderInput(ns("magma_k_min"), "k:",
-                           min = 1, max = 9, value = 2, step = 1)
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("magma_only_recurrent")),
+                sliderInput(ns("magma_k_min"), "k:",
+                             min = 1, max = 9, value = 2, step = 1)
+              )
             ),
             column(3,
               selectInput(ns("magma_gwas_sort"), "Order GWAS by:",
@@ -695,8 +704,11 @@ atc_compare_ui <- function(ns) {
               checkboxInput(ns("gsea_only_recurrent"),
                             "Only show classes significant in ≥ k GWAS",
                             value = TRUE),
-              sliderInput(ns("gsea_k_min"), "k:",
-                           min = 1, max = 9, value = 2, step = 1)
+              conditionalPanel(
+                condition = sprintf("input['%s'] == true", ns("gsea_only_recurrent")),
+                sliderInput(ns("gsea_k_min"), "k:",
+                             min = 1, max = 9, value = 2, step = 1)
+              )
             ),
             column(3,
               selectInput(ns("gsea_panel"), "Panel:",
@@ -731,27 +743,6 @@ atc_compare_ui <- function(ns) {
   )
 }
 
-# Colour-map helper: signed -log10(FDR) into blue (matches) / red (opposes)
-.atc_gsea_fill <- function(direction, fdr) {
-  intensity <- pmin(-log10(fdr), 12) / 12
-  intensity[is.na(intensity)] <- 0
-  # start from grey and shift toward direction colour
-  out <- rep(.gd_grey, length(direction))
-  m <- !is.na(direction) & direction == "Matches disease"
-  o <- !is.na(direction) & direction == "Opposes disease"
-  ramp_b <- grDevices::colorRamp(c(.gd_grey, .gd_blue))
-  ramp_r <- grDevices::colorRamp(c(.gd_grey, .gd_red))
-  if (any(m)) {
-    rgb_m <- ramp_b(intensity[m])
-    out[m] <- grDevices::rgb(rgb_m[,1]/255, rgb_m[,2]/255, rgb_m[,3]/255)
-  }
-  if (any(o)) {
-    rgb_o <- ramp_r(intensity[o])
-    out[o] <- grDevices::rgb(rgb_o[,1]/255, rgb_o[,2]/255, rgb_o[,3]/255)
-  }
-  out
-}
-
 .atc_row_order <- function(slice, basis = "fdr", thr = 0.05) {
   rec <- slice[, .(
     n_sig = sum(!is.na(.SD[[1L]]) & .SD[[1L]] < thr),
@@ -766,7 +757,7 @@ atc_compare_ui <- function(ns) {
   slice <- long[method == "MAGMA-ATC" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
-  if (isTRUE(only_recurrent) && k_min > 1L) rec <- rec[n_sig >= k_min]
+  if (isTRUE(only_recurrent)) rec <- rec[n_sig >= k_min]
   if (nrow(rec) == 0) return(NULL)
   slice <- slice[entity_id %in% rec$entity_id]
   # Attach a description-suffixed label from the first non-NA entity_label
@@ -819,7 +810,7 @@ atc_compare_ui <- function(ns) {
 
   # order rows
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
-  if (isTRUE(only_recurrent) && k_min > 1L) rec <- rec[n_sig >= k_min]
+  if (isTRUE(only_recurrent)) rec <- rec[n_sig >= k_min]
   if (nrow(rec) == 0) return(NULL)
   slice <- slice[entity_id %in% rec$entity_id]
 
@@ -844,8 +835,14 @@ atc_compare_ui <- function(ns) {
     levels = rev(label_map$entity_label[match(rec$entity_id, label_map$entity_id)]))]
   filled[, gwas := factor(gwas, levels = gwas_vec)]
   filled[, fdr_sig := !is.na(fdr) & fdr < 0.05]
-  filled[, fill_hex := .atc_gsea_fill(direction, fdr)]
-  filled$fill_hex[!filled$tested] <- NA
+  # Signed -log10(FDR): positive when the class matches the disease
+  # signature, negative when it opposes it. Untested cells and cells with
+  # NA direction get NA and are handled by na.value / a hatch overlay.
+  neg_log_fdr <- pmin(-log10(filled$fdr), 12)
+  filled[, signed_score := ifelse(
+    is.na(direction) | !tested, NA_real_,
+    ifelse(direction == "Matches disease",  neg_log_fdr,
+    ifelse(direction == "Opposes disease", -neg_log_fdr, NA_real_)))]
   filled
 }
 
@@ -855,14 +852,19 @@ atc_compare_ui <- function(ns) {
   filled <- .atc_gsea_frame(long, gwas_vec, only_recurrent, k_min,
                              panel_pick, sig_basis, sig_threshold)
   if (is.null(filled)) return(NULL)
-  p <- ggplot2::ggplot(filled, ggplot2::aes(x = gwas, y = entity_label)) +
-    ggplot2::geom_tile(ggplot2::aes(fill = I(fill_hex)),
-                        colour = "white", linewidth = 0.3) +
+  ggplot2::ggplot(filled, ggplot2::aes(x = gwas, y = entity_label,
+                                          fill = signed_score)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.3) +
     ggplot2::geom_tile(data = filled[tested == FALSE],
                         fill = .gd_hatch_bg, colour = .gd_hatch_fg,
                         linetype = "dotted", linewidth = 0.6) +
     ggplot2::geom_tile(data = filled[fdr_sig == TRUE & tested == TRUE],
                         fill = NA, colour = "black", linewidth = 0.7) +
+    ggplot2::scale_fill_gradient2(
+      low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
+      limits = c(-12, 12), na.value = "white",
+      name = "signed -log10(FDR)  (+ matches / − opposes)"
+    ) +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
                                 expand = c(0, 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
@@ -871,10 +873,9 @@ atc_compare_ui <- function(ns) {
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid = ggplot2::element_blank(),
-      legend.position = "none",
+      legend.position = "bottom",
       plot.margin = ggplot2::margin(t = 70, r = 40, b = 10, l = 10, unit = "pt")
     )
-  p
 }
 
 atc_compare_server <- function(id, gwas_data, selected_gwas_multi,

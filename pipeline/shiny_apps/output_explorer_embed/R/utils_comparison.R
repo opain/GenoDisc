@@ -498,8 +498,11 @@ apply_comparison_filters <- function(long, cf = list()) {
   thr <- if (!is.null(cf$sig_threshold)) as.numeric(cf$sig_threshold) else 0.05
 
   # Recurrence filter: keep entities significant in >= k_min GWAS on the basis.
+  # k_min = 1 means "at least one GWAS", which drops entities that are not
+  # significant anywhere. Only skip the filter when k_min is not provided or
+  # is explicitly < 1.
   k_min <- if (!is.null(cf$k_min)) as.integer(cf$k_min) else 1L
-  if (k_min > 1L) {
+  if (!is.na(k_min) && k_min >= 1L) {
     dt[, .gd_sig := !is.na(.SD[[1L]]) & .SD[[1L]] < thr, .SDcols = basis]
     counts <- dt[, .(k = sum(.gd_sig)), by = entity_id]
     keep_ids <- counts[k >= k_min, entity_id]
