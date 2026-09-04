@@ -313,12 +313,12 @@ molAssocUI <- function(id) {
         # DOM avoids the bind/unbind cycles that broke downloadHandler
         # routing when we used renderUI to swap them.
         conditionalPanel(
-          condition = "output['is_compare'] != true",
+          condition = "output['is_compare'] == 'false'",
           ns = ns,
           mol_assoc_single_ui(ns)
         ),
         conditionalPanel(
-          condition = "output['is_compare'] == true",
+          condition = "output['is_compare'] == 'true'",
           ns = ns,
           gene_compare_ui(NS(ns("gene_compare")))
         )
@@ -380,13 +380,13 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     # `is_compare` drives the conditionalPanel gates in `molAssocUI` so
     # the browser can hide/show the single-GWAS vs compare bodies without
-    # the DOM elements being destroyed. suspendWhenHidden must be FALSE
-    # so this output is evaluated even before Shiny knows the tab is
-    # visible (it's inside a `tabsetPanel`, so the tab body isn't
-    # rendered until the user visits it — but the flag needs a value
-    # from the very first click on the tab).
-    output$is_compare <- reactive({
-      !is.null(comparison_mode) && isTRUE(comparison_mode())
+    # the DOM elements being destroyed. It has to be a render* output for
+    # Shiny to send updates to the client — assigning a bare reactive to
+    # output$X only ships the first value. renderText emits the string
+    # "TRUE" / "FALSE" (JS receives it as "true"/"false" after
+    # tolowercase in the condition below).
+    output$is_compare <- renderText({
+      tolower(as.character(!is.null(comparison_mode) && isTRUE(comparison_mode())))
     })
     outputOptions(output, "is_compare", suspendWhenHidden = FALSE)
 
