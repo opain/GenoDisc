@@ -182,7 +182,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
       dat
     }, sanitize.text.function = function(x) x,
        colnames = TRUE,
-       align = paste0("l", strrep("l", max(1, length(qc_gwas_vec())))),
+       align = "l",
        rownames = FALSE)
 
     output$qc_legend <- renderUI({
