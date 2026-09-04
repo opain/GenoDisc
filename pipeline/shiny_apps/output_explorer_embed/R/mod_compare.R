@@ -504,10 +504,12 @@ locus_compare_ui <- function(ns) {
   tagList(
     br(),
     p(
-      "Cross-GWAS locus-level associations. Loci are keyed by their nearest ",
-      "gene (from the clump / COJO table). Each cell shows the smallest p-value ",
-      "at that locus for the selected GWAS. Blank cell = the locus has no ",
-      "clumped / independent signal in that GWAS. Default significance threshold ",
+      "Cross-GWAS locus-level associations. ",
+      tags$b("Each row is one locus, labelled by the nearest gene to that trait's lead SNP."),
+      " Cells show the smallest p-value at that locus for the selected ",
+      "GWAS (from LD-based clumping or conditional / joint COJO, depending ",
+      "on the Method selection). Blank cell = the locus has no clumped or ",
+      "independent COJO signal in that GWAS. Default significance threshold ",
       "is P < 5×10⁻⁸ (genome-wide significance)."
     ),
     hr(),
@@ -516,9 +518,11 @@ locus_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
+            # Method choices are populated server-side from the methods
+            # actually present in the bundle, so "COJO" is only offered
+            # when cf$cojo was set for at least one GWAS.
             selectInput(ns("method"), "Method:",
-                        choices = .locus_methods,
-                        selected = "clump")
+                        choices = character(0))
           ),
           column(3,
             radioButtons(ns("sig_basis"), "Significance basis:",
@@ -636,6 +640,21 @@ locus_compare_ui <- function(ns) {
 locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     comparison_long) {
   moduleServer(id, function(input, output, session) {
+
+    # Populate the Method dropdown from methods actually present in the
+    # bundle. If the pipeline didn't run COJO for any selected GWAS,
+    # the "COJO" option is not offered (avoids an empty plot + confusion).
+    observeEvent(comparison_long(), {
+      long <- comparison_long()
+      present <- unique(long[entity_type == "locus", method])
+      choices <- intersect(.locus_methods, present)
+      if (length(choices) == 0) choices <- .locus_methods
+      cur <- isolate(input$method)
+      sel <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
+      updateSelectInput(session, "method",
+                         choices = setNames(choices, choices),
+                         selected = sel)
+    })
 
     output$k_slider_ui <- renderUI({
       n_sel <- length(selected_gwas_multi())
