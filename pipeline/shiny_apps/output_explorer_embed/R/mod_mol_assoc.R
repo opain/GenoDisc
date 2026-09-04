@@ -300,56 +300,65 @@ molAssocUI <- function(id) {
   tabPanel(
     title = "Molecular Associations",
     br(),
-    p("This tab shows molecular association results. Select the tabs below to see a summary of results across methods, or method-specific results tables."),
+    p("Molecular association results. The Single GWAS sub-tab holds all per-trait content (summary heatmap plus MAGMA / FUSION / SMR tables) behind a GWAS picker; the Multi-GWAS sub-tab shows the cross-GWAS gene comparison. Panel Info describes the reference panels the pipeline used and is bundle-level."),
     hr(),
     tabsetPanel(
       id = ns("mol_assoc_tabset"),
       tabPanel(
-        title = "Summary",
+        title = "Single GWAS",
+        value = "single_gwas",
         br(),
-        # Both the single-GWAS and compare bodies live in the DOM
-        # permanently; conditionalPanel hides the wrong one based on the
-        # server-side `is_compare` flag. Keeping both widget sets in the
-        # DOM avoids the bind/unbind cycles that broke downloadHandler
-        # routing when we used renderUI to swap them.
-        conditionalPanel(
-          condition = "output['is_compare'] == 'false'",
-          ns = ns,
-          mol_assoc_single_ui(ns)
-        ),
-        conditionalPanel(
-          condition = "output['is_compare'] == 'true'",
-          ns = ns,
-          gene_compare_ui(NS(ns("gene_compare")))
+        div(style = "max-width: 260px; margin-bottom: 10px;",
+          uiOutput(ns("mol_single_gwas_ui"))),
+        tabsetPanel(
+          id = ns("mol_single_sub_tabs"),
+          tabPanel(title = "Summary", value = "summary",
+            br(), mol_assoc_single_ui(ns)
+          ),
+          tabPanel(title = "MAGMA", value = "magma",
+            br(),
+            p("MAGMA gene association results for the selected GWAS."), hr(), br(),
+            fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
+            mol_table_legend("magma"), br()
+          ),
+          tabPanel(title = "Expression - FUSION", value = "expr_fusion",
+            br(),
+            p("Differential expression association results from FUSION for the selected GWAS."), hr(), br(),
+            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
+            mol_table_legend("fusion"), br()
+          ),
+          tabPanel(title = "Protein - FUSION", value = "prot_fusion",
+            br(),
+            p("Differential protein level association results from FUSION for the selected GWAS."), hr(), br(),
+            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
+            mol_table_legend("fusion"), br()
+          ),
+          tabPanel(title = "Expression - SMR", value = "expr_smr",
+            br(),
+            p("Differential expression association results from SMR for the selected GWAS."), hr(), br(),
+            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
+            mol_table_legend("smr_expr"), br()
+          ),
+          tabPanel(title = "Protein - SMR", value = "prot_smr",
+            br(),
+            p("Differential protein level association results from SMR for the selected GWAS."), hr(), br(),
+            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
+            mol_table_legend("smr_protein"), br()
+          )
         )
       ),
-      tabPanel(title = "MAGMA", br(),
-        p("This tab shows MAGMA gene association results."), hr(), br(),
-        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
-        mol_table_legend("magma"), br()
+      tabPanel(
+        title = "Multi-GWAS",
+        value = "multi_gwas",
+        br(),
+        gene_compare_ui(NS(ns("gene_compare")))
       ),
-      tabPanel(title = "Expression - FUSION", br(),
-        p("This tab shows differential expression association results from FUSION."), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
-        mol_table_legend("fusion"), br()
-      ),
-      tabPanel(title = "Protein - FUSION", br(),
-        p("This tab shows differential protein level association results from FUSION."), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
-        mol_table_legend("fusion"), br()
-      ),
-      tabPanel(title = "Expression - SMR", br(),
-        p("This tab shows differential expression association results from SMR"), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
-        mol_table_legend("smr_expr"), br()
-      ),
-      tabPanel(title = "Protein - SMR", br(),
-        p("This tab shows differential protein level association results from SMR"), hr(), br(),
-        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
-        mol_table_legend("smr_protein"), br()
-      ),
-      tabPanel(title = "Panel Info.", br(),
-        p("This tab shows the number of features and individuals for each panel."), hr(), br(),
+      tabPanel(
+        title = "Panel Info.",
+        value = "panel_info",
+        br(),
+        p("Number of features and individuals for each reference panel used by the pipeline (bundle-level; identical for every GWAS)."),
+        hr(), br(),
         fluidRow(column(width = 7, dataTableOutput(ns("panel_info_table")))),
         mol_table_legend("panel"), br()
       )
@@ -378,58 +387,48 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                             gwas_data, selected_gwas_multi, comparison_long)
     }
 
-    # `is_compare` drives the conditionalPanel gates in `molAssocUI` so
-    # the browser can hide/show the single-GWAS vs compare bodies without
-    # the DOM elements being destroyed. It has to be a render* output for
-    # Shiny to send updates to the client — assigning a bare reactive to
-    # output$X only ships the first value. renderText emits the string
-    # "TRUE" / "FALSE" (JS receives it as "true"/"false" after
-    # tolowercase in the condition below).
-    output$is_compare <- renderText({
-      tolower(as.character(!is.null(comparison_mode) && isTRUE(comparison_mode())))
-    })
-    outputOptions(output, "is_compare", suspendWhenHidden = FALSE)
+    # Per-tab GWAS picker for the Single GWAS sub-tab. Renders every
+    # per-GWAS view (Summary heatmap, MAGMA table, FUSION tables,
+    # SMR tables) for the picked GWAS. renderUI so choices are baked
+    # in at widget creation.
+    if (!is.null(selected_gwas_multi)) {
+      output$mol_single_gwas_ui <- renderUI({
+        choices <- selected_gwas_multi()
+        req(length(choices) >= 1)
+        cur <- isolate(input$mol_single_gwas)
+        keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
+        selectInput(session$ns("mol_single_gwas"), "GWAS:",
+                     choices = choices, selected = keep, multiple = FALSE)
+      })
+    }
+
+    # Fallback for outputs that fire before the picker widget has been
+    # bound on the client.
+    .pick_mol_gwas <- function() {
+      v <- input$mol_single_gwas
+      if (is.null(v) || !nzchar(v)) selected_gwas() else v
+    }
 
     ########
-    # Show/hide tabs based on config
+    # Show/hide method sub-tabs based on config
     ########
 
-    # Per-method sub-tabs that duplicate what the compare Summary tab
-    # already shows via its Method dropdown. Hidden in compare mode; shown
-    # (subject to config-flag gates below) in single-GWAS mode.
-    .redundant_method_tabs <- c("MAGMA", "Expression - FUSION",
-                                  "Protein - FUSION", "Expression - SMR",
-                                  "Protein - SMR")
-
+    # Hide method sub-tabs when the pipeline didn't run the corresponding
+    # analysis; nothing to hide based on comparison mode any more — the
+    # Multi-GWAS sibling handles that content separately.
     apply_mol_assoc_visibility <- function() {
       cf <- config_flags()
       if (is.null(cf)) return()
-      tab_id <- "mol_assoc_tabset"
-      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
-
-      if (in_compare) {
-        for (t in .redundant_method_tabs) hideTab(tab_id, t)
-        # If the user was viewing one of the hidden method sub-tabs,
-        # jump to the compare Summary.
-        cur <- isolate(input$mol_assoc_tabset)
-        if (!is.null(cur) && cur %in% .redundant_method_tabs) {
-          updateTabsetPanel(session, tab_id, selected = "Summary")
-        }
-        return()
-      }
-
-      if (cf$magma_gene) showTab(tab_id, "MAGMA") else hideTab(tab_id, "MAGMA")
-      if (cf$twas) showTab(tab_id, "Expression - FUSION") else hideTab(tab_id, "Expression - FUSION")
+      tab_id <- "mol_single_sub_tabs"
+      if (cf$magma_gene) showTab(tab_id, "magma") else hideTab(tab_id, "magma")
+      if (cf$twas) showTab(tab_id, "expr_fusion") else hideTab(tab_id, "expr_fusion")
       if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner))
-        showTab(tab_id, "Protein - FUSION") else hideTab(tab_id, "Protein - FUSION")
-      if (cf$smr_expression) showTab(tab_id, "Expression - SMR") else hideTab(tab_id, "Expression - SMR")
-      if (cf$smr_protein_panel_rosmap) showTab(tab_id, "Protein - SMR") else hideTab(tab_id, "Protein - SMR")
+        showTab(tab_id, "prot_fusion") else hideTab(tab_id, "prot_fusion")
+      if (cf$smr_expression) showTab(tab_id, "expr_smr") else hideTab(tab_id, "expr_smr")
+      if (cf$smr_protein_panel_rosmap) showTab(tab_id, "prot_smr") else hideTab(tab_id, "prot_smr")
     }
 
     observeEvent(config_flags(), apply_mol_assoc_visibility())
-    if (!is.null(comparison_mode)) {
-      observeEvent(comparison_mode(), apply_mol_assoc_visibility())
-    }
 
     ########
     # Update selectInputs when summary data changes
@@ -463,8 +462,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Individual method tables
     ########
 
-    output$mol_assoc_magma_table <- renderDataTable({
-      req(gwas_data(), selected_gwas())
+    outputmagma_table <- renderDataTable({
+      req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[4];",
@@ -474,15 +473,15 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
-      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/magma")
+      tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/magma")
 
       datatable(tmp, rownames = F, options = list(
         rowCallback = JS(js),
         columnDefs = list(list(className = 'dt-center', targets = 0:5))))
     })
 
-    output$mol_assoc_fusion_expr_table <- renderDataTable({
-      req(gwas_data(), selected_gwas())
+    outputfusion_expr_table <- renderDataTable({
+      req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -492,7 +491,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
-      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/exp/fusion")$res
+      tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/exp/fusion")$res
       tmp$TWAS.Z <- round(tmp$TWAS.Z, 3)
       tmp$`High Confidence` <- tmp$TWAS.P.FDR < 0.05 & tmp$COLOC_logical
       tmp$COLOC_logical <- NULL
@@ -509,8 +508,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:11))))
     })
 
-    output$mol_assoc_fusion_protein_table <- renderDataTable({
-      req(gwas_data(), selected_gwas())
+    outputfusion_protein_table <- renderDataTable({
+      req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -520,7 +519,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
-      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/protein/fusion")$res
+      tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/protein/fusion")$res
       tmp$pwas_all.Z <- round(tmp$pwas_all.Z, 3)
       tmp$`High Confidence` <- tmp$pwas_all.P.FDR < 0.05 & tmp$COLOC_logical
       tmp$COLOC_logical <- NULL
@@ -537,8 +536,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:11))))
     })
 
-    output$mol_assoc_smr_expr_table <- renderDataTable({
-      req(gwas_data(), selected_gwas())
+    outputsmr_expr_table <- renderDataTable({
+      req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -550,7 +549,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
-      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/exp/smr")$res
+      tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/exp/smr")$res
       tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
       tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI","High Confidence"), with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
@@ -567,8 +566,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:10))))
     })
 
-    output$mol_assoc_smr_protein_table <- renderDataTable({
-      req(gwas_data(), selected_gwas())
+    outputsmr_protein_table <- renderDataTable({
+      req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
         "  var x = data[7];",
@@ -580,7 +579,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
-      tmp <- gd_read(gwas_data(), selected_gwas(), "mol_assoc/protein/smr")$res
+      tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/protein/smr")$res
       tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
       tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
@@ -641,8 +640,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     ########
 
     mol_assoc_summary_data <- reactive({
-      req(gwas_data(), selected_gwas(), config_flags())
-      build_mol_assoc_data(gwas_data(), selected_gwas(), config_flags())
+      req(gwas_data(), config_flags()); g <- .pick_mol_gwas(); req(g)
+      build_mol_assoc_data(gwas_data(), g, config_flags())
     })
 
     # Gene -> locus lookup for the per-locus layout. Positions are resolved
@@ -650,10 +649,10 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # scoped to the DISPLAYED genes only, so loci are tight clusters of the
     # shown features rather than genome-wide bands.
     mol_locus_map <- reactive({
-      req(gwas_data(), selected_gwas(), config_flags(), mol_assoc_summary_data_filtered())
+      req(gwas_data(), config_flags(), mol_assoc_summary_data_filtered()); g <- .pick_mol_gwas(); req(g)
       ids <- unique(as.character(mol_assoc_summary_data_filtered()$ID))
       ids <- ids[ids != "Placeholder"]
-      pos <- resolve_feature_positions(ids, gwas_data(), selected_gwas(), config_flags())
+      pos <- resolve_feature_positions(ids, gwas_data(), g, config_flags())
       assign_loci(pos)
     })
 
