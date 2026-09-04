@@ -37,17 +37,22 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 # require a facet column. Returns pixel dimensions suitable for plotOutput().
 .compare_plot_dims <- function(n_rows, n_cols, font_size = 11,
                                  y_labels = NULL,
-                                 min_height = 350, min_width = 500) {
+                                 min_height = 300, min_width = 500,
+                                 min_panel_h_pt = 120) {
   fs_ratio <- font_size / 11
   y_label_px <- if (!is.null(y_labels) && length(y_labels) > 0) {
     max(nchar(as.character(y_labels)), na.rm = TRUE) * font_size * 0.55 + 20
   } else 160
   panel_w <- max(30, 40 * fs_ratio) * max(1L, n_cols)
-  panel_h <- max(18, 22 * fs_ratio) * max(1L, n_rows)
+  # Panel height scales with row count but is floored at min_panel_h_pt so
+  # short heatmaps (1-3 rows) still leave room for the bottom legend rather
+  # than being crushed.
+  panel_h <- max(min_panel_h_pt, max(18, 22 * fs_ratio) * max(1L, n_rows))
   x_label_h <- 6 * font_size + 30
-  legend_h <- 70
+  legend_h  <- 60   # bottom colour-bar legend
   height <- max(min_height, x_label_h + panel_h + legend_h + 40)
-  width  <- max(min_width, y_label_px + panel_w + 180)
+  # Right margin is small now that the legend sits underneath the panel.
+  width  <- max(min_width, y_label_px + panel_w + 60)
   list(height = round(height), width = round(width))
 }
 
@@ -219,11 +224,9 @@ tissue_compare_ui <- function(ns) {
       uiOutput(ns("tissue_compare_plot_ui"))
     ),
     gd_legend(list(
-      "Retained (dark teal)"   = "FDR-significant and kept after the conditional analysis.",
-      "FDR-sig (medium teal)"  = "FDR-significant but not retained after conditioning.",
-      "Nominal-sig (pale teal)"= "Nominal (P < 0.05) but not FDR-significant.",
-      "Not significant (grey)" = "Tissue was tested but did not reach nominal significance.",
-      "Not tested (hatched)"   = "Tissue was not present in this GWAS's results."
+      "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+      "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
+      "Inner black dot"              = "Retained after the conditional analysis."
     ), heading = "How to read this heatmap"),
     br(),
     tags$div(style = "max-width: 1100px;",
@@ -322,17 +325,15 @@ tissue_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Dot: retained.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -372,13 +373,17 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     plot_dims <- reactive({
-      req(comparison_long())
-      slice <- comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec_r()]
+      # Derive from the actual plot data so filtered / capped rows shrink
+      # the panel height (previously we used the full 54-tissue slice, which
+      # left huge blank panels when only-recurrent trimmed to a handful).
+      p <- plot_obj()
+      n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
+      y_lab  <- if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       .compare_plot_dims(
-        n_rows    = length(unique(slice$entity_id)),
+        n_rows    = n_rows,
         n_cols    = length(gwas_vec_r()),
         font_size = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
-        y_labels  = unique(slice$entity_id)
+        y_labels  = y_lab
       )
     })
 
@@ -552,6 +557,11 @@ locus_compare_ui <- function(ns) {
     tags$div(style = "max-width: 1100px; overflow-x: auto;",
       uiOutput(ns("locus_compare_plot_ui"))
     ),
+    gd_legend(list(
+      "Ring around a circle"         = "Genome-wide significant (P < 5×10⁻⁸).",
+      "Black square around a circle" = "P < chosen significance threshold.",
+      "Blank cell"                   = "Locus has no clumped / independent signal in that GWAS."
+    ), heading = "How to read this heatmap"),
     br(),
     tags$div(style = "max-width: 1100px;",
       h4("Underlying data"),
@@ -611,19 +621,15 @@ locus_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = sprintf(
-                     "Ring: P<5e-8.  Square: P<%.0e.  Blank: no signal.",
-                     sig_threshold)) +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -869,6 +875,11 @@ gene_compare_ui <- function(ns) {
     tags$div(style = "max-width: 1100px; overflow-x: auto;",
       uiOutput(ns("gene_compare_plot_ui"))
     ),
+    gd_legend(list(
+      "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+      "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
+      "Blank cell"                   = "Gene has no result for this method in that GWAS."
+    ), heading = "How to read this heatmap"),
     br(),
     tags$div(style = "max-width: 1100px;",
       h4("Underlying data"),
@@ -948,17 +959,15 @@ gene_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1178,6 +1187,10 @@ atc_compare_ui <- function(ns) {
       tags$div(style = "max-width: 1100px; overflow-x: auto;",
         uiOutput(ns("atc_magma_plot_ui"))
       ),
+      gd_legend(list(
+        "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+        "Black square around a circle" = "FDR-significant (P.FDR < 0.05)."
+      ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
         h4("Underlying data"),
@@ -1231,11 +1244,12 @@ atc_compare_ui <- function(ns) {
         uiOutput(ns("atc_gsea_plot_ui"))
       ),
       gd_legend(list(
-        "Blue" = "Direction 'Matches disease' — drug class shares the trait's TWAS signature.",
-        "Red"  = "Direction 'Opposes disease' — drug class counteracts the trait's TWAS signature (therapeutic hypothesis).",
-        "Grey" = "Nominal or FDR sig with unassigned direction.",
-        "Hatched" = "Not tested in this GWAS."
-      ), heading = "Colour key"),
+        "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+        "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
+        "Blank cell"                   = "ATC class was not tested in that GWAS.",
+        "Blue"                         = "Direction 'Matches disease' — drug class shares the trait's TWAS signature.",
+        "Red"                          = "Direction 'Opposes disease' — drug class counteracts the trait's TWAS signature."
+      ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
         h4("Underlying data"),
@@ -1295,17 +1309,15 @@ atc_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1395,17 +1407,15 @@ atc_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Blank: not tested.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1745,6 +1755,10 @@ drug_compare_ui <- function(ns) {
       tags$div(style = "max-width: 1100px; overflow-x: auto;",
         uiOutput(ns("drug_magma_plot_ui"))
       ),
+      gd_legend(list(
+        "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+        "Black square around a circle" = "FDR-significant (P.FDR < 0.05)."
+      ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
         h4("Underlying data"),
@@ -1800,12 +1814,12 @@ drug_compare_ui <- function(ns) {
         uiOutput(ns("drug_gsea_plot_ui"))
       ),
       gd_legend(list(
-        "Blue" = "Direction 'Matches disease' — drug's TWAS signature matches the trait's.",
-        "Red"  = "Direction 'Opposes disease' — drug's TWAS signature counteracts the trait's (therapeutic hypothesis).",
-        "Ring" = "Nominal-sig (P<0.05).",
-        "Black square" = "FDR-sig.",
-        "Blank" = "Drug not tested in that GWAS."
-      ), heading = "Colour key"),
+        "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+        "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
+        "Blank cell"                   = "Drug was not tested in that GWAS.",
+        "Blue"                         = "Direction 'Matches disease' — drug's TWAS signature matches the trait's.",
+        "Red"                          = "Direction 'Opposes disease' — drug's TWAS signature counteracts the trait's."
+      ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
         h4("Underlying data"),
@@ -1857,17 +1871,15 @@ drug_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1937,17 +1949,15 @@ drug_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Blank: not tested.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -2283,6 +2293,11 @@ gencor_compare_ui <- function(ns) {
     tags$div(style = "max-width: 1100px; overflow-x: auto;",
       uiOutput(ns("gencor_plot_ui"))
     ),
+    gd_legend(list(
+      "Ring around a circle"         = "Nominal-significant (p < 0.05).",
+      "Black square around a circle" = "FDR-significant (p.FDR < 0.05).",
+      "Blank cell"                   = "Genetic correlation could not be estimated for this pair."
+    ), heading = "How to read this heatmap"),
     br(),
     tags$div(style = "max-width: 1100px;",
       h4("Underlying data"),
@@ -2343,17 +2358,15 @@ gencor_compare_ui <- function(ns) {
     ggplot2::scale_y_discrete(drop = FALSE,
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: p<0.05.  Square: FDR<0.05.  Blank: rG not estimated.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -2576,6 +2589,13 @@ cmap_compare_ui <- function(ns) {
       tags$div(style = "max-width: 1100px; overflow-x: auto;",
         uiOutput(ns("cmap_pert_plot_ui"))
       ),
+      gd_legend(list(
+        "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+        "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
+        "Blank cell"                   = "Perturbation was not tested in that GWAS.",
+        "Blue"                         = "Direction 'Matches disease' — perturbation shares the trait's TWAS signature.",
+        "Red"                          = "Direction 'Opposes disease' — perturbation counteracts the trait's TWAS signature."
+      ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
         h4("Underlying data"),
@@ -2627,6 +2647,13 @@ cmap_compare_ui <- function(ns) {
       tags$div(style = "max-width: 1100px; overflow-x: auto;",
         uiOutput(ns("cmap_moa_plot_ui"))
       ),
+      gd_legend(list(
+        "Ring around a circle"         = "Nominal-significant (P < 0.05).",
+        "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
+        "Blank cell"                   = "MOA was not tested in that GWAS.",
+        "Blue"                         = "Direction 'Matches disease' — MOA shares the trait's TWAS signature.",
+        "Red"                          = "Direction 'Opposes disease' — MOA counteracts the trait's TWAS signature."
+      ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
         h4("Underlying data"),
@@ -2691,17 +2718,15 @@ cmap_compare_ui <- function(ns) {
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::scale_y_discrete(expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
-    ggplot2::labs(x = NULL, y = NULL,
-                   caption = "Ring: P<0.05.  Square: FDR<0.05.  Blank: not tested.") +
+    ggplot2::labs(x = NULL, y = NULL) +
     ggplot2::theme_bw(base_size = font_size) +
     ggplot2::theme(
       axis.text.x.top = ggplot2::element_text(angle = 45, hjust = 0, vjust = 0),
       panel.grid.major = ggplot2::element_line(colour = "#eef1f6"),
       panel.grid.minor = ggplot2::element_blank(),
-      legend.position = "right",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt"),
-      plot.caption = ggplot2::element_text(size = ggplot2::rel(0.75), hjust = 0,
-                                             colour = "#454c5a")
+      legend.position = "bottom",
+      legend.box = "horizontal",
+      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
 }
 
