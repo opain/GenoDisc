@@ -32,6 +32,18 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 .gd_hatch_bg <- "#f6f7f9" # not tested background
 .gd_hatch_fg <- "#c4cad5" # not tested stroke
 
+# NA-aware numeric formatter for DT tables. `signif(NA, 3)` returns
+# NA_real_ which DT renders as an empty cell; users can't distinguish
+# "value missing" from "cell not populated". Convert to a character
+# vector so NA becomes the literal string "NA".
+.fmt_sig <- function(v, digits = 3) {
+  ifelse(is.na(v), "NA",
+         formatC(signif(as.numeric(v), digits), format = "g", digits = digits))
+}
+.fmt_int <- function(v) {
+  ifelse(is.na(v), "NA", formatC(as.integer(v), format = "d", big.mark = ","))
+}
+
 # Plot dimensions for a compare heatmap given its row and column counts. Mimics
 # the sizing used by calc_plot_dims() for the single-GWAS heatmaps but does not
 # require a facet column. Returns pixel dimensions suitable for plotOutput().
@@ -585,10 +597,10 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       out <- data.frame(
         GWAS     = factor(slice$gwas, levels = gwas_vec_r()),
         Tissue   = slice$entity_id,
-        BETA     = signif(slice$statistic, 3),
-        SE       = signif(slice$se, 3),
-        P        = signif(slice$p, 3),
-        `P.FDR`  = signif(slice$fdr, 3),
+        BETA     = .fmt_sig(slice$statistic, 3),
+        SE       = .fmt_sig(slice$se, 3),
+        P        = .fmt_sig(slice$p, 3),
+        `P.FDR`  = .fmt_sig(slice$fdr, 3),
         Retained = ifelse(is.na(slice$evidence), "—",
                           ifelse(slice$evidence, "Yes", "No")),
         check.names = FALSE, stringsAsFactors = FALSE
@@ -898,9 +910,9 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
       out <- data.frame(
         GWAS       = factor(slice$gwas, levels = gwas_vec_r()),
         Locus      = slice$entity_id,
-        BETA       = signif(slice$statistic, 3),
-        SE         = signif(slice$se, 3),
-        P          = signif(slice$p, 3),
+        BETA       = .fmt_sig(slice$statistic, 3),
+        SE         = .fmt_sig(slice$se, 3),
+        P          = .fmt_sig(slice$p, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -1258,10 +1270,10 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         GWAS      = factor(slice$gwas, levels = gwas_vec_r()),
         Gene      = slice$entity_id,
         Panel     = slice$panel,
-        Statistic = signif(slice$statistic, 3),
-        SE        = signif(slice$se, 3),
-        P         = signif(slice$p, 3),
-        `P.FDR`   = signif(slice$fdr, 3),
+        Statistic = .fmt_sig(slice$statistic, 3),
+        SE        = .fmt_sig(slice$se, 3),
+        P         = .fmt_sig(slice$p, 3),
+        `P.FDR`   = .fmt_sig(slice$fdr, 3),
         Evidence  = ifelse(is.na(slice$evidence), "—",
                             ifelse(slice$evidence, "Yes", "No")),
         check.names = FALSE, stringsAsFactors = FALSE
@@ -1720,9 +1732,9 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         GWAS   = factor(slice$gwas, levels = magma_gwas_vec()),
         `ATC Code`  = slice$entity_id,
         Class       = slice$entity_label,
-        `N Drugs`   = slice$n_units,
-        P           = signif(slice$p, 3),
-        `P.FDR`     = signif(slice$fdr, 3),
+        `N Drugs`  = .fmt_int(slice$n_units),
+        P           = .fmt_sig(slice$p, 3),
+        `P.FDR`     = .fmt_sig(slice$fdr, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -1827,11 +1839,11 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         `ATC Code` = slice$entity_id,
         Class      = slice$entity_label,
         Panel      = slice$panel,
-        Estimate   = signif(slice$statistic, 3),
+        Estimate   = .fmt_sig(slice$statistic, 3),
         Direction  = slice$direction,
-        Reversal_Z = signif(slice$reversal_z, 3),
-        P          = signif(slice$p, 3),
-        `P.FDR`    = signif(slice$fdr, 3),
+        Reversal_Z = .fmt_sig(slice$reversal_z, 3),
+        P          = .fmt_sig(slice$p, 3),
+        `P.FDR`    = .fmt_sig(slice$fdr, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -2262,11 +2274,11 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       out <- data.frame(
         GWAS   = factor(slice$gwas, levels = magma_gwas_vec()),
         Drug   = slice$entity_id,
-        `N Genes` = slice$n_units,
-        BETA   = signif(slice$statistic, 3),
-        SE     = signif(slice$se, 3),
-        P      = signif(slice$p, 3),
-        `P.FDR` = signif(slice$fdr, 3),
+        `N Genes` = .fmt_int(slice$n_units),
+        BETA   = .fmt_sig(slice$statistic, 3),
+        SE     = .fmt_sig(slice$se, 3),
+        P      = .fmt_sig(slice$p, 3),
+        `P.FDR` = .fmt_sig(slice$fdr, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -2371,12 +2383,12 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         GWAS       = factor(slice$gwas, levels = gsea_gwas_vec()),
         Drug       = slice$entity_id,
         Panel      = slice$panel,
-        `N Genes`  = slice$n_units,
-        Estimate   = signif(slice$statistic, 3),
+        `N Genes`  = .fmt_int(slice$n_units),
+        Estimate   = .fmt_sig(slice$statistic, 3),
         Direction  = slice$direction,
-        Reversal_Z = signif(slice$reversal_z, 3),
-        P          = signif(slice$p, 3),
-        `P.FDR`    = signif(slice$fdr, 3),
+        Reversal_Z = .fmt_sig(slice$reversal_z, 3),
+        P          = .fmt_sig(slice$p, 3),
+        `P.FDR`    = .fmt_sig(slice$fdr, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -2879,11 +2891,11 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
         `Ref trait`   = slice$ref_label,
         Category      = ifelse(is.na(slice$trait_category), "—",
                                 slice$trait_category),
-        rG            = signif(slice$rg, 3),
-        SE            = signif(slice$rg_se, 3),
-        P             = signif(slice$rg_p, 3),
-        `P.FDR`       = signif(slice$rg_p_fdr, 3),
-        `N SNPs`      = slice$n_snps,
+        rG            = .fmt_sig(slice$rg, 3),
+        SE            = .fmt_sig(slice$rg_se, 3),
+        P             = .fmt_sig(slice$rg_p, 3),
+        `P.FDR`       = .fmt_sig(slice$rg_p_fdr, 3),
+        `N SNPs`      = .fmt_int(slice$n_snps),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -2911,7 +2923,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
         SE     = signif(d$rg_se, 3),
         P      = signif(d$rg_p, 3),
         `P.FDR` = signif(d$rg_p_fdr, 3),
-        `N SNPs` = d$n_snps,
+        `N SNPs` = .fmt_int(d$n_snps),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       showModal(modalDialog(
@@ -3250,12 +3262,12 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         GWAS       = factor(slice$gwas, levels = pert_gwas_vec()),
         Perturbation = slice$entity_id,
         Panel      = slice$panel,
-        Estimate   = signif(slice$statistic, 3),
-        SE         = signif(slice$se, 3),
+        Estimate   = .fmt_sig(slice$statistic, 3),
+        SE         = .fmt_sig(slice$se, 3),
         Direction  = slice$direction,
-        Reversal_Z = signif(slice$reversal_z, 3),
-        P          = signif(slice$p, 3),
-        `P.FDR`    = signif(slice$fdr, 3),
+        Reversal_Z = .fmt_sig(slice$reversal_z, 3),
+        P          = .fmt_sig(slice$p, 3),
+        `P.FDR`    = .fmt_sig(slice$fdr, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
@@ -3372,12 +3384,12 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         GWAS       = factor(slice$gwas, levels = moa_gwas_vec()),
         MOA        = slice$entity_id,
         Panel      = slice$panel,
-        `N Drugs`  = slice$n_units,
-        Estimate   = signif(slice$statistic, 3),
+        `N Drugs`  = .fmt_int(slice$n_units),
+        Estimate   = .fmt_sig(slice$statistic, 3),
         Direction  = slice$direction,
-        Reversal_Z = signif(slice$reversal_z, 3),
-        P          = signif(slice$p, 3),
-        `P.FDR`    = signif(slice$fdr, 3),
+        Reversal_Z = .fmt_sig(slice$reversal_z, 3),
+        P          = .fmt_sig(slice$p, 3),
+        `P.FDR`    = .fmt_sig(slice$fdr, 3),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
