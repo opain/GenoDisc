@@ -241,7 +241,7 @@ tissue_compare_ui <- function(ns) {
     gd_legend(list(
       "Facet mode"                   = "One panel per GWAS; each row is a tissue and the horizontal bar shows -log10(P). Dashed line = nominal significance (P = 0.05); dotted line = Bonferroni across shown tissues.",
       "Filled point (facet)"         = "Green fill = FDR-significant (P.FDR < 0.05); white fill = not FDR-significant.",
-      "Inner black dot"              = "Retained after the conditional analysis (shown in both facet and heatmap modes).",
+      "Inner white dot (black outline)" = "Retained after the conditional analysis (shown in both facet and heatmap modes).",
       "Cell colour (heatmap)"        = "-log10(P) on a teal ramp.",
       "Ring around a circle"         = "Heatmap: nominal-significant (P < 0.05).",
       "Black square around a circle" = "Heatmap: FDR-significant (P.FDR < 0.05)."
@@ -346,12 +346,15 @@ tissue_compare_ui <- function(ns) {
       labels = c(`FALSE` = "Not FDR-significant", `TRUE` = "FDR-significant"),
       name = NULL)
 
-  # Retained-in-conditional marker: small inner solid black dot, drawn on
-  # top of the fill circle so it reads clearly against either fill colour.
+  # Retained-in-conditional marker: small inner WHITE dot with a thin
+  # black outline (shape 21). White-on-dark-green (FDR-sig fill) and
+  # white-on-white (not-sig fill) both read clearly because of the
+  # black stroke.
   ret <- slice[Retained == TRUE]
   if (nrow(ret) > 0) {
-    gg <- gg + ggplot2::geom_point(data = ret, shape = 19, colour = "black",
-                                     size = point_size / 2)
+    gg <- gg + ggplot2::geom_point(data = ret, shape = 21, fill = "white",
+                                     colour = "black", stroke = 0.6,
+                                     size = point_size * 0.45)
   }
 
   gg +
@@ -404,11 +407,14 @@ tissue_compare_ui <- function(ns) {
                                     nominal_flag = "nom_sig",
                                     fdr_flag = "fdr_sig",
                                     point_size = point_size)
-  # Retained tissues get a small solid black dot inside the circle.
+  # Retained tissues get a small inner white dot with black outline
+  # (matching the facet plot) so it reads on both dark-teal FDR-sig
+  # fills and pale not-sig fills.
   ret <- slice[slice$retained, ]
   if (nrow(ret) > 0) {
-    gg <- gg + ggplot2::geom_point(data = ret, shape = 19,
-                                     colour = "black", size = point_size / 2)
+    gg <- gg + ggplot2::geom_point(data = ret, shape = 21, fill = "white",
+                                     colour = "black", stroke = 0.5,
+                                     size = point_size * 0.45)
   }
 
   gg +
@@ -2392,31 +2398,26 @@ gencor_compare_ui <- function(ns) {
                           choices = c("Facet by GWAS" = "facet",
                                        "Heatmap" = "heatmap"),
                           selected = "facet", inline = TRUE),
-            # Restrict which bundle GWAS appear as facet columns; populated
-            # server-side from selected_gwas_multi().
-            selectInput(ns("gwas_pick"), "Include GWAS:",
-                         choices = NULL, multiple = TRUE),
+            # `gwas_pick`, `ref_pick`, `row_facet` are rendered by
+            # `renderUI` in the server so their choices are baked in at
+            # widget-creation time. `updateSelectInput` sent before the
+            # widget exists on the client is silently dropped (this UI
+            # lives inside a renderUI swap in mod_h2_gencor.R), so
+            # option-population was breaking before this pattern.
+            uiOutput(ns("gwas_pick_ui")),
             selectInput(ns("gwas_sort"), "Order GWAS by:",
                          choices = .compare_gwas_sort_choices,
                          selected = "as_selected")
           ),
           column(3,
-            # Restrict which reference traits appear (rows). Populated
-            # server-side from the bundle's gencor table.
-            selectInput(ns("ref_pick"), "Include reference traits:",
-                         choices = NULL, multiple = TRUE),
+            uiOutput(ns("ref_pick_ui")),
             selectInput(ns("trait_order"), "Order traits by:",
                          choices = c("Category (then label)" = "category",
                                       "Alphabetical" = "alphabetical",
                                       "|rG| max across GWAS" = "rg_max",
                                       "Significance (-log10 P) max across GWAS" = "sig_max"),
                          selected = "category"),
-            # Facet-y bands come from any extra metadata column in the
-            # gencor table (beyond the LDSC core cols). Populated
-            # server-side from build_gencor_long(); NULL disables row facets.
-            selectInput(ns("row_facet"), "Row facet (metadata):",
-                         choices = c("None" = "__none__"),
-                         selected = "__none__")
+            uiOutput(ns("row_facet_ui"))
           ),
           column(3,
             sliderInput(ns("plot_font_size"), "Font size (pt):",
@@ -2659,40 +2660,42 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       build_gencor_long(gwas_data(), selected_gwas_multi())
     })
 
-    # Keep the "Include GWAS:" pick populated with the current bundle
-    # GWAS. Default = all selected. `updateSelectInput` re-uses any
-    # values already picked, so user selections survive gwas_data reloads
-    # as long as the names still exist.
-    observe({
+    # Render the three picker widgets with their choices baked in at
+    # creation time. Using renderUI (rather than updateSelectInput on a
+    # pre-declared static widget) is essential here because
+    # gencor_compare_ui itself lives inside a renderUI swap in
+    # mod_h2_gencor.R — a `updateSelectInput` message sent before the
+    # target widget appears on the client is silently dropped, which
+    # is what caused the pickers to render as empty selects.
+    output$gwas_pick_ui <- renderUI({
       choices <- selected_gwas_multi()
       req(length(choices) >= 1)
       cur <- isolate(input$gwas_pick)
       keep <- if (is.null(cur)) choices else intersect(cur, choices)
       if (length(keep) == 0) keep <- choices
-      updateSelectInput(session, "gwas_pick", choices = choices, selected = keep)
+      selectInput(session$ns("gwas_pick"), "Include GWAS:",
+                   choices = choices, selected = keep, multiple = TRUE)
     })
 
-    # Populate "Include reference traits:" from the gencor table itself.
-    observe({
+    output$ref_pick_ui <- renderUI({
       long <- gencor_long()
-      req(nrow(long) > 0)
-      # Keep display label as the trait label, but the value the widget
-      # returns must be the reference name (`ref_name` — matches gencor_list).
+      if (nrow(long) == 0) return(NULL)
       ref_pairs <- unique(long[, .(ref_name, ref_label)])
       ref_pairs <- ref_pairs[order(ref_label)]
-      opts <- stats::setNames(ref_pairs$ref_name, ref_pairs$ref_label)
+      # selectInput takes a named character vector: names are shown to
+      # the user, values are what the input returns.
+      opts <- stats::setNames(as.character(ref_pairs$ref_name),
+                                as.character(ref_pairs$ref_label))
       cur <- isolate(input$ref_pick)
       keep <- if (is.null(cur)) ref_pairs$ref_name else intersect(cur, ref_pairs$ref_name)
       if (length(keep) == 0) keep <- ref_pairs$ref_name
-      updateSelectInput(session, "ref_pick", choices = opts, selected = keep)
+      selectInput(session$ns("ref_pick"), "Include reference traits:",
+                   choices = opts, selected = keep, multiple = TRUE)
     })
 
-    # Populate "Row facet (metadata):" from any extra column in the gencor
-    # tibble beyond the core LDSC columns. `trait_category` will normally
-    # be here (from gencor_gwas_list config). Adds "None" at the top.
-    observe({
+    output$row_facet_ui <- renderUI({
       long <- gencor_long()
-      req(nrow(long) > 0)
+      if (nrow(long) == 0) return(NULL)
       core <- c("gwas", "ref_name", "ref_label", "rg", "rg_se", "rg_p",
                  "rg_p_fdr", "n_snps", "gcov_int")
       extras <- setdiff(names(long), core)
@@ -2701,10 +2704,10 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
                                 logical(1))]
       opts <- c("None" = "__none__", stats::setNames(extras, extras))
       cur <- isolate(input$row_facet)
-      # Prefer trait_category as the default row facet when it exists.
       default <- if ("trait_category" %in% extras) "trait_category" else "__none__"
       sel <- if (is.null(cur) || !(cur %in% opts)) default else cur
-      updateSelectInput(session, "row_facet", choices = opts, selected = sel)
+      selectInput(session$ns("row_facet"), "Row facet (metadata):",
+                   choices = opts, selected = sel)
     })
 
     # Effective GWAS vector for plots — intersect user's per-view pick with
