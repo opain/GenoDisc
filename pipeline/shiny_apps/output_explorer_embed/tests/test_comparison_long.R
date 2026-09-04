@@ -19,13 +19,19 @@ if (!file.exists(file.path(app_dir, "reader.R"))) {
   app_dir <- getwd()
 }
 
-BUNDLE <- "/users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_neuropsych/results/results_package.rds"
+# Path to a reference results_package.rds for regression testing.
+# Sourced from the GENODISC_TEST_BUNDLE env var so this file contains
+# no absolute path — that used to trip rsconnect's "path outside the
+# project directory" warning at deploy time. Set the var before running:
+#   GENODISC_TEST_BUNDLE=/path/to/results_package.rds \
+#     Rscript tests/test_comparison_long.R
+BUNDLE <- Sys.getenv("GENODISC_TEST_BUNDLE", "")
 
-skip_all <- !file.exists(BUNDLE)
+skip_all <- !nzchar(BUNDLE) || !file.exists(BUNDLE)
 
 if (skip_all) {
-  message("Reference bundle not found at:\n  ", BUNDLE,
-          "\nSkipping tests.")
+  message("Reference bundle not found (set GENODISC_TEST_BUNDLE to a ",
+          "results_package.rds path). Skipping tests.")
   quit(status = 0)
 }
 
