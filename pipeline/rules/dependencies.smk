@@ -61,7 +61,7 @@ chromosomes = config.get("chromosomes", list(range(1, 23)))
 # resdir; from a fresh job dir Snakemake has no code-provenance to notice the
 # SHA changed in the shell command, so a plain 'install_*.done' marker would be
 # treated as up-to-date and the reinstall silently skipped.)
-GENOUTILS_SHA = "374c27c02467f450d41cec81e8de6406fd23b381"
+GENOUTILS_SHA = "233bb4c0e7c9197dc7e0add8696f966c839177c3"
 LME4QTL_SHA = "0c173ea8d8386b205f62ad642698519a861650b4"
 
 ########

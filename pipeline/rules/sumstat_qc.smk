@@ -27,7 +27,8 @@ rule sumstat_prep_i:
   input:
     rules.prep_1kg.output,
     rules.install_genoutils.output,
-    lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0]
+    lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0],
+    f"{resdir}/data/ldsc/w_hm3.snplist"
   output:
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.sumstats.gz"
@@ -60,6 +61,7 @@ rule sumstat_prep_i:
       --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
       --munged T \
+      --merge_alleles {params.resdir}/data/ldsc/w_hm3.snplist \
       {params.test_arg} \
       --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
