@@ -68,6 +68,9 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
       output[[output_id]] <- renderUI({
         choices <- selected_gwas_multi()
         req(length(choices) >= 1)
+        # Suppress the picker for single-GWAS bundles — nothing to pick
+        # between, and the widget is just noise.
+        if (length(choices) < 2L) return(NULL)
         cur <- isolate(input[[input_id]])
         keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
         selectInput(session$ns(input_id), label,

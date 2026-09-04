@@ -367,6 +367,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       output[[output_id]] <- renderUI({
         choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
         req(length(choices) >= 1)
+        # Suppress the picker for single-GWAS bundles.
+        if (length(choices) < 2L) return(NULL)
         v <- isolate(active_enrichment_gwas())
         keep <- if (!is.null(v) && v %in% choices) v else choices[1L]
         selectInput(session$ns(input_id), "GWAS:",
@@ -376,6 +378,35 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     .render_enrichment_picker("drug_single_gwas_ui", "drug_single_gwas")
     .render_enrichment_picker("atc_single_gwas_ui",  "atc_single_gwas")
     .render_enrichment_picker("cmap_single_gwas_ui", "cmap_single_gwas")
+
+    # Hide the "Multi-GWAS" sub-tab under each Drug / ATC / CMap
+    # panel when the bundle has only one GWAS — the cross-trait
+    # compare views degenerate to a single column and just duplicate
+    # the Single-GWAS content. Wait on input[[tab_id]] because these
+    # tabsetPanels are created inside `enrichment_tabs` renderUI —
+    # hideTab messages sent before the client-side widget binds are
+    # silently dropped.
+    if (!is.null(selected_gwas_multi)) {
+      .hide_multi_when_single <- function(tab_id) {
+        observe({
+          # Trigger only after the tabsetPanel is bound on the client.
+          req(input[[tab_id]])
+          is_multi <- length(selected_gwas_multi()) > 1L
+          if (is_multi) {
+            showTab(tab_id, "multi", session = session)
+          } else {
+            hideTab(tab_id, "multi", session = session)
+            cur <- isolate(input[[tab_id]])
+            if (!is.null(cur) && cur == "multi") {
+              updateTabsetPanel(session, tab_id, selected = "single")
+            }
+          }
+        })
+      }
+      .hide_multi_when_single("drug_view_tabs")
+      .hide_multi_when_single("atc_view_tabs")
+      .hide_multi_when_single("cmap_view_tabs")
+    }
 
     # Sync — any picker changed by the user becomes the new
     # active_enrichment_gwas; the reactive then propagates back to the

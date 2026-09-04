@@ -395,6 +395,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       output$mol_single_gwas_ui <- renderUI({
         choices <- selected_gwas_multi()
         req(length(choices) >= 1)
+        # Suppress the picker for single-GWAS bundles.
+        if (length(choices) < 2L) return(NULL)
         cur <- isolate(input$mol_single_gwas)
         keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
         selectInput(session$ns("mol_single_gwas"), "GWAS:",
@@ -429,6 +431,24 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     }
 
     observeEvent(config_flags(), apply_mol_assoc_visibility())
+
+    # Hide the top-level "Multi-GWAS" sub-tab when the bundle has only
+    # one GWAS — the gene compare heatmap collapses to a single column
+    # and duplicates what the Single-GWAS Summary already shows.
+    if (!is.null(selected_gwas_multi)) {
+      observe({
+        is_multi <- length(selected_gwas_multi()) > 1L
+        if (is_multi) {
+          showTab("mol_assoc_tabset", "multi_gwas", session = session)
+        } else {
+          hideTab("mol_assoc_tabset", "multi_gwas", session = session)
+          cur <- isolate(input$mol_assoc_tabset)
+          if (!is.null(cur) && cur == "multi_gwas") {
+            updateTabsetPanel(session, "mol_assoc_tabset", selected = "single_gwas")
+          }
+        }
+      })
+    }
 
     ########
     # Update selectInputs when summary data changes

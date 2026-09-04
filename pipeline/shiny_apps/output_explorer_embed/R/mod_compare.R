@@ -484,10 +484,12 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     # Include-GWAS picker — restrict which bundle GWAS appear in the plot.
     # Rendered via renderUI (choices baked in at creation) because this
-    # whole UI lives inside a renderUI swap in mod_enrichment.
+    # whole UI lives inside a renderUI swap in mod_enrichment. Hidden
+    # entirely for single-GWAS bundles (nothing to pick between).
     output$gwas_pick_ui <- renderUI({
       choices <- selected_gwas_multi()
       req(length(choices) >= 1)
+      if (length(choices) < 2L) return(NULL)
       cur <- isolate(input$gwas_pick)
       keep <- if (is.null(cur)) choices else intersect(cur, choices)
       if (length(keep) == 0) keep <- choices
@@ -2797,6 +2799,8 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
     output$gwas_pick_ui <- renderUI({
       choices <- selected_gwas_multi()
       req(length(choices) >= 1)
+      # Hidden entirely for single-GWAS bundles.
+      if (length(choices) < 2L) return(NULL)
       cur <- isolate(input$gwas_pick)
       keep <- if (is.null(cur)) choices else intersect(cur, choices)
       if (length(keep) == 0) keep <- choices

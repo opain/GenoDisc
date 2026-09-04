@@ -253,12 +253,29 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       output[[output_id]] <- renderUI({
         choices <- selected_gwas_multi()
         req(length(choices) >= 1)
+        # Suppress the picker for single-GWAS bundles.
+        if (length(choices) < 2L) return(NULL)
         cur <- isolate(input[[input_id]])
         keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
         selectInput(session$ns(input_id), label,
                      choices = choices, selected = keep, multiple = FALSE)
       })
     }
+
+    # Hide the Multi-GWAS sub-tab under Lead variants when the bundle
+    # has only one GWAS — no cross-trait comparison makes sense with 1.
+    observe({
+      is_multi <- length(selected_gwas_multi()) > 1L
+      if (is_multi) {
+        showTab("lead_sub_tabs", "multi", session = session)
+      } else {
+        hideTab("lead_sub_tabs", "multi", session = session)
+        cur <- isolate(input$lead_sub_tabs)
+        if (!is.null(cur) && cur == "multi") {
+          updateTabsetPanel(session, "lead_sub_tabs", selected = "single")
+        }
+      }
+    })
     if (!is.null(selected_gwas_multi)) {
       .render_per_gwas_picker("manhattan_gwas_ui", "manhattan_gwas")
       .render_per_gwas_picker("lead_gwas_ui",      "lead_gwas")
