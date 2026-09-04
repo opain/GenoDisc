@@ -1,10 +1,10 @@
-# Overview tab — cross-GWAS summary
+# Overview tab — bundle-level summary (works for single and multi-GWAS bundles)
 #
 # Two DT tables:
-#   1. QC row: N, lambda_GC, h2 (SE), N sig SNPs, N SNPs final
+#   1. QC row: N, lambda_GC, h2 (SE), N sig SNPs, N SNPs post-QC
 #   2. Yield row: sig counts across selected sig basis + threshold
 #
-# Visible only when >= 2 GWAS are selected (gated at the app.R hide/show layer).
+# Visible whenever a bundle is loaded, regardless of how many GWAS are selected.
 
 overviewUI <- function(id) {
   ns <- NS(id)
@@ -38,15 +38,15 @@ overviewUI <- function(id) {
     ),
     br(),
     tags$div(style = "max-width: 1100px;",
-      h4("Per-GWAS QC and power"),
+      h4("QC and power"),
       p(
         style = "color: var(--gd-text-mute);",
         "Sample size, genomic inflation (λ", tags$sub("GC"),
-        "), SNP-h² (LDSC observed-scale), and genome-wide significant SNP count for each selected GWAS."
+        "), SNP-h² (LDSC observed-scale), and genome-wide significant SNP count."
       ),
       DT::DTOutput(ns("qc_tbl")),
       br(),
-      h4("Yield: counts of significant entities per GWAS"),
+      h4("Yield: counts of significant entities"),
       p(
         style = "color: var(--gd-text-mute);",
         "Counts respect the significance basis and threshold above. ",
@@ -56,10 +56,11 @@ overviewUI <- function(id) {
     ),
     br(),
     gd_legend(list(
-      "N" = "Approximate per-GWAS sample size, taken as the maximum N across clumped lead SNPs.",
+      "N" = "Approximate sample size, taken as the maximum N across clumped lead SNPs.",
       "λ GC" = "Genomic inflation factor from the sumstat cleaner log.",
       "h² (SE)" = "LDSC observed-scale SNP heritability with its standard error. Blank when LDSC was not run.",
       "N sig SNPs" = "Count of SNPs passing p < 5×10⁻⁸ in the cleaned sumstats.",
+      "N SNPs post-QC" = "Number of SNPs remaining after quality-control filtering in the sumstat cleaner.",
       "Loci" = "Number of independent clumped loci.",
       "Sig Genes" = "MAGMA gene-level significant entities under the chosen basis + threshold.",
       "Sig Tissues" = "GTEx MAGMA tissue-specific significant tissues.",
@@ -73,18 +74,17 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
   moduleServer(id, function(input, output, session) {
 
     qc_dat <- reactive({
-      req(gwas_data(), comparison_mode())
+      req(gwas_data())
       build_overview_qc(gwas_data(), selected_gwas_multi())
     })
 
     ordered_gwas <- reactive({
-      req(comparison_mode())
+      req(gwas_data())
       sort_mode <- if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort
       order_gwas(selected_gwas_multi(), sort_mode, qc_dat())
     })
 
     output$qc_tbl <- DT::renderDT({
-      req(comparison_mode())
       d <- qc_dat()
       ord <- ordered_gwas()
       d <- d[match(ord, gwas)]
@@ -94,10 +94,10 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
         `lambda GC` = ifelse(is.na(d$lambda_gc), "—", sprintf("%.3f", d$lambda_gc)),
         `h2 (SE)`   = ifelse(is.na(d$h2), "—",
                              sprintf("%.3f (%.3f)", d$h2, d$h2_se)),
-        `N sig SNPs`  = ifelse(is.na(d$n_sig_snp), "—",
-                                formatC(d$n_sig_snp, format = "d", big.mark = ",")),
-        `N SNPs final` = ifelse(is.na(d$n_snp_final), "—",
-                                 formatC(d$n_snp_final, format = "d", big.mark = ",")),
+        `N sig SNPs`   = ifelse(is.na(d$n_sig_snp), "—",
+                                 formatC(d$n_sig_snp, format = "d", big.mark = ",")),
+        `N SNPs post-QC` = ifelse(is.na(d$n_snp_final), "—",
+                                    formatC(d$n_snp_final, format = "d", big.mark = ",")),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       # NA sample-size shows as "NA"; hide it.
@@ -109,7 +109,7 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
     })
 
     yield_dat <- reactive({
-      req(comparison_mode(), comparison_long())
+      req(gwas_data(), comparison_long())
       build_overview_yield(
         comparison_long(), gwas_data(), selected_gwas_multi(),
         sig_basis     = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
@@ -118,7 +118,6 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
     })
 
     output$yield_tbl <- DT::renderDT({
-      req(comparison_mode())
       d <- yield_dat()
       ord <- ordered_gwas()
       d <- d[match(ord, gwas)]

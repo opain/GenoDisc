@@ -584,6 +584,7 @@ server <- function(input, output, session) {
   # Show relevant tabs when data loads
   observeEvent(config_flags(), {
     cf <- config_flags()
+    showTab("main_tabs", "Overview")
     showTab("main_tabs", "GWAS QC")
     showTab("main_tabs", "References")
     showTab("main_tabs", "Configuration")
@@ -603,13 +604,10 @@ server <- function(input, output, session) {
 
   # ---- Comparison mode plumbing ----
 
-  # Show/hide the Overview tab based on how many GWAS the user has selected.
-  # The user stays on whichever tab they were on; they can pick Overview
-  # themselves when they want to see it.
-  observe({
-    if (shared$comparison_mode()) showTab("main_tabs", "Overview")
-    else                          hideTab("main_tabs", "Overview")
-  })
+  # Overview tab is shown alongside GWAS QC / References / Configuration when
+  # the bundle loads (see the config_flags observer above). It works for
+  # single-GWAS bundles too — the QC and yield tables just render a single
+  # row — so there's no per-mode show/hide here anymore.
 
   # GWAS QC stays visible in both modes. In compare mode, QC Summary
   # renders as a wide table (one column per GWAS); MAF / QQ / Log
