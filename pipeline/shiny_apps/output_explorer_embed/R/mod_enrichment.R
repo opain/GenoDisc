@@ -394,12 +394,17 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           is_multi <- length(selected_gwas_multi()) > 1L
           if (is_multi) {
             showTab(tab_id, "multi", session = session)
+            shinyjs::removeClass(id = tab_id, class = "hide-inner-nav")
           } else {
             hideTab(tab_id, "multi", session = session)
             cur <- isolate(input[[tab_id]])
             if (!is.null(cur) && cur == "multi") {
               updateTabsetPanel(session, tab_id, selected = "single")
             }
+            # Suppress the whole nav-tabs row on the inner tabsetPanel
+            # so a lone "Single GWAS" tab-header doesn't sit there
+            # doing nothing.
+            shinyjs::addClass(id = tab_id, class = "hide-inner-nav")
           }
         })
       }

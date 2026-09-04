@@ -27,6 +27,17 @@ ui <- fluidPage(
 
   shinyjs::useShinyjs(),
 
+  # Utility class: hide the nav-tabs header row of an inner tabsetPanel
+  # when only one tab is meaningful (e.g. Multi-GWAS hidden on single-
+  # GWAS bundles). Applied via shinyjs::addClass from each module's
+  # server observer that watches selected_gwas_multi().
+  # Note: shiny's tabsetPanel(id=X) renders <ul id="X" class="nav nav-tabs">
+  # — the element with the id IS the ul itself, so the class hides it
+  # directly.
+  tags$head(tags$style(HTML(
+    "ul.nav-tabs.hide-inner-nav { display: none !important; }"
+  ))),
+
   # GenoDisc-web design tokens (light + dark) mirrored from the Django app's
   # _design_system.html so the two look congruent. Dark is the default; users
   # opt into light and the choice persists via localStorage['genodisc_theme'],

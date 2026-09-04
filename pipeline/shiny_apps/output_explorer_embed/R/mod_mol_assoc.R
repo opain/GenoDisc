@@ -300,52 +300,48 @@ molAssocUI <- function(id) {
   tabPanel(
     title = "Molecular Associations",
     br(),
-    p("Molecular association results. The Single GWAS sub-tab holds all per-trait content (summary heatmap plus MAGMA / FUSION / SMR tables) behind a GWAS picker; the Multi-GWAS sub-tab shows the cross-GWAS gene comparison. Panel Info describes the reference panels the pipeline used and is bundle-level."),
+    p("Molecular association results. Per-trait content (Summary heatmap plus MAGMA / FUSION / SMR tables) is shown for the GWAS selected in the picker below. Multi-GWAS shows the cross-GWAS gene comparison (hidden for single-GWAS bundles). Panel Info describes the reference panels the pipeline used and is bundle-level."),
     hr(),
+    # GWAS picker at the top of the Molecular Associations tab body,
+    # above the per-method tabsetPanel. Rendered server-side and
+    # returns NULL for single-GWAS bundles (nothing to pick between),
+    # so no wasted space in that mode.
+    div(style = "max-width: 260px; margin-bottom: 10px;",
+      uiOutput(ns("mol_single_gwas_ui"))),
     tabsetPanel(
       id = ns("mol_assoc_tabset"),
-      tabPanel(
-        title = "Single GWAS",
-        value = "single_gwas",
+      tabPanel(title = "Summary", value = "summary",
+        br(), mol_assoc_single_ui(ns)
+      ),
+      tabPanel(title = "MAGMA", value = "magma",
         br(),
-        div(style = "max-width: 260px; margin-bottom: 10px;",
-          uiOutput(ns("mol_single_gwas_ui"))),
-        tabsetPanel(
-          id = ns("mol_single_sub_tabs"),
-          tabPanel(title = "Summary", value = "summary",
-            br(), mol_assoc_single_ui(ns)
-          ),
-          tabPanel(title = "MAGMA", value = "magma",
-            br(),
-            p("MAGMA gene association results for the selected GWAS."), hr(), br(),
-            fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
-            mol_table_legend("magma"), br()
-          ),
-          tabPanel(title = "Expression - FUSION", value = "expr_fusion",
-            br(),
-            p("Differential expression association results from FUSION for the selected GWAS."), hr(), br(),
-            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
-            mol_table_legend("fusion"), br()
-          ),
-          tabPanel(title = "Protein - FUSION", value = "prot_fusion",
-            br(),
-            p("Differential protein level association results from FUSION for the selected GWAS."), hr(), br(),
-            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
-            mol_table_legend("fusion"), br()
-          ),
-          tabPanel(title = "Expression - SMR", value = "expr_smr",
-            br(),
-            p("Differential expression association results from SMR for the selected GWAS."), hr(), br(),
-            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
-            mol_table_legend("smr_expr"), br()
-          ),
-          tabPanel(title = "Protein - SMR", value = "prot_smr",
-            br(),
-            p("Differential protein level association results from SMR for the selected GWAS."), hr(), br(),
-            fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
-            mol_table_legend("smr_protein"), br()
-          )
-        )
+        p("MAGMA gene association results for the selected GWAS."), hr(), br(),
+        fluidRow(column(width = 6, dataTableOutput(ns("mol_assoc_magma_table")))),
+        mol_table_legend("magma"), br()
+      ),
+      tabPanel(title = "Expression - FUSION", value = "expr_fusion",
+        br(),
+        p("Differential expression association results from FUSION for the selected GWAS."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_expr_table")))),
+        mol_table_legend("fusion"), br()
+      ),
+      tabPanel(title = "Protein - FUSION", value = "prot_fusion",
+        br(),
+        p("Differential protein level association results from FUSION for the selected GWAS."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_fusion_protein_table")))),
+        mol_table_legend("fusion"), br()
+      ),
+      tabPanel(title = "Expression - SMR", value = "expr_smr",
+        br(),
+        p("Differential expression association results from SMR for the selected GWAS."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_expr_table")))),
+        mol_table_legend("smr_expr"), br()
+      ),
+      tabPanel(title = "Protein - SMR", value = "prot_smr",
+        br(),
+        p("Differential protein level association results from SMR for the selected GWAS."), hr(), br(),
+        fluidRow(column(width = 9, dataTableOutput(ns("mol_assoc_smr_protein_table")))),
+        mol_table_legend("smr_protein"), br()
       ),
       tabPanel(
         title = "Multi-GWAS",
@@ -416,12 +412,13 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     ########
 
     # Hide method sub-tabs when the pipeline didn't run the corresponding
-    # analysis; nothing to hide based on comparison mode any more — the
-    # Multi-GWAS sibling handles that content separately.
+    # analysis. The method tabs and Multi-GWAS are now all direct
+    # children of mol_assoc_tabset (no Single-GWAS wrapper), so this
+    # targets mol_assoc_tabset directly.
     apply_mol_assoc_visibility <- function() {
       cf <- config_flags()
       if (is.null(cf)) return()
-      tab_id <- "mol_single_sub_tabs"
+      tab_id <- "mol_assoc_tabset"
       if (cf$magma_gene) showTab(tab_id, "magma") else hideTab(tab_id, "magma")
       if (cf$twas) showTab(tab_id, "expr_fusion") else hideTab(tab_id, "expr_fusion")
       if (any(cf$pwas_panel_rosmap, cf$pwas_panel_banner))
@@ -432,9 +429,9 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     observeEvent(config_flags(), apply_mol_assoc_visibility())
 
-    # Hide the top-level "Multi-GWAS" sub-tab when the bundle has only
-    # one GWAS — the gene compare heatmap collapses to a single column
-    # and duplicates what the Single-GWAS Summary already shows.
+    # Hide the "Multi-GWAS" tab (sibling of the method tabs) when the
+    # bundle has only one GWAS — the gene compare heatmap collapses
+    # to a single column and duplicates the per-method Summary.
     if (!is.null(selected_gwas_multi)) {
       observe({
         is_multi <- length(selected_gwas_multi()) > 1L
@@ -444,7 +441,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           hideTab("mol_assoc_tabset", "multi_gwas", session = session)
           cur <- isolate(input$mol_assoc_tabset)
           if (!is.null(cur) && cur == "multi_gwas") {
-            updateTabsetPanel(session, "mol_assoc_tabset", selected = "single_gwas")
+            updateTabsetPanel(session, "mol_assoc_tabset", selected = "summary")
           }
         }
       })

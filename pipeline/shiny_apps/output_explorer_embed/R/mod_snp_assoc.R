@@ -264,16 +264,21 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     # Hide the Multi-GWAS sub-tab under Lead variants when the bundle
     # has only one GWAS — no cross-trait comparison makes sense with 1.
+    # Also hide the sub-tab nav-tabs row entirely so the lone Single
+    # GWAS tab-header doesn't clutter the UI (the .hide-inner-nav CSS
+    # class defined in app.R hides `> ul.nav-tabs`).
     observe({
       is_multi <- length(selected_gwas_multi()) > 1L
       if (is_multi) {
         showTab("lead_sub_tabs", "multi", session = session)
+        shinyjs::removeClass(id = "lead_sub_tabs", class = "hide-inner-nav")
       } else {
         hideTab("lead_sub_tabs", "multi", session = session)
         cur <- isolate(input$lead_sub_tabs)
         if (!is.null(cur) && cur == "multi") {
           updateTabsetPanel(session, "lead_sub_tabs", selected = "single")
         }
+        shinyjs::addClass(id = "lead_sub_tabs", class = "hide-inner-nav")
       }
     })
     if (!is.null(selected_gwas_multi)) {
