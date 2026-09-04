@@ -1,10 +1,22 @@
 
 gwasQcUI <- function(id) {
   ns <- NS(id)
+  # Small helper for the per-tab GWAS picker. Populated server-side from
+  # selected_gwas_multi(); default = the first-selected GWAS. Rendered
+  # inside each per-GWAS tab so the user can flick between GWAS without
+  # leaving the tab.
+  gwas_picker <- function(input_id, label = "GWAS:") {
+    div(style = "max-width: 260px; margin-bottom: 10px;",
+      selectInput(ns(input_id), label, choices = NULL, multiple = FALSE)
+    )
+  }
   tabPanel(
     title = "GWAS QC",
     br(),
-    p("This tab shows key quality control statistics for your selected GWAS."),
+    p("This tab shows key quality-control statistics for the loaded GWAS. ",
+      "The QC Summary table covers every selected GWAS; the other sub-tabs ",
+      "are per-GWAS and expose a GWAS selector at the top so you can flick ",
+      "between them without changing your bundle-wide selection."),
     hr(),
     tabsetPanel(
       id = ns("gwas_qc_tabs"),
@@ -19,12 +31,14 @@ gwasQcUI <- function(id) {
         title = "Allele Frequency Plot",
         value = "maf_plot",
         br(),
+        gwas_picker("maf_gwas"),
         uiOutput(ns("maf_plot_ui"))
       ),
       tabPanel(
         title = "QQ Plot",
         value = "qq_plot",
         br(),
+        gwas_picker("qq_gwas"),
         uiOutput(ns("qq_plot_ui"))
       ),
       # SNP-h² and rG have moved to their own top-level tab
@@ -33,6 +47,7 @@ gwasQcUI <- function(id) {
         title = "Sumstat QC Log",
         value = "cleaner_log",
         br(),
+        gwas_picker("log_gwas"),
         uiOutput(ns("cleaner_log_ui"))
       )
     )
@@ -46,23 +61,22 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
 
     ns <- session$ns
 
-    # In compare mode, MAF plot / QQ plot / Sumstat QC Log are all per-GWAS
-    # PNGs / text with no cross-trait rendering, so hide them. QC Summary
-    # stays visible in compare mode: it swaps to a wide table with one
-    # column per selected GWAS (see qc_val below).
-    if (!is.null(comparison_mode)) {
-      .per_gwas_only_tabs <- c("maf_plot", "qq_plot", "cleaner_log")
-      observeEvent(comparison_mode(), {
-        in_compare <- isTRUE(comparison_mode())
-        for (t in .per_gwas_only_tabs) {
-          if (in_compare) hideTab("gwas_qc_tabs", t, session = session)
-          else            showTab("gwas_qc_tabs", t, session = session)
-        }
-        cur <- isolate(input$gwas_qc_tabs)
-        if (in_compare && !is.null(cur) && cur %in% .per_gwas_only_tabs) {
-          updateTabsetPanel(session, "gwas_qc_tabs", selected = "qc_summary")
-        }
+    # Populate the per-tab GWAS selectors from selected_gwas_multi().
+    # Default = the first-selected GWAS. Preserves the user's per-tab
+    # pick across bundle-selection changes when the pick is still valid.
+    .populate_per_gwas_picker <- function(input_id) {
+      observe({
+        choices <- selected_gwas_multi()
+        req(length(choices) >= 1)
+        cur <- isolate(input[[input_id]])
+        keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
+        updateSelectInput(session, input_id, choices = choices, selected = keep)
       })
+    }
+    if (!is.null(selected_gwas_multi)) {
+      .populate_per_gwas_picker("maf_gwas")
+      .populate_per_gwas_picker("qq_gwas")
+      .populate_per_gwas_picker("log_gwas")
     }
 
     # Plain-text explanations for the QC metrics, used by the legend under the table.
@@ -199,10 +213,19 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
       gd_legend(items)
     })
 
+    # Falls back to selected_gwas() when the per-tab picker hasn't been
+    # populated yet (e.g. first render before the observe fires).
+    .pick_gwas <- function(input_id) {
+      v <- input[[input_id]]
+      if (is.null(v) || !nzchar(v)) selected_gwas() else v
+    }
+
     # MAF plot rendering
     output$maf_plot_ui <- renderUI({
-      req(gwas_data(), selected_gwas())
-      b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$maf_plot_base64
+      req(gwas_data())
+      g <- .pick_gwas("maf_gwas")
+      req(g)
+      b64 <- gd_read(gwas_data(), g, "gwas_qc")$maf_plot_base64
 
       if (!is.null(b64)) {
         tagList(
@@ -242,8 +265,10 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
 
     # QQ plot rendering
     output$qq_plot_ui <- renderUI({
-      req(gwas_data(), selected_gwas())
-      b64 <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$qq_plot_base64
+      req(gwas_data())
+      g <- .pick_gwas("qq_gwas")
+      req(g)
+      b64 <- gd_read(gwas_data(), g, "gwas_qc")$qq_plot_base64
 
       if (!is.null(b64)) {
         tagList(
@@ -276,8 +301,10 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
 
     # Cleaner log rendering
     output$cleaner_log_ui <- renderUI({
-      req(gwas_data(), selected_gwas())
-      log_lines <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")$cleaner_dat$log
+      req(gwas_data())
+      g <- .pick_gwas("log_gwas")
+      req(g)
+      log_lines <- gd_read(gwas_data(), g, "gwas_qc")$cleaner_dat$log
 
       if (is.null(log_lines) || length(log_lines) == 0) {
         return(p("Log not available."))
