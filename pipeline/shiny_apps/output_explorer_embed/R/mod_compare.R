@@ -181,10 +181,9 @@ tissue_compare_ui <- function(ns) {
     br(),
     p(
       "Cross-GWAS view of MAGMA tissue-specific enrichment across GTEx v8 tissues. ",
-      "Cells are coloured in three tiers: retained after conditional analysis, ",
-      "FDR-significant but not retained, and nominal-significant only. Rows are ",
-      "ordered by recurrence (how many GWAS reach the chosen significance basis) ",
-      "then by minimum p-value."
+      "Default plot lays out each GWAS in its own column as a lollipop of ",
+      "-log10(P), with tissues shared across facets and ordered by recurrence. ",
+      "Switch to the heatmap when comparing many GWAS."
     ),
     hr(),
     tags$details(class = "gd-details",
@@ -192,7 +191,11 @@ tissue_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
-            numericInput(ns("sig_threshold"), "Significance threshold:",
+            radioButtons(ns("plot_type"), "Plot type:",
+                          choices = c("Facet by GWAS" = "facet",
+                                       "Heatmap" = "heatmap"),
+                          selected = "facet", inline = TRUE),
+            numericInput(ns("sig_threshold"), "FDR significance threshold:",
                           value = 0.05, min = 1e-12, max = 1, step = 0.01)
           ),
           column(3,
@@ -205,10 +208,13 @@ tissue_compare_ui <- function(ns) {
             )
           ),
           column(3,
-            radioButtons(ns("cell_metric"), "Cell colour:",
-                         choices = c("-log10(FDR)" = "fdr",
-                                      "-log10(P)"   = "p"),
-                         selected = "fdr", inline = TRUE),
+            conditionalPanel(
+              condition = sprintf("input['%s'] == 'heatmap'", ns("plot_type")),
+              radioButtons(ns("cell_metric"), "Cell colour (heatmap):",
+                           choices = c("-log10(FDR)" = "fdr",
+                                        "-log10(P)"   = "p"),
+                           selected = "fdr", inline = TRUE)
+            ),
             selectInput(ns("gwas_sort"), "Order GWAS by:",
                          choices = c("As selected"   = "as_selected",
                                       "Alphabetical" = "alphabetical",
@@ -240,10 +246,12 @@ tissue_compare_ui <- function(ns) {
       uiOutput(ns("tissue_compare_plot_ui"))
     ),
     gd_legend(list(
-      "Ring around a circle"         = "Nominal-significant (P < 0.05).",
-      "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
-      "Inner black dot"              = "Retained after the conditional analysis."
-    ), heading = "How to read this heatmap"),
+      "Facet mode"                   = "One panel per GWAS; each row is a tissue and the horizontal bar shows -log10(P). Dashed line = nominal significance (P = 0.05); dotted line = Bonferroni across shown tissues.",
+      "Filled point (facet)"         = "Green fill = FDR-significant (P.FDR < 0.05); white fill = not FDR-significant.",
+      "Ring around a circle"         = "Heatmap: nominal-significant (P < 0.05).",
+      "Black square around a circle" = "Heatmap: FDR-significant (P.FDR < 0.05).",
+      "Inner black dot"              = "Heatmap: retained after the conditional analysis."
+    ), heading = "How to read this plot"),
     br(),
     tags$div(style = "max-width: 1100px;",
       h4("Underlying data"),
@@ -288,6 +296,71 @@ tissue_compare_ui <- function(ns) {
   slice[, tier := factor(tier, levels = c("Not significant", "Nominal-sig",
                                             "FDR-sig", "Retained"))]
   list(slice = slice, rec = rec)
+}
+
+#' Faceted per-GWAS lollipop for the Tissue compare view.
+#'
+#' Uses the same visual language as the single-GWAS build_tissue_plot()
+#' but places each selected GWAS in its own column facet. Tissue order is
+#' shared across facets so recurrent hits stack together.
+#'
+#' @param long comparison_long tibble (`method == "MAGMA-tissue"` slice).
+#' @param gwas_vec GWAS order for facets.
+#' @param only_recurrent,k_min,sig_threshold Passed through the same recurrence
+#'   filter as the heatmap so both views react identically to the sidebar.
+#' @param sort_choice "significance" (default) or "alphabetical" for tissue order.
+.tissue_compare_facet_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
+                                          sig_threshold = 0.05,
+                                          sort_choice = "significance",
+                                          font_size = 12,
+                                          point_size = 3) {
+  packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
+                                    "fdr", sig_threshold)
+  if (is.null(packed)) return(NULL)
+  slice <- data.table::copy(packed$slice)
+  slice[, negLog10P := -log10(pmax(p, 1e-300))]
+  slice[, FDR_Sig   := !is.na(fdr) & fdr < 0.05]
+  slice[, Retained  := !is.na(evidence) & evidence]
+
+  # Shared tissue ordering across facets. Recurrence-based row order from
+  # `.tissue_compare_frame` puts recurrent hits first (via `rec$entity_id`),
+  # so re-use that; `sort_choice = "alphabetical"` overrides to trait name.
+  tissue_levels <- if (identical(sort_choice, "alphabetical")) {
+    sort(as.character(unique(slice$entity_id)), decreasing = TRUE)
+  } else {
+    # rec$entity_id is high-recurrence-first — we want that at the top of
+    # the facet (so reverse for factor levels — first level renders at bottom).
+    rev(as.character(packed$rec$entity_id))
+  }
+  slice[, Label := factor(as.character(entity_id), levels = tissue_levels)]
+  slice[, gwas  := factor(gwas, levels = gwas_vec)]
+
+  # Bonferroni line: total tissues in the CURRENT slice (per-facet population).
+  n_total  <- length(unique(slice$entity_id))
+  nom_line  <- -log10(0.05)
+  bonf_line <- -log10(0.05 / max(n_total, 1))
+
+  ggplot2::ggplot(slice, ggplot2::aes(x = negLog10P, y = Label)) +
+    ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
+                          colour = "grey78", linewidth = 0.5) +
+    ggplot2::geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey55") +
+    ggplot2::geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey35") +
+    ggplot2::geom_point(ggplot2::aes(fill = FDR_Sig),
+                        shape = 21, size = point_size, colour = "black", stroke = 0.4) +
+    ggplot2::scale_fill_manual(
+      values = c(`FALSE` = "white", `TRUE` = "#0f766e"),
+      labels = c(`FALSE` = "Not FDR-significant", `TRUE` = "FDR-significant"),
+      name = NULL) +
+    ggplot2::facet_grid(cols = ggplot2::vars(gwas), scales = "free_x") +
+    ggplot2::labs(x = expression(-log[10](italic(P))), y = NULL) +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      legend.position = "top",
+      panel.grid.major.y = ggplot2::element_blank(),
+      panel.grid.minor = ggplot2::element_blank(),
+      strip.background = ggplot2::element_rect(fill = "grey93", colour = NA),
+      strip.text = ggplot2::element_text(face = "bold")
+    )
 }
 
 .tissue_compare_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
@@ -375,32 +448,50 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     plot_obj <- reactive({
       req(comparison_long())
-      .tissue_compare_ggplot(
-        long           = comparison_long(),
-        gwas_vec       = gwas_vec_r(),
-        only_recurrent = isTRUE(input$only_recurrent),
-        k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
-        metric         = if (is.null(input$cell_metric)) "fdr" else input$cell_metric,
-        sig_basis      = "fdr",
-        sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
-        font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
-        point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
-      )
+      if (identical(input$plot_type %||% "facet", "facet")) {
+        .tissue_compare_facet_ggplot(
+          long           = comparison_long(),
+          gwas_vec       = gwas_vec_r(),
+          only_recurrent = isTRUE(input$only_recurrent),
+          k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
+          sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
+          font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
+          point_size     = if (is.null(input$plot_point_size)) 3 else as.numeric(input$plot_point_size)
+        )
+      } else {
+        .tissue_compare_ggplot(
+          long           = comparison_long(),
+          gwas_vec       = gwas_vec_r(),
+          only_recurrent = isTRUE(input$only_recurrent),
+          k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
+          metric         = if (is.null(input$cell_metric)) "fdr" else input$cell_metric,
+          sig_basis      = "fdr",
+          sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
+          font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
+          point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
+        )
+      }
     })
 
     plot_dims <- reactive({
       # Derive from the actual plot data so filtered / capped rows shrink
-      # the panel height (previously we used the full 54-tissue slice, which
-      # left huge blank panels when only-recurrent trimmed to a handful).
+      # the panel height. Facet mode: n_cols = 1 (all facets share vertical
+      # tissue axis, and widths are set by faceting rather than cell-per-GWAS).
       p <- plot_obj()
       n_rows <- if (is.null(p)) 1L else length(unique(p$data$entity_id))
       y_lab  <- if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
-      .compare_plot_dims(
+      is_facet <- identical(input$plot_type %||% "facet", "facet")
+      n_cols_dim <- if (is_facet) max(2L, length(gwas_vec_r())) else length(gwas_vec_r())
+      dims <- .compare_plot_dims(
         n_rows    = n_rows,
-        n_cols    = length(gwas_vec_r()),
+        n_cols    = n_cols_dim,
         font_size = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
         y_labels  = y_lab
       )
+      # Facet mode needs extra width per facet (each panel is a full mini-plot,
+      # not a single-cell heatmap column).
+      if (is_facet) dims$width <- dims$width * 1.4
+      dims
     })
 
     .sync_dl_dims(session, plot_dims)
@@ -2284,12 +2375,11 @@ gencor_compare_ui <- function(ns) {
   tagList(
     br(),
     p(
-      "Genetic-correlation (rG) matrix between the selected bundle GWAS ",
-      "(columns) and each external reference trait tested by bivariate LDSC ",
-      "(rows). Cell colour is rG on a diverging red-white-blue scale ",
-      "(rG = -1 red, rG = 0 white, rG = +1 blue). Ring = nominal-sig ",
-      "(p < 0.05); black square = FDR-sig (p.FDR < 0.05). Blank cell = ",
-      "rG could not be estimated for this pair (e.g. sumstats missing)."
+      "Cross-GWAS view of bivariate-LDSC genetic correlations (rG) with ",
+      "external reference traits. Default plot lays out each bundle GWAS in ",
+      "its own column facet as a forest plot (rG ± 95% CI, one row per ",
+      "reference trait, coloured by nominal / FDR significance). Switch to ",
+      "the heatmap when comparing many GWAS."
     ),
     hr(),
     tags$details(class = "gd-details",
@@ -2297,6 +2387,10 @@ gencor_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
+            radioButtons(ns("plot_type"), "Plot type:",
+                          choices = c("Facet by GWAS" = "facet",
+                                       "Heatmap" = "heatmap"),
+                          selected = "facet", inline = TRUE),
             selectInput(ns("gwas_sort"), "Order GWAS by:",
                          choices = .compare_gwas_sort_choices,
                          selected = "as_selected"),
@@ -2310,9 +2404,9 @@ gencor_compare_ui <- function(ns) {
           ),
           column(3,
             sliderInput(ns("plot_point_size"), "Point size:",
-                         min = 2, max = 14, value = 6, step = 1)
+                         min = 2, max = 14, value = 3, step = 1)
           ),
-          .dl_and_download_column(ns, "gencor", default_w = 10, default_h = 10)
+          .dl_and_download_column(ns, "gencor", default_w = 12, default_h = 10)
         )
       )
     ),
@@ -2321,16 +2415,91 @@ gencor_compare_ui <- function(ns) {
       uiOutput(ns("gencor_plot_ui"))
     ),
     gd_legend(list(
-      "Ring around a circle"         = "Nominal-significant (p < 0.05).",
-      "Black square around a circle" = "FDR-significant (p.FDR < 0.05).",
-      "Blank cell"                   = "Genetic correlation could not be estimated for this pair."
-    ), heading = "How to read this heatmap"),
+      "Facet mode"                   = "One panel per GWAS; each row is a reference trait; horizontal bar shows rG ± 95% CI.",
+      "Red square (facet)"           = "FDR-significant (p.FDR < 0.05).",
+      "Orange triangle (facet)"      = "Nominal-significant only (p < 0.05).",
+      "Grey circle (facet)"          = "Not significant.",
+      "Ring around a circle"         = "Heatmap: nominal-significant (p < 0.05).",
+      "Black square around a circle" = "Heatmap: FDR-significant (p.FDR < 0.05).",
+      "Blank cell"                   = "Heatmap: rG could not be estimated for this pair."
+    ), heading = "How to read this plot"),
     br(),
     tags$div(style = "max-width: 1100px;",
       h4("Underlying data"),
       DT::DTOutput(ns("gencor_tbl"))
     )
   )
+}
+
+#' Faceted per-GWAS forest plot for the gencor compare view.
+#'
+#' Mirrors the single-GWAS build_gencor_plot() but places each selected
+#' GWAS in its own column facet. Reference-trait order is shared across
+#' facets (by trait_category then label), so recurrent secondary traits
+#' line up horizontally.
+.gencor_facet_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 3,
+                                   group_by_category = TRUE) {
+  if (nrow(long) == 0) return(NULL)
+  slice <- long[gwas %in% gwas_vec & !is.na(rg) & !is.na(rg_se)]
+  if (nrow(slice) == 0) return(NULL)
+
+  slice[, ci_lo := rg - 1.96 * rg_se]
+  slice[, ci_hi := rg + 1.96 * rg_se]
+  slice[, tier := data.table::fifelse(
+        !is.na(rg_p_fdr) & rg_p_fdr < 0.05, "FDR significant",
+        data.table::fifelse(!is.na(rg_p) & rg_p < 0.05, "Nominal (p < 0.05)",
+                                                        "Non-significant"))]
+  tier_levels <- c("FDR significant", "Nominal (p < 0.05)", "Non-significant")
+  slice[, tier := factor(tier, levels = tier_levels)]
+
+  ref_order <- unique(slice[, .(ref_label, trait_category)])
+  if (isTRUE(group_by_category)) {
+    ref_order <- ref_order[order(is.na(trait_category), trait_category, ref_label)]
+  } else {
+    ref_order <- ref_order[order(ref_label)]
+  }
+  slice[, ref_label := factor(ref_label, levels = rev(ref_order$ref_label))]
+  slice[, gwas := factor(gwas, levels = gwas_vec)]
+
+  tier_cols <- c("FDR significant"    = "#d62728",
+                 "Nominal (p < 0.05)" = "#ff7f0e",
+                 "Non-significant"    = "#7f7f7f")
+  tier_shapes <- c("FDR significant"    = 15,
+                   "Nominal (p < 0.05)" = 17,
+                   "Non-significant"    = 16)
+
+  ghost <- data.table::data.table(
+    rg    = rep(slice$rg[1],        length(tier_levels)),
+    ci_lo = rep(slice$rg[1],        length(tier_levels)),
+    ci_hi = rep(slice$rg[1],        length(tier_levels)),
+    ref_label = rep(slice$ref_label[1], length(tier_levels)),
+    gwas  = rep(slice$gwas[1],      length(tier_levels)),
+    tier  = factor(tier_levels, levels = tier_levels)
+  )
+
+  ggplot2::ggplot(slice,
+                   ggplot2::aes(x = rg, y = ref_label, colour = tier, shape = tier)) +
+    ggplot2::geom_vline(xintercept = 0, linetype = "dashed", colour = "grey55") +
+    ggplot2::geom_point(data = ghost, size = point_size, alpha = 0) +
+    ggplot2::geom_errorbarh(ggplot2::aes(xmin = ci_lo, xmax = ci_hi), height = 0) +
+    ggplot2::geom_point(size = point_size) +
+    ggplot2::scale_colour_manual(values = tier_cols, limits = tier_levels,
+                                  drop = FALSE, name = NULL) +
+    ggplot2::scale_shape_manual(values = tier_shapes, limits = tier_levels,
+                                 drop = FALSE, name = NULL) +
+    ggplot2::guides(
+      colour = ggplot2::guide_legend(override.aes = list(size = point_size + 1, alpha = 1)),
+      shape  = ggplot2::guide_legend(override.aes = list(size = point_size + 1, alpha = 1))
+    ) +
+    ggplot2::facet_grid(cols = ggplot2::vars(gwas), scales = "free_x") +
+    ggplot2::labs(x = expression("Genetic correlation ("*r[g]*")"), y = NULL) +
+    ggplot2::theme_bw(base_size = font_size) +
+    ggplot2::theme(
+      legend.position = "top",
+      panel.grid.minor = ggplot2::element_blank(),
+      strip.background = ggplot2::element_rect(fill = "grey93", colour = NA),
+      strip.text = ggplot2::element_text(face = "bold")
+    )
 }
 
 .gencor_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 6,
@@ -2413,26 +2582,41 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
     })
 
     plot_obj <- reactive({
-      .gencor_ggplot(
-        long              = gencor_long(),
-        gwas_vec          = gwas_vec_r(),
-        font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
-        point_size        = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size),
-        group_by_category = isTRUE(input$group_by_category)
-      )
+      if (identical(input$plot_type %||% "facet", "facet")) {
+        .gencor_facet_ggplot(
+          long              = gencor_long(),
+          gwas_vec          = gwas_vec_r(),
+          font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+          point_size        = if (is.null(input$plot_point_size)) 3 else as.numeric(input$plot_point_size),
+          group_by_category = isTRUE(input$group_by_category)
+        )
+      } else {
+        .gencor_ggplot(
+          long              = gencor_long(),
+          gwas_vec          = gwas_vec_r(),
+          font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+          point_size        = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size),
+          group_by_category = isTRUE(input$group_by_category)
+        )
+      }
     })
 
     plot_dims <- reactive({
       long <- gencor_long()
-      # Union of reference-trait labels across selected GWAS drives row count.
       ref_labels <- unique(long[gwas %in% gwas_vec_r(), ref_label])
-      .compare_plot_dims(
+      is_facet <- identical(input$plot_type %||% "facet", "facet")
+      n_cols_dim <- if (is_facet) max(2L, length(gwas_vec_r())) else length(gwas_vec_r())
+      dims <- .compare_plot_dims(
         n_rows    = length(ref_labels),
-        n_cols    = length(gwas_vec_r()),
+        n_cols    = n_cols_dim,
         font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
         y_labels  = ref_labels,
         min_width = 400, min_height = 300
       )
+      # Facet mode needs extra width per facet (each panel is a mini forest
+      # plot with its own x-axis, not a single-cell heatmap column).
+      if (is_facet) dims$width <- dims$width * 1.6
+      dims
     })
 
     .sync_dl_dims(session, plot_dims, "gencor")
