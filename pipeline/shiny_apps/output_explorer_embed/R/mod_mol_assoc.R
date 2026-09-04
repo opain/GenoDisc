@@ -413,6 +413,14 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     ########
 
     observe({
+      # Take an explicit dependency on comparison_mode(): the summary_body
+      # renderUI recreates every selectInput below when switching between
+      # single-GWAS mode and compare mode, but mol_assoc_summary_data()
+      # doesn't necessarily invalidate at the same time. Re-fire this
+      # observer on mode changes so the freshly-created widgets are
+      # populated.
+      if (!is.null(comparison_mode)) comparison_mode()
+
       all_func_res <- mol_assoc_summary_data()
       req(all_func_res)
 
