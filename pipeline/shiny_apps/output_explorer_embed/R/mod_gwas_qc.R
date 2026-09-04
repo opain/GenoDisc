@@ -1,13 +1,13 @@
 
 gwasQcUI <- function(id) {
   ns <- NS(id)
-  # Small helper for the per-tab GWAS picker. Populated server-side from
-  # selected_gwas_multi(); default = the first-selected GWAS. Rendered
-  # inside each per-GWAS tab so the user can flick between GWAS without
-  # leaving the tab.
-  gwas_picker <- function(input_id, label = "GWAS:") {
+  # Per-tab GWAS picker — rendered via `uiOutput` so the choice list is
+  # baked in at widget-creation time. updateSelectInput sent to a
+  # selectize-backed selectInput before the client binding is ready
+  # silently drops the choices update.
+  gwas_picker <- function(output_id) {
     div(style = "max-width: 260px; margin-bottom: 10px;",
-      selectInput(ns(input_id), label, choices = NULL, multiple = FALSE)
+      uiOutput(ns(output_id))
     )
   }
   tabPanel(
@@ -31,14 +31,14 @@ gwasQcUI <- function(id) {
         title = "Allele Frequency Plot",
         value = "maf_plot",
         br(),
-        gwas_picker("maf_gwas"),
+        gwas_picker("maf_gwas_ui"),
         uiOutput(ns("maf_plot_ui"))
       ),
       tabPanel(
         title = "QQ Plot",
         value = "qq_plot",
         br(),
-        gwas_picker("qq_gwas"),
+        gwas_picker("qq_gwas_ui"),
         uiOutput(ns("qq_plot_ui"))
       ),
       # SNP-h² and rG have moved to their own top-level tab
@@ -47,7 +47,7 @@ gwasQcUI <- function(id) {
         title = "Sumstat QC Log",
         value = "cleaner_log",
         br(),
-        gwas_picker("log_gwas"),
+        gwas_picker("log_gwas_ui"),
         uiOutput(ns("cleaner_log_ui"))
       )
     )
@@ -61,22 +61,23 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
 
     ns <- session$ns
 
-    # Populate the per-tab GWAS selectors from selected_gwas_multi().
-    # Default = the first-selected GWAS. Preserves the user's per-tab
+    # Per-tab GWAS pickers rendered via renderUI so the choice list is
+    # baked in at widget-creation time. Preserves the user's per-tab
     # pick across bundle-selection changes when the pick is still valid.
-    .populate_per_gwas_picker <- function(input_id) {
-      observe({
+    .render_per_gwas_picker <- function(output_id, input_id, label = "GWAS:") {
+      output[[output_id]] <- renderUI({
         choices <- selected_gwas_multi()
         req(length(choices) >= 1)
         cur <- isolate(input[[input_id]])
         keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-        updateSelectInput(session, input_id, choices = choices, selected = keep)
+        selectInput(session$ns(input_id), label,
+                     choices = choices, selected = keep, multiple = FALSE)
       })
     }
     if (!is.null(selected_gwas_multi)) {
-      .populate_per_gwas_picker("maf_gwas")
-      .populate_per_gwas_picker("qq_gwas")
-      .populate_per_gwas_picker("log_gwas")
+      .render_per_gwas_picker("maf_gwas_ui", "maf_gwas")
+      .render_per_gwas_picker("qq_gwas_ui",  "qq_gwas")
+      .render_per_gwas_picker("log_gwas_ui", "log_gwas")
     }
 
     # Plain-text explanations for the QC metrics, used by the legend under the table.
