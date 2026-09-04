@@ -143,6 +143,11 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
   if (!is.finite(pos_max)) pos_max <- NA
 
   heatmap <- ggplot2::ggplot(data = all_gs_all, ggplot2::aes(x = Panel, y = Name)) +
+    # geom_blank on the FULL data (including NA-Z rows) trains each
+    # facet's x-scale so panels with only untested cells still show up
+    # on the x-axis and the grid renders behind them. Actual points are
+    # only drawn from the !is.na(Z) subsets below.
+    ggplot2::geom_blank() +
     theme_fn()
   if (nrow(dir_data) > 0 && is.finite(dir_max)) {
     heatmap <- heatmap +
@@ -264,6 +269,11 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   if (!is.finite(pos_max_atc)) pos_max_atc <- NA
 
   heatmap <- ggplot2::ggplot(data = all_gs_atc_all, ggplot2::aes(x = Panel, y = Name)) +
+    # geom_blank on the FULL data trains each facet's x-scale so panels
+    # with only untested cells still show up on the x-axis and the grid
+    # renders behind them. Points are drawn only from the !is.na(Z)
+    # subsets below.
+    ggplot2::geom_blank() +
     theme_fn()
   if (nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)) {
     heatmap <- heatmap +
