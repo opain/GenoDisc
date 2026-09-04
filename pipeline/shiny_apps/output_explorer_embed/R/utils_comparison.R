@@ -661,6 +661,36 @@ build_gencor_long <- function(gd, gwas_vec) {
   data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
 }
 
+#' Per-GWAS LDSC SNP-heritability + LDSC intercept for the SNP-h² tab
+#'
+#' Reads `gwas_qc$ldsc_dat$val` for each GWAS and returns a one-row-per-GWAS
+#' data.table. Missing values (LDSC not run, block absent) become NA and the
+#' UI renders them as em-dashes.
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas_vec Character vector of GWAS names
+#' @return data.table with columns: gwas, h2, h2_se, int_est, int_se
+build_heritability_long <- function(gd, gwas_vec) {
+  if (length(gwas_vec) == 0) {
+    return(data.table::data.table(
+      gwas = character(0),
+      h2 = numeric(0), h2_se = numeric(0),
+      int_est = numeric(0), int_se = numeric(0)
+    ))
+  }
+  rows <- lapply(gwas_vec, function(g) {
+    v <- safe_access(gd_read(gd, g, "gwas_qc"), "ldsc_dat", "val")
+    data.table::data.table(
+      gwas    = g,
+      h2      = if (!is.null(v$obs_h2_est)) as.numeric(v$obs_h2_est) else NA_real_,
+      h2_se   = if (!is.null(v$obs_h2_se)) as.numeric(v$obs_h2_se) else NA_real_,
+      int_est = if (!is.null(v$int_est))   as.numeric(v$int_est)   else NA_real_,
+      int_se  = if (!is.null(v$int_se))    as.numeric(v$int_se)    else NA_real_
+    )
+  })
+  data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
+}
+
 #' Order the selected GWAS for display
 #'
 #' Applied to the column order of comparison matrices. Requires the QC table

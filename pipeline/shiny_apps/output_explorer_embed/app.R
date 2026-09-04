@@ -545,6 +545,7 @@ ui <- fluidPage(
     dataInputUI("data_input"),
     overviewUI("overview"),
     gwasQcUI("gwas_qc"),
+    h2GencorUI("h2_gencor"),
     snpAssocUI("snp_assoc"),
     molAssocUI("mol_assoc"),
     enrichmentUI("enrichment"),
@@ -559,7 +560,7 @@ server <- function(input, output, session) {
   # Hide all downstream tabs on startup (including the new Overview tab, which
   # only appears once the user selects >= 2 GWAS).
   observeEvent(session$clientData, {
-    for (tab in c("Overview", "GWAS QC", "SNP Associations",
+    for (tab in c("Overview", "GWAS QC", "SNP-h² & rG", "SNP Associations",
                    "Molecular Associations", "Enrichment Analysis",
                    "References", "Configuration")) {
       hideTab("main_tabs", tab)
@@ -590,6 +591,7 @@ server <- function(input, output, session) {
     toggle <- function(tab, cond) {
       if (cond) showTab("main_tabs", tab) else hideTab("main_tabs", tab)
     }
+    toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor))
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
     toggle("Molecular Associations", cf$mol_assoc)
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma))
@@ -609,6 +611,15 @@ server <- function(input, output, session) {
     else                          hideTab("main_tabs", "Overview")
   })
 
+  # GWAS QC is entirely single-GWAS content (QC Summary, MAF plot, QQ plot,
+  # Sumstat log). Hide the whole tab in compare mode; Overview covers the
+  # cross-trait QC summary. Show it again when the user drops back to
+  # single-GWAS mode (subject to the initial config-driven showTab).
+  observe({
+    if (shared$comparison_mode()) hideTab("main_tabs", "GWAS QC")
+    else                          showTab("main_tabs", "GWAS QC")
+  })
+
   # Cross-GWAS long tibble; rebuilds only when the bundle or the GWAS set
   # changes, not when per-view filter inputs change.
   comparison_long <- reactive({
@@ -626,6 +637,10 @@ server <- function(input, output, session) {
   gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags,
                 selected_gwas_multi = shared$selected_gwas_multi,
                 comparison_mode     = shared$comparison_mode)
+  h2GencorServer("h2_gencor", shared$gwas_data, shared$selected_gwas,
+                  gwas_list, config_flags,
+                  selected_gwas_multi = shared$selected_gwas_multi,
+                  comparison_mode     = shared$comparison_mode)
   snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags,
                   selected_gwas_multi = shared$selected_gwas_multi,
                   comparison_mode     = shared$comparison_mode,
