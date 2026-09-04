@@ -538,14 +538,11 @@ locus_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
-            # Initial choices include both methods; the server-side
-            # updateSelectInput below narrows this to whichever methods
-            # are actually present in the bundle (so "COJO" is only
-            # offered when the pipeline ran COJO, but "clump" always
-            # remains visible when it has any rows).
-            selectInput(ns("method"), "Method:",
-                        choices = .locus_methods,
-                        selected = "clump")
+            # Method dropdown is server-rendered so it reflects the
+            # methods actually present in the bundle at the moment
+            # the compare UI is shown ("COJO" only offered when the
+            # pipeline ran COJO; "clump" whenever it has rows).
+            uiOutput(ns("method_ui"))
           ),
           column(3,
             radioButtons(ns("sig_basis"), "Significance basis:",
@@ -664,19 +661,22 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     comparison_long) {
   moduleServer(id, function(input, output, session) {
 
-    # Populate the Method dropdown from methods actually present in the
-    # bundle. If the pipeline didn't run COJO for any selected GWAS,
-    # the "COJO" option is not offered (avoids an empty plot + confusion).
-    observeEvent(comparison_long(), {
+    # Method dropdown built from methods actually present in the bundle.
+    # Uses renderUI (not selectInput + updateSelectInput) so the
+    # dropdown is guaranteed to reflect the current data at the moment
+    # the compare UI first renders — earlier we saw COJO leak into the
+    # dropdown when the update message raced against the widget being
+    # created.
+    output$method_ui <- renderUI({
       long <- comparison_long()
       present <- unique(long[entity_type == "locus", method])
       choices <- intersect(.locus_methods, present)
       if (length(choices) == 0) choices <- .locus_methods
       cur <- isolate(input$method)
       sel <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-      updateSelectInput(session, "method",
-                         choices = setNames(choices, choices),
-                         selected = sel)
+      selectInput(session$ns("method"), "Method:",
+                   choices = setNames(choices, choices),
+                   selected = sel)
     })
 
     output$k_slider_ui <- renderUI({
