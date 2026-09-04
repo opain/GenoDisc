@@ -1,0 +1,7 @@
+# Files excluded from rsconnect / shinyapps.io deployment.
+# The tests/ directory is a local dev harness — it references an
+# absolute path to the reference bundle on the developer's machine
+# (see tests/test_comparison_long.R BUNDLE constant) and is not run
+# on the deployed app. Skipping it here silences the rsconnect
+# "path outside the project directory" warning at publish time.
+tests/

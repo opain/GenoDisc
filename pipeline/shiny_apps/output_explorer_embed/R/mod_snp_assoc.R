@@ -139,11 +139,23 @@ build_manhattan_plot <- function(md,
 #' @return UI elements for the SNP Associations tab
 snpAssocUI <- function(id) {
   ns <- NS(id)
+  # Per-tab GWAS picker — rendered via `uiOutput` so the choices are
+  # baked in at widget-creation time (see mod_compare.R commit fa9d73e).
+  # `updateSelectInput` sent to a selectize-backed selectInput before
+  # the client-side binding is ready silently drops the choices update
+  # here, leaving the widget with only its default one-item state.
+  # No wrapping div here — the picker's outer div (with max-width and
+  # margin) is emitted from the renderUI itself, so an empty return
+  # in single-GWAS mode leaves ZERO residual vertical space.
+  gwas_picker <- function(output_id) uiOutput(ns(output_id))
 
   tabPanel(
     title = "SNP Associations",
     br(),
-    p("This tab shows SNP association results. Select the Lead variant tab below to view information for independent lead variants identified by either LD-based clumping or COJO. Select the Fine-mapping tab below to view SuSiE Finemaping results."),
+    p("This tab shows SNP association results. Manhattan plot and per-GWAS ",
+      "content include a GWAS selector at the top; Lead variants and ",
+      "Fine-mapping are split into Single- and Multi-GWAS sub-tabs so both ",
+      "the per-trait and the cross-trait views are always accessible."),
     hr(),
     tabsetPanel(
       id = ns("snp_assoc_tabs"),
@@ -151,6 +163,7 @@ snpAssocUI <- function(id) {
         title = "Manhattan plot",
         value = "manhattan",
         br(),
+        gwas_picker("manhattan_gwas_ui"),
         p("Genome-wide summary of the association signal. Each point is a variant, positioned by chromosome (x) and ", tags$code("-log10(P)"), " (y). Green points are variants clumped with an index (lead) variant; dark-green diamonds are the index variants themselves. Use ", tags$b("Plot options"), " to customise thresholds, gene labels, appearance, and download the figure."),
         hr(),
         uiOutput(ns("manhattan_options_ui")),
@@ -161,26 +174,20 @@ snpAssocUI <- function(id) {
         title = "Lead variants",
         value = "lead_variants",
         br(),
-        fluidPage(
-          sidebarPanel(
-            radioButtons(ns("clumping_type"), "Select method:",
-                         choices = c("COJO" = "cojo_analysis",
-                                     "LD-based clumping" = "ld_clumping"),
-                         selected = "cojo_analysis"),
-            radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
-                         choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
-                         selected = 5e-8),
-            width = 3
-          ),
-
-          mainPanel(
-            uiOutput(ns("cojo_status_message")),
-            uiOutput(ns("lead_status_message")),
-            dataTableOutput(ns("snp_assoc_lead_table")),
-            uiOutput(ns("lead_legend")),
+        tabsetPanel(
+          id = ns("lead_sub_tabs"),
+          tabPanel(
+            title = "Single GWAS",
+            value = "single",
             br(),
-            uiOutput(ns("locus_plot_ui")),
-            width = 9
+            gwas_picker("lead_gwas_ui"),
+            uiOutput(ns("lead_single_body"))
+          ),
+          tabPanel(
+            title = "Multi-GWAS",
+            value = "multi",
+            br(),
+            locus_compare_ui(NS(ns("locus_compare")))
           )
         )
       ),
@@ -188,6 +195,7 @@ snpAssocUI <- function(id) {
         title = "Fine-mapping",
         value = "finemapping",
         br(),
+        gwas_picker("finemap_gwas_ui"),
         fluidPage(
           sidebarPanel(
             radioButtons(ns("l_param"), "Select L parameter:",
@@ -196,7 +204,6 @@ snpAssocUI <- function(id) {
                          selected = "L1"),
             width = 3
           ),
-
           mainPanel(
             uiOutput(ns("finemap_status_message")),
             dataTableOutput(ns("snp_assoc_finemap_table")),
@@ -222,34 +229,122 @@ snpAssocUI <- function(id) {
 #' @param id Module namespace id
 #' @param gwas_data Reactive returning the loaded GWAS data list
 #' @param selected_gwas Reactive returning the currently selected GWAS name
-snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
+snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
+                            selected_gwas_multi = NULL,
+                            comparison_mode = NULL,
+                            comparison_long = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    observeEvent(config_flags(), {
-      cf <- config_flags()
+    # Cross-GWAS locus compare sub-module. Registered unconditionally; it
+    # self-guards on its own reactives.
+    if (!is.null(selected_gwas_multi) && !is.null(comparison_long)) {
+      locus_compare_server("locus_compare",
+                             gwas_data, selected_gwas_multi, comparison_long)
+    }
 
+    # Per-tab GWAS pickers, rendered via renderUI so the choice list is
+    # baked in at widget-creation time. The wrapping tabPanel is created
+    # eagerly (static UI), but the underlying selectize widget only
+    # binds on first tab visit — updateSelectInput sent before that bind
+    # is silently dropped, leaving the picker with an empty option set.
+    .render_per_gwas_picker <- function(output_id, input_id, label = "GWAS:") {
+      output[[output_id]] <- renderUI({
+        choices <- selected_gwas_multi()
+        req(length(choices) >= 1)
+        # Suppress the picker for single-GWAS bundles.
+        if (length(choices) < 2L) return(NULL)
+        cur <- isolate(input[[input_id]])
+        keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
+        div(style = "max-width: 260px; margin-bottom: 10px;",
+          selectInput(session$ns(input_id), label,
+                       choices = choices, selected = keep, multiple = FALSE))
+      })
+    }
+
+    # Hide the Multi-GWAS sub-tab under Lead variants when the bundle
+    # has only one GWAS — no cross-trait comparison makes sense with 1.
+    # Also hide the sub-tab nav-tabs row entirely so the lone Single
+    # GWAS tab-header doesn't clutter the UI (the .hide-inner-nav CSS
+    # class defined in app.R hides `> ul.nav-tabs`).
+    observe({
+      is_multi <- length(selected_gwas_multi()) > 1L
+      if (is_multi) {
+        showTab("lead_sub_tabs", "multi", session = session)
+        shinyjs::removeClass(id = "lead_sub_tabs", class = "hide-inner-nav")
+      } else {
+        hideTab("lead_sub_tabs", "multi", session = session)
+        cur <- isolate(input$lead_sub_tabs)
+        if (!is.null(cur) && cur == "multi") {
+          updateTabsetPanel(session, "lead_sub_tabs", selected = "single")
+        }
+        shinyjs::addClass(id = "lead_sub_tabs", class = "hide-inner-nav")
+      }
+    })
+    if (!is.null(selected_gwas_multi)) {
+      .render_per_gwas_picker("manhattan_gwas_ui", "manhattan_gwas")
+      .render_per_gwas_picker("lead_gwas_ui",      "lead_gwas")
+      .render_per_gwas_picker("finemap_gwas_ui",   "finemap_gwas")
+    }
+
+    # Fallbacks used by outputs before their per-tab observer has fired.
+    .pick_gwas <- function(input_id) {
+      v <- input[[input_id]]
+      if (is.null(v) || !nzchar(v)) selected_gwas() else v
+    }
+
+    # Lead variants — single-GWAS body. Kept in a renderUI so the
+    # method-radio choices (LD-based clumping / COJO) reflect what the
+    # pipeline actually ran; baked in at creation time to avoid the
+    # race that used to leak COJO into the dropdown when COJO wasn't run.
+    output$lead_single_body <- renderUI({
+      cf <- config_flags()
+      lead_choices <- c()
+      if (isTRUE(cf$cojo))  lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
+      if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
+      fluidPage(
+        sidebarPanel(
+          radioButtons(ns("clumping_type"), "Select method:",
+                       choices = lead_choices,
+                       selected = if (length(lead_choices) > 0) unname(lead_choices[1]) else character(0)),
+          radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
+                       choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
+                       selected = 5e-8),
+          width = 3
+        ),
+        mainPanel(
+          uiOutput(ns("cojo_status_message")),
+          uiOutput(ns("lead_status_message")),
+          dataTableOutput(ns("snp_assoc_lead_table")),
+          uiOutput(ns("lead_legend")),
+          br(),
+          uiOutput(ns("locus_plot_ui")),
+          width = 9
+        )
+      )
+    })
+
+    # Tab visibility now depends only on which pipeline outputs exist; no
+    # more compare-mode hiding since Single / Multi are sub-tabs of each
+    # per-GWAS section.
+    apply_snp_assoc_visibility <- function() {
+      cf <- config_flags()
+      if (is.null(cf)) return()
+      # Lead variants tab appears when either clumping or COJO was run.
       if (any(cf$clump, cf$cojo)) {
         showTab("snp_assoc_tabs", "lead_variants", session = session)
       } else {
         hideTab("snp_assoc_tabs", "lead_variants", session = session)
       }
-
+      # Fine-mapping tab appears when the pipeline ran SuSiE.
       if (isTRUE(cf$finemap)) {
         showTab("snp_assoc_tabs", "finemapping", session = session)
       } else {
         hideTab("snp_assoc_tabs", "finemapping", session = session)
       }
+    }
 
-      lead_choices <- c()
-      if (isTRUE(cf$cojo)) lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
-      if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
-      if (length(lead_choices) > 0) {
-        updateRadioButtons(session, "clumping_type",
-                           choices = lead_choices,
-                           selected = unname(lead_choices[1]))
-      }
-    })
+    observeEvent(config_flags(), apply_snp_assoc_visibility())
 
     # COJO output is already thresholded at 5e-8, so the suggestive (1e-5) filter is only
     # meaningful for LD-based clumping (which runs at --clump-p1 1e-5) - offer it there only.
@@ -268,8 +363,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
     # Convenience: pull the whole gwas_qc block once per bundle/GWAS change.
     manhattan_qc <- reactive({
-      req(gwas_data(), selected_gwas())
-      gd_read(gwas_data(), selected_gwas(), "gwas_qc")
+      req(gwas_data())
+      g <- .pick_gwas("manhattan_gwas"); req(g)
+      gd_read(gwas_data(), g, "gwas_qc")
     })
     manhattan_data <- reactive({ manhattan_qc()$manhattan_data })
 
@@ -352,7 +448,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$manhattan_plot_ui <- renderUI({
-      req(gwas_data(), selected_gwas())
+      req(gwas_data())
+      req(.pick_gwas("manhattan_gwas"))
       gwas_qc <- manhattan_qc()
 
       # Preferred: raw data → modifiable ggplot render.
@@ -481,8 +578,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     snp_assoc_lead_data <- reactive({
-      req(gwas_data(), selected_gwas(), input$clumping_type)
-      snp_assoc <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")
+      req(gwas_data(), input$clumping_type)
+      g <- .pick_gwas("lead_gwas"); req(g)
+      snp_assoc <- gd_read(gwas_data(), g, "snp_assoc")
       snp_assoc_lead <- NULL
       if (input$clumping_type == "ld_clumping") {
         snp_assoc_lead <- snp_assoc$clump
@@ -512,10 +610,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # signals exceeds the LD reference sample size (~503, 1000 Genomes EUR). package_results
     # carries snp_assoc$cojo_status so we can flag partial results, or a full failure.
     output$cojo_status_message <- renderUI({
-      req(gwas_data(), selected_gwas(), input$clumping_type)
+      req(gwas_data(), input$clumping_type)
+      g <- .pick_gwas("lead_gwas"); req(g)
       if (input$clumping_type != "cojo_analysis") return(NULL)
 
-      cojo_status <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")$cojo_status
+      cojo_status <- gd_read(gwas_data(), g, "snp_assoc")$cojo_status
       if (is.null(cojo_status) || !isTRUE(cojo_status$any_failed)) return(NULL)
 
       failed_txt <- paste(cojo_status$failed_chrs, collapse = ", ")
@@ -550,10 +649,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # analysis ran fine but simply found no variants passing the threshold (the
     # common underpowered-GWAS case). Suppressed when the COJO failure banner shows.
     output$lead_status_message <- renderUI({
-      req(gwas_data(), selected_gwas(), input$clumping_type)
+      req(gwas_data(), input$clumping_type)
+      g <- .pick_gwas("lead_gwas"); req(g)
 
       if (input$clumping_type == "cojo_analysis") {
-        cojo_status <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")$cojo_status
+        cojo_status <- gd_read(gwas_data(), g, "snp_assoc")$cojo_status
         if (!is.null(cojo_status) && isTRUE(cojo_status$any_failed)) return(NULL)
       }
 
@@ -623,7 +723,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     output$locus_plot_ui <- renderUI({
-      req(gwas_data(), selected_gwas(), input$clumping_type)
+      req(gwas_data(), input$clumping_type)
+      g <- .pick_gwas("lead_gwas"); req(g)
 
       if (input$clumping_type != "ld_clumping") {
         return(div(
@@ -632,7 +733,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
         ))
       }
 
-      locus_plots <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")$locus_plots
+      locus_plots <- gd_read(gwas_data(), g, "snp_assoc")$locus_plots
 
       if (is.null(locus_plots) || length(locus_plots) == 0) {
         return(div(
@@ -673,8 +774,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     })
 
     snp_assoc_finemap_data <- reactive({
-      req(gwas_data(), selected_gwas(), input$l_param)
-      snp_assoc <- gd_read(gwas_data(), selected_gwas(), "snp_assoc")
+      req(gwas_data(), input$l_param)
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      snp_assoc <- gd_read(gwas_data(), g, "snp_assoc")
       snp_assoc_finemap <- NULL
       if (input$l_param == "L1") {
         snp_assoc_finemap <- snp_assoc$susie$L1
@@ -701,7 +803,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags) {
     }
 
     output$finemap_status_message <- renderUI({
-      req(gwas_data(), selected_gwas(), input$l_param)
+      req(gwas_data(), input$l_param)
+      req(.pick_gwas("finemap_gwas"))
       if (!finemap_is_empty(snp_assoc_finemap_data())) return(NULL)
       div(
         style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",

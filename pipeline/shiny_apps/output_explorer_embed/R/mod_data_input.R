@@ -3,7 +3,7 @@ dataInputUI <- function(id) {
   tabPanel(
     title="Data Input",
     br(),
-    p("This is an application for visualising the output of GenoDisc. To start, upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works), select a GWAS, and use the tabs to view interactive tables and plots of your results."),
+    p("This is an application for visualising the output of GenoDisc. Upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works). Every GWAS present in the bundle is loaded — per-GWAS content is selected via GWAS pickers inside the individual tabs."),
     hr(),
     h5("Choose a bundle (.tar.gz) or legacy .rds file"),
     fileInput(ns("file"), NULL),
@@ -15,15 +15,6 @@ dataInputUI <- function(id) {
       tags$a("Van Rheenen et al. (2021, Nature Genetics)",
              href = "https://pubmed.ncbi.nlm.nih.gov/34873335/",
              target = "_blank", rel = "noopener noreferrer"), "."
-    ),
-
-    shinyjs::hidden(
-      div(id = ns("gwas_selector_section"),
-        hr(),
-        h5("Select a GWAS"),
-        selectInput(ns("gwas_selector"), NULL, ""),
-        br(), br(), br(), br(), br()
-      )
     )
   )
 }
@@ -81,17 +72,33 @@ dataInputServer <- function(id) {
       gd
     })
 
-    observeEvent(gwas_data(), {
-      updateSelectInput(session, "gwas_selector", choices = gd_gwas(gwas_data()))
-      shinyjs::show("gwas_selector_section")
+    # `selected_gwas_multi` = every GWAS in the loaded bundle (in bundle
+    # order). This used to be a user-controllable subset via a top-level
+    # selectize, but tabs that couldn't aggregate across GWAS silently
+    # hid content in multi-mode — so per-view GWAS pickers are used in
+    # each tab instead, and `selected_gwas_multi` is now just the full
+    # list. `selected_gwas` = first entry (fallback for scalar consumers).
+    selected_gwas_multi <- reactive({
+      req(gwas_data())
+      gd_gwas(gwas_data())
     })
 
-    selected_gwas<-reactive({
-      req(gwas_data(), input$gwas_selector)
-      names_ <- gd_gwas(gwas_data())
-      if (input$gwas_selector %in% names_) input$gwas_selector else names_[1]
+    selected_gwas <- reactive({
+      selected_gwas_multi()[1L]
     })
 
-    list(gwas_data = gwas_data, selected_gwas = selected_gwas)
+    # Retained for the modules that still branch UI on "is this a
+    # multi-GWAS bundle?" — length is now bundle-fixed rather than
+    # user-controlled.
+    comparison_mode <- reactive({
+      length(selected_gwas_multi()) > 1L
+    })
+
+    list(
+      gwas_data           = gwas_data,
+      selected_gwas       = selected_gwas,
+      selected_gwas_multi = selected_gwas_multi,
+      comparison_mode     = comparison_mode
+    )
   })
 }

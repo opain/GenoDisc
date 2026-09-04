@@ -27,6 +27,17 @@ ui <- fluidPage(
 
   shinyjs::useShinyjs(),
 
+  # Utility class: hide the nav-tabs header row of an inner tabsetPanel
+  # when only one tab is meaningful (e.g. Multi-GWAS hidden on single-
+  # GWAS bundles). Applied via shinyjs::addClass from each module's
+  # server observer that watches selected_gwas_multi().
+  # Note: shiny's tabsetPanel(id=X) renders <ul id="X" class="nav nav-tabs">
+  # — the element with the id IS the ul itself, so the class hides it
+  # directly.
+  tags$head(tags$style(HTML(
+    "ul.nav-tabs.hide-inner-nav { display: none !important; }"
+  ))),
+
   # GenoDisc-web design tokens (light + dark) mirrored from the Django app's
   # _design_system.html so the two look congruent. Dark is the default; users
   # opt into light and the choice persists via localStorage['genodisc_theme'],
@@ -543,7 +554,9 @@ ui <- fluidPage(
 
   tabsetPanel(id = "main_tabs",
     dataInputUI("data_input"),
+    overviewUI("overview"),
     gwasQcUI("gwas_qc"),
+    h2GencorUI("h2_gencor"),
     snpAssocUI("snp_assoc"),
     molAssocUI("mol_assoc"),
     enrichmentUI("enrichment"),
@@ -555,10 +568,12 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output, session) {
 
-  # Hide all tabs except Data Input on startup
+  # Hide all downstream tabs on startup (including the new Overview tab, which
+  # only appears once the user selects >= 2 GWAS).
   observeEvent(session$clientData, {
-    for (tab in c("GWAS QC", "SNP Associations", "Molecular Associations",
-                   "Enrichment Analysis", "References", "Configuration")) {
+    for (tab in c("Overview", "GWAS QC", "SNP-h² & rG", "SNP Associations",
+                   "Molecular Associations", "Enrichment Analysis",
+                   "References", "Configuration")) {
       hideTab("main_tabs", tab)
     }
   }, once = TRUE)
@@ -580,6 +595,7 @@ server <- function(input, output, session) {
   # Show relevant tabs when data loads
   observeEvent(config_flags(), {
     cf <- config_flags()
+    showTab("main_tabs", "Overview")
     showTab("main_tabs", "GWAS QC")
     showTab("main_tabs", "References")
     showTab("main_tabs", "Configuration")
@@ -587,6 +603,7 @@ server <- function(input, output, session) {
     toggle <- function(tab, cond) {
       if (cond) showTab("main_tabs", tab) else hideTab("main_tabs", tab)
     }
+    toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor))
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
     toggle("Molecular Associations", cf$mol_assoc)
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma))
@@ -596,11 +613,50 @@ server <- function(input, output, session) {
     shinyjs::runjs("document.documentElement.setAttribute('data-app-ready', '1');")
   })
 
+  # ---- Comparison mode plumbing ----
+
+  # Overview tab is shown alongside GWAS QC / References / Configuration when
+  # the bundle loads (see the config_flags observer above). It works for
+  # single-GWAS bundles too — the QC and yield tables just render a single
+  # row — so there's no per-mode show/hide here anymore.
+
+  # GWAS QC stays visible in both modes. In compare mode, QC Summary
+  # renders as a wide table (one column per GWAS); MAF / QQ / Log
+  # sub-tabs are hidden inside the module.
+
+  # Cross-GWAS long tibble; rebuilds only when the bundle or the GWAS set
+  # changes, not when per-view filter inputs change.
+  comparison_long <- reactive({
+    req(shared$gwas_data())
+    req(length(shared$selected_gwas_multi()) >= 1)
+    build_comparison_long(shared$gwas_data(),
+                           shared$selected_gwas_multi(),
+                           entity_types = c("tissue", "atc", "gene",
+                                             "locus", "drug", "cmap"))
+  })
+
   # Wire up all modules
-  gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags)
-  snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
-  molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags)
-  enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags)
+  overviewServer("overview", shared$gwas_data, shared$selected_gwas_multi,
+                  shared$comparison_mode, comparison_long)
+  gwasQcServer("gwas_qc", shared$gwas_data, shared$selected_gwas, gwas_list, config_flags,
+                selected_gwas_multi = shared$selected_gwas_multi,
+                comparison_mode     = shared$comparison_mode)
+  h2GencorServer("h2_gencor", shared$gwas_data, shared$selected_gwas,
+                  gwas_list, config_flags,
+                  selected_gwas_multi = shared$selected_gwas_multi,
+                  comparison_mode     = shared$comparison_mode)
+  snpAssocServer("snp_assoc", shared$gwas_data, shared$selected_gwas, config_flags,
+                  selected_gwas_multi = shared$selected_gwas_multi,
+                  comparison_mode     = shared$comparison_mode,
+                  comparison_long     = comparison_long)
+  molAssocServer("mol_assoc", shared$gwas_data, shared$selected_gwas, config_flags,
+                  selected_gwas_multi = shared$selected_gwas_multi,
+                  comparison_mode     = shared$comparison_mode,
+                  comparison_long     = comparison_long)
+  enrichmentServer("enrichment", shared$gwas_data, shared$selected_gwas, config_flags,
+                    selected_gwas_multi = shared$selected_gwas_multi,
+                    comparison_mode     = shared$comparison_mode,
+                    comparison_long     = comparison_long)
   referencesServer("references")
   configurationServer("configuration", shared$gwas_data)
 }

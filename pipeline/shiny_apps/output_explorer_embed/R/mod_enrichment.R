@@ -131,32 +131,43 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
   group_siz$Width <- 4 * group_siz$Prop
 
   all_gs_all <- data.table::data.table(all_gs_all)
-  dir_data <- all_gs_all[Method == 'TWAS-GSEA']
-  pos_data <- all_gs_all[Method != 'TWAS-GSEA']
+  # Drop rows for (drug, panel, method) combinations that weren't tested
+  # by that method — Z is NA there. Previously kept them and relied on
+  # na.value in the scale to drop them, which left a faintly visible
+  # grey shape 21 outline in some ggplot versions.
+  dir_data <- all_gs_all[Method == 'TWAS-GSEA' & !is.na(Z)]
+  pos_data <- all_gs_all[Method != 'TWAS-GSEA' & !is.na(Z)]
   dir_max <- if (nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Z), na.rm = TRUE)) else NA
   pos_max <- if (nrow(pos_data) > 0) suppressWarnings(max(pos_data$Z,      na.rm = TRUE)) else NA
   if (!is.finite(dir_max)) dir_max <- NA
   if (!is.finite(pos_max)) pos_max <- NA
 
   heatmap <- ggplot2::ggplot(data = all_gs_all, ggplot2::aes(x = Panel, y = Name)) +
+    # geom_blank on the FULL data (including NA-Z rows) trains each
+    # facet's x-scale so panels with only untested cells still show up
+    # on the x-axis and the grid renders behind them. Actual points are
+    # only drawn from the !is.na(Z) subsets below.
+    ggplot2::geom_blank() +
     theme_fn()
   if (nrow(dir_data) > 0 && is.finite(dir_max)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
       ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                    na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                    na.value = "transparent", name = "TWAS-GSEA\nZ-score",
                                     limits = c(-dir_max, dir_max))
   }
   if (nrow(pos_data) > 0 && is.finite(pos_max)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = pos_data, ggplot2::aes(colour = Z), shape = 16, size = point_size) +
       ggplot2::scale_colour_gradientn(colours = c("#FFFFFF","#00CC66"),
-                                      na.value = NA, name = "Enrichment\nZ-score",
+                                      na.value = "transparent", name = "Enrichment\nZ-score",
                                       limits = c(0, pos_max))
   }
+  # Nominal / FDR ring overlays are drawn only for cells that have a
+  # tested value (P / P.FDR non-NA and small enough).
   heatmap <- heatmap +
-    ggplot2::geom_point(data = all_gs_all[which(all_gs_all$P < 0.05), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
-    ggplot2::geom_point(data = all_gs_all[which(all_gs_all$P.FDR < 0.05), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
+    ggplot2::geom_point(data = all_gs_all[!is.na(P)     & P     < 0.05, ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
+    ggplot2::geom_point(data = all_gs_all[!is.na(P.FDR) & P.FDR < 0.05, ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
   if (nrow(dir_data) > 0) {
     heatmap <- heatmap + ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size)
   }
@@ -247,27 +258,35 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   group_siz$Width <- 4 * group_siz$Prop
 
   all_gs_atc_all <- data.table::data.table(all_gs_atc_all)
-  dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA']
-  pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA']
+  # Drop untested (ATC, panel, method) rows so no point is drawn for
+  # them — previously na.value = NA left a faint grey outline for
+  # shape 21 in some ggplot versions.
+  dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA' & !is.na(Z)]
+  pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA' & !is.na(Z)]
   dir_max_atc <- if (nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Z), na.rm = TRUE)) else NA
   pos_max_atc <- if (nrow(pos_data_atc) > 0) suppressWarnings(max(pos_data_atc$Z,      na.rm = TRUE)) else NA
   if (!is.finite(dir_max_atc)) dir_max_atc <- NA
   if (!is.finite(pos_max_atc)) pos_max_atc <- NA
 
   heatmap <- ggplot2::ggplot(data = all_gs_atc_all, ggplot2::aes(x = Panel, y = Name)) +
+    # geom_blank on the FULL data trains each facet's x-scale so panels
+    # with only untested cells still show up on the x-axis and the grid
+    # renders behind them. Points are drawn only from the !is.na(Z)
+    # subsets below.
+    ggplot2::geom_blank() +
     theme_fn()
   if (nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
       ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                    na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                    na.value = "transparent", name = "TWAS-GSEA\nZ-score",
                                     limits = c(-dir_max_atc, dir_max_atc))
   }
   if (nrow(pos_data_atc) > 0 && is.finite(pos_max_atc)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = pos_data_atc, ggplot2::aes(colour = Z), shape = 16, size = point_size) +
       ggplot2::scale_colour_gradientn(colours = c("#FFFFFF","#00CC66"),
-                                      na.value = NA, name = "Enrichment\nZ-score",
+                                      na.value = "transparent", name = "Enrichment\nZ-score",
                                       limits = c(0, pos_max_atc))
   }
   heatmap <- heatmap +
@@ -302,15 +321,140 @@ enrichmentUI <- function(id) {
   tabPanel(
     title="Enrichment Analysis",
     br(),
-    p("This tab shows enrichment analysis results. Select the tabs below to see results for your desired gene annotations and methods"),
+    p("Enrichment analysis results. Drug Targetor and CMap have Single-GWAS and Multi-GWAS sub-tabs; the Single-GWAS sub-tab shows a GWAS picker at the top. Tissue is always the cross-GWAS view (it collapses cleanly to a single facet for one-GWAS bundles)."),
     hr(),
     uiOutput(ns("enrichment_tabs"))
   )
 }
 
-enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
+enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
+                              selected_gwas_multi = NULL,
+                              comparison_mode = NULL,
+                              comparison_long = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Per-Single-GWAS-view pickers. Each Single sub-tab (Drug Single,
+    # ATC Single, CMap Single) renders its own selectInput so the picker
+    # lives visually inside the tab it controls (per user request —
+    # keeping it at the enrichment tab top was misleading since it did
+    # NOT apply to Tissue or Multi-GWAS content).
+    #
+    # A shared `active_enrichment_gwas` reactiveVal holds the currently
+    # selected GWAS; the three pickers stay in sync via observers
+    # (changes to any one propagate to the others via
+    # updateSelectInput), and `selected_gwas` is shadowed to read from
+    # it so every downstream output picks up the change.
+    parent_selected_gwas <- selected_gwas
+    active_enrichment_gwas <- reactiveVal(NULL)
+
+    selected_gwas <- reactive({
+      v <- active_enrichment_gwas()
+      if (is.null(v) || !nzchar(v)) parent_selected_gwas() else v
+    })
+
+    # Initialise `active_enrichment_gwas` from selected_gwas_multi() so
+    # the pickers all render with a sensible default on bundle load.
+    observe({
+      choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
+      req(length(choices) >= 1)
+      cur <- isolate(active_enrichment_gwas())
+      if (is.null(cur) || !(cur %in% choices)) active_enrichment_gwas(choices[1L])
+    })
+
+    # Render helper — 3 uiOutputs, 3 unique input ids, one shared value.
+    .render_enrichment_picker <- function(output_id, input_id) {
+      output[[output_id]] <- renderUI({
+        choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
+        req(length(choices) >= 1)
+        # Suppress the picker for single-GWAS bundles.
+        if (length(choices) < 2L) return(NULL)
+        v <- isolate(active_enrichment_gwas())
+        keep <- if (!is.null(v) && v %in% choices) v else choices[1L]
+        div(style = "max-width: 260px; margin-bottom: 12px;",
+          selectInput(session$ns(input_id), "GWAS:",
+                       choices = choices, selected = keep, multiple = FALSE))
+      })
+    }
+    .render_enrichment_picker("drug_single_gwas_ui", "drug_single_gwas")
+    .render_enrichment_picker("atc_single_gwas_ui",  "atc_single_gwas")
+    .render_enrichment_picker("cmap_single_gwas_ui", "cmap_single_gwas")
+
+    # Hide the "Multi-GWAS" sub-tab under each Drug / ATC / CMap
+    # panel when the bundle has only one GWAS — the cross-trait
+    # compare views degenerate to a single column and just duplicate
+    # the Single-GWAS content. Wait on input[[tab_id]] because these
+    # tabsetPanels are created inside `enrichment_tabs` renderUI —
+    # hideTab messages sent before the client-side widget binds are
+    # silently dropped.
+    if (!is.null(selected_gwas_multi)) {
+      .hide_multi_when_single <- function(tab_id) {
+        observe({
+          # Trigger only after the tabsetPanel is bound on the client.
+          req(input[[tab_id]])
+          is_multi <- length(selected_gwas_multi()) > 1L
+          if (is_multi) {
+            showTab(tab_id, "multi", session = session)
+            shinyjs::removeClass(id = tab_id, class = "hide-inner-nav")
+          } else {
+            hideTab(tab_id, "multi", session = session)
+            cur <- isolate(input[[tab_id]])
+            if (!is.null(cur) && cur == "multi") {
+              updateTabsetPanel(session, tab_id, selected = "single")
+            }
+            # Suppress the whole nav-tabs row on the inner tabsetPanel
+            # so a lone "Single GWAS" tab-header doesn't sit there
+            # doing nothing.
+            shinyjs::addClass(id = tab_id, class = "hide-inner-nav")
+          }
+        })
+      }
+      .hide_multi_when_single("drug_view_tabs")
+      .hide_multi_when_single("atc_view_tabs")
+      .hide_multi_when_single("cmap_view_tabs")
+    }
+
+    # Sync — any picker changed by the user becomes the new
+    # active_enrichment_gwas; the reactive then propagates back to the
+    # other two widgets via updateSelectInput. `ignoreInit = TRUE`
+    # keeps the initial default from bouncing around.
+    for (id in c("drug_single_gwas", "atc_single_gwas", "cmap_single_gwas")) {
+      local({
+        this_id <- id
+        observeEvent(input[[this_id]], {
+          v <- input[[this_id]]
+          if (!is.null(v) && nzchar(v) && !identical(v, active_enrichment_gwas())) {
+            active_enrichment_gwas(v)
+          }
+        }, ignoreInit = TRUE)
+      })
+    }
+    observeEvent(active_enrichment_gwas(), {
+      v <- active_enrichment_gwas()
+      for (id in c("drug_single_gwas", "atc_single_gwas", "cmap_single_gwas")) {
+        if (!identical(isolate(input[[id]]), v)) {
+          updateSelectInput(session, id, selected = v)
+        }
+      }
+    }, ignoreInit = TRUE)
+
+    # Cross-GWAS compare-mode sub-modules. Registered unconditionally so their
+    # outputs exist for the DOM; they self-guard on comparison_mode() and
+    # only render content when >=2 GWAS are selected.
+    if (!is.null(selected_gwas_multi) && !is.null(comparison_long)) {
+      tissue_compare_server("tissue_compare",
+                             gwas_data, selected_gwas_multi,
+                             comparison_long)
+      atc_compare_server("atc_compare",
+                          gwas_data, selected_gwas_multi,
+                          comparison_long)
+      drug_compare_server("drug_compare",
+                           gwas_data, selected_gwas_multi,
+                           comparison_long)
+      cmap_compare_server("cmap_compare",
+                           gwas_data, selected_gwas_multi,
+                           comparison_long)
+    }
 
     # Column-guide legend for an enrichment results table. Text is centralised
     # here so each table sub-tab just inserts enr_legend("<key>").
@@ -392,6 +536,25 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # Dynamic tab rendering
     ########
 
+    # Bundle-level summaries used by `enrichment_tabs` to derive method /
+    # panel choices for the filter widgets. These read from the FIRST
+    # bundle GWAS (parent_selected_gwas — never changes for a loaded
+    # bundle) rather than the shadowed selected_gwas (which reacts to
+    # the enrichment picker). If enrichment_tabs took a dependency on
+    # the picker via the summary reactives, every picker change would
+    # rebuild the whole tabsetPanel and reset the user's active
+    # sub-tab back to Tissue.
+    bundle_drug_data <- reactive({
+      req(gwas_data())
+      g <- parent_selected_gwas(); req(g)
+      build_drug_summary_data(gwas_data(), g)
+    })
+    bundle_atc_data <- reactive({
+      req(gwas_data())
+      g <- parent_selected_gwas(); req(g)
+      build_atc_summary_data(gwas_data(), g)
+    })
+
     output$enrichment_tabs <- renderUI({
       req(config_flags())
       cf <- config_flags()
@@ -400,13 +563,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
                                      cf$twas_gsea_drugtargetor,
                                      cf$twas_gsea_drugtargetor_nondirectional)
 
-      # Pre-compute Drug choices (may be NULL if no drug enrichment was run)
-      drug_data <- if (drug_targetor_available) tx_drug_summary_data() else NULL
+      # Method / panel choices for the filter widgets. Reads
+      # bundle_drug_data / bundle_atc_data — anchored to the first
+      # bundle GWAS so the tab structure is stable when the user
+      # changes the enrichment-level GWAS picker (see comment above).
+      drug_data <- if (drug_targetor_available) bundle_drug_data() else NULL
       drug_methods <- unique(drug_data$Method)
       drug_expr_panels <- unique(drug_data$Panel[grepl('^TWAS-GSEA', drug_data$Method)])
 
-      # Pre-compute ATC choices
-      atc_data <- if (drug_targetor_available) tx_atc_summary_data() else NULL
+      atc_data <- if (drug_targetor_available) bundle_atc_data() else NULL
       atc_methods <- unique(atc_data$Method)
       atc_expr_panels <- unique(atc_data$Panel[grepl('^TWAS-GSEA', atc_data$Method)])
 
@@ -607,8 +772,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
 
       # Build CMAP sub-tabs (per-signature drug heatmap + per-MOA heatmap +
       # raw tables). Only assembled when the run produced CMAP results.
-      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data(), selected_gwas()) else NULL
-      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data(), selected_gwas())  else NULL
+      # Read from parent_selected_gwas (first bundle GWAS) so picker
+      # changes don't rebuild the tabsetPanel (see the bundle_drug_data
+      # / bundle_atc_data comment).
+      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data(), parent_selected_gwas()) else NULL
+      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data(), parent_selected_gwas())  else NULL
       cmap_panels    <- unique(c(cmap_drug_data$Panel, cmap_moa_data$Panel))
 
       cmap_core_cells <- c("A375", "HA1E", "HCC515", "HT29", "MCF7", "PC3", "VCAP", "HEPG2", "A549")
@@ -676,16 +844,40 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
           fluidRow(column(width=10, dataTableOutput(ns("tx_cmap_moa_table")))), enr_legend("cmap_moa"), br()
         )))
 
-        cmap_tab <- do.call(tabPanel,
-                            c(list(title="CMAP", br(),
-                                   p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'.")),
-                              list(do.call(tabsetPanel, cmap_inner))))
+        # CMap always exposes both single-GWAS and cross-GWAS content
+        # under sibling sub-tabs so neither view is ever hidden. Single
+        # keeps the pipeline's per-signature (Drug) + per-mechanism (MOA)
+        # split behind a GWAS picker; Multi hosts the CMap compare heatmaps.
+        cmap_tab <- tabPanel(
+          title = "CMAP", br(),
+          p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'."),
+          tabsetPanel(id = ns("cmap_view_tabs"),
+            tabPanel(title = "Single GWAS", value = "single",
+              uiOutput(ns("cmap_single_gwas_ui")),
+              do.call(tabsetPanel, cmap_inner)
+            ),
+            tabPanel(title = "Multi-GWAS", value = "multi",
+              cmap_compare_ui(NS(ns("cmap_compare")))
+            )
+          )
+        )
       }
 
       # Build Tissue tab (MAGMA tissue-specific enrichment)
+      # Compare-mode swap: when >=2 GWAS are selected, replace the tissue tab
+      # body with the cross-GWAS heatmap. The single-GWAS UI is unchanged.
+      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
+
       tissue_tab <- NULL
-      if (cf$tissue_magma) {
-        tissue_data <- build_tissue_data(gwas_data(), selected_gwas())
+      if (cf$tissue_magma && in_compare) {
+        tissue_tab <- tabPanel(
+          title = "Tissue", br(),
+          tissue_compare_ui(NS(ns("tissue_compare")))
+        )
+      } else if (cf$tissue_magma) {
+        # Anchored to parent_selected_gwas so picker changes don't
+        # rebuild the enrichment tab structure.
+        tissue_data <- build_tissue_data(gwas_data(), parent_selected_gwas())
         if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
           tissue_tab <- tabPanel(
             title="Tissue", br(),
@@ -779,9 +971,32 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags) {
       outer_tabs <- list()
       if (!is.null(tissue_tab)) outer_tabs <- c(outer_tabs, list(tissue_tab))
       if (drug_targetor_available) {
+        # Drug Targetor: Drug + ATC are top-level inner sub-tabs; each
+        # exposes Single-GWAS and Multi-GWAS as its own inner sub-tabs
+        # so both views are always accessible without a mode toggle.
         drug_targetor_inner <- list(
-          do.call(tabPanel, c(list(title="Drug", br()), list(do.call(tabsetPanel, drug_tabs)))),
-          do.call(tabPanel, c(list(title="ATC", br()),  list(do.call(tabsetPanel, atc_tabs))))
+          tabPanel(title = "Drug", br(),
+            tabsetPanel(id = ns("drug_view_tabs"),
+              tabPanel(title = "Single GWAS", value = "single",
+                uiOutput(ns("drug_single_gwas_ui")),
+                do.call(tabsetPanel, drug_tabs)
+              ),
+              tabPanel(title = "Multi-GWAS", value = "multi",
+                drug_compare_ui(NS(ns("drug_compare")))
+              )
+            )
+          ),
+          tabPanel(title = "ATC", br(),
+            tabsetPanel(id = ns("atc_view_tabs"),
+              tabPanel(title = "Single GWAS", value = "single",
+                uiOutput(ns("atc_single_gwas_ui")),
+                do.call(tabsetPanel, atc_tabs)
+              ),
+              tabPanel(title = "Multi-GWAS", value = "multi",
+                atc_compare_ui(NS(ns("atc_compare")))
+              )
+            )
+          )
         )
         outer_tabs <- c(outer_tabs, list(
           do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
