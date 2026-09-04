@@ -196,48 +196,28 @@ snpAssocUI <- function(id) {
         title = "Fine-mapping",
         value = "finemapping",
         br(),
-        tabsetPanel(
-          id = ns("finemap_sub_tabs"),
-          tabPanel(
-            title = "Single GWAS",
-            value = "single",
-            br(),
-            gwas_picker("finemap_gwas_ui"),
-            fluidPage(
-              sidebarPanel(
-                radioButtons(ns("l_param"), "Select L parameter:",
-                             choices = c("L1" = "L1",
-                                         "L10" = "L10"),
-                             selected = "L1"),
-                width = 3
-              ),
-              mainPanel(
-                uiOutput(ns("finemap_status_message")),
-                dataTableOutput(ns("snp_assoc_finemap_table")),
-                gd_legend(list(
-                  "L parameter" = paste0(
-                    "Maximum number of causal signals SuSiE may fit per locus ",
-                    "(L1 = single causal variant; L10 = up to ten)."),
-                  "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
-                  "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
-                  "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
-                  "Gene" = "Nearest gene to the top variant ('None' if unavailable)."
-                ), heading = "Column guide"),
-                width = 6
-              )
-            )
+        gwas_picker("finemap_gwas_ui"),
+        fluidPage(
+          sidebarPanel(
+            radioButtons(ns("l_param"), "Select L parameter:",
+                         choices = c("L1" = "L1",
+                                     "L10" = "L10"),
+                         selected = "L1"),
+            width = 3
           ),
-          tabPanel(
-            title = "Multi-GWAS",
-            value = "multi",
-            br(),
-            p("Genes containing a full 95% credible set from SuSiE L1 fine-mapping across the bundle GWAS. ",
-              "Each cell shows the TopPIP of the credible set at that gene for that GWAS (blank = no credible set)."),
-            hr(),
-            radioButtons(ns("finemap_multi_l_param"), "L parameter:",
-                         choices = c("L1" = "L1", "L10" = "L10"),
-                         selected = "L1", inline = TRUE),
-            uiOutput(ns("finemap_multi_body"))
+          mainPanel(
+            uiOutput(ns("finemap_status_message")),
+            dataTableOutput(ns("snp_assoc_finemap_table")),
+            gd_legend(list(
+              "L parameter" = paste0(
+                "Maximum number of causal signals SuSiE may fit per locus ",
+                "(L1 = single causal variant; L10 = up to ten)."),
+              "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
+              "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
+              "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
+              "Gene" = "Nearest gene to the top variant ('None' if unavailable)."
+            ), heading = "Column guide"),
+            width = 6
           )
         )
       )
@@ -820,79 +800,6 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       req(!finemap_is_empty(df))
       datatable(df, rownames = F, width = 7, options = list(
         columnDefs = list(list(className = 'dt-center', targets = 0:5))))
-    })
-
-    # Multi-GWAS SuSiE fine-mapping view: matrix with one row per gene
-    # containing a full 95% credible set in ANY bundle GWAS, one column
-    # per GWAS. Cell = TopPIP of that GWAS's credible set at that gene,
-    # blank when none exists. Simple aggregation — no cross-GWAS
-    # statistics.
-    finemap_multi_data <- reactive({
-      req(gwas_data(), selected_gwas_multi())
-      lp <- input$finemap_multi_l_param %||% "L1"
-      gwas_vec <- selected_gwas_multi()
-      rows <- lapply(gwas_vec, function(g) {
-        cs <- safe_access(gd_read(gwas_data(), g, "snp_assoc"),
-                            "susie", lp)
-        if (is.null(cs) || nrow(cs) == 0) return(NULL)
-        if (!"Gene" %in% names(cs) || !"TopPIP" %in% names(cs)) return(NULL)
-        cs <- as.data.frame(cs)
-        cs <- cs[!is.na(cs$Gene) & nzchar(cs$Gene) & cs$Gene != "None", , drop = FALSE]
-        if (nrow(cs) == 0) return(NULL)
-        data.table::data.table(gwas = g,
-                                 Gene = as.character(cs$Gene),
-                                 TopPIP = suppressWarnings(as.numeric(cs$TopPIP)),
-                                 SNP = if ("SNP" %in% names(cs)) as.character(cs$SNP) else NA_character_)
-      })
-      rows <- rows[!vapply(rows, is.null, logical(1))]
-      if (length(rows) == 0) {
-        return(data.table::data.table(gwas = character(0), Gene = character(0),
-                                        TopPIP = numeric(0), SNP = character(0)))
-      }
-      data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
-    })
-
-    output$finemap_multi_body <- renderUI({
-      long <- finemap_multi_data()
-      if (nrow(long) == 0) {
-        return(div(
-          style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",
-          icon("info-circle", style = "font-size: 1.5em;"), br(), br(),
-          tags$strong("No credible sets in any bundle GWAS"),
-          br(),
-          "None of the loaded GWAS produced a full 95% credible set at ",
-          "the selected L parameter."
-        ))
-      }
-      dataTableOutput(session$ns("finemap_multi_table"))
-    })
-
-    output$finemap_multi_table <- renderDataTable({
-      long <- finemap_multi_data()
-      req(nrow(long) > 0)
-      gwas_vec <- selected_gwas_multi()
-      # Per (gwas, gene) keep the maximum TopPIP so genes with multiple CS
-      # in one GWAS still collapse to a single cell.
-      agg <- long[, .(TopPIP = max(TopPIP, na.rm = TRUE)), by = .(gwas, Gene)]
-      wide <- data.table::dcast(agg, Gene ~ gwas, value.var = "TopPIP",
-                                  fill = NA_real_)
-      # Preserve bundle GWAS order (add any missing columns as all-NA).
-      for (g in gwas_vec) if (!(g %in% names(wide))) wide[[g]] <- NA_real_
-      wide <- wide[, c("Gene", gwas_vec), with = FALSE]
-      # Sort genes by recurrence (how many GWAS have a CS at that gene)
-      # descending, ties broken by max TopPIP across GWAS descending.
-      wide[, .k := rowSums(!is.na(wide[, gwas_vec, with = FALSE]))]
-      wide[, .maxpip := suppressWarnings(
-        apply(wide[, gwas_vec, with = FALSE], 1L, max, na.rm = TRUE))]
-      data.table::setorder(wide, -.k, -.maxpip, Gene)
-      wide[, c(".k", ".maxpip") := NULL]
-      # Format TopPIP cells to 2 dp; blanks stay blank.
-      for (g in gwas_vec) wide[[g]] <- ifelse(is.na(wide[[g]]), "",
-                                                sprintf("%.2f", wide[[g]]))
-      datatable(wide, rownames = FALSE, options = list(
-        pageLength = 25, dom = "ftip",
-        columnDefs = list(list(className = "dt-center",
-                                targets = seq_along(gwas_vec)))))
     })
   })
 }

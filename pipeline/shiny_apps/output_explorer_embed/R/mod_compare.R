@@ -105,21 +105,36 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
     return(invisible())
   }
   detail <- detail[order(match(gwas, gwas_vec), method, panel)]
+  # Build the display columns using NA-aware formatters so numeric NAs
+  # render as "NA" (not blank / error) and character columns use "—" for
+  # missing values.
+  fmt_char <- function(v) ifelse(is.na(v) | !nzchar(as.character(v)),
+                                    "—", as.character(v))
+  fmt_bool <- function(v) ifelse(is.na(v), "—", ifelse(v, "Yes", "No"))
   out <- data.frame(
     GWAS       = factor(detail$gwas, levels = gwas_vec),
-    Method     = detail$method,
-    Panel      = ifelse(is.na(detail$panel), "—", detail$panel),
-    Statistic  = signif(detail$statistic, 3),
-    SE         = signif(detail$se, 3),
-    P          = signif(detail$p, 3),
-    `P.FDR`    = signif(detail$fdr, 3),
-    Direction  = ifelse(is.na(detail$direction), "—", detail$direction),
-    Evidence   = ifelse(is.na(detail$evidence), "—",
-                          ifelse(detail$evidence, "Yes", "No")),
+    Method     = fmt_char(detail$method),
+    Panel      = fmt_char(detail$panel),
+    Statistic  = .fmt_sig(detail$statistic, 3),
+    SE         = .fmt_sig(detail$se, 3),
+    P          = .fmt_sig(detail$p, 3),
+    `P.FDR`    = .fmt_sig(detail$fdr, 3),
+    Direction  = fmt_char(detail$direction),
+    Evidence   = fmt_bool(detail$evidence),
     check.names = FALSE, stringsAsFactors = FALSE
   )
-  # Drop columns that are entirely "—" so they don't clutter the modal.
-  keep <- vapply(names(out), function(nm) !all(out[[nm]] == "—"), logical(1))
+  # Drop columns whose values are all placeholders (NA / "—" / "NA")
+  # so they don't clutter the modal. isTRUE() on `any(...)` guards
+  # against NA propagating into the selector — the old vapply pattern
+  # returned NA for columns that were entirely NA, and passing a
+  # logical vector containing NA to `[.data.frame` raises "undefined
+  # columns selected", which is what was crashing the app on row-click.
+  keep <- vapply(names(out), function(nm) {
+    v <- as.character(out[[nm]])
+    isTRUE(any(!is.na(v) & v != "—" & v != "NA"))
+  }, logical(1))
+  # GWAS column is always kept regardless.
+  keep["GWAS"] <- TRUE
   out <- out[, keep, drop = FALSE]
   first_lab <- detail$entity_label[1L]
   title_txt <- if (nzchar(first_lab) && !identical(first_lab, ent_id)) {
@@ -606,7 +621,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE,
-                    filter = "top", selection = "single",
+                    filter = "top", selection = "none",
                     options = list(pageLength = 20, server = TRUE,
                                     order = list(list(4, "asc"))))
     }, server = TRUE)
@@ -916,7 +931,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(4, "asc"))))
     }, server = TRUE)
@@ -1030,9 +1045,11 @@ gene_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
-            selectInput(ns("method"), "Method:",
-                        choices = .gene_methods,
-                        selected = "MAGMA-gene"),
+            # Rendered server-side so choices reflect the methods
+            # actually present in comparison_long (skipping methods the
+            # pipeline didn't run — e.g. no SMR-protein option if no
+            # SMR-protein panels were selected).
+            uiOutput(ns("method_ui")),
             selectInput(ns("panel"), "Panel:",
                         choices = c("Best-per-cell (min P)" = "__best__"),
                         selected = "__best__"),
@@ -1183,6 +1200,21 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
                    value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
+    # Method dropdown rendered from methods actually present in
+    # comparison_long — build_comparison_long only emits rows for
+    # analyses that ran, so this filters to what the pipeline produced.
+    output$method_ui <- renderUI({
+      long <- comparison_long()
+      req(long)
+      have <- intersect(.gene_methods,
+                          unique(as.character(long[entity_type == "gene", method])))
+      req(length(have) >= 1)
+      cur <- isolate(input$method)
+      keep <- if (!is.null(cur) && cur %in% have) cur else have[1L]
+      selectInput(session$ns("method"), "Method:",
+                   choices = have, selected = keep)
+    })
+
     # When method changes, refresh panel dropdown to only include panels
     # present for that method. MAGMA-gene has no panels.
     observeEvent(list(comparison_long(), input$method), {
@@ -1266,22 +1298,45 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
     output$gene_compare_tbl <- DT::renderDT({
       slice <- gene_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
+      method_pick <- input$method %||% "MAGMA-gene"
+      # Method-specific column set — MAGMA has no panel / Z / SE /
+      # colocalisation, so those columns are irrelevant and would fill
+      # with NAs. FUSION methods report Z / P / P.FDR / COLOC; SMR
+      # methods report BETA / SE / P / P.FDR / HEIDI-passed. Column
+      # names and the "evidence" flag are renamed to reflect what the
+      # column actually means for the chosen method.
+      is_fusion <- method_pick %in% c("TWAS-FUSION", "PWAS-FUSION")
+      is_smr    <- method_pick %in% c("SMR-expression", "SMR-protein")
+      is_magma  <- method_pick == "MAGMA-gene"
+
       out <- data.frame(
-        GWAS      = factor(slice$gwas, levels = gwas_vec_r()),
-        Gene      = slice$entity_id,
-        Panel     = slice$panel,
-        Statistic = .fmt_sig(slice$statistic, 3),
-        SE        = .fmt_sig(slice$se, 3),
-        P         = .fmt_sig(slice$p, 3),
-        `P.FDR`   = .fmt_sig(slice$fdr, 3),
-        Evidence  = ifelse(is.na(slice$evidence), "—",
-                            ifelse(slice$evidence, "Yes", "No")),
-        check.names = FALSE, stringsAsFactors = FALSE
+        GWAS  = factor(slice$gwas, levels = gwas_vec_r()),
+        Gene  = slice$entity_id,
+        stringsAsFactors = FALSE
       )
+      if (!is_magma) out$Panel <- ifelse(is.na(slice$panel), "—", slice$panel)
+      if (is_fusion) {
+        out$Z <- .fmt_sig(slice$statistic, 3)
+      } else if (is_smr) {
+        out$BETA <- .fmt_sig(slice$statistic, 3)
+        out$SE   <- .fmt_sig(slice$se, 3)
+      }
+      out$P       <- .fmt_sig(slice$p, 3)
+      out$`P.FDR` <- .fmt_sig(slice$fdr, 3)
+      if (is_fusion) {
+        out$Colocalised <- ifelse(is.na(slice$evidence), "—",
+                                    ifelse(slice$evidence, "Yes", "No"))
+      } else if (is_smr) {
+        out$`HEIDI supported` <- ifelse(is.na(slice$evidence), "—",
+                                          ifelse(slice$evidence, "Yes", "No"))
+      }
+      # Sort by P.FDR by default. Column index depends on how many
+      # extra columns are present.
+      pfdr_col <- which(names(out) == "P.FDR") - 1L  # 0-based for DT
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
-                                     order = list(list(6, "asc"))))
+                                     order = list(list(pfdr_col, "asc"))))
     }, server = TRUE)
 
     observeEvent(input$gene_compare_tbl_rows_selected, {
@@ -2899,7 +2954,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(5, "asc"))))
     }, server = TRUE)
@@ -3271,7 +3326,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
@@ -3393,7 +3448,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
