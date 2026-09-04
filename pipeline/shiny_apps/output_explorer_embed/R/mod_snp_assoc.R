@@ -277,6 +277,15 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       } else {
         hideTab("snp_assoc_tabs", "finemapping", session = session)
       }
+
+      # If the user is currently viewing a sub-tab we just hid, jump to
+      # the first visible one so the tab body is not blank.
+      cur <- isolate(input$snp_assoc_tabs)
+      hidden_in_compare <- c("manhattan", "finemapping")
+      if (in_compare && !is.null(cur) && cur %in% hidden_in_compare) {
+        updateTabsetPanel(session, "snp_assoc_tabs",
+                           selected = "lead_variants")
+      }
     }
 
     observeEvent(config_flags(), apply_snp_assoc_visibility())

@@ -386,6 +386,12 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       if (in_compare) {
         for (t in .redundant_method_tabs) hideTab(tab_id, t)
+        # If the user was viewing one of the hidden method sub-tabs,
+        # jump to the compare Summary.
+        cur <- isolate(input$mol_assoc_tabset)
+        if (!is.null(cur) && cur %in% .redundant_method_tabs) {
+          updateTabsetPanel(session, tab_id, selected = "Summary")
+        }
         return()
       }
 

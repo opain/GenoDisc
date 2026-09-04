@@ -174,6 +174,12 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
           if (in_compare) hideTab("gwas_qc_tabs", t, session = session)
           else            showTab("gwas_qc_tabs", t, session = session)
         }
+        # If the user was on a now-hidden per-GWAS tab, jump to the only
+        # visible cross-GWAS one.
+        cur <- isolate(input$gwas_qc_tabs)
+        if (in_compare && !is.null(cur) && cur %in% .per_gwas_qc_tabs) {
+          updateTabsetPanel(session, "gwas_qc_tabs", selected = "gencor")
+        }
       })
     }
 
