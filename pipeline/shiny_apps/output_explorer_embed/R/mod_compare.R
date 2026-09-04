@@ -196,9 +196,16 @@ tissue_compare_ui <- function(ns) {
                                        "Heatmap" = "heatmap"),
                           selected = "facet", inline = TRUE),
             numericInput(ns("sig_threshold"), "FDR significance threshold:",
-                          value = 0.05, min = 1e-12, max = 1, step = 0.01)
+                          value = 0.05, min = 1e-12, max = 1, step = 0.01),
+            # `gwas_pick` / `tissue_pick` are rendered server-side via
+            # renderUI so the choices are baked in at widget-creation
+            # time (see gencor commit fa9d73e for why updateSelectInput
+            # is unreliable here — tissue_compare_ui also lives inside
+            # a renderUI swap in mod_enrichment).
+            uiOutput(ns("gwas_pick_ui"))
           ),
           column(3,
+            uiOutput(ns("tissue_pick_ui")),
             checkboxInput(ns("only_recurrent"),
                           "Only show tissues significant in ≥ k GWAS",
                           value = FALSE),
@@ -448,17 +455,64 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
                    value = min(cur, max(n_sel, 1L)), step = 1)
     })
 
+    # Include-GWAS picker — restrict which bundle GWAS appear in the plot.
+    # Rendered via renderUI (choices baked in at creation) because this
+    # whole UI lives inside a renderUI swap in mod_enrichment.
+    output$gwas_pick_ui <- renderUI({
+      choices <- selected_gwas_multi()
+      req(length(choices) >= 1)
+      cur <- isolate(input$gwas_pick)
+      keep <- if (is.null(cur)) choices else intersect(cur, choices)
+      if (length(keep) == 0) keep <- choices
+      selectInput(session$ns("gwas_pick"), "Include GWAS:",
+                   choices = choices, selected = keep, multiple = TRUE)
+    })
+
+    # Include-tissues picker — restrict the tissue set shown in the plot.
+    # Defaults to all tissues present in the current MAGMA-tissue slice.
+    output$tissue_pick_ui <- renderUI({
+      long <- comparison_long()
+      req(!is.null(long))
+      tissues <- sort(unique(as.character(
+        long[method == "MAGMA-tissue", entity_id])))
+      req(length(tissues) >= 1)
+      cur <- isolate(input$tissue_pick)
+      keep <- if (is.null(cur)) tissues else intersect(cur, tissues)
+      if (length(keep) == 0) keep <- tissues
+      selectInput(session$ns("tissue_pick"), "Include tissues:",
+                   choices = tissues, selected = keep, multiple = TRUE)
+    })
+
+    # Effective GWAS vector = intersection of sidebar's selected_gwas_multi()
+    # and the per-view `gwas_pick`, then sorted per `gwas_sort`.
     gwas_vec_r <- reactive({
-      order_gwas(selected_gwas_multi(),
+      base <- selected_gwas_multi()
+      pick <- input$gwas_pick
+      chosen <- if (is.null(pick) || length(pick) == 0) base else intersect(base, pick)
+      if (length(chosen) == 0) chosen <- base
+      order_gwas(chosen,
                   if (is.null(input$gwas_sort)) "as_selected" else input$gwas_sort,
                   NULL)
     })
 
+    # Long slice pre-filtered by the tissue picker. Applies to both
+    # facet and heatmap modes.
+    tissue_long_filt <- reactive({
+      long <- comparison_long()
+      req(!is.null(long))
+      picked <- input$tissue_pick
+      if (is.null(picked) || length(picked) == 0) return(long)
+      # Only restrict the tissue-method rows; other entity types
+      # (drug/gene/atc/etc.) are not consumed by this view anyway.
+      long[method != "MAGMA-tissue" | entity_id %in% picked]
+    })
+
     plot_obj <- reactive({
-      req(comparison_long())
+      long <- tissue_long_filt()
+      req(!is.null(long))
       if (identical(input$plot_type %||% "facet", "facet")) {
         .tissue_compare_facet_ggplot(
-          long           = comparison_long(),
+          long           = long,
           gwas_vec       = gwas_vec_r(),
           only_recurrent = isTRUE(input$only_recurrent),
           k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
@@ -468,7 +522,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         )
       } else {
         .tissue_compare_ggplot(
-          long           = comparison_long(),
+          long           = long,
           gwas_vec       = gwas_vec_r(),
           only_recurrent = isTRUE(input$only_recurrent),
           k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
@@ -520,8 +574,9 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     tissue_tbl_slice <- reactive({
-      req(comparison_long())
-      comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec_r()]
+      long <- tissue_long_filt()
+      req(!is.null(long))
+      long[method == "MAGMA-tissue" & gwas %in% gwas_vec_r()]
     })
 
     output$tissue_compare_tbl <- DT::renderDT({
@@ -581,7 +636,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
         gwas_vec <- gwas_vec_r()
-        long <- comparison_long()[method == "MAGMA-tissue" & gwas %in% gwas_vec]
+        long <- tissue_long_filt()[method == "MAGMA-tissue" & gwas %in% gwas_vec]
         wide <- pivot_matrix(long, "fdr", gwas_vec)
         ret  <- pivot_matrix(long, "evidence", gwas_vec)
         display <- ifelse(
