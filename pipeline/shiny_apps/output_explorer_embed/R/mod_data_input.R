@@ -3,7 +3,7 @@ dataInputUI <- function(id) {
   tabPanel(
     title="Data Input",
     br(),
-    p("This is an application for visualising the output of GenoDisc. To start, upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works), select one or more GWAS, and use the tabs to view interactive tables and plots of your results."),
+    p("This is an application for visualising the output of GenoDisc. Upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works). Every GWAS present in the bundle is loaded — per-GWAS content is selected via GWAS pickers inside the individual tabs."),
     hr(),
     h5("Choose a bundle (.tar.gz) or legacy .rds file"),
     fileInput(ns("file"), NULL),
@@ -15,23 +15,6 @@ dataInputUI <- function(id) {
       tags$a("Van Rheenen et al. (2021, Nature Genetics)",
              href = "https://pubmed.ncbi.nlm.nih.gov/34873335/",
              target = "_blank", rel = "noopener noreferrer"), "."
-    ),
-
-    shinyjs::hidden(
-      div(id = ns("gwas_selector_section"),
-        hr(),
-        h5("Select one or more GWAS"),
-        tags$p(
-          style = "font-size: 0.85em; color: var(--gd-text-mute); margin-bottom: 6px;",
-          "Selecting more than one GWAS switches the enrichment tabs to cross-GWAS comparison views."
-        ),
-        selectizeInput(
-          ns("gwas_selector"), NULL,
-          choices = NULL, multiple = TRUE,
-          options = list(plugins = list('remove_button'))
-        ),
-        br(), br(), br(), br(), br()
-      )
     )
   )
 }
@@ -89,34 +72,24 @@ dataInputServer <- function(id) {
       gd
     })
 
-    # When a new bundle loads, default the selection to ALL GWAS so multi-GWAS
-    # bundles land straight in comparison mode (single-GWAS bundles stay in the
-    # existing single-view flow because length(input$gwas_selector) == 1).
-    observeEvent(gwas_data(), {
-      names_ <- gd_gwas(gwas_data())
-      updateSelectizeInput(session, "gwas_selector", choices = names_, selected = names_)
-      shinyjs::show("gwas_selector_section")
-    })
-
-    # Vector of currently-selected GWAS in the order the user chose (selectize
-    # returns the picked order). Empty is coerced to the first GWAS available
-    # so downstream reactives always have something to work with.
+    # `selected_gwas_multi` = every GWAS in the loaded bundle (in bundle
+    # order). This used to be a user-controllable subset via a top-level
+    # selectize, but tabs that couldn't aggregate across GWAS silently
+    # hid content in multi-mode — so per-view GWAS pickers are used in
+    # each tab instead, and `selected_gwas_multi` is now just the full
+    # list. `selected_gwas` = first entry (fallback for scalar consumers).
     selected_gwas_multi <- reactive({
       req(gwas_data())
-      names_ <- gd_gwas(gwas_data())
-      sel <- input$gwas_selector
-      if (is.null(sel) || length(sel) == 0) return(names_[1])
-      sel <- sel[sel %in% names_]
-      if (length(sel) == 0) names_[1] else sel
+      gd_gwas(gwas_data())
     })
 
-    # Scalar "current" GWAS for single-GWAS views. Kept for backward
-    # compatibility with the existing per-GWAS module servers; equals the
-    # first-selected GWAS.
     selected_gwas <- reactive({
       selected_gwas_multi()[1L]
     })
 
+    # Retained for the modules that still branch UI on "is this a
+    # multi-GWAS bundle?" — length is now bundle-fixed rather than
+    # user-controlled.
     comparison_mode <- reactive({
       length(selected_gwas_multi()) > 1L
     })
