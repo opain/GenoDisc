@@ -105,29 +105,28 @@ build_gencor_plot <- function(tab, sort_choice = "rg", facet_by = NULL,
 
 # SNP-h² and rG tab
 #
-# A dedicated top-level tab that groups the LDSC heritability estimates and
-# bivariate LDSC (genetic correlation) results. Previously both lived under
-# GWAS QC — but they are analyses in their own right, not just QC metrics.
-# The QC-relevant LDSC output (intercept, ratio) can be inferred from what's
-# here plus what's on the GWAS QC tab (Lambda GC, Max chi²).
+# A dedicated top-level tab that groups the LDSC SNP-based heritability
+# estimates and bivariate LDSC (genetic correlation) results. The LDSC
+# intercept lives on the GWAS QC tab (it is a QC-relevant metric).
 #
 # Two sub-tabs:
-#   - "SNP heritability" — DT table with h², h²_SE, LDSC intercept, one row
-#      per GWAS. Same table for single- and multi-GWAS mode (single = one row).
-#   - "Genetic correlation (rG)" — single-GWAS forest plot (moved verbatim
-#      from mod_gwas_qc.R) or the cross-GWAS gencor matrix (compare mode).
+#   - "SNP-based heritability" — DT table with h², SE, Z-score, and p-value,
+#      one row per GWAS. Same table for single- and multi-GWAS modes
+#      (single = one row).
+#   - "Genetic correlation (rG)" — single-GWAS forest plot or the cross-GWAS
+#      gencor matrix (compare mode).
 
 h2GencorUI <- function(id) {
   ns <- NS(id)
   tabPanel(
     title = "SNP-h² & rG",
     br(),
-    p("SNP heritability (LDSC) and cross-trait genetic correlations (bivariate LDSC)."),
+    p("SNP-based heritability (LDSC) and cross-trait genetic correlations (bivariate LDSC)."),
     hr(),
     tabsetPanel(
       id = ns("h2_gencor_tabs"),
       tabPanel(
-        title = "SNP heritability",
+        title = "SNP-based heritability",
         value = "h2",
         br(),
         div(style = "max-width: 900px;",
@@ -185,12 +184,18 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       }
       d <- h2_data()
       if (is.null(d) || nrow(d) == 0) return(NULL)
+      # Wald Z and two-sided p from h² / SE. Both blow up when SE is 0
+      # so guard explicitly.
+      z <- ifelse(is.na(d$h2) | is.na(d$h2_se) | d$h2_se == 0,
+                   NA_real_, d$h2 / d$h2_se)
+      p <- ifelse(is.na(z), NA_real_, 2 * stats::pnorm(-abs(z)))
       out <- data.frame(
-        GWAS                     = d$gwas,
-        `SNP-h² (SE)`            = ifelse(is.na(d$h2), "—",
-                                            sprintf("%.3f (%.3f)", d$h2, d$h2_se)),
-        `LDSC intercept (SE)`    = ifelse(is.na(d$int_est), "—",
-                                            sprintf("%.3f (%.3f)", d$int_est, d$int_se)),
+        GWAS            = d$gwas,
+        `SNP-h² (SE)`   = ifelse(is.na(d$h2), "—",
+                                   sprintf("%.3f (%.3f)", d$h2, d$h2_se)),
+        `Z`             = ifelse(is.na(z), "—", sprintf("%.2f", z)),
+        `P`             = ifelse(is.na(p), "—",
+                                   formatC(p, format = "g", digits = 3)),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(
@@ -211,15 +216,20 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         ))
       }
       gd_legend(list(
-        "SNP-h² (SE; observed scale)" = paste0(
-          "LDSC estimate of the proportion of trait variance explained by ",
-          "common SNPs (observed scale)."),
-        "LDSC intercept (SE)"         = paste0(
-          "Attenuation of the LDSC regression at the y-intercept. Values ",
-          "close to 1 imply the test statistics are inflated by polygenic ",
-          "signal rather than confounding; values noticeably above 1 ",
-          "suggest population stratification / cryptic relatedness ",
-          "(contrast with Lambda GC on the GWAS QC tab).")
+        "SNP-h²"          = paste0(
+          "SNP-based heritability — the proportion of trait variance ",
+          "explained by common SNPs, estimated by LD-score regression on ",
+          "the observed scale. Standard error in brackets."),
+        "Z"               = paste0(
+          "Wald Z-score for SNP-h² (h² divided by its standard error). ",
+          "Large positive values are strong evidence that heritability > 0."),
+        "P"               = paste0(
+          "Two-sided p-value derived from Z, testing SNP-h² ≠ 0. Not a ",
+          "test against any biologically meaningful null (h² is bounded ",
+          "at 0), but useful as a quick signal-to-noise indicator."),
+        "See also"        = paste0(
+          "The LDSC intercept — a QC-relevant statistic — is shown on ",
+          "the GWAS QC tab.")
       ))
     })
 

@@ -611,14 +611,9 @@ server <- function(input, output, session) {
     else                          hideTab("main_tabs", "Overview")
   })
 
-  # GWAS QC is entirely single-GWAS content (QC Summary, MAF plot, QQ plot,
-  # Sumstat log). Hide the whole tab in compare mode; Overview covers the
-  # cross-trait QC summary. Show it again when the user drops back to
-  # single-GWAS mode (subject to the initial config-driven showTab).
-  observe({
-    if (shared$comparison_mode()) hideTab("main_tabs", "GWAS QC")
-    else                          showTab("main_tabs", "GWAS QC")
-  })
+  # GWAS QC stays visible in both modes. In compare mode, QC Summary
+  # renders as a wide table (one column per GWAS); MAF / QQ / Log
+  # sub-tabs are hidden inside the module.
 
   # Cross-GWAS long tibble; rebuilds only when the bundle or the GWAS set
   # changes, not when per-view filter inputs change.

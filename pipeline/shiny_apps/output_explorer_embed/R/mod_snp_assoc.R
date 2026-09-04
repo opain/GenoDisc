@@ -224,12 +224,18 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (in_compare) {
         return(locus_compare_ui(NS(ns("locus_compare"))))
       }
+      # Only offer method choices for tools that the pipeline actually ran
+      # (avoids showing COJO / clumping when the corresponding data block
+      # is empty).
+      cf <- config_flags()
+      lead_choices <- c()
+      if (isTRUE(cf$cojo))  lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
+      if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
       fluidPage(
         sidebarPanel(
           radioButtons(ns("clumping_type"), "Select method:",
-                       choices = c("COJO" = "cojo_analysis",
-                                   "LD-based clumping" = "ld_clumping"),
-                       selected = "cojo_analysis"),
+                       choices = lead_choices,
+                       selected = if (length(lead_choices) > 0) unname(lead_choices[1]) else character(0)),
           radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
                        choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
                        selected = 5e-8),
@@ -293,18 +299,10 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       observeEvent(comparison_mode(), apply_snp_assoc_visibility())
     }
 
-    observeEvent(config_flags(), {
-      cf <- config_flags()
-
-      lead_choices <- c()
-      if (isTRUE(cf$cojo)) lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
-      if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
-      if (length(lead_choices) > 0) {
-        updateRadioButtons(session, "clumping_type",
-                           choices = lead_choices,
-                           selected = unname(lead_choices[1]))
-      }
-    })
+    # (The clumping_type radio choices are now baked in inside the
+    # lead_body renderUI above, so no separate updateRadioButtons observer
+    # is needed — it used to race against the widget being created and
+    # could leak COJO into the dropdown when COJO wasn't run.)
 
     # COJO output is already thresholded at 5e-8, so the suggestive (1e-5) filter is only
     # meaningful for LD-based clumping (which runs at --clump-p1 1e-5) - offer it there only.

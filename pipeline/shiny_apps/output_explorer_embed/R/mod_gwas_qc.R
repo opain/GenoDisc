@@ -46,9 +46,24 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
 
     ns <- session$ns
 
-    # Every sub-tab in this module is single-GWAS-only. The outer GWAS QC
-    # tab itself is hidden in compare mode from app.R (users drop back to
-    # single-GWAS mode to inspect these); no per-sub-tab hide is needed.
+    # In compare mode, MAF plot / QQ plot / Sumstat QC Log are all per-GWAS
+    # PNGs / text with no cross-trait rendering, so hide them. QC Summary
+    # stays visible in compare mode: it swaps to a wide table with one
+    # column per selected GWAS (see qc_val below).
+    if (!is.null(comparison_mode)) {
+      .per_gwas_only_tabs <- c("maf_plot", "qq_plot", "cleaner_log")
+      observeEvent(comparison_mode(), {
+        in_compare <- isTRUE(comparison_mode())
+        for (t in .per_gwas_only_tabs) {
+          if (in_compare) hideTab("gwas_qc_tabs", t, session = session)
+          else            showTab("gwas_qc_tabs", t, session = session)
+        }
+        cur <- isolate(input$gwas_qc_tabs)
+        if (in_compare && !is.null(cur) && cur %in% .per_gwas_only_tabs) {
+          updateTabsetPanel(session, "gwas_qc_tabs", selected = "qc_summary")
+        }
+      })
+    }
 
     # Plain-text explanations for the QC metrics, used by the legend under the table.
     qc_help <- list(
@@ -66,71 +81,122 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
         "derived from the p-value. Larger values mean a stronger top signal."),
       "N genome-wide significant variants" = paste0(
         "Number of variants reaching genome-wide significance (p < 5e-8) after QC. ",
-        "Zero is common for underpowered GWAS.")
+        "Zero is common for underpowered GWAS."),
+      "LDSC intercept (SE)" = paste0(
+        "LD-score regression intercept. About 1.0 indicates little confounding or ",
+        "sample overlap; values above 1 suggest residual confounding or population ",
+        "stratification rather than polygenic signal (contrast with Lambda GC). ",
+        "Standard error in brackets.")
     )
 
-    # Create a table showing key statistics
-    qc_val <- reactive({
-      req(gwas_data(), selected_gwas(), gwas_list(), config_flags())
-
-      gwas_qc <- gd_read(gwas_data(), selected_gwas(), "gwas_qc")
-      cf <- config_flags()
-
-      # Build isn't always identified from CHR/BP (the cleaner can fall back to
-      # matching by SNP ID instead, which never determines a build - see
-      # extract_build() in package_results_functions.R). Coalesce to a scalar
-      # so a single missing QC field can't collapse the whole table via
-      # data.table()'s zero-length recycling.
-      build_val <- gwas_qc$cleaner_dat$val$build$build
-      if (length(build_val) == 0 || is.na(build_val)) build_val <- "Unknown"
-
-      qc_val<-data.table(name=selected_gwas(),
-                         label=gwas_list()$label[gwas_list()$name == selected_gwas()],
-                         n_var_orig=gwas_qc$cleaner_dat$val$n_var_orig,
-                         build=build_val,
-                         n_snp_final=gwas_qc$cleaner_dat$val$n_snp_final,
-                         lambda_gc=gd_qc_stat(gwas_qc, "lambda_gc"),
-                         max_chi2=gd_qc_stat(gwas_qc, "max_chi2"),
-                         n_sig_snp=gd_qc_stat(gwas_qc, "n_sig_snp"))
-
-      col_labels <- c('GWAS Name',
-                      'GWAS Label',
-                      'N variants pre-QC',
-                      'Identified genome build',
-                      'N variants post-QC',
-                      'Lambda GC',
-                      'Max. chi^2',
-                      'N genome-wide significant variants')
-
-      # LDSC SNP-heritability and intercept have moved to the SNP-h² & rG
-      # tab; they used to live here. Lambda GC / Max chi² / N sig SNPs
-      # stay as QC metrics.
-
-      names(qc_val) <- col_labels
-
-      qc_val<-t(qc_val)
-      qc_val<-data.table(Parameter=dimnames(qc_val)[[1]],
-                         Value=qc_val[,1])
-
-      qc_val
+    # Which GWAS to summarise: the scalar selected GWAS in single mode,
+    # the full multi-select vector in compare mode.
+    qc_gwas_vec <- reactive({
+      req(gwas_data())
+      if (!is.null(comparison_mode) && isTRUE(comparison_mode())) {
+        selected_gwas_multi()
+      } else {
+        selected_gwas()
+      }
     })
 
-    # Small, static 2-column summary - plain shiny::renderTable instead of a
-    # DT widget, since this needs no sorting/searching/pagination (avoids the
-    # DT/DataTables client-side rendering issues seen with this table).
+    # Parameter rows shown in the QC Summary table, in display order.
+    # (LDSC SNP-h² has moved to the SNP-h² & rG tab; the LDSC intercept
+    # stays here as a QC-relevant metric — values close to 1 imply
+    # polygenic signal, > 1 suggests confounding.)
+    .qc_row_labels <- c(
+      "GWAS Label"                         = "label",
+      "N variants pre-QC"                  = "n_var_orig",
+      "Identified genome build"            = "build",
+      "N variants post-QC"                 = "n_snp_final",
+      "Lambda GC"                          = "lambda_gc",
+      "Max. chi^2"                         = "max_chi2",
+      "N genome-wide significant variants" = "n_sig_snp",
+      "LDSC intercept (SE)"                = "int_paren"
+    )
+
+    .fmt_qc_cell <- function(x, kind) {
+      if (all(is.na(x))) return("—")
+      switch(kind,
+        n_var_orig  = ,
+        n_snp_final = ,
+        n_sig_snp   = ifelse(is.na(x), "—", formatC(as.integer(x), format = "d", big.mark = ",")),
+        lambda_gc   = ,
+        max_chi2    = ifelse(is.na(x), "—", sprintf("%.3f", as.numeric(x))),
+        # label / build / int_paren / anything else: as-is with NA -> em-dash
+        ifelse(is.na(x) | !nzchar(as.character(x)), "—", as.character(x))
+      )
+    }
+
+    # Wide table (single row per GWAS from the data-layer helper) reshaped
+    # into the display shape: rows are parameters, columns are GWAS.
+    qc_val <- reactive({
+      req(gwas_data(), config_flags())
+      req(length(qc_gwas_vec()) >= 1)
+      cf <- config_flags()
+
+      long <- build_qc_summary_long(gd = gwas_data(),
+                                      gwas_vec = qc_gwas_vec(),
+                                      gwas_list = gwas_list())
+      if (nrow(long) == 0) return(NULL)
+
+      long <- long[match(qc_gwas_vec(), gwas)]
+
+      # LDSC intercept lives on the QC tab as a QC-relevant stat
+      # (values > 1 suggest confounding vs. polygenic signal). Compose
+      # the "estimate (SE)" string once so the display renders directly.
+      long[, int_paren := ifelse(is.na(int_est), NA_character_,
+                                   sprintf("%.3f (%.3f)", int_est, int_se))]
+
+      # Drop the intercept row if LDSC wasn't run — no need to show a
+      # column of em-dashes.
+      row_labels <- .qc_row_labels
+      if (!isTRUE(cf$ldsc)) {
+        row_labels <- row_labels[row_labels != "int_paren"]
+      }
+
+      cols <- lapply(seq_len(nrow(long)), function(i) {
+        vapply(names(row_labels), function(lab) {
+          field <- row_labels[[lab]]
+          .fmt_qc_cell(long[[field]][i], field)
+        }, character(1))
+      })
+      out <- data.frame(
+        Parameter = names(row_labels),
+        stringsAsFactors = FALSE,
+        check.names = FALSE
+      )
+      for (i in seq_along(cols)) out[[long$gwas[i]]] <- cols[[i]]
+      out
+    })
+
+    # Small static summary — plain shiny::renderTable (avoids DT client-side
+    # rendering quirks seen with this table). Parameter column is bold.
     output$qc_table <- renderTable({
       dat <- qc_val()
+      req(dat)
       dat$Parameter <- paste0("<strong>", dat$Parameter, "</strong>")
+      # colnames only meaningful in compare mode (single mode = "GWAS_NAME"
+      # column header is redundant with the label row). Show colnames in
+      # both modes for consistency.
       dat
-    }, sanitize.text.function = function(x) x, colnames = FALSE, align = 'cc', rownames = FALSE)
+    }, sanitize.text.function = function(x) x,
+       colnames = TRUE,
+       align = paste0("l", strrep("l", max(1, length(qc_gwas_vec())))),
+       rownames = FALSE)
 
     output$qc_legend <- renderUI({
       req(config_flags())
-      gd_legend(list(
+      cf <- config_flags()
+      items <- list(
         "Lambda GC" = qc_help[["Lambda GC"]],
         "Max. chi^2" = qc_help[["Max. chi^2"]],
         "N genome-wide significant variants" = qc_help[["N genome-wide significant variants"]]
-      ))
+      )
+      if (isTRUE(cf$ldsc)) {
+        items[["LDSC intercept (SE)"]] <- qc_help[["LDSC intercept (SE)"]]
+      }
+      gd_legend(items)
     })
 
     # MAF plot rendering

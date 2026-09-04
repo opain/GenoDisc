@@ -661,6 +661,58 @@ build_gencor_long <- function(gd, gwas_vec) {
   data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
 }
 
+#' Per-GWAS QC statistics for the GWAS QC → QC Summary table
+#'
+#' Combines the fields shown in the single-GWAS QC Summary (N variants pre-QC,
+#' identified genome build, N variants post-QC, Lambda GC, Max chi², N GWS
+#' variants) plus the GWAS label if provided. Powers both single-GWAS mode
+#' (one row) and the wide compare-mode table (one column per GWAS).
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas_vec Character vector of GWAS names
+#' @param gwas_list Optional data.frame from gd_config(gd)$gwas_list (uses
+#'   `name` / `label` columns to supply human-readable labels).
+#' @return data.table with columns: gwas, label, n_var_orig, build,
+#'   n_snp_final, lambda_gc, max_chi2, n_sig_snp
+build_qc_summary_long <- function(gd, gwas_vec, gwas_list = NULL) {
+  if (length(gwas_vec) == 0) {
+    return(data.table::data.table(
+      gwas = character(0), label = character(0),
+      n_var_orig = integer(0), build = character(0),
+      n_snp_final = integer(0),
+      lambda_gc = numeric(0), max_chi2 = numeric(0),
+      n_sig_snp = integer(0),
+      int_est = numeric(0), int_se = numeric(0)
+    ))
+  }
+  rows <- lapply(gwas_vec, function(g) {
+    q <- gd_read(gd, g, "gwas_qc")
+    cv <- safe_access(q, "cleaner_dat", "val")
+    lv <- safe_access(q, "ldsc_dat", "val")
+    build_val <- if (!is.null(cv$build$build)) as.character(cv$build$build)
+                 else NA_character_
+    if (is.null(build_val) || length(build_val) == 0 || is.na(build_val))
+      build_val <- "Unknown"
+    label <- if (!is.null(gwas_list) && "name" %in% names(gwas_list)) {
+      lbl <- gwas_list$label[gwas_list$name == g]
+      if (length(lbl) == 0 || is.na(lbl[1L])) g else as.character(lbl[1L])
+    } else g
+    data.table::data.table(
+      gwas        = g,
+      label       = label,
+      n_var_orig  = suppressWarnings(as.integer(cv$n_var_orig)),
+      build       = build_val,
+      n_snp_final = suppressWarnings(as.integer(cv$n_snp_final)),
+      lambda_gc   = gd_qc_stat(q, "lambda_gc"),
+      max_chi2    = gd_qc_stat(q, "max_chi2"),
+      n_sig_snp   = suppressWarnings(as.integer(gd_qc_stat(q, "n_sig_snp"))),
+      int_est     = if (!is.null(lv$int_est)) as.numeric(lv$int_est) else NA_real_,
+      int_se      = if (!is.null(lv$int_se))  as.numeric(lv$int_se)  else NA_real_
+    )
+  })
+  data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)
+}
+
 #' Per-GWAS LDSC SNP-heritability + LDSC intercept for the SNP-h² tab
 #'
 #' Reads `gwas_qc$ldsc_dat$val` for each GWAS and returns a one-row-per-GWAS
