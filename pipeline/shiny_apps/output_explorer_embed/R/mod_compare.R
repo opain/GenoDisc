@@ -56,6 +56,25 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   list(height = round(height), width = round(width))
 }
 
+# Placeholder shown in a compare view's plot slot when the filter combination
+# leaves no rows. A helpful text message with concrete suggestions is more
+# actionable than an empty ggplot with a small caption. `entity_label` is the
+# entity noun for the calling view (e.g. "loci", "tissues", "genes").
+.compare_empty_state <- function(entity_label = "entities") {
+  tags$div(
+    class = "well",
+    style = "max-width: 720px; margin-top: 12px; color: var(--gd-text-mute);",
+    tags$p(
+      tags$b(sprintf("No %s match the current filters.", entity_label)),
+      " Try changing the ", tags$b("Significance threshold"),
+      ", lowering the ", tags$b("k"),
+      " value (or unticking ", tags$b("Only show ... significant in ≥ k GWAS"),
+      "), or expanding the ", tags$b("Method"),
+      " / ", tags$b("Panel"), " selection."
+    )
+  )
+}
+
 # Modal-dialog helper that shows every comparison_long row for a given
 # (entity_type, entity_id) pair across all methods, panels and selected
 # GWAS. Called from the row-click observers on each compare view's DT
@@ -390,6 +409,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, plot_dims)
 
     output$tissue_compare_plot_ui <- renderUI({
+      if (is.null(plot_obj())) return(.compare_empty_state("tissues"))
       dims <- plot_dims()
       plotOutput(session$ns("tissue_compare_plot"),
                   height = dims$height, width = dims$width)
@@ -518,11 +538,14 @@ locus_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
-            # Method choices are populated server-side from the methods
-            # actually present in the bundle, so "COJO" is only offered
-            # when cf$cojo was set for at least one GWAS.
+            # Initial choices include both methods; the server-side
+            # updateSelectInput below narrows this to whichever methods
+            # are actually present in the bundle (so "COJO" is only
+            # offered when the pipeline ran COJO, but "clump" always
+            # remains visible when it has any rows).
             selectInput(ns("method"), "Method:",
-                        choices = character(0))
+                        choices = .locus_methods,
+                        selected = "clump")
           ),
           column(3,
             radioButtons(ns("sig_basis"), "Significance basis:",
@@ -700,6 +723,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, plot_dims, "locus")
 
     output$locus_compare_plot_ui <- renderUI({
+      if (is.null(plot_obj())) return(.compare_empty_state("loci"))
       dims <- plot_dims()
       plotOutput(session$ns("locus_compare_plot"),
                   height = dims$height, width = dims$width)
@@ -1057,6 +1081,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, plot_dims, "gene")
 
     output$gene_compare_plot_ui <- renderUI({
+      if (is.null(plot_obj())) return(.compare_empty_state("genes"))
       dims <- plot_dims()
       plotOutput(session$ns("gene_compare_plot"),
                   height = dims$height, width = dims$width)
@@ -1512,6 +1537,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, magma_dims, "magma")
 
     output$atc_magma_plot_ui <- renderUI({
+      if (is.null(magma_plot())) return(.compare_empty_state("ATC classes"))
       dims <- magma_dims()
       plotOutput(session$ns("atc_magma_plot"),
                   height = dims$height, width = dims$width)
@@ -1626,6 +1652,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, gsea_dims, "gsea")
 
     output$atc_gsea_plot_ui <- renderUI({
+      if (is.null(gsea_plot())) return(.compare_empty_state("ATC classes"))
       dims <- gsea_dims()
       plotOutput(session$ns("atc_gsea_plot"),
                   height = dims$height, width = dims$width)
@@ -2054,6 +2081,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, magma_dims, "magma")
 
     output$drug_magma_plot_ui <- renderUI({
+      if (is.null(magma_plot())) return(.compare_empty_state("drugs"))
       dims <- magma_dims()
       plotOutput(session$ns("drug_magma_plot"),
                   height = dims$height, width = dims$width)
@@ -2170,6 +2198,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, gsea_dims, "gsea")
 
     output$drug_gsea_plot_ui <- renderUI({
+      if (is.null(gsea_plot())) return(.compare_empty_state("drugs"))
       dims <- gsea_dims()
       plotOutput(session$ns("drug_gsea_plot"),
                   height = dims$height, width = dims$width)
@@ -2815,6 +2844,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, pert_dims, "pert")
 
     output$cmap_pert_plot_ui <- renderUI({
+      if (is.null(pert_plot())) return(.compare_empty_state("perturbations"))
       dims <- pert_dims()
       plotOutput(session$ns("cmap_pert_plot"),
                   height = dims$height, width = dims$width)
@@ -2936,6 +2966,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
     .sync_dl_dims(session, moa_dims, "moa")
 
     output$cmap_moa_plot_ui <- renderUI({
+      if (is.null(moa_plot())) return(.compare_empty_state("MOAs"))
       dims <- moa_dims()
       plotOutput(session$ns("cmap_moa_plot"),
                   height = dims$height, width = dims$width)
