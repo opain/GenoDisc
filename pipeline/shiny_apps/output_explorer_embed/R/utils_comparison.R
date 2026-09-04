@@ -492,38 +492,87 @@ build_overview_qc <- function(gd, gwas_vec) {
 #' @param sig_threshold numeric (default 0.05)
 build_overview_yield <- function(long, gd, gwas_vec,
                                   sig_basis = "fdr", sig_threshold = 0.05) {
-  key_col <- if (identical(sig_basis, "p")) "p" else "fdr"
+  # sig_basis is retained in the signature for API stability but is
+  # ignored — the Overview always counts FDR-significant entities.
   is_sig <- function(v) !is.na(v) & v < sig_threshold
+
+  # High-confidence gene count for a per-panel-per-feature results table.
+  # `fdr_col` is the FDR column name; `coloc_expr` is a quoted expression
+  # evaluated inside the data.table with `.SD` — either COLOC_logical
+  # (FUSION) or p_HEIDI > 0.05 (SMR). Returns count of UNIQUE gene
+  # symbols meeting both thresholds across all panels.
+  hc_gene_count <- function(dt, fdr_col, coloc_expr, id_col) {
+    if (is.null(dt) || nrow(dt) == 0 || !(fdr_col %in% names(dt))) return(NA_integer_)
+    fdr_ok   <- is_sig(suppressWarnings(as.numeric(dt[[fdr_col]])))
+    coloc_ok <- eval(coloc_expr, envir = dt)
+    ids <- dt[[id_col]][fdr_ok & !is.na(coloc_ok) & coloc_ok]
+    length(unique(ids[!is.na(ids) & nzchar(as.character(ids))]))
+  }
+
   rows <- lapply(gwas_vec, function(g) {
     # Loci: use clumping as the canonical locus count.
     clump <- safe_access(gd_read(gd, g, "snp_assoc"), "clump")
     n_loci <- if (!is.null(clump)) nrow(clump) else NA_integer_
 
-    # Sig genes: MAGMA gene-level FDR / P.
-    magma <- gd_read(gd, g, "mol_assoc/magma")
-    n_genes <- if (!is.null(magma) && "P.FDR" %in% names(magma)) {
-      v <- if (identical(key_col, "p")) magma$P else magma$P.FDR
-      sum(is_sig(suppressWarnings(as.numeric(v))))
-    } else NA_integer_
+    # TWAS-FUSION HC genes: TWAS.P.FDR < threshold AND COLOC_logical.
+    twas <- safe_access(gd_read(gd, g, "mol_assoc/exp/fusion"), "res")
+    n_twas_hc <- hc_gene_count(twas, "TWAS.P.FDR", quote(COLOC_logical), "Gene Symbol")
+
+    # PWAS-FUSION HC genes: pwas_all.P.FDR < threshold AND COLOC_logical.
+    # Block layout differs from TWAS-FUSION: SMR and protein-FUSION expose
+    # their results table under "results" (not "res"). See gd_read layout.
+    pwas <- safe_access(gd_read(gd, g, "mol_assoc/protein/fusion"), "results")
+    n_pwas_hc <- hc_gene_count(pwas, "pwas_all.P.FDR", quote(COLOC_logical), "Gene Symbol")
+
+    # SMR-eQTL HC genes: p_SMR.FDR < threshold AND p_HEIDI > 0.05.
+    smr_e <- safe_access(gd_read(gd, g, "mol_assoc/exp/smr"), "results")
+    n_smr_expr_hc <- hc_gene_count(smr_e, "p_SMR.FDR",
+                                     quote(suppressWarnings(as.numeric(p_HEIDI)) > 0.05),
+                                     "Gene Symbol")
+
+    # SMR-pQTL HC genes: p_SMR.FDR < threshold AND p_HEIDI > 0.05.
+    smr_p <- safe_access(gd_read(gd, g, "mol_assoc/protein/smr"), "results")
+    n_smr_prot_hc <- hc_gene_count(smr_p, "p_SMR.FDR",
+                                     quote(suppressWarnings(as.numeric(p_HEIDI)) > 0.05),
+                                     "Gene Symbol")
+
+    # SuSiE fine-mapping: count of unique genes containing a full 95%
+    # credible set (L1 output).
+    finemap <- gd_read(gd, g, "mol_assoc/finemap")
+    finemap_ids <- safe_access(finemap, "L1")
+    n_susie <- if (is.null(finemap_ids)) NA_integer_
+                else length(unique(finemap_ids[!is.na(finemap_ids) & nzchar(as.character(finemap_ids))]))
 
     # Sig tissues: from long (MAGMA-tissue).
     t_slice <- long[gwas == g & method == "MAGMA-tissue"]
-    n_tissues <- if (nrow(t_slice) > 0) sum(is_sig(t_slice[[key_col]])) else NA_integer_
+    n_tissues <- if (nrow(t_slice) > 0) sum(is_sig(t_slice$fdr)) else NA_integer_
 
-    # Sig ATC classes: best-per-cell then count sig. MAGMA-ATC has one panel;
-    # TWAS-GSEA-ATC gets best-per-cell across Panel.
+    # Sig ATC classes: best-per-cell then count sig.
     a_slice <- long[gwas == g & entity_type == "atc"]
     n_atc <- if (nrow(a_slice) > 0) {
       best <- pick_best_per_cell(a_slice, c("gwas", "method", "entity_id"))
-      sum(is_sig(best[[key_col]]))
+      sum(is_sig(best$fdr))
+    } else NA_integer_
+
+    # Sig drugs: best-per-cell across MAGMA-drug + TWAS-GSEA-drug, then
+    # count unique drug entities significant in ANY method.
+    d_slice <- long[gwas == g & entity_type == "drug"]
+    n_drugs <- if (nrow(d_slice) > 0) {
+      best <- pick_best_per_cell(d_slice, c("gwas", "method", "entity_id"))
+      length(unique(best$entity_id[is_sig(best$fdr)]))
     } else NA_integer_
 
     data.table::data.table(
-      gwas = g,
-      n_loci = suppressWarnings(as.integer(n_loci)),
-      n_genes_sig = suppressWarnings(as.integer(n_genes)),
+      gwas          = g,
+      n_loci        = suppressWarnings(as.integer(n_loci)),
+      n_twas_hc     = suppressWarnings(as.integer(n_twas_hc)),
+      n_pwas_hc     = suppressWarnings(as.integer(n_pwas_hc)),
+      n_smr_expr_hc = suppressWarnings(as.integer(n_smr_expr_hc)),
+      n_smr_prot_hc = suppressWarnings(as.integer(n_smr_prot_hc)),
+      n_susie_hc    = suppressWarnings(as.integer(n_susie)),
       n_tissues_sig = suppressWarnings(as.integer(n_tissues)),
-      n_atc_sig = suppressWarnings(as.integer(n_atc))
+      n_atc_sig     = suppressWarnings(as.integer(n_atc)),
+      n_drugs_sig   = suppressWarnings(as.integer(n_drugs))
     )
   })
   data.table::rbindlist(rows, use.names = TRUE, fill = TRUE)

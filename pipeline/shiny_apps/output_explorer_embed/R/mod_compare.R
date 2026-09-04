@@ -192,9 +192,6 @@ tissue_compare_ui <- function(ns) {
       tags$div(class = "gd-details-body",
         fluidRow(
           column(3,
-            radioButtons(ns("sig_basis"), "Significance basis:",
-                          choices = c("FDR" = "fdr", "P" = "p"),
-                          selected = "fdr", inline = TRUE),
             numericInput(ns("sig_threshold"), "Significance threshold:",
                           value = 0.05, min = 1e-12, max = 1, step = 0.01)
           ),
@@ -264,7 +261,7 @@ tissue_compare_ui <- function(ns) {
 
   # Recurrence uses the user-chosen basis + threshold; row order is by
   # recurrence desc then min p asc.
-  basis_col <- if (identical(sig_basis, "p")) "p" else "fdr"
+  basis_col <- "fdr"
   rec <- slice[, .(
     k         = sum(!is.na(.SD[[1L]]) & .SD[[1L]] < sig_threshold),
     n_fdr_sig = sum(!is.na(fdr) & fdr < 0.05),
@@ -384,7 +381,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         only_recurrent = isTRUE(input$only_recurrent),
         k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
         metric         = if (is.null(input$cell_metric)) "fdr" else input$cell_metric,
-        sig_basis      = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
         font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
         point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
@@ -499,7 +496,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
                           dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc tissue compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                           format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                          input$sig_basis %||% "fdr",
+                          "fdr" %||% "fdr",
                           input$sig_threshold %||% 0.05,
                           input$k_min %||% 2L)
         con <- file(file, "w")
@@ -545,10 +542,7 @@ locus_compare_ui <- function(ns) {
             uiOutput(ns("method_ui"))
           ),
           column(3,
-            radioButtons(ns("sig_basis"), "Significance basis:",
-                          choices = c("P" = "p"),
-                          selected = "p", inline = TRUE),
-            numericInput(ns("sig_threshold"), "Significance threshold:",
+            numericInput(ns("sig_threshold"), "Significance threshold (P):",
                           value = 5e-8, min = 1e-20, max = 1, step = 1e-8)
           ),
           column(3,
@@ -882,9 +876,6 @@ gene_compare_ui <- function(ns) {
                           value = FALSE)
           ),
           column(3,
-            radioButtons(ns("sig_basis"), "Significance basis:",
-                          choices = c("FDR" = "fdr", "P" = "p"),
-                          selected = "fdr", inline = TRUE),
             numericInput(ns("sig_threshold"), "Significance threshold:",
                           value = 0.05, min = 1e-12, max = 1, step = 0.01)
           ),
@@ -956,7 +947,7 @@ gene_compare_ui <- function(ns) {
   if (nrow(slice) == 0) return(NULL)
 
   # recurrence ordering
-  basis_col <- if (identical(sig_basis, "p")) "p" else "fdr"
+  basis_col <- "fdr"
   rec <- slice[, .(
     k       = sum(!is.na(.SD[[1L]]) & .SD[[1L]] < sig_threshold),
     min_val = suppressWarnings(min(.SD[[1L]], na.rm = TRUE))
@@ -980,7 +971,7 @@ gene_compare_ui <- function(ns) {
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
   slice[, gwas := factor(gwas, levels = gwas_vec)]
 
-  scale_lab <- if (identical(sig_basis, "p")) "-log10(P)" else "-log10(FDR)"
+  scale_lab <- "-log10(FDR)"
 
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = minus_log10), shape = 21, stroke = 0,
@@ -1058,7 +1049,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         panel_pick        = input$panel %||% "__best__",
         only_recurrent    = isTRUE(input$only_recurrent),
         k_min             = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
-        sig_basis         = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
+        sig_basis         = "fdr",
         sig_threshold     = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
         evidence_required = isTRUE(input$evidence_required),
         row_cap           = if (is.null(input$row_cap)) 50L else as.integer(input$row_cap),
@@ -1174,7 +1165,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         header <- sprintf("# GenoDisc gene compare CSV | %s | method=%s panel=%s sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
                            picked_method, picked_panel,
-                           input$sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$sig_threshold %||% 0.05,
                            input$k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
@@ -1199,9 +1190,6 @@ atc_compare_ui <- function(ns) {
         tags$div(class = "gd-details-body",
           fluidRow(
             column(3,
-              radioButtons(ns("magma_sig_basis"), "Significance basis:",
-                            choices = c("FDR" = "fdr", "P" = "p"),
-                            selected = "fdr", inline = TRUE),
               numericInput(ns("magma_sig_threshold"), "Significance threshold:",
                             value = 0.05, min = 1e-12, max = 1, step = 0.01)
             ),
@@ -1252,9 +1240,6 @@ atc_compare_ui <- function(ns) {
         tags$div(class = "gd-details-body",
           fluidRow(
             column(3,
-              radioButtons(ns("gsea_sig_basis"), "Significance basis:",
-                            choices = c("FDR" = "fdr", "P" = "p"),
-                            selected = "fdr", inline = TRUE),
               numericInput(ns("gsea_sig_threshold"), "Significance threshold:",
                             value = 0.05, min = 1e-12, max = 1, step = 0.01)
             ),
@@ -1516,7 +1501,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec       = magma_gwas_vec(),
         only_recurrent = isTRUE(input$magma_only_recurrent),
         k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
-        sig_basis      = if (is.null(input$magma_sig_basis)) "fdr" else input$magma_sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
         font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
         point_size     = if (is.null(input$magma_plot_point_size)) 4 else as.numeric(input$magma_plot_point_size)
@@ -1608,7 +1593,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         wide <- pivot_matrix(long, "fdr", gwas_vec)
         header <- sprintf("# GenoDisc ATC MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           input$magma_sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$magma_sig_threshold %||% 0.05,
                            input$magma_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
@@ -1631,7 +1616,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         only_recurrent = isTRUE(input$gsea_only_recurrent),
         k_min          = if (is.null(input$gsea_k_min)) 2L else as.integer(input$gsea_k_min),
         panel_pick     = input$gsea_panel,
-        sig_basis      = if (is.null(input$gsea_sig_basis)) "fdr" else input$gsea_sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
         font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
         point_size     = if (is.null(input$gsea_plot_point_size)) 4 else as.numeric(input$gsea_plot_point_size)
@@ -1731,7 +1716,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc ATC TWAS-GSEA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s panel=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           input$gsea_sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$gsea_sig_threshold %||% 0.05,
                            input$gsea_k_min %||% 2L,
                            input$gsea_panel %||% "__best__")
@@ -1767,9 +1752,6 @@ drug_compare_ui <- function(ns) {
         tags$div(class = "gd-details-body",
           fluidRow(
             column(3,
-              radioButtons(ns("magma_sig_basis"), "Significance basis:",
-                            choices = c("FDR" = "fdr", "P" = "p"),
-                            selected = "fdr", inline = TRUE),
               numericInput(ns("magma_sig_threshold"), "Significance threshold:",
                             value = 0.05, min = 1e-12, max = 1, step = 0.01)
             ),
@@ -1822,9 +1804,6 @@ drug_compare_ui <- function(ns) {
         tags$div(class = "gd-details-body",
           fluidRow(
             column(3,
-              radioButtons(ns("gsea_sig_basis"), "Significance basis:",
-                            choices = c("FDR" = "fdr", "P" = "p"),
-                            selected = "fdr", inline = TRUE),
               numericInput(ns("gsea_sig_threshold"), "Significance threshold:",
                             value = 0.05, min = 1e-12, max = 1, step = 0.01)
             ),
@@ -2059,7 +2038,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec       = magma_gwas_vec(),
         only_recurrent = isTRUE(input$magma_only_recurrent),
         k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
-        sig_basis      = if (is.null(input$magma_sig_basis)) "fdr" else input$magma_sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
         row_cap        = if (is.null(input$magma_row_cap)) 50L else as.integer(input$magma_row_cap),
         font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
@@ -2153,7 +2132,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         wide <- pivot_matrix(long, "fdr", gwas_vec)
         header <- sprintf("# GenoDisc drug MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           input$magma_sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$magma_sig_threshold %||% 0.05,
                            input$magma_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
@@ -2176,7 +2155,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         only_recurrent = isTRUE(input$gsea_only_recurrent),
         k_min          = if (is.null(input$gsea_k_min)) 2L else as.integer(input$gsea_k_min),
         panel_pick     = input$gsea_panel,
-        sig_basis      = if (is.null(input$gsea_sig_basis)) "fdr" else input$gsea_sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
         row_cap        = if (is.null(input$gsea_row_cap)) 50L else as.integer(input$gsea_row_cap),
         font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
@@ -2277,7 +2256,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc drug TWAS-GSEA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s panel=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           input$gsea_sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$gsea_sig_threshold %||% 0.05,
                            input$gsea_k_min %||% 2L,
                            input$gsea_panel %||% "__best__")
@@ -2603,9 +2582,6 @@ cmap_compare_ui <- function(ns) {
         tags$div(class = "gd-details-body",
           fluidRow(
             column(3,
-              radioButtons(ns("pert_sig_basis"), "Significance basis:",
-                            choices = c("FDR" = "fdr", "P" = "p"),
-                            selected = "fdr", inline = TRUE),
               numericInput(ns("pert_sig_threshold"), "Significance threshold:",
                             value = 0.05, min = 1e-12, max = 1, step = 0.01)
             ),
@@ -2661,9 +2637,6 @@ cmap_compare_ui <- function(ns) {
         tags$div(class = "gd-details-body",
           fluidRow(
             column(3,
-              radioButtons(ns("moa_sig_basis"), "Significance basis:",
-                            choices = c("FDR" = "fdr", "P" = "p"),
-                            selected = "fdr", inline = TRUE),
               numericInput(ns("moa_sig_threshold"), "Significance threshold:",
                             value = 0.05, min = 1e-12, max = 1, step = 0.01)
             ),
@@ -2822,7 +2795,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec       = pert_gwas_vec(),
         only_recurrent = isTRUE(input$pert_only_recurrent),
         k_min          = if (is.null(input$pert_k_min)) 2L else as.integer(input$pert_k_min),
-        sig_basis      = if (is.null(input$pert_sig_basis)) "fdr" else input$pert_sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$pert_sig_threshold)) 0.05 else as.numeric(input$pert_sig_threshold),
         row_cap        = if (is.null(input$pert_row_cap)) 50L else as.integer(input$pert_row_cap),
         font_size      = if (is.null(input$pert_plot_font_size)) 11 else as.numeric(input$pert_plot_font_size),
@@ -2923,7 +2896,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc CMap perturbation compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           input$pert_sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$pert_sig_threshold %||% 0.05,
                            input$pert_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
@@ -2944,7 +2917,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec       = moa_gwas_vec(),
         only_recurrent = isTRUE(input$moa_only_recurrent),
         k_min          = if (is.null(input$moa_k_min)) 2L else as.integer(input$moa_k_min),
-        sig_basis      = if (is.null(input$moa_sig_basis)) "fdr" else input$moa_sig_basis,
+        sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$moa_sig_threshold)) 0.05 else as.numeric(input$moa_sig_threshold),
         row_cap        = if (is.null(input$moa_row_cap)) 50L else as.integer(input$moa_row_cap),
         font_size      = if (is.null(input$moa_plot_font_size)) 11 else as.numeric(input$moa_plot_font_size),
@@ -3045,7 +3018,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc CMap MOA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
-                           input$moa_sig_basis %||% "fdr",
+                           "fdr" %||% "fdr",
                            input$moa_sig_threshold %||% 0.05,
                            input$moa_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))

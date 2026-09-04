@@ -15,16 +15,11 @@ overviewUI <- function(id) {
       tags$summary("Filter data"),
       tags$div(class = "gd-details-body",
         fluidRow(
-          column(4,
-            radioButtons(ns("sig_basis"), "Significance basis (yield counts):",
-                          choices = c("FDR" = "fdr", "P" = "p"),
-                          selected = "fdr", inline = TRUE)
-          ),
-          column(4,
-            numericInput(ns("sig_threshold"), "Significance threshold:",
+          column(6,
+            numericInput(ns("sig_threshold"), "FDR significance threshold:",
                           value = 0.05, min = 1e-12, max = 1, step = 0.01)
           ),
-          column(4,
+          column(6,
             selectInput(ns("gwas_sort"), "Order GWAS by:",
                          choices = c("As selected"   = "as_selected",
                                       "Alphabetical" = "alphabetical",
@@ -49,8 +44,8 @@ overviewUI <- function(id) {
       h4("Yield: counts of significant entities"),
       p(
         style = "color: var(--gd-text-mute);",
-        "Counts respect the significance basis and threshold above. ",
-        "ATC counts use best-per-cell across TWAS-GSEA panels."
+        "Counts of high-confidence entities under the FDR threshold above. ",
+        "Molecular counts require both FDR-significance and colocalisation (FUSION) or HEIDI support (SMR)."
       ),
       DT::DTOutput(ns("yield_tbl"))
     ),
@@ -62,9 +57,14 @@ overviewUI <- function(id) {
       "N sig SNPs" = "Count of SNPs passing p < 5×10⁻⁸ in the cleaned sumstats.",
       "N SNPs post-QC" = "Number of SNPs remaining after quality-control filtering in the sumstat cleaner.",
       "Loci" = "Number of independent clumped loci.",
-      "Sig Genes" = "MAGMA gene-level significant entities under the chosen basis + threshold.",
-      "Sig Tissues" = "GTEx MAGMA tissue-specific significant tissues.",
-      "Sig ATC" = "Union of significant ATC classes across MAGMA and TWAS-GSEA (best-per-cell)."
+      "Sig TWAS" = "TWAS-FUSION genes that are FDR-significant AND colocalised (COLOC-supported), unique across panels.",
+      "Sig PWAS" = "PWAS-FUSION genes that are FDR-significant AND colocalised (COLOC-supported), unique across panels.",
+      "Sig SMR-eQTL" = "SMR-expression genes that are FDR-significant AND pass HEIDI (p_HEIDI > 0.05), unique across panels.",
+      "Sig SMR-pQTL" = "SMR-protein genes that are FDR-significant AND pass HEIDI (p_HEIDI > 0.05), unique across panels.",
+      "Sig SuSiE" = "Unique genes containing a full 95% credible set reported by SuSiE fine-mapping.",
+      "Sig Tissues" = "GTEx MAGMA tissue-specific FDR-significant tissues.",
+      "Sig ATC" = "Union of FDR-significant ATC classes across MAGMA and TWAS-GSEA (best-per-cell).",
+      "Sig Drugs" = "Union of FDR-significant drugs across MAGMA and TWAS-GSEA (best-per-cell)."
     ))
   )
 }
@@ -112,7 +112,6 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
       req(gwas_data(), comparison_long())
       build_overview_yield(
         comparison_long(), gwas_data(), selected_gwas_multi(),
-        sig_basis     = if (is.null(input$sig_basis)) "fdr" else input$sig_basis,
         sig_threshold = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold)
       )
     })
@@ -123,11 +122,16 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
       d <- d[match(ord, gwas)]
       fmt <- function(v) ifelse(is.na(v), "—", formatC(v, format = "d", big.mark = ","))
       out <- data.frame(
-        GWAS          = d$gwas,
-        Loci          = fmt(d$n_loci),
-        `Sig Genes`   = fmt(d$n_genes_sig),
-        `Sig Tissues` = fmt(d$n_tissues_sig),
-        `Sig ATC`     = fmt(d$n_atc_sig),
+        GWAS            = d$gwas,
+        Loci            = fmt(d$n_loci),
+        `Sig TWAS`      = fmt(d$n_twas_hc),
+        `Sig PWAS`      = fmt(d$n_pwas_hc),
+        `Sig SMR-eQTL`  = fmt(d$n_smr_expr_hc),
+        `Sig SMR-pQTL`  = fmt(d$n_smr_prot_hc),
+        `Sig SuSiE`     = fmt(d$n_susie_hc),
+        `Sig Tissues`   = fmt(d$n_tissues_sig),
+        `Sig ATC`       = fmt(d$n_atc_sig),
+        `Sig Drugs`     = fmt(d$n_drugs_sig),
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(
