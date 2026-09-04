@@ -1467,21 +1467,33 @@ atc_compare_ui <- function(ns) {
   slice[, entity_label := factor(entity_label,
     levels = rev(label_map$entity_label[match(rec$entity_id, label_map$entity_id)]))]
   slice[, gwas := factor(gwas, levels = gwas_vec)]
-  slice[, minus_log10_fdr := pmin(-log10(fdr), 12)]
+  slice[, minus_log10_fdr := -log10(fdr)]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+
+  # Drop untested cells so no point is drawn for (ATC, GWAS) pairs the
+  # method never scored — previously they rendered as grey via
+  # na.value, indistinguishable from a near-zero score.
+  tested <- slice[!is.na(minus_log10_fdr)]
+  if (nrow(tested) == 0) return(NULL)
+
+  # Data-driven fill range so the ramp matches the observed values.
+  max_val <- suppressWarnings(max(tested$minus_log10_fdr, na.rm = TRUE))
+  if (!is.finite(max_val) || max_val <= 0) max_val <- 1
+  fill_lim <- c(0, max_val)
 
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = minus_log10_fdr), shape = 21, stroke = 0,
     size = point_size)
 
-  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_label)) +
+  gg <- ggplot2::ggplot(tested, ggplot2::aes(x = gwas, y = entity_label)) +
     base_layer +
     ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
                                    name = "-log10(FDR)",
-                                   na.value = .gd_grey, limits = c(0, 12))
+                                   na.value = "transparent",
+                                   limits = fill_lim)
 
-  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+  gg <- .compare_add_sig_overlays(gg, tested, base_layer,
                                     nominal_flag = "nom_sig",
                                     fdr_flag = "fdr_sig",
                                     point_size = point_size)
@@ -1567,6 +1579,12 @@ atc_compare_ui <- function(ns) {
   # Points only drawn for tested cells; blank cells = "not tested".
   tested_dat <- filled[filled$tested, ]
 
+  # Data-driven symmetric limits so the colour ramp matches the observed
+  # range (fixed c(-12, 12) previously washed out small signed scores).
+  max_abs <- suppressWarnings(max(abs(tested_dat$signed_score), na.rm = TRUE))
+  if (!is.finite(max_abs) || max_abs <= 0) max_abs <- 1
+  fill_lim <- c(-max_abs, max_abs)
+
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
     size = point_size)
@@ -1574,8 +1592,8 @@ atc_compare_ui <- function(ns) {
   gg <- ggplot2::ggplot(tested_dat, ggplot2::aes(x = gwas, y = entity_label)) +
     base_layer +
     ggplot2::scale_fill_gradient2(
-      low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
-      limits = c(-12, 12), na.value = .gd_grey,
+      low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
+      limits = fill_lim, na.value = "transparent",
       name = "signed -log10(FDR)  (+ matches / − opposes)"
     )
 
@@ -2025,21 +2043,30 @@ drug_compare_ui <- function(ns) {
 
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
   slice[, gwas := factor(gwas, levels = gwas_vec)]
-  slice[, minus_log10_fdr := pmin(-log10(fdr), 12)]
+  slice[, minus_log10_fdr := -log10(fdr)]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
+
+  # Drop untested cells so no point is drawn.
+  tested <- slice[!is.na(minus_log10_fdr)]
+  if (nrow(tested) == 0) return(NULL)
+
+  max_val <- suppressWarnings(max(tested$minus_log10_fdr, na.rm = TRUE))
+  if (!is.finite(max_val) || max_val <= 0) max_val <- 1
+  fill_lim <- c(0, max_val)
 
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = minus_log10_fdr), shape = 21, stroke = 0,
     size = point_size)
 
-  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+  gg <- ggplot2::ggplot(tested, ggplot2::aes(x = gwas, y = entity_id)) +
     base_layer +
     ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
                                    name = "-log10(FDR)",
-                                   na.value = .gd_grey, limits = c(0, 12))
+                                   na.value = "transparent",
+                                   limits = fill_lim)
 
-  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+  gg <- .compare_add_sig_overlays(gg, tested, base_layer,
                                     nominal_flag = "nom_sig",
                                     fdr_flag = "fdr_sig",
                                     point_size = point_size)
@@ -2105,19 +2132,33 @@ drug_compare_ui <- function(ns) {
                               panel_pick, sig_basis, sig_threshold, row_cap)
   if (is.null(slice)) return(NULL)
 
+  # Untested (drug, GWAS) cells → NA signed_score → drop entirely so no
+  # point is drawn. Previously we set na.value on the gradient scale,
+  # which rendered grey circles for untested cells and made "not tested"
+  # indistinguishable from "near-zero score".
+  tested <- slice[!is.na(signed_score)]
+  if (nrow(tested) == 0) return(NULL)
+
+  # Data-driven symmetric limits so the colour ramp matches the observed
+  # range. Fixed c(-12, 12) previously left almost every cell near the
+  # scale's midpoint when actual scores were small.
+  max_abs <- suppressWarnings(max(abs(tested$signed_score), na.rm = TRUE))
+  if (!is.finite(max_abs) || max_abs <= 0) max_abs <- 1
+  fill_lim <- c(-max_abs, max_abs)
+
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
     size = point_size)
 
-  gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
+  gg <- ggplot2::ggplot(tested, ggplot2::aes(x = gwas, y = entity_id)) +
     base_layer +
     ggplot2::scale_fill_gradient2(
-      low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
-      limits = c(-12, 12), na.value = .gd_grey,
+      low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
+      limits = fill_lim, na.value = "transparent",
       name = "signed -log10(FDR)  (+ matches / − opposes)"
     )
 
-  gg <- .compare_add_sig_overlays(gg, slice, base_layer,
+  gg <- .compare_add_sig_overlays(gg, tested, base_layer,
                                     nominal_flag = "nom_sig",
                                     fdr_flag = "fdr_sig",
                                     point_size = point_size)
@@ -3105,7 +3146,7 @@ cmap_compare_ui <- function(ns) {
   slice[, gwas := factor(gwas, levels = gwas_vec)]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
-  neg_log_fdr <- pmin(-log10(slice$fdr), 12)
+  neg_log_fdr <- -log10(slice$fdr)
   slice[, signed_score := ifelse(
     is.na(direction), NA_real_,
     ifelse(direction == "Matches disease",  neg_log_fdr,
@@ -3115,6 +3156,11 @@ cmap_compare_ui <- function(ns) {
   slice <- slice[!is.na(signed_score)]
   if (nrow(slice) == 0) return(NULL)
 
+  # Data-driven symmetric limits so the ramp matches the observed range.
+  max_abs <- suppressWarnings(max(abs(slice$signed_score), na.rm = TRUE))
+  if (!is.finite(max_abs) || max_abs <= 0) max_abs <- 1
+  fill_lim <- c(-max_abs, max_abs)
+
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
     size = point_size)
@@ -3122,8 +3168,8 @@ cmap_compare_ui <- function(ns) {
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
     base_layer +
     ggplot2::scale_fill_gradient2(
-      low = .gd_red, mid = .gd_grey, high = .gd_blue, midpoint = 0,
-      limits = c(-12, 12), na.value = .gd_grey,
+      low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
+      limits = fill_lim, na.value = "transparent",
       name = "signed -log10(FDR)  (+ matches / − opposes)"
     )
 

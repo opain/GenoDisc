@@ -302,15 +302,8 @@ enrichmentUI <- function(id) {
   tabPanel(
     title="Enrichment Analysis",
     br(),
-    p("Enrichment analysis results. Drug Targetor and CMap have Single-GWAS and Multi-GWAS sub-tabs; Single is controlled by the GWAS picker below and Multi shows the cross-GWAS comparison view. Tissue is always the cross-GWAS view (it collapses cleanly to a single facet for one-GWAS bundles)."),
+    p("Enrichment analysis results. Drug Targetor and CMap have Single-GWAS and Multi-GWAS sub-tabs; the Single-GWAS sub-tab shows a GWAS picker at the top. Tissue is always the cross-GWAS view (it collapses cleanly to a single facet for one-GWAS bundles)."),
     hr(),
-    # Enrichment-level GWAS picker for Single-GWAS content inside Drug
-    # Targetor and CMap. Rendered outside enrichment_tabs so it survives
-    # renderUI rebuilds. Rendered via uiOutput so the choices are baked
-    # in at widget-creation time (avoids selectize update-timing bugs).
-    div(style = "max-width: 260px; margin-bottom: 12px;",
-      uiOutput(ns("enrichment_gwas_ui"))
-    ),
     uiOutput(ns("enrichment_tabs"))
   )
 }
@@ -322,30 +315,72 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # Shadow `selected_gwas` inside this module: everything that used to
-    # read selected_gwas() (single-GWAS drug / ATC / CMap tables and
-    # single-tissue lollipop) now reads the enrichment-level GWAS picker,
-    # falling back to the parent's first-bundle-GWAS before the picker
-    # widget has been bound. Multi-GWAS views use selected_gwas_multi(),
-    # which we do not shadow.
+    # Per-Single-GWAS-view pickers. Each Single sub-tab (Drug Single,
+    # ATC Single, CMap Single) renders its own selectInput so the picker
+    # lives visually inside the tab it controls (per user request —
+    # keeping it at the enrichment tab top was misleading since it did
+    # NOT apply to Tissue or Multi-GWAS content).
+    #
+    # A shared `active_enrichment_gwas` reactiveVal holds the currently
+    # selected GWAS; the three pickers stay in sync via observers
+    # (changes to any one propagate to the others via
+    # updateSelectInput), and `selected_gwas` is shadowed to read from
+    # it so every downstream output picks up the change.
     parent_selected_gwas <- selected_gwas
+    active_enrichment_gwas <- reactiveVal(NULL)
+
     selected_gwas <- reactive({
-      v <- input$enrichment_gwas
+      v <- active_enrichment_gwas()
       if (is.null(v) || !nzchar(v)) parent_selected_gwas() else v
     })
 
-    # Render the picker via renderUI so choices are populated at widget
-    # creation time (selectize.js drops updateSelectInput messages that
-    # arrive before its client binding is ready).
-    output$enrichment_gwas_ui <- renderUI({
+    # Initialise `active_enrichment_gwas` from selected_gwas_multi() so
+    # the pickers all render with a sensible default on bundle load.
+    observe({
       choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
       req(length(choices) >= 1)
-      cur <- isolate(input$enrichment_gwas)
-      keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-      selectInput(session$ns("enrichment_gwas"),
-                   "GWAS (for Single-GWAS sub-tabs):",
-                   choices = choices, selected = keep, multiple = FALSE)
+      cur <- isolate(active_enrichment_gwas())
+      if (is.null(cur) || !(cur %in% choices)) active_enrichment_gwas(choices[1L])
     })
+
+    # Render helper — 3 uiOutputs, 3 unique input ids, one shared value.
+    .render_enrichment_picker <- function(output_id, input_id) {
+      output[[output_id]] <- renderUI({
+        choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
+        req(length(choices) >= 1)
+        v <- isolate(active_enrichment_gwas())
+        keep <- if (!is.null(v) && v %in% choices) v else choices[1L]
+        selectInput(session$ns(input_id), "GWAS:",
+                     choices = choices, selected = keep, multiple = FALSE)
+      })
+    }
+    .render_enrichment_picker("drug_single_gwas_ui", "drug_single_gwas")
+    .render_enrichment_picker("atc_single_gwas_ui",  "atc_single_gwas")
+    .render_enrichment_picker("cmap_single_gwas_ui", "cmap_single_gwas")
+
+    # Sync — any picker changed by the user becomes the new
+    # active_enrichment_gwas; the reactive then propagates back to the
+    # other two widgets via updateSelectInput. `ignoreInit = TRUE`
+    # keeps the initial default from bouncing around.
+    for (id in c("drug_single_gwas", "atc_single_gwas", "cmap_single_gwas")) {
+      local({
+        this_id <- id
+        observeEvent(input[[this_id]], {
+          v <- input[[this_id]]
+          if (!is.null(v) && nzchar(v) && !identical(v, active_enrichment_gwas())) {
+            active_enrichment_gwas(v)
+          }
+        }, ignoreInit = TRUE)
+      })
+    }
+    observeEvent(active_enrichment_gwas(), {
+      v <- active_enrichment_gwas()
+      for (id in c("drug_single_gwas", "atc_single_gwas", "cmap_single_gwas")) {
+        if (!identical(isolate(input[[id]]), v)) {
+          updateSelectInput(session, id, selected = v)
+        }
+      }
+    }, ignoreInit = TRUE)
 
     # Cross-GWAS compare-mode sub-modules. Registered unconditionally so their
     # outputs exist for the DOM; they self-guard on comparison_mode() and
@@ -732,12 +767,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         # CMap always exposes both single-GWAS and cross-GWAS content
         # under sibling sub-tabs so neither view is ever hidden. Single
         # keeps the pipeline's per-signature (Drug) + per-mechanism (MOA)
-        # split; Multi hosts the CMap compare heatmaps.
+        # split behind a GWAS picker; Multi hosts the CMap compare heatmaps.
         cmap_tab <- tabPanel(
           title = "CMAP", br(),
           p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'."),
           tabsetPanel(id = ns("cmap_view_tabs"),
             tabPanel(title = "Single GWAS", value = "single", br(),
+              div(style = "max-width: 260px; margin-bottom: 12px;",
+                uiOutput(ns("cmap_single_gwas_ui"))
+              ),
               do.call(tabsetPanel, cmap_inner)
             ),
             tabPanel(title = "Multi-GWAS", value = "multi", br(),
@@ -860,6 +898,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           tabPanel(title = "Drug", br(),
             tabsetPanel(id = ns("drug_view_tabs"),
               tabPanel(title = "Single GWAS", value = "single", br(),
+                div(style = "max-width: 260px; margin-bottom: 12px;",
+                  uiOutput(ns("drug_single_gwas_ui"))
+                ),
                 do.call(tabsetPanel, drug_tabs)
               ),
               tabPanel(title = "Multi-GWAS", value = "multi", br(),
@@ -870,6 +911,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           tabPanel(title = "ATC", br(),
             tabsetPanel(id = ns("atc_view_tabs"),
               tabPanel(title = "Single GWAS", value = "single", br(),
+                div(style = "max-width: 260px; margin-bottom: 12px;",
+                  uiOutput(ns("atc_single_gwas_ui"))
+                ),
                 do.call(tabsetPanel, atc_tabs)
               ),
               tabPanel(title = "Multi-GWAS", value = "multi", br(),

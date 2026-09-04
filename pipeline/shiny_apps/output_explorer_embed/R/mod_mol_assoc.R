@@ -462,7 +462,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Individual method tables
     ########
 
-    outputmagma_table <- renderDataTable({
+    output$mol_assoc_magma_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
@@ -480,7 +480,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:5))))
     })
 
-    outputfusion_expr_table <- renderDataTable({
+    output$mol_assoc_fusion_expr_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
@@ -508,7 +508,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:11))))
     })
 
-    outputfusion_protein_table <- renderDataTable({
+    output$mol_assoc_fusion_protein_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
@@ -536,7 +536,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:11))))
     })
 
-    outputsmr_expr_table <- renderDataTable({
+    output$mol_assoc_smr_expr_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
@@ -566,7 +566,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         columnDefs = list(list(className = 'dt-center', targets = 0:10))))
     })
 
-    outputsmr_protein_table <- renderDataTable({
+    output$mol_assoc_smr_protein_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
       js <- c(
         "function(row, data, displayNum, index){",
