@@ -144,11 +144,10 @@ snpAssocUI <- function(id) {
   # `updateSelectInput` sent to a selectize-backed selectInput before
   # the client-side binding is ready silently drops the choices update
   # here, leaving the widget with only its default one-item state.
-  gwas_picker <- function(output_id) {
-    div(style = "max-width: 260px; margin-bottom: 10px;",
-      uiOutput(ns(output_id))
-    )
-  }
+  # No wrapping div here — the picker's outer div (with max-width and
+  # margin) is emitted from the renderUI itself, so an empty return
+  # in single-GWAS mode leaves ZERO residual vertical space.
+  gwas_picker <- function(output_id) uiOutput(ns(output_id))
 
   tabPanel(
     title = "SNP Associations",
@@ -257,8 +256,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         if (length(choices) < 2L) return(NULL)
         cur <- isolate(input[[input_id]])
         keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-        selectInput(session$ns(input_id), label,
-                     choices = choices, selected = keep, multiple = FALSE)
+        div(style = "max-width: 260px; margin-bottom: 10px;",
+          selectInput(session$ns(input_id), label,
+                       choices = choices, selected = keep, multiple = FALSE))
       })
     }
 

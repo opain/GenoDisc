@@ -4,12 +4,9 @@ gwasQcUI <- function(id) {
   # Per-tab GWAS picker — rendered via `uiOutput` so the choice list is
   # baked in at widget-creation time. updateSelectInput sent to a
   # selectize-backed selectInput before the client binding is ready
-  # silently drops the choices update.
-  gwas_picker <- function(output_id) {
-    div(style = "max-width: 260px; margin-bottom: 10px;",
-      uiOutput(ns(output_id))
-    )
-  }
+  # silently drops the choices update. No wrapping div here so that a
+  # NULL return in single-GWAS mode leaves zero residual space.
+  gwas_picker <- function(output_id) uiOutput(ns(output_id))
   tabPanel(
     title = "GWAS QC",
     br(),
@@ -73,8 +70,9 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
         if (length(choices) < 2L) return(NULL)
         cur <- isolate(input[[input_id]])
         keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-        selectInput(session$ns(input_id), label,
-                     choices = choices, selected = keep, multiple = FALSE)
+        div(style = "max-width: 260px; margin-bottom: 10px;",
+          selectInput(session$ns(input_id), label,
+                       choices = choices, selected = keep, multiple = FALSE))
       })
     }
     if (!is.null(selected_gwas_multi)) {

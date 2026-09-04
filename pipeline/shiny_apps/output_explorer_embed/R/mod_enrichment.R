@@ -371,8 +371,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         if (length(choices) < 2L) return(NULL)
         v <- isolate(active_enrichment_gwas())
         keep <- if (!is.null(v) && v %in% choices) v else choices[1L]
-        selectInput(session$ns(input_id), "GWAS:",
-                     choices = choices, selected = keep, multiple = FALSE)
+        div(style = "max-width: 260px; margin-bottom: 12px;",
+          selectInput(session$ns(input_id), "GWAS:",
+                       choices = choices, selected = keep, multiple = FALSE))
       })
     }
     .render_enrichment_picker("drug_single_gwas_ui", "drug_single_gwas")
@@ -851,13 +852,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           title = "CMAP", br(),
           p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'."),
           tabsetPanel(id = ns("cmap_view_tabs"),
-            tabPanel(title = "Single GWAS", value = "single", br(),
-              div(style = "max-width: 260px; margin-bottom: 12px;",
-                uiOutput(ns("cmap_single_gwas_ui"))
-              ),
+            tabPanel(title = "Single GWAS", value = "single",
+              uiOutput(ns("cmap_single_gwas_ui")),
               do.call(tabsetPanel, cmap_inner)
             ),
-            tabPanel(title = "Multi-GWAS", value = "multi", br(),
+            tabPanel(title = "Multi-GWAS", value = "multi",
               cmap_compare_ui(NS(ns("cmap_compare")))
             )
           )
@@ -978,26 +977,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         drug_targetor_inner <- list(
           tabPanel(title = "Drug", br(),
             tabsetPanel(id = ns("drug_view_tabs"),
-              tabPanel(title = "Single GWAS", value = "single", br(),
-                div(style = "max-width: 260px; margin-bottom: 12px;",
-                  uiOutput(ns("drug_single_gwas_ui"))
-                ),
+              tabPanel(title = "Single GWAS", value = "single",
+                uiOutput(ns("drug_single_gwas_ui")),
                 do.call(tabsetPanel, drug_tabs)
               ),
-              tabPanel(title = "Multi-GWAS", value = "multi", br(),
+              tabPanel(title = "Multi-GWAS", value = "multi",
                 drug_compare_ui(NS(ns("drug_compare")))
               )
             )
           ),
           tabPanel(title = "ATC", br(),
             tabsetPanel(id = ns("atc_view_tabs"),
-              tabPanel(title = "Single GWAS", value = "single", br(),
-                div(style = "max-width: 260px; margin-bottom: 12px;",
-                  uiOutput(ns("atc_single_gwas_ui"))
-                ),
+              tabPanel(title = "Single GWAS", value = "single",
+                uiOutput(ns("atc_single_gwas_ui")),
                 do.call(tabsetPanel, atc_tabs)
               ),
-              tabPanel(title = "Multi-GWAS", value = "multi", br(),
+              tabPanel(title = "Multi-GWAS", value = "multi",
                 atc_compare_ui(NS(ns("atc_compare")))
               )
             )
