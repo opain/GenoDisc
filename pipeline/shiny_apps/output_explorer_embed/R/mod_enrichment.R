@@ -302,8 +302,15 @@ enrichmentUI <- function(id) {
   tabPanel(
     title="Enrichment Analysis",
     br(),
-    p("This tab shows enrichment analysis results. Select the tabs below to see results for your desired gene annotations and methods"),
+    p("Enrichment analysis results. Drug Targetor and CMap have Single-GWAS and Multi-GWAS sub-tabs; Single is controlled by the GWAS picker below and Multi shows the cross-GWAS comparison view. Tissue is always the cross-GWAS view (it collapses cleanly to a single facet for one-GWAS bundles)."),
     hr(),
+    # Enrichment-level GWAS picker for Single-GWAS content inside Drug
+    # Targetor and CMap. Rendered outside enrichment_tabs so it survives
+    # renderUI rebuilds. Rendered via uiOutput so the choices are baked
+    # in at widget-creation time (avoids selectize update-timing bugs).
+    div(style = "max-width: 260px; margin-bottom: 12px;",
+      uiOutput(ns("enrichment_gwas_ui"))
+    ),
     uiOutput(ns("enrichment_tabs"))
   )
 }
@@ -314,6 +321,31 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                               comparison_long = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
+
+    # Shadow `selected_gwas` inside this module: everything that used to
+    # read selected_gwas() (single-GWAS drug / ATC / CMap tables and
+    # single-tissue lollipop) now reads the enrichment-level GWAS picker,
+    # falling back to the parent's first-bundle-GWAS before the picker
+    # widget has been bound. Multi-GWAS views use selected_gwas_multi(),
+    # which we do not shadow.
+    parent_selected_gwas <- selected_gwas
+    selected_gwas <- reactive({
+      v <- input$enrichment_gwas
+      if (is.null(v) || !nzchar(v)) parent_selected_gwas() else v
+    })
+
+    # Render the picker via renderUI so choices are populated at widget
+    # creation time (selectize.js drops updateSelectInput messages that
+    # arrive before its client binding is ready).
+    output$enrichment_gwas_ui <- renderUI({
+      choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
+      req(length(choices) >= 1)
+      cur <- isolate(input$enrichment_gwas)
+      keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
+      selectInput(session$ns("enrichment_gwas"),
+                   "GWAS (for Single-GWAS sub-tabs):",
+                   choices = choices, selected = keep, multiple = FALSE)
+    })
 
     # Cross-GWAS compare-mode sub-modules. Registered unconditionally so their
     # outputs exist for the DOM; they self-guard on comparison_mode() and
@@ -697,18 +729,22 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           fluidRow(column(width=10, dataTableOutput(ns("tx_cmap_moa_table")))), enr_legend("cmap_moa"), br()
         )))
 
-        # Compare-mode swap for CMap: two-sub-tab cross-GWAS view when
-        # >=2 GWAS are selected, single-GWAS content otherwise.
-        cmap_in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
-        cmap_body <- if (cmap_in_compare) {
-          cmap_compare_ui(NS(ns("cmap_compare")))
-        } else {
-          do.call(tabsetPanel, cmap_inner)
-        }
-        cmap_tab <- do.call(tabPanel,
-                            c(list(title="CMAP", br(),
-                                   p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'.")),
-                              list(cmap_body)))
+        # CMap always exposes both single-GWAS and cross-GWAS content
+        # under sibling sub-tabs so neither view is ever hidden. Single
+        # keeps the pipeline's per-signature (Drug) + per-mechanism (MOA)
+        # split; Multi hosts the CMap compare heatmaps.
+        cmap_tab <- tabPanel(
+          title = "CMAP", br(),
+          p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'."),
+          tabsetPanel(id = ns("cmap_view_tabs"),
+            tabPanel(title = "Single GWAS", value = "single", br(),
+              do.call(tabsetPanel, cmap_inner)
+            ),
+            tabPanel(title = "Multi-GWAS", value = "multi", br(),
+              cmap_compare_ui(NS(ns("cmap_compare")))
+            )
+          )
+        )
       }
 
       # Build Tissue tab (MAGMA tissue-specific enrichment)
@@ -817,22 +853,30 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       outer_tabs <- list()
       if (!is.null(tissue_tab)) outer_tabs <- c(outer_tabs, list(tissue_tab))
       if (drug_targetor_available) {
-        # Compare-mode swap for the ATC inner tab. Drug-level compare view is
-        # deferred to a later phase, so the Drug inner tab keeps single-GWAS
-        # behaviour with a small "Viewing:" caption above the existing content.
-        atc_body <- if (in_compare) {
-          atc_compare_ui(NS(ns("atc_compare")))
-        } else {
-          do.call(tabsetPanel, atc_tabs)
-        }
-        drug_body <- if (in_compare) {
-          drug_compare_ui(NS(ns("drug_compare")))
-        } else {
-          do.call(tabsetPanel, drug_tabs)
-        }
+        # Drug Targetor: Drug + ATC are top-level inner sub-tabs; each
+        # exposes Single-GWAS and Multi-GWAS as its own inner sub-tabs
+        # so both views are always accessible without a mode toggle.
         drug_targetor_inner <- list(
-          tabPanel(title = "Drug", br(), drug_body),
-          tabPanel(title = "ATC",  br(), atc_body)
+          tabPanel(title = "Drug", br(),
+            tabsetPanel(id = ns("drug_view_tabs"),
+              tabPanel(title = "Single GWAS", value = "single", br(),
+                do.call(tabsetPanel, drug_tabs)
+              ),
+              tabPanel(title = "Multi-GWAS", value = "multi", br(),
+                drug_compare_ui(NS(ns("drug_compare")))
+              )
+            )
+          ),
+          tabPanel(title = "ATC", br(),
+            tabsetPanel(id = ns("atc_view_tabs"),
+              tabPanel(title = "Single GWAS", value = "single", br(),
+                do.call(tabsetPanel, atc_tabs)
+              ),
+              tabPanel(title = "Multi-GWAS", value = "multi", br(),
+                atc_compare_ui(NS(ns("atc_compare")))
+              )
+            )
+          )
         )
         outer_tabs <- c(outer_tabs, list(
           do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
