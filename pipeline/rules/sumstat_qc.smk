@@ -31,7 +31,10 @@ rule sumstat_prep_i:
     f"{resdir}/data/ldsc/w_hm3.snplist"
   output:
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
-    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.sumstats.gz"
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.sumstats.gz",
+    # HapMap3 merge-alleles copy for LDSC (h2/rg); the full .munged file above is
+    # kept for FUSION TWAS, whose weight panels can be denser than HapMap3.
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.mergealleles.sumstats.gz"
   benchmark:
     f"{outdir}/benchmarks/sumstat_prep_i_{{gwas}}.tsv"
   conda:
@@ -94,7 +97,7 @@ rule retrieve_N:
 
 rule ldsc:
   input:
-    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.mergealleles.sumstats.gz",
     f"{resdir}/software/ldsc/",
     f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
     f"{resdir}/data/ldsc/w_hm3.snplist"
@@ -110,7 +113,7 @@ rule ldsc:
     "{outdir}/logs/ldsc-{gwas}.log"
   shell:
     "(mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 {params.resdir}/software/ldsc/ldsc.py \
-      --h2 {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
+      --h2 {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.mergealleles.sumstats.gz \
       --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
       --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res) > {log} 2>&1"
@@ -121,7 +124,7 @@ rule ldsc:
 
 rule ldsc_gencor:
   input:
-    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.mergealleles.sumstats.gz",
     f"{resdir}/software/ldsc/",
     f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
     f"{resdir}/data/ldsc/w_hm3.snplist",
@@ -158,7 +161,7 @@ rule ldsc_gencor:
     tail -n +2 {params.gencor_list} | awk '{{print $1, $2}}' | while read name path; do
       out_prefix={outdir}/results/{wildcards.gwas}/gencor/{wildcards.gwas}__${{name}}
       python2.7 {params.resdir}/software/ldsc/ldsc.py \
-        --rg {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz,${{path}} \
+        --rg {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.mergealleles.sumstats.gz,${{path}} \
         --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
         --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
         --out ${{out_prefix}} \

@@ -1,2 +1,2 @@
 name path population n sampling prevalence mean sd label
-self tests/output/results/COAD01chr22/gwas_sumstat/COAD01chr22.cleaned.munged.sumstats.gz EUR NA NA NA NA NA "Self correlation"
+self tests/output/results/COAD01chr22/gwas_sumstat/COAD01chr22.cleaned.munged.mergealleles.sumstats.gz EUR NA NA NA NA NA "Self correlation"
