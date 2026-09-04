@@ -201,6 +201,95 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   reserve_legend_space(gt, panel_h_pt)
 }
 
+#' Single-GWAS Summary body for the Molecular Associations tab.
+#'
+#' Extracted from the tab body so both the single-GWAS and compare
+#' bodies can live in the DOM permanently under conditionalPanel gates
+#' (see `molAssocUI`). Keeping the widgets bound at all times avoids
+#' the plot-disappearance and download-routing breakage that happened
+#' when this content was swapped in via `renderUI`.
+mol_assoc_single_ui <- function(ns) {
+  tagList(
+    p("This tab shows a heatmap summarising, for each gene, whether it is associated with the trait across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
+    hr(),
+    tags$details(class = "gd-details",
+      tags$summary("Filter data"),
+      tags$div(class = "gd-details-body",
+        tags$p(class = "gd-details-intro",
+          "Choose which molecular-association results appear in the heatmap, ",
+          "restrict the view to specific genes, and decide how a gene is ",
+          "labelled ", tags$em("high-confidence"), "."),
+        fluidRow(
+          column(4,
+            selectInput(ns("selected_methods_mol"), "Include results from these methods:", "", multiple = T),
+            selectInput(ns("selected_expr_panels_mol"), "Include expression / splicing panels:", "", multiple = T),
+            selectInput(ns("selected_protein_panels_mol"), "Include protein panels:", "", multiple = T)
+          ),
+          column(4,
+            textInput(ns("geneInput_mol"), "Show only these genes (comma- or space-separated):"),
+            selectInput(ns("selected_group_hc_mol"),
+                        "Define 'high-confidence' as significant in any of:",
+                        "", multiple = T)
+          ),
+          column(4,
+            radioButtons(ns("mol_layout"), "Feature ordering:",
+                         choices = c("Alphabetical" = "alphabetical",
+                                     "By locus (genomic position)" = "locus"),
+                         selected = "alphabetical"),
+            radioButtons(ns("conf_only_mol"), "Show high-confidence genes only :",
+                         choices = c("True" = T, "False" = F), selected = T)
+          )
+        )
+      )
+    ),
+    tags$details(class = "gd-details",
+      tags$summary("Plot options"),
+      tags$div(class = "gd-details-body",
+        tags$p(class = "gd-details-intro",
+          "Customise how the heatmap looks (title, theme, font size, point size) ",
+          "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+        fluidRow(
+          column(4,
+            textInput(ns("plot_title"), "Plot title (optional):", value = ""),
+            selectInput(ns("plot_theme"), "Theme:",
+                        choices = c("Black & white" = "bw",
+                                    "Minimal" = "minimal",
+                                    "Classic" = "classic",
+                                    "Light" = "light"),
+                        selected = "bw")
+          ),
+          column(4,
+            sliderInput(ns("plot_font_size"), "Font size (pt):",
+                        min = 10, max = 20, value = 14, step = 1),
+            sliderInput(ns("plot_point_size"), "Point size:",
+                        min = 2, max = 8, value = 4, step = 1)
+          ),
+          column(4,
+            selectInput(ns("dl_format"), "Download format:",
+                        choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                        selected = "png"),
+            numericInput(ns("dl_width"), "Width (inches):",
+                         value = 12, min = 2, max = 40, step = 0.5),
+            numericInput(ns("dl_height"), "Height (inches):",
+                         value = 8, min = 2, max = 40, step = 0.5),
+            conditionalPanel(
+              condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
+              numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
+                           value = 300, min = 72, max = 600, step = 25)
+            ),
+            downloadButton(ns("download_plot"), "Download plot")
+          )
+        )
+      )
+    ),
+    br(),
+    uiOutput(ns("message_too_large_mol")),
+    uiOutput(ns("message_no_genes_mol")),
+    uiOutput(ns("message_no_positions_mol")),
+    uiOutput(ns("mol_assoc_plot.ui"))
+  )
+}
+
 #' Molecular Associations module UI
 #'
 #' @param id Module namespace id
@@ -218,9 +307,21 @@ molAssocUI <- function(id) {
       tabPanel(
         title = "Summary",
         br(),
-        # Body swaps between the single-GWAS UI (rendered server-side) and
-        # the cross-GWAS gene compare UI when >= 2 GWAS are selected.
-        uiOutput(ns("summary_body"))
+        # Both the single-GWAS and compare bodies live in the DOM
+        # permanently; conditionalPanel hides the wrong one based on the
+        # server-side `is_compare` flag. Keeping both widget sets in the
+        # DOM avoids the bind/unbind cycles that broke downloadHandler
+        # routing when we used renderUI to swap them.
+        conditionalPanel(
+          condition = "output['is_compare'] != true",
+          ns = ns,
+          mol_assoc_single_ui(ns)
+        ),
+        conditionalPanel(
+          condition = "output['is_compare'] == true",
+          ns = ns,
+          gene_compare_ui(NS(ns("gene_compare")))
+        )
       ),
       tabPanel(title = "MAGMA", br(),
         p("This tab shows MAGMA gene association results."), hr(), br(),
@@ -277,95 +378,17 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                             gwas_data, selected_gwas_multi, comparison_long)
     }
 
-    # Summary tab body: single-GWAS UI unless >= 2 GWAS are selected, in
-    # which case swap to the cross-GWAS gene compare UI. The rest of the
-    # method-specific tabs (MAGMA, FUSION, SMR, etc.) continue to show
-    # single-GWAS content for the first-selected GWAS.
-    output$summary_body <- renderUI({
-      in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
-      if (in_compare) {
-        return(gene_compare_ui(NS(ns("gene_compare"))))
-      }
-      tagList(
-        p("This tab shows a heatmap summarising, for each gene, whether it is associated with the trait across every method and reference panel included in the analysis. Use ", tags$b("Filter data"), " to control which results appear and ", tags$b("Plot options"), " to customise or download the figure."),
-        hr(),
-        tags$details(class = "gd-details",
-          tags$summary("Filter data"),
-          tags$div(class = "gd-details-body",
-            tags$p(class = "gd-details-intro",
-              "Choose which molecular-association results appear in the heatmap, ",
-              "restrict the view to specific genes, and decide how a gene is ",
-              "labelled ", tags$em("high-confidence"), "."),
-            fluidRow(
-              column(4,
-                selectInput(ns("selected_methods_mol"), "Include results from these methods:", "", multiple = T),
-                selectInput(ns("selected_expr_panels_mol"), "Include expression / splicing panels:", "", multiple = T),
-                selectInput(ns("selected_protein_panels_mol"), "Include protein panels:", "", multiple = T)
-              ),
-              column(4,
-                textInput(ns("geneInput_mol"), "Show only these genes (comma- or space-separated):"),
-                selectInput(ns("selected_group_hc_mol"),
-                            "Define 'high-confidence' as significant in any of:",
-                            "", multiple = T)
-              ),
-              column(4,
-                radioButtons(ns("mol_layout"), "Feature ordering:",
-                             choices = c("Alphabetical" = "alphabetical",
-                                         "By locus (genomic position)" = "locus"),
-                             selected = "alphabetical"),
-                radioButtons(ns("conf_only_mol"), "Show high-confidence genes only :",
-                             choices = c("True" = T, "False" = F), selected = T)
-              )
-            )
-          )
-        ),
-        tags$details(class = "gd-details",
-          tags$summary("Plot options"),
-          tags$div(class = "gd-details-body",
-            tags$p(class = "gd-details-intro",
-              "Customise how the heatmap looks (title, theme, font size, point size) ",
-              "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
-            fluidRow(
-              column(4,
-                textInput(ns("plot_title"), "Plot title (optional):", value = ""),
-                selectInput(ns("plot_theme"), "Theme:",
-                            choices = c("Black & white" = "bw",
-                                        "Minimal" = "minimal",
-                                        "Classic" = "classic",
-                                        "Light" = "light"),
-                            selected = "bw")
-              ),
-              column(4,
-                sliderInput(ns("plot_font_size"), "Font size (pt):",
-                            min = 10, max = 20, value = 14, step = 1),
-                sliderInput(ns("plot_point_size"), "Point size:",
-                            min = 2, max = 8, value = 4, step = 1)
-              ),
-              column(4,
-                selectInput(ns("dl_format"), "Download format:",
-                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
-                            selected = "png"),
-                numericInput(ns("dl_width"), "Width (inches):",
-                             value = 12, min = 2, max = 40, step = 0.5),
-                numericInput(ns("dl_height"), "Height (inches):",
-                             value = 8, min = 2, max = 40, step = 0.5),
-                conditionalPanel(
-                  condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
-                  numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
-                               value = 300, min = 72, max = 600, step = 25)
-                ),
-                downloadButton(ns("download_plot"), "Download plot")
-              )
-            )
-          )
-        ),
-        br(),
-        uiOutput(ns("message_too_large_mol")),
-        uiOutput(ns("message_no_genes_mol")),
-        uiOutput(ns("message_no_positions_mol")),
-        uiOutput(ns("mol_assoc_plot.ui"))
-      )
+    # `is_compare` drives the conditionalPanel gates in `molAssocUI` so
+    # the browser can hide/show the single-GWAS vs compare bodies without
+    # the DOM elements being destroyed. suspendWhenHidden must be FALSE
+    # so this output is evaluated even before Shiny knows the tab is
+    # visible (it's inside a `tabsetPanel`, so the tab body isn't
+    # rendered until the user visits it — but the flag needs a value
+    # from the very first click on the tab).
+    output$is_compare <- reactive({
+      !is.null(comparison_mode) && isTRUE(comparison_mode())
     })
+    outputOptions(output, "is_compare", suspendWhenHidden = FALSE)
 
     ########
     # Show/hide tabs based on config
@@ -413,14 +436,6 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     ########
 
     observe({
-      # Take an explicit dependency on comparison_mode(): the summary_body
-      # renderUI recreates every selectInput below when switching between
-      # single-GWAS mode and compare mode, but mol_assoc_summary_data()
-      # doesn't necessarily invalidate at the same time. Re-fire this
-      # observer on mode changes so the freshly-created widgets are
-      # populated.
-      if (!is.null(comparison_mode)) comparison_mode()
-
       all_func_res <- mol_assoc_summary_data()
       req(all_func_res)
 
