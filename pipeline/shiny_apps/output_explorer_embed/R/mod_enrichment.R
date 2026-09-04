@@ -131,8 +131,12 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
   group_siz$Width <- 4 * group_siz$Prop
 
   all_gs_all <- data.table::data.table(all_gs_all)
-  dir_data <- all_gs_all[Method == 'TWAS-GSEA']
-  pos_data <- all_gs_all[Method != 'TWAS-GSEA']
+  # Drop rows for (drug, panel, method) combinations that weren't tested
+  # by that method — Z is NA there. Previously kept them and relied on
+  # na.value in the scale to drop them, which left a faintly visible
+  # grey shape 21 outline in some ggplot versions.
+  dir_data <- all_gs_all[Method == 'TWAS-GSEA' & !is.na(Z)]
+  pos_data <- all_gs_all[Method != 'TWAS-GSEA' & !is.na(Z)]
   dir_max <- if (nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Z), na.rm = TRUE)) else NA
   pos_max <- if (nrow(pos_data) > 0) suppressWarnings(max(pos_data$Z,      na.rm = TRUE)) else NA
   if (!is.finite(dir_max)) dir_max <- NA
@@ -144,19 +148,21 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
     heatmap <- heatmap +
       ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
       ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                    na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                    na.value = "transparent", name = "TWAS-GSEA\nZ-score",
                                     limits = c(-dir_max, dir_max))
   }
   if (nrow(pos_data) > 0 && is.finite(pos_max)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = pos_data, ggplot2::aes(colour = Z), shape = 16, size = point_size) +
       ggplot2::scale_colour_gradientn(colours = c("#FFFFFF","#00CC66"),
-                                      na.value = NA, name = "Enrichment\nZ-score",
+                                      na.value = "transparent", name = "Enrichment\nZ-score",
                                       limits = c(0, pos_max))
   }
+  # Nominal / FDR ring overlays are drawn only for cells that have a
+  # tested value (P / P.FDR non-NA and small enough).
   heatmap <- heatmap +
-    ggplot2::geom_point(data = all_gs_all[which(all_gs_all$P < 0.05), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
-    ggplot2::geom_point(data = all_gs_all[which(all_gs_all$P.FDR < 0.05), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
+    ggplot2::geom_point(data = all_gs_all[!is.na(P)     & P     < 0.05, ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
+    ggplot2::geom_point(data = all_gs_all[!is.na(P.FDR) & P.FDR < 0.05, ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
   if (nrow(dir_data) > 0) {
     heatmap <- heatmap + ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size)
   }
@@ -247,8 +253,11 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   group_siz$Width <- 4 * group_siz$Prop
 
   all_gs_atc_all <- data.table::data.table(all_gs_atc_all)
-  dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA']
-  pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA']
+  # Drop untested (ATC, panel, method) rows so no point is drawn for
+  # them — previously na.value = NA left a faint grey outline for
+  # shape 21 in some ggplot versions.
+  dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA' & !is.na(Z)]
+  pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA' & !is.na(Z)]
   dir_max_atc <- if (nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Z), na.rm = TRUE)) else NA
   pos_max_atc <- if (nrow(pos_data_atc) > 0) suppressWarnings(max(pos_data_atc$Z,      na.rm = TRUE)) else NA
   if (!is.finite(dir_max_atc)) dir_max_atc <- NA
@@ -260,14 +269,14 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
     heatmap <- heatmap +
       ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
       ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                    na.value = NA, name = "TWAS-GSEA\nZ-score",
+                                    na.value = "transparent", name = "TWAS-GSEA\nZ-score",
                                     limits = c(-dir_max_atc, dir_max_atc))
   }
   if (nrow(pos_data_atc) > 0 && is.finite(pos_max_atc)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = pos_data_atc, ggplot2::aes(colour = Z), shape = 16, size = point_size) +
       ggplot2::scale_colour_gradientn(colours = c("#FFFFFF","#00CC66"),
-                                      na.value = NA, name = "Enrichment\nZ-score",
+                                      na.value = "transparent", name = "Enrichment\nZ-score",
                                       limits = c(0, pos_max_atc))
   }
   heatmap <- heatmap +
@@ -480,6 +489,25 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Dynamic tab rendering
     ########
 
+    # Bundle-level summaries used by `enrichment_tabs` to derive method /
+    # panel choices for the filter widgets. These read from the FIRST
+    # bundle GWAS (parent_selected_gwas — never changes for a loaded
+    # bundle) rather than the shadowed selected_gwas (which reacts to
+    # the enrichment picker). If enrichment_tabs took a dependency on
+    # the picker via the summary reactives, every picker change would
+    # rebuild the whole tabsetPanel and reset the user's active
+    # sub-tab back to Tissue.
+    bundle_drug_data <- reactive({
+      req(gwas_data())
+      g <- parent_selected_gwas(); req(g)
+      build_drug_summary_data(gwas_data(), g)
+    })
+    bundle_atc_data <- reactive({
+      req(gwas_data())
+      g <- parent_selected_gwas(); req(g)
+      build_atc_summary_data(gwas_data(), g)
+    })
+
     output$enrichment_tabs <- renderUI({
       req(config_flags())
       cf <- config_flags()
@@ -488,13 +516,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                                      cf$twas_gsea_drugtargetor,
                                      cf$twas_gsea_drugtargetor_nondirectional)
 
-      # Pre-compute Drug choices (may be NULL if no drug enrichment was run)
-      drug_data <- if (drug_targetor_available) tx_drug_summary_data() else NULL
+      # Method / panel choices for the filter widgets. Reads
+      # bundle_drug_data / bundle_atc_data — anchored to the first
+      # bundle GWAS so the tab structure is stable when the user
+      # changes the enrichment-level GWAS picker (see comment above).
+      drug_data <- if (drug_targetor_available) bundle_drug_data() else NULL
       drug_methods <- unique(drug_data$Method)
       drug_expr_panels <- unique(drug_data$Panel[grepl('^TWAS-GSEA', drug_data$Method)])
 
-      # Pre-compute ATC choices
-      atc_data <- if (drug_targetor_available) tx_atc_summary_data() else NULL
+      atc_data <- if (drug_targetor_available) bundle_atc_data() else NULL
       atc_methods <- unique(atc_data$Method)
       atc_expr_panels <- unique(atc_data$Panel[grepl('^TWAS-GSEA', atc_data$Method)])
 
@@ -695,8 +725,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       # Build CMAP sub-tabs (per-signature drug heatmap + per-MOA heatmap +
       # raw tables). Only assembled when the run produced CMAP results.
-      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data(), selected_gwas()) else NULL
-      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data(), selected_gwas())  else NULL
+      # Read from parent_selected_gwas (first bundle GWAS) so picker
+      # changes don't rebuild the tabsetPanel (see the bundle_drug_data
+      # / bundle_atc_data comment).
+      cmap_drug_data <- if (cf$twas_gsea_cmap) build_cmap_drug_summary_data(gwas_data(), parent_selected_gwas()) else NULL
+      cmap_moa_data  <- if (cf$twas_gsea_cmap) build_cmap_moa_summary_data(gwas_data(), parent_selected_gwas())  else NULL
       cmap_panels    <- unique(c(cmap_drug_data$Panel, cmap_moa_data$Panel))
 
       cmap_core_cells <- c("A375", "HA1E", "HCC515", "HT29", "MCF7", "PC3", "VCAP", "HEPG2", "A549")
@@ -797,7 +830,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           tissue_compare_ui(NS(ns("tissue_compare")))
         )
       } else if (cf$tissue_magma) {
-        tissue_data <- build_tissue_data(gwas_data(), selected_gwas())
+        # Anchored to parent_selected_gwas so picker changes don't
+        # rebuild the enrichment tab structure.
+        tissue_data <- build_tissue_data(gwas_data(), parent_selected_gwas())
         if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
           tissue_tab <- tabPanel(
             title="Tissue", br(),

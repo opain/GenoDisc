@@ -1726,19 +1726,10 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(5, "asc"))))
     }, server = TRUE)
-
-    observeEvent(input$atc_magma_tbl_rows_selected, {
-      sel <- input$atc_magma_tbl_rows_selected
-      if (length(sel) != 1) return()
-      slice <- atc_magma_tbl_slice()
-      if (nrow(slice) < sel) return()
-      .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "atc", comparison_long(), magma_gwas_vec())
-    }, ignoreInit = TRUE)
 
     output$magma_download_plot <- downloadHandler(
       filename = function() sprintf("atc_magma_compare_%s.%s",
@@ -1844,19 +1835,10 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
-
-    observeEvent(input$atc_gsea_tbl_rows_selected, {
-      sel <- input$atc_gsea_tbl_rows_selected
-      if (length(sel) != 1) return()
-      slice <- atc_gsea_tbl_slice()
-      if (nrow(slice) < sel) return()
-      .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "atc", comparison_long(), gsea_gwas_vec())
-    }, ignoreInit = TRUE)
 
     output$gsea_download_plot <- downloadHandler(
       filename = function() sprintf("atc_gsea_compare_%s.%s",
@@ -2288,19 +2270,10 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(6, "asc"))))
     }, server = TRUE)
-
-    observeEvent(input$drug_magma_tbl_rows_selected, {
-      sel <- input$drug_magma_tbl_rows_selected
-      if (length(sel) != 1) return()
-      slice <- drug_magma_tbl_slice()
-      if (nrow(slice) < sel) return()
-      .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "drug", comparison_long(), magma_gwas_vec())
-    }, ignoreInit = TRUE)
 
     output$magma_download_plot <- downloadHandler(
       filename = function() sprintf("drug_magma_compare_%s.%s",
@@ -2407,19 +2380,10 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(out, rownames = FALSE, filter = "top",
-                     selection = "single",
+                     selection = "none",
                      options = list(pageLength = 20, server = TRUE,
                                      order = list(list(8, "asc"))))
     }, server = TRUE)
-
-    observeEvent(input$drug_gsea_tbl_rows_selected, {
-      sel <- input$drug_gsea_tbl_rows_selected
-      if (length(sel) != 1) return()
-      slice <- drug_gsea_tbl_slice()
-      if (nrow(slice) < sel) return()
-      .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "drug", comparison_long(), gsea_gwas_vec())
-    }, ignoreInit = TRUE)
 
     output$gsea_download_plot <- downloadHandler(
       filename = function() sprintf("drug_gsea_compare_%s.%s",
