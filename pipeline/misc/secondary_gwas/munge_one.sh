@@ -50,6 +50,23 @@ fi
 
 mkdir -p "$WORK"
 
+# Some source files have known data-quality issues that block the cleaner
+# (wrong FREQ orientation, missing CHR/BP, etc.). fixes.csv lists per-code
+# pre-processing recipes; apply_source_fix.R writes a corrected copy under
+# $WORK and we point the cleaner at that copy instead of the original.
+# Never mutates /scratch/prj/gwas_sumstats/cleaned/.
+FIXES="${MISC_DIR}/fixes.csv"
+FIX=""
+if [[ -r "$FIXES" ]]; then
+  FIX=$(awk -F',' -v c="$CODE" 'NR>1 && $1==c {print $2; exit}' "$FIXES")
+fi
+if [[ -n "$FIX" ]]; then
+  FIXED="$WORK/${CODE}.fixed.gz"
+  echo "applying fix '$FIX' to $CODE ..."
+  Rscript --vanilla "${MISC_DIR}/apply_source_fix.R" "$SRC" "$FIXED" "$FIX"
+  SRC="$FIXED"
+fi
+
 # Resolve the pipeline's installed cleaner (same script sumstat_qc.smk uses).
 CLEANER=$(Rscript --vanilla -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
 if [[ -z "$CLEANER" || ! -r "$CLEANER" ]]; then

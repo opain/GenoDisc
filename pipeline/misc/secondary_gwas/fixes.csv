@@ -1,0 +1,5 @@
+code,fix,reason
+ALSD01,drop_freq,FREQ column is oriented as freq(A2) not freq(A1); ~100% of variants show MAF discord as-is (median 0.72). Dropping FREQ skips the discord filter; LDSC does not use FREQ.
+ANXI07,drop_freq,FREQ column is consistently freq of the reference-A1 (not source-A1); some upstream tool canonicalized alleles + negated BETA but forgot to flip FREQ. 84% discord on swap-orient rows. Dropping FREQ skips the discord filter.
+PAIN01,drop_freq,Same pattern as ANXI07 (freq of ref-A1 not source-A1); 89% discord on swap-orient rows. Dropping FREQ skips the discord filter.
+MENA02F,split_snp,Source has no CHR/BP columns; SNP column is CHR:POS format (e.g. 10:10000018 or 10:100002841:INDEL) so ref_harmonise cannot match by CHR/BP or by rs ID. Split SNP on ':' to synthesise CHR + BP; drop indels.

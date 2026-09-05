@@ -49,8 +49,10 @@ Files in this directory:
 | `rebuild_secondary_gwas.Rmd` | This document.                                         |
 | `activate_pipe_env.sh`     | Activates the pipeline conda env for standalone scripts. |
 | `build_targets.R`          | Builds `targets.csv` from the current panel + repo CSV.  |
-| `munge_one.sh`             | Munges one code through `sumstat_cleaner.R`; stages it.  |
+| `munge_one.sh`             | Munges one code through `sumstat_cleaner.R`; stages it. Consults `fixes.csv` for per-code pre-processing. |
 | `submit_munge.sh`          | SLURM array wrapper around `munge_one.sh`.               |
+| `apply_source_fix.R`       | Per-code pre-processor invoked when `fixes.csv` names a fix. |
+| `fixes.csv`                | Per-code recipes to work around known source-file quirks. |
 | `validate_and_publish.R`   | Validates staging, publishes, rebuilds `sumstat_repo.csv`. |
 | `targets.csv`              | Generated: driver table (code, source, N, metadata).     |
 | `targets_excluded.csv`     | Generated: codes dropped pre-munge (non-EUR / no source).|
@@ -203,6 +205,45 @@ for ref in BODY11 ADHD06 SCHI04; do
 done
 # Expect no "Incompatible alleles" errors and non-NA rg values.
 ```
+
+## When a code fails cleanly
+
+`sumstat_cleaner.R` refuses to munge a source file if e.g. the reported
+allele frequencies disagree with the 1kg reference by more than 25% of
+SNPs, or if the file has no CHR/BP columns and no rs IDs. That protection
+catches genuine data-quality problems, but a handful of the shared cleaned/
+files are known to trigger it for benign reasons (upstream tooling swapped
+A1/A2 without flipping FREQ, or the SNP column is `CHR:POS` format).
+
+For these, `fixes.csv` lists per-code pre-process recipes that
+`munge_one.sh` applies before invoking the cleaner:
+
+```
+code,fix,reason
+ALSD01,drop_freq,...
+MENA02F,split_snp,...
+```
+
+Supported fixes are documented in `apply_source_fix.R`:
+
+- **`drop_freq`** — strip the FREQ/FRQ column. `sumstat_cleaner.R` then
+  skips its MAF-discord filter. Safe for LDSC purposes because LDSC's
+  `--rg` only reads `SNP A1 A2 Z N` and ignores FREQ.
+- **`split_snp`** — split `CHR:POS` (or `CHR:POS:INDEL`) SNP into CHR + BP
+  integer columns and drop indels, so `ref_harmonise` can merge by CHR/BP.
+
+The pre-processed copy is written to
+`<SGWAS>/staging/work/<code>/<code>.fixed.gz` (never mutating the source).
+
+**Adding a new fix for a new failure**:
+
+1. Reproduce the failure (`./munge_one.sh <code>`) and read
+   `<SGWAS>/staging/work/<code>/<code>.cleaned.log` +
+   `<code>.cleaned.MAF_plot.png` for the failure signature.
+2. If it's one of the known patterns above, add a row to `fixes.csv` and
+   re-run `./munge_one.sh <code>`.
+3. If it's a new pattern, extend `apply_source_fix.R` with a new
+   `fix == "..."` branch and document it.
 
 ## Adding a new GWAS later
 

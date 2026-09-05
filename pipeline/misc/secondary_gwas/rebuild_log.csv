@@ -13,15 +13,13 @@ WEIG03,,excluded_non_eur,0,ancestry='Trans-ancestry'
 WHIP06,,excluded_non_eur,0,ancestry='All ancestry'
 CELI01,/scratch/prj/gwas_sumstats/cleaned/CELI01.gz,low_snp_count,487983,only 487983 variants (< 500000)
 INFB02,/scratch/prj/gwas_sumstats/cleaned/INFB02.gz,low_snp_count,47335,only 47335 variants (< 500000)
-ALSD01,/scratch/prj/gwas_sumstats/cleaned/ALSD01.gz,munge_failed,0,staging file missing / empty
-ANXI07,/scratch/prj/gwas_sumstats/cleaned/ANXI07.gz,munge_failed,0,staging file missing / empty
-MENA02F,/scratch/prj/gwas_sumstats/cleaned/MENA02F.gz,munge_failed,0,staging file missing / empty
-PAIN01,/scratch/prj/gwas_sumstats/cleaned/PAIN01.gz,munge_failed,0,staging file missing / empty
 ADHD06,/scratch/prj/gwas_sumstats/cleaned/ADHD06.gz,shipped,1105408,""
 ALCD07,/scratch/prj/gwas_sumstats/cleaned/ALCD07.gz,shipped,1114900,""
 ALCU02,/scratch/prj/gwas_sumstats/cleaned/ALCU02.gz,shipped,1132986,""
+ALSD01,/scratch/prj/gwas_sumstats/cleaned/ALSD01.gz,shipped,1155874,""
 ALZH01,/scratch/prj/gwas_sumstats/cleaned/ALZH01.gz,shipped,1140462,""
 ANOR02,/scratch/prj/gwas_sumstats/cleaned/ANOR02.gz,shipped,888582,""
+ANXI07,/scratch/prj/gwas_sumstats/cleaned/ANXI07.gz,shipped,719871,""
 ASTH02,/scratch/prj/gwas_sumstats/cleaned/ASTH02.gz,shipped,1160146,""
 ATOP01,/scratch/prj/gwas_sumstats/cleaned/ATOP01.gz,shipped,1169160,""
 BFPC04,/scratch/prj/gwas_sumstats/cleaned/BFPC04.gz,shipped,1171015,""
@@ -46,11 +44,13 @@ INTE03,/scratch/prj/gwas_sumstats/cleaned/INTE03.gz,shipped,1128942,""
 LONE01,/scratch/prj/gwas_sumstats/cleaned/LONE01.gz,shipped,868941,""
 LONG03,/scratch/prj/gwas_sumstats/cleaned/LONG03.gz,shipped,1119464,""
 LUPU01,/scratch/prj/gwas_sumstats/cleaned/LUPU01.gz,shipped,1047964,""
+MENA02F,/scratch/prj/gwas_sumstats/cleaned/MENA02F.gz,shipped,1169351,""
 MENO01F,/scratch/prj/gwas_sumstats/cleaned/MENO01F.gz,shipped,1046689,""
 MIGR02,/scratch/prj/gwas_sumstats/cleaned/MIGR02.gz,shipped,1160995,""
 NEUR05,/scratch/prj/gwas_sumstats/cleaned/NEUR05.gz,shipped,1116243,""
 OBES01,/scratch/prj/gwas_sumstats/cleaned/OBES01.gz,shipped,998204,""
 OCDI02,/scratch/prj/gwas_sumstats/cleaned/OCDI02.gz,shipped,1125516,""
+PAIN01,/scratch/prj/gwas_sumstats/cleaned/PAIN01.gz,shipped,1089631,""
 PHYS01,/scratch/prj/gwas_sumstats/cleaned/PHYS01.gz,shipped,1144969,""
 REAC01,/scratch/prj/gwas_sumstats/cleaned/REAC01.gz,shipped,1176367,""
 REPR01,/scratch/prj/gwas_sumstats/cleaned/REPR01.gz,shipped,1059731,""
