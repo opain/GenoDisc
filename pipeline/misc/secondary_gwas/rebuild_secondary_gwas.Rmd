@@ -1,0 +1,201 @@
+---
+title: "Rebuild the GenoDisc secondary GWAS (LDSC rG) reference panel"
+author: "GenoDisc"
+output: html_document
+---
+
+## Why this exists
+
+The reference panel for GenoDisc's LDSC genetic-correlation analysis lives at
+`pipeline_resources/data/secondary_gwas/<code>.sumstats.gz` (plus a
+`sumstat_repo.csv` catalog). Historically these files were prepared by
+different people at different times with different tools, so the panel was a
+mix of files munged against different SNP sets. When the user's cleaned GWAS
+was paired with a mis-munged reference,
+`ldsc.py --rg` threw:
+
+```
+KeyError: 'Incompatible alleles in .sumstats files. ...
+    Did you forget to use --merge-alleles?'
+```
+
+LDSC's wrapper exits **0** on this error and `process_ldsc_gencor.R` catches
+the `ERROR computing rg` marker and returns an `NA` row — the failure was
+silent. At least one panel file (`CHOL35.sumstats.gz`) was outright corrupt
+(header + `nrow(w_hm3)` empty rows).
+
+The fix: re-munge every reference GWAS through **the same script the pipeline
+uses for the primary GWAS** — `GenoUtils::sumstat_cleaner.R --merge_alleles
+w_hm3.snplist`. Reference and query then share IUPAC coding, allele
+harmonisation, and HapMap3 restriction, and `--rg` can pair any two without
+allele-set surprises.
+
+## Scope of this rebuild
+
+- Rebuild only the codes that are currently shipping as `.sumstats.gz`.
+- Strict EUR ancestry (parentheticals stripped, then exact `eur|european`).
+- Do **not** modify anything under `/scratch/prj/gwas_sumstats/cleaned/` —
+  that is the shared read-only source. Everything is read from there and
+  written to the panel dir / this misc dir.
+- Do not touch the pipeline rules or the web-app-generated
+  `gencor_gwas_list.txt`.
+
+## Layout
+
+Files in this directory:
+
+| File                       | Purpose                                                  |
+| -------------------------- | -------------------------------------------------------- |
+| `rebuild_secondary_gwas.Rmd` | This document.                                         |
+| `activate_pipe_env.sh`     | Activates the pipeline conda env for standalone scripts. |
+| `build_targets.R`          | Builds `targets.csv` from the current panel + repo CSV.  |
+| `munge_one.sh`             | Munges one code through `sumstat_cleaner.R`; stages it.  |
+| `submit_munge.sh`          | SLURM array wrapper around `munge_one.sh`.               |
+| `validate_and_publish.R`   | Validates staging, publishes, rebuilds `sumstat_repo.csv`. |
+| `targets.csv`              | Generated: driver table (code, source, N, metadata).     |
+| `targets_excluded.csv`     | Generated: codes dropped pre-munge (non-EUR / no source).|
+| `rebuild_log.csv`          | Generated: final status per input code.                  |
+| `staging/`                 | Generated: staged `.sumstats.gz` before publish.         |
+| `staging/work/<code>/`     | Generated: per-code `.cleaned.*` outputs from cleaner.   |
+| `logs/`                    | Generated: per-code worker logs + SLURM stdout/stderr.   |
+
+## Prerequisites
+
+The GenoDisc snakemake pipeline must have been run at least once so its
+conda env (`envs/main.yaml`, containing GenoUtils + data.table) has been
+built under `/scratch/prj/neurohackpain/GenoDisc/conda-envs/`.
+`activate_pipe_env.sh` picks the most-recently-modified matching env.
+
+## Step 1 — build the driver table
+
+```{bash build-targets, eval=FALSE}
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas
+source ./activate_pipe_env.sh
+Rscript --vanilla ./build_targets.R
+# -> targets.csv (rows to munge)
+# -> targets_excluded.csv (codes dropped for ancestry / no source)
+```
+
+`targets.csv` columns:
+`code, source_path, n, ancestry, phenotype_type, category, trait_label,
+short_label, n_cases, n_controls, sample_size_discovery, pmid`.
+
+## Step 2 — submit the munge array to SLURM
+
+`munge_one.sh` is a standalone worker (`./munge_one.sh <code>`); `submit_munge.sh`
+wraps it as a SLURM array job (one array task per row of `targets.csv`).
+
+**Submit from a login node** — KCL ERC-HPC compute nodes don't have `sbatch`.
+
+```{bash submit-slurm, eval=FALSE}
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas
+N=$(($(wc -l < targets.csv) - 1))
+sbatch --array=1-${N}%10 submit_munge.sh
+# %10 caps concurrent tasks; drop/raise to taste.
+# Progress:
+#   squeue -u $USER -n gd-munge-secondary
+#   tail -f logs/munge-<JOBID>_*.out
+```
+
+Per-task resources default to `--mem=8G --time=1:00:00 --cpus-per-task=1`
+(see the `#SBATCH` header of `submit_munge.sh`). The heaviest sumstats
+(a few hundred MB gzipped) fit well inside 8G; runtime is 2–10 min each.
+
+### Alternative: local xargs on a big compute node
+
+If you're already sitting on a fat compute node (KCL `erc-hpc-comp*` nodes
+have ~5 CPUs / 1 TB RAM) and don't want the SLURM round-trip, the same
+worker runs directly:
+
+```{bash local-parallel, eval=FALSE}
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas
+awk -F',' 'NR>1 {print $1}' targets.csv | \
+  xargs -P 5 -I{} bash -c \
+    './munge_one.sh "$1" > logs/munge-"$1".out 2>&1 && \
+     echo "OK $1" || echo "FAIL $1 exit=$?"' _ {} \
+    | tee logs/run_all.log
+```
+
+Both paths write the exact same artifacts (`staging/<code>.sumstats.gz` +
+`staging/work/<code>/*` + `logs/munge-<code>.out`), so downstream steps
+don't care which was used.
+
+## Step 3 — validate + publish
+
+```{bash validate-publish, eval=FALSE}
+cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas
+source ./activate_pipe_env.sh
+Rscript --vanilla ./validate_and_publish.R
+```
+
+`validate_and_publish.R`:
+
+1. Reads each `staging/<code>.sumstats.gz` and checks:
+   - header = `CHR SNP BP A1 A2 Z N` (the same schema `sumstat_qc.smk`
+     writes for the primary GWAS at
+     `{gwas}.cleaned.munged.mergealleles.sumstats.gz`),
+   - row count ≥ 500,000,
+   - every SNP is in `w_hm3.snplist`.
+   Any failure produces a `munge_failed` / `low_snp_count` / `not_hm3` row.
+2. Writes `rebuild_log.csv` (one row per input code: shipped, excluded,
+   failed).
+3. Backs up the existing `sumstat_repo.csv` to
+   `sumstat_repo.csv.bak-preRebuild-<YYYYMMDD>` (unless a backup for today
+   already exists).
+4. Copies passing files into
+   `pipeline_resources/data/secondary_gwas/<code>.sumstats.gz`; removes any
+   previously-shipped `.gz` for a code that no longer ships (so downstream
+   jobs can't pick up stale data).
+5. Rebuilds `sumstat_repo.csv` with a slim schema (`code, trait_category,
+   trait_label, short_label, ancestry, phenotype_type, n_cases, n_controls,
+   sample_size_discovery, pmid`) — only rows for currently-shipped codes.
+   `short_label` uses the curated value when non-empty and ≤ 40 chars, else
+   auto-shortens `trait_label` by stripping parentheticals and trailing
+   `: <suffix>` clauses.
+
+## Consumer contracts (unchanged)
+
+- **Pipeline** (`sumstat_qc.smk` `ldsc_gencor`) reads a space-separated
+  `gencor_gwas_list.txt` (written by the web app) with columns
+  `name path population n sampling prevalence mean sd label [extras…]`.
+- **Web app** reads `sumstat_repo.csv` (columns
+  `code, trait_category, trait_label, short_label, …`) to build the picker
+  and write `gencor_gwas_list.txt`.
+- **Panel file format**: `CHR SNP BP A1 A2 Z N` (tab-separated, gzipped).
+  LDSC uses only `SNP A1 A2 Z N` and ignores the extras.
+
+## Verifying the rebuild
+
+```{bash verify, eval=FALSE}
+cd /scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas
+
+# 1. Every shipped file has the pipeline mergealleles header.
+for f in *.sumstats.gz; do zcat "$f" | head -1; done | sort -u
+# Expect exactly one line: CHR<TAB>SNP<TAB>BP<TAB>A1<TAB>A2<TAB>Z<TAB>N
+
+# 2. Every shipped file has a metadata row and vice-versa.
+comm -3 \
+  <(ls *.sumstats.gz | sed 's/\.sumstats\.gz$//' | sort) \
+  <(awk -F',' 'NR>1 {print $1}' sumstat_repo.csv | sort)
+# Expect no output.
+
+# 3. Ad-hoc rG on the pipeline's known-good test primary.
+source /scratch/prj/neurohackpain/GenoDisc/bin/activate_genodisc.sh
+LDSC=/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/software/ldsc
+PRIM=/scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/tests/output/results/COAD01chr22/gwas_sumstat/COAD01chr22.cleaned.munged.mergealleles.sumstats.gz
+LD=/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/ldsc/eur_w_ld_chr/
+for ref in BODY11 ADHD06 SCHI04; do
+  python2.7 "$LDSC/ldsc.py" --rg "$PRIM","$PWD/${ref}.sumstats.gz" \
+      --ref-ld-chr "$LD" --w-ld-chr "$LD" --out /tmp/rg_${ref}
+  grep -A1 "^p1 " /tmp/rg_${ref}.log
+done
+# Expect no "Incompatible alleles" errors and non-NA rg values.
+```
+
+## Adding a new GWAS later
+
+1. Add the new code + metadata to `sumstat_repo.csv` (via the web app or by
+   hand editing the backup + re-slimming through `validate_and_publish.R`).
+2. Make sure `<CODE>.gz` exists under `/scratch/prj/gwas_sumstats/cleaned/`.
+3. Re-run steps 1–3 above. `build_targets.R` picks up the new code
+   automatically because it iterates the current panel dir ∪ repo rows.

@@ -1,0 +1,52 @@
+code,source_path,n,ancestry,phenotype_type,category,trait_label,short_label,n_cases,n_controls,sample_size_discovery,pmid
+ADHD06,/scratch/prj/gwas_sumstats/cleaned/ADHD06.gz,225534,European,disorder,Psychiatry,ADHD,ADHD,38691,186843,225534,36702997
+ALCD07,/scratch/prj/gwas_sumstats/cleaned/ALCD07.gz,753248,EUR,disorder,Psychiatry,Alcohol use disorder,Alcohol use disorder,,,753248,38062264
+ALCU02,/scratch/prj/gwas_sumstats/cleaned/ALCU02.gz,121604,European,trait,Substance use,Consumption (AUDIT-C),Consumption (AUDIT-C),,,121604,30336701
+ALSD01,/scratch/prj/gwas_sumstats/cleaned/ALSD01.gz,36052,European,disorder,Neurology,ALS,ALS,12577,23475,36052,27455348
+ALZH01,/scratch/prj/gwas_sumstats/cleaned/ALZH01.gz,54162,European,disorder,Psychiatry,Alzheimer’s disease,Alzheimer’s disease,17008,37154,54162,24162737
+ANOR02,/scratch/prj/gwas_sumstats/cleaned/ANOR02.gz,72517,European,disorder,Psychiatry,Anorexia nervosa (PGC2),Anorexia nervosa (PGC2),16992,55525,72517,31308545
+ANXI07,/scratch/prj/gwas_sumstats/cleaned/ANXI07.gz,1096458,EUR,disorder,Psychiatry,Anxiety disorders,Anxiety disorders,,,1096458,39294497
+ASTH02,/scratch/prj/gwas_sumstats/cleaned/ASTH02.gz,303859,EUR,disorder,Pulmonology,Asthma,Asthma,64538,239321,303859,""
+ATOP01,/scratch/prj/gwas_sumstats/cleaned/ATOP01.gz,116863,European,disorder,Dermatology,Atopic dermatitis,Atopic dermatitis,21399,95464,116863,26482879
+BFPC04,/scratch/prj/gwas_sumstats/cleaned/BFPC04.gz,353972,European,trait,Body composition,Body fat percentage,Body fat percentage,,,353972,30593698
+BIPO04,/scratch/prj/gwas_sumstats/cleaned/BIPO04.gz,475038,European,disorder,Psychiatry,"Bipolar disorder, type 1","Bipolar disorder, type 1",25060,449978,475038,34002096
+BODY11,/scratch/prj/gwas_sumstats/cleaned/BODY11.gz,693529,European,trait,Body composition,BMI Locke & UKB,BMI Locke & UKB,,,693529,30124842
+BODY14,/scratch/prj/gwas_sumstats/cleaned/BODY14.gz,806834,EUR,trait,Body composition,BMI,BMI,,,806834,30239722
+CANU03,/scratch/prj/gwas_sumstats/cleaned/CANU03.gz,384032,European,disorder,Substance use,Cannabis use disorder,Cannabis use disorder,20916,363116,384032,33096046
+CELI01,/scratch/prj/gwas_sumstats/cleaned/CELI01.gz,15283,European,disorder,Gastroenterology,Celiac Disease,Celiac Disease,4533,10750,15283,20190752
+CHRO01,/scratch/prj/gwas_sumstats/cleaned/CHRO01.gz,128266,European,trait,Sleep,Chronotype,Chronotype,,,128266,27494321
+CHRO02,/scratch/prj/gwas_sumstats/cleaned/CHRO02.gz,128266,European,trait,Sleep,Sleep Duration,Sleep Duration,,,128266,27494321
+CRPR01,/scratch/prj/gwas_sumstats/cleaned/CRPR01.gz,204402,European,biomarker,Inflammation,C-reactive protein,C-reactive protein,,,204402,30388399
+DEPR02,/scratch/prj/gwas_sumstats/cleaned/DEPR02.gz,161460,European,trait,Psychiatry,Depressive symptoms,Depressive symptoms,,,161460,27089181
+DIAB05,/scratch/prj/gwas_sumstats/cleaned/DIAB05.gz,159208,European,disorder,Endocrinology,Type 2 diabetes 2017,Type 2 diabetes 2017,26676,132532,159208,28566273
+EDUC03,/scratch/prj/gwas_sumstats/cleaned/EDUC03.gz,766345,European,trait,Educational attainment,Education years,Education years,,,766345,30038396
+GLYC19,/scratch/prj/gwas_sumstats/cleaned/GLYC19.gz,140583,European,biomarker,Glucose metabolism,Fasting glucose,Fasting glucose,,,140583,""
+GLYC22,/scratch/prj/gwas_sumstats/cleaned/GLYC22.gz,123665,"European (N=123,665)",biomarker,Glucose metabolism,HbA1c European,HbA1c European,,,123665,28898252
+HIPP01,/scratch/prj/gwas_sumstats/cleaned/HIPP01.gz,13171,European,trait,Brain structure,Subcortical brain regions: Hippocampus,Subcortical brain regions: Hippocampus,,,13171,25607358
+IBOS01,/scratch/prj/gwas_sumstats/cleaned/IBOS01.gz,486601,EUR,disorder,Gastroenterology,Irritable bowel syndrome,Irritable bowel syndrome,53400,433201,486601,""
+INCO01,/scratch/prj/gwas_sumstats/cleaned/INCO01.gz,112151,European,trait,Socioeconomic status,Household income,Household income,,,112151,27818178
+INCO03,/scratch/prj/gwas_sumstats/cleaned/INCO03.gz,112151,European,trait,Socioeconomic status,"Social deprivation, as measured using Townsend scores","Social deprivation, as measured using Townsend scores",,,112151,27818178
+INFB02,/scratch/prj/gwas_sumstats/cleaned/INFB02.gz,59957,EUR,disorder,Gastroenterology,Inflammatory bowel diseases (UC + CD),Inflammatory bowel diseases (UC + CD),25042,34915,59957,""
+INSO03,/scratch/prj/gwas_sumstats/cleaned/INSO03.gz,2365010,European,disorder,Psychiatry,Insomnia,Insomnia,593724,1771286,2365010,""
+INTE03,/scratch/prj/gwas_sumstats/cleaned/INTE03.gz,269867,European,trait,Intelligence,Intelligence (Cognitive ability),Intelligence (Cognitive ability),,,269867,""
+LONE01,/scratch/prj/gwas_sumstats/cleaned/LONE01.gz,7556,European,trait,Emotion,Loneliness: Linear,Loneliness,,,7556,27629369
+LONG03,/scratch/prj/gwas_sumstats/cleaned/LONG03.gz,389166,European,trait,Longevity,Father's age at death,Father's age at death,,,389166,29227965
+LUPU01,/scratch/prj/gwas_sumstats/cleaned/LUPU01.gz,23210,European,disorder,Autoimmune,Systemic Lupus Erythematosus,Systemic Lupus Erythematosus,7219,15991,23210,26502338
+MENA02F,/scratch/prj/gwas_sumstats/cleaned/MENA02F.gz,329345,European,trait,Growth & Puberty,Age at menarche,Age at menarche,,,329345,28436984
+MENO01F,/scratch/prj/gwas_sumstats/cleaned/MENO01F.gz,69360,European,trait,Gynaecology,Age at menopause,Age at menopause,,,69360,26414677
+MIGR02,/scratch/prj/gwas_sumstats/cleaned/MIGR02.gz,967534,EUR,trait,Neurology,Migraine,Migraine,98374,869160,967534,41526330
+NEUR05,/scratch/prj/gwas_sumstats/cleaned/NEUR05.gz,682688,European,trait,Personality,Neuroticism,Neuroticism,,,682688,38293137
+OBES01,/scratch/prj/gwas_sumstats/cleaned/OBES01.gz,98697,European,disorder,Body composition,Obesity class 1,Obesity class 1,32858,65839,98697,23563607
+OCDI02,/scratch/prj/gwas_sumstats/cleaned/OCDI02.gz,1138106,European,disorder,Psychiatry,Obsessive compulsive disorder,Obsessive compulsive disorder,23493,1114613,1138106,40360802
+PAIN01,/scratch/prj/gwas_sumstats/cleaned/PAIN01.gz,418910,EUR,trait,Neurology,Chronic pain,Chronic pain,,,418910,""
+PHYS01,/scratch/prj/gwas_sumstats/cleaned/PHYS01.gz,66224,European,trait,Behaviour,Physical activity (objectively measured),Physical activity (objectively measured),,,66224,Not published (K. Hanscombe 2018 UK Biobank)
+REAC01,/scratch/prj/gwas_sumstats/cleaned/REAC01.gz,111483,European,trait,Cognition,Reaction time,Reaction time,,,111483,27046643
+REPR01,/scratch/prj/gwas_sumstats/cleaned/REPR01.gz,251151,European,trait,Reproduction,Reproductive behavior: Age First Birth,Reproductive behavior: Age First Birth,,,251151,27798627
+REPR02,/scratch/prj/gwas_sumstats/cleaned/REPR02.gz,343072,European,trait,Reproduction,Reproductive behavior: Number of Children Ever Born,Reproductive behavior: Number of Children Ever Born,,,343072,27798627
+RISK01,/scratch/prj/gwas_sumstats/cleaned/RISK01.gz,466571,EUR,trait,Personality,General risk tolerance,General risk tolerance,,,466571,30643258
+SCHI04,/scratch/prj/gwas_sumstats/cleaned/SCHI04.gz,105318,European,disorder,Psychiatry,Schizophrenia PGC2 European + CLOZUK,Schizophrenia PGC2 European + CLOZUK,40675,64643,105318,29483656
+SEXH09,/scratch/prj/gwas_sumstats/cleaned/SEXH09.gz,2657,European,biomarker,Sex hormone,Testosterone,Testosterone,,,2657,26014426
+SMOK11,/scratch/prj/gwas_sumstats/cleaned/SMOK11.gz,618489,EUR,trait,Substance use,"Smoking, cigarettes per day","Smoking, cigarettes per day",618489,,618489,36477530
+SUBJ01,/scratch/prj/gwas_sumstats/cleaned/SUBJ01.gz,298420,European,trait,Emotion,"Subjective well-being: survey questions on life satisfaction, positive affect, or happiness","Subjective well-being: survey questions on life satisfaction, positive affect, or happiness",,,298420,27089181
+ULCC01,/scratch/prj/gwas_sumstats/cleaned/ULCC01.gz,27432,European,disorder,Gastroenterology,Ulcerative Colitis,Ulcerative Colitis,6968,20464,27432,26192919
+URIN07,/scratch/prj/gwas_sumstats/cleaned/URIN07.gz,133814,European,biomarker,"",eGFRcrea (serum creatinine),eGFRcrea (serum creatinine),,,133814,26831199

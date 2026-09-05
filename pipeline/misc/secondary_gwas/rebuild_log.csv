@@ -1,0 +1,64 @@
+code,source_path,status,n_snps_out,note
+CHOL35,,excluded_non_eur,0,ancestry='MIX'
+COAD01,,excluded_non_eur,0,"ancestry='European and South Asian (Pakistan, India) and East Asian (China, Korea) and Hispanic and African Americans, but mostly European'"
+EPIL01,,excluded_non_eur,0,ancestry='European and Asian and African'
+HDLP01,,excluded_non_eur,0,ancestry='MIX'
+LDLP01,,excluded_non_eur,0,ancestry='MIX'
+OSTE12,,excluded_non_eur,0,""
+PTSD11,,excluded_non_eur,0,ancestry='MIX'
+SCHI05,,excluded_non_eur,0,ancestry='MIX'
+STRK01,,excluded_non_eur,0,ancestry='MIX'
+TRGL13,,excluded_non_eur,0,ancestry='MIX'
+WEIG03,,excluded_non_eur,0,ancestry='Trans-ancestry'
+WHIP06,,excluded_non_eur,0,ancestry='All ancestry'
+CELI01,/scratch/prj/gwas_sumstats/cleaned/CELI01.gz,low_snp_count,487983,only 487983 variants (< 500000)
+INFB02,/scratch/prj/gwas_sumstats/cleaned/INFB02.gz,low_snp_count,47335,only 47335 variants (< 500000)
+ALSD01,/scratch/prj/gwas_sumstats/cleaned/ALSD01.gz,munge_failed,0,staging file missing / empty
+ANXI07,/scratch/prj/gwas_sumstats/cleaned/ANXI07.gz,munge_failed,0,staging file missing / empty
+MENA02F,/scratch/prj/gwas_sumstats/cleaned/MENA02F.gz,munge_failed,0,staging file missing / empty
+PAIN01,/scratch/prj/gwas_sumstats/cleaned/PAIN01.gz,munge_failed,0,staging file missing / empty
+ADHD06,/scratch/prj/gwas_sumstats/cleaned/ADHD06.gz,shipped,1105408,""
+ALCD07,/scratch/prj/gwas_sumstats/cleaned/ALCD07.gz,shipped,1114900,""
+ALCU02,/scratch/prj/gwas_sumstats/cleaned/ALCU02.gz,shipped,1132986,""
+ALZH01,/scratch/prj/gwas_sumstats/cleaned/ALZH01.gz,shipped,1140462,""
+ANOR02,/scratch/prj/gwas_sumstats/cleaned/ANOR02.gz,shipped,888582,""
+ASTH02,/scratch/prj/gwas_sumstats/cleaned/ASTH02.gz,shipped,1160146,""
+ATOP01,/scratch/prj/gwas_sumstats/cleaned/ATOP01.gz,shipped,1169160,""
+BFPC04,/scratch/prj/gwas_sumstats/cleaned/BFPC04.gz,shipped,1171015,""
+BIPO04,/scratch/prj/gwas_sumstats/cleaned/BIPO04.gz,shipped,1067392,""
+BODY11,/scratch/prj/gwas_sumstats/cleaned/BODY11.gz,shipped,962680,""
+BODY14,/scratch/prj/gwas_sumstats/cleaned/BODY14.gz,shipped,1152342,""
+CANU03,/scratch/prj/gwas_sumstats/cleaned/CANU03.gz,shipped,1132767,""
+CHRO01,/scratch/prj/gwas_sumstats/cleaned/CHRO01.gz,shipped,1151725,""
+CHRO02,/scratch/prj/gwas_sumstats/cleaned/CHRO02.gz,shipped,1151714,""
+CRPR01,/scratch/prj/gwas_sumstats/cleaned/CRPR01.gz,shipped,1167496,""
+DEPR02,/scratch/prj/gwas_sumstats/cleaned/DEPR02.gz,shipped,1119515,""
+DIAB05,/scratch/prj/gwas_sumstats/cleaned/DIAB05.gz,shipped,1175369,""
+EDUC03,/scratch/prj/gwas_sumstats/cleaned/EDUC03.gz,shipped,1171074,""
+GLYC19,/scratch/prj/gwas_sumstats/cleaned/GLYC19.gz,shipped,1067394,""
+GLYC22,/scratch/prj/gwas_sumstats/cleaned/GLYC22.gz,shipped,1097682,""
+HIPP01,/scratch/prj/gwas_sumstats/cleaned/HIPP01.gz,shipped,1146493,""
+IBOS01,/scratch/prj/gwas_sumstats/cleaned/IBOS01.gz,shipped,1165851,""
+INCO01,/scratch/prj/gwas_sumstats/cleaned/INCO01.gz,shipped,1176360,""
+INCO03,/scratch/prj/gwas_sumstats/cleaned/INCO03.gz,shipped,1176366,""
+INSO03,/scratch/prj/gwas_sumstats/cleaned/INSO03.gz,shipped,1091517,""
+INTE03,/scratch/prj/gwas_sumstats/cleaned/INTE03.gz,shipped,1128942,""
+LONE01,/scratch/prj/gwas_sumstats/cleaned/LONE01.gz,shipped,868941,""
+LONG03,/scratch/prj/gwas_sumstats/cleaned/LONG03.gz,shipped,1119464,""
+LUPU01,/scratch/prj/gwas_sumstats/cleaned/LUPU01.gz,shipped,1047964,""
+MENO01F,/scratch/prj/gwas_sumstats/cleaned/MENO01F.gz,shipped,1046689,""
+MIGR02,/scratch/prj/gwas_sumstats/cleaned/MIGR02.gz,shipped,1160995,""
+NEUR05,/scratch/prj/gwas_sumstats/cleaned/NEUR05.gz,shipped,1116243,""
+OBES01,/scratch/prj/gwas_sumstats/cleaned/OBES01.gz,shipped,998204,""
+OCDI02,/scratch/prj/gwas_sumstats/cleaned/OCDI02.gz,shipped,1125516,""
+PHYS01,/scratch/prj/gwas_sumstats/cleaned/PHYS01.gz,shipped,1144969,""
+REAC01,/scratch/prj/gwas_sumstats/cleaned/REAC01.gz,shipped,1176367,""
+REPR01,/scratch/prj/gwas_sumstats/cleaned/REPR01.gz,shipped,1059731,""
+REPR02,/scratch/prj/gwas_sumstats/cleaned/REPR02.gz,shipped,1059757,""
+RISK01,/scratch/prj/gwas_sumstats/cleaned/RISK01.gz,shipped,1173004,""
+SCHI04,/scratch/prj/gwas_sumstats/cleaned/SCHI04.gz,shipped,986235,""
+SEXH09,/scratch/prj/gwas_sumstats/cleaned/SEXH09.gz,shipped,1147838,""
+SMOK11,/scratch/prj/gwas_sumstats/cleaned/SMOK11.gz,shipped,1169747,""
+SUBJ01,/scratch/prj/gwas_sumstats/cleaned/SUBJ01.gz,shipped,1011476,""
+ULCC01,/scratch/prj/gwas_sumstats/cleaned/ULCC01.gz,shipped,1081172,""
+URIN07,/scratch/prj/gwas_sumstats/cleaned/URIN07.gz,shipped,955859,""

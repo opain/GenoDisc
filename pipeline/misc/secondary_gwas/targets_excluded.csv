@@ -1,0 +1,13 @@
+code,ancestry,source_path,status
+CHOL35,MIX,,excluded_non_eur
+COAD01,"European and South Asian (Pakistan, India) and East Asian (China, Korea) and Hispanic and African Americans, but mostly European",,excluded_non_eur
+EPIL01,European and Asian and African,,excluded_non_eur
+HDLP01,MIX,,excluded_non_eur
+LDLP01,MIX,,excluded_non_eur
+OSTE12,"",,excluded_non_eur
+PTSD11,MIX,,excluded_non_eur
+SCHI05,MIX,,excluded_non_eur
+STRK01,MIX,,excluded_non_eur
+TRGL13,MIX,,excluded_non_eur
+WEIG03,Trans-ancestry,,excluded_non_eur
+WHIP06,All ancestry,,excluded_non_eur
