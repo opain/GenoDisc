@@ -23,7 +23,10 @@ CODE="${1:?usage: munge_one.sh <code>}"
 
 MISC_DIR="/scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas"
 RESDIR="/scratch/prj/neurohackpain/GenoDisc/pipeline_resources"
-STAGING="${MISC_DIR}/staging"
+# Staging lives under the panel dir (not the repo) so its 10+GB of
+# intermediate .cleaned.* files never risk being tracked. Cleanup:
+#   rm -rf $RESDIR/data/secondary_gwas/staging
+STAGING="${RESDIR}/data/secondary_gwas/staging"
 WORK="${STAGING}/work/${CODE}"
 TARGETS="${MISC_DIR}/targets.csv"
 MERGE_ALLELES="${RESDIR}/data/ldsc/w_hm3.snplist"

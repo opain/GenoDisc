@@ -55,9 +55,20 @@ Files in this directory:
 | `targets.csv`              | Generated: driver table (code, source, N, metadata).     |
 | `targets_excluded.csv`     | Generated: codes dropped pre-munge (non-EUR / no source).|
 | `rebuild_log.csv`          | Generated: final status per input code.                  |
-| `staging/`                 | Generated: staged `.sumstats.gz` before publish.         |
-| `staging/work/<code>/`     | Generated: per-code `.cleaned.*` outputs from cleaner.   |
 | `logs/`                    | Generated: per-code worker logs + SLURM stdout/stderr.   |
+
+Staging (intermediate `.cleaned.*` files, ~10 GB) is written **outside**
+this repo dir, under the panel dir itself:
+
+| Path                                                | Purpose                                                     |
+| --------------------------------------------------- | ----------------------------------------------------------- |
+| `<SGWAS>/staging/<code>.sumstats.gz`                | Staged munged file before it's promoted to `<SGWAS>/<code>.sumstats.gz`. |
+| `<SGWAS>/staging/work/<code>/`                      | Per-code `.cleaned.*` outputs from `sumstat_cleaner.R`.     |
+
+where `<SGWAS>` =
+`/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas`.
+Once you're satisfied with a rebuild, wipe it with
+`rm -rf <SGWAS>/staging`.
 
 ## Prerequisites
 
@@ -116,9 +127,10 @@ awk -F',' 'NR>1 {print $1}' targets.csv | \
     | tee logs/run_all.log
 ```
 
-Both paths write the exact same artifacts (`staging/<code>.sumstats.gz` +
-`staging/work/<code>/*` + `logs/munge-<code>.out`), so downstream steps
-don't care which was used.
+Both paths write the exact same artifacts
+(`<SGWAS>/staging/<code>.sumstats.gz` +
+`<SGWAS>/staging/work/<code>/*` + `<MISC>/logs/munge-<code>.out`), so
+downstream steps don't care which was used.
 
 ## Step 3 — validate + publish
 
@@ -130,7 +142,7 @@ Rscript --vanilla ./validate_and_publish.R
 
 `validate_and_publish.R`:
 
-1. Reads each `staging/<code>.sumstats.gz` and checks:
+1. Reads each `<SGWAS>/staging/<code>.sumstats.gz` and checks:
    - header = `CHR SNP BP A1 A2 Z N` (the same schema `sumstat_qc.smk`
      writes for the primary GWAS at
      `{gwas}.cleaned.munged.mergealleles.sumstats.gz`),

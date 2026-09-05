@@ -22,8 +22,11 @@
 set -euo pipefail
 
 MISC_DIR="/scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas"
+# Staging lives under the panel dir (see munge_one.sh) to keep the 10+GB
+# of intermediate .cleaned.* outputs out of the repo.
+STAGING="/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas/staging"
 cd "$MISC_DIR"
-mkdir -p logs staging staging/work
+mkdir -p logs "$STAGING/work"
 
 IDX="${SLURM_ARRAY_TASK_ID:?SLURM_ARRAY_TASK_ID unset — run under sbatch --array=...}"
 # Skip the header (NR=1); array index i maps to file row i+1.

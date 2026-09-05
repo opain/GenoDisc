@@ -22,7 +22,9 @@ suppressMessages(library(data.table))
 MISC   <- "/scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/misc/secondary_gwas"
 SGWAS  <- "/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas"
 WHM3   <- "/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/ldsc/w_hm3.snplist"
-STAGING <- file.path(MISC, "staging")
+# Staging lives under SGWAS (not MISC) to keep the ~10GB intermediate
+# working directory out of the repo tree.
+STAGING <- file.path(SGWAS, "staging")
 MIN_SNPS <- 500000L
 EXPECTED_HDR <- c("CHR","SNP","BP","A1","A2","Z","N")
 
