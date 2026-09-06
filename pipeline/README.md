@@ -89,6 +89,10 @@ You must specify a [gwas_list file](#gwas_list_file) listing GWAS summary statis
 
 Optionally, you can also supply a `gencor_gwas_list` in the config to run bivariate LDSC genetic-correlation analysis against a set of already-munged secondary GWAS. The file uses the same format as `gwas_list`; you can add any number of extra columns (e.g. `category`) and they'll be preserved through to the results and surfaced as facet options in the Shiny app. This requires `ldsc: T`.
 
+Set `gencor_within_gwas_list: T` to additionally compute rG **among the primaries in `gwas_list`** (every unique EUR pair). This is independent of `gencor_gwas_list` and also requires `ldsc: T`; the Shiny explorer renders the result as an N×N heatmap under the SNP-h² & rG tab.
+
+For pathway enrichment, point `pathway_gmt_dir` at a directory of MSigDB-style `.gmt` files (Entrez IDs), and toggle `magma_pathway: T` and/or `twas_gsea_pathway: T`. The pipeline runs MAGMA gene-set analysis and/or non-directional TWAS-GSEA against every gmt in that directory; FDR is pooled across every gene set in every gmt. See the [pipeline guide](https://opain.github.io/GenoDisc/pipeline_guide.html#pathway) for full details.
+
 In addition, some external datasets cannot be downloaded automatically due to data restrictions. If you would like to infer altered protein levels associated with the GWAS phenotype using ROSMAP or Banner datasets, these must be downloaded in advance from [here](https://www.synapse.org/#!Synapse:syn23627957).
 
 The location of those files must be specified in the [config.yaml](config.yaml) file. 

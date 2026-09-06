@@ -155,7 +155,8 @@ params <- list(
   list(Parameter = '`outdir`', Description = 'Output directory for all results', Example = '`my_output`'),
   list(Parameter = '`config_file`', Description = 'Path to this config file', Example = '`config/config.yaml`'),
   list(Parameter = '`gwas_list`', Description = 'Path to the GWAS list file', Example = '`config/gwas_list.txt`'),
-  list(Parameter = '`resdir`', Description = 'Resource directory for downloaded dependencies (default: `resources`). Set to `NA` to use default.', Example = '`resources`')
+  list(Parameter = '`resdir`', Description = 'Resource directory for downloaded dependencies (default: `resources`). Set to `NA` to use default.', Example = '`resources`'),
+  list(Parameter = '`pathway_gmt_dir`', Description = 'Directory of user-supplied MSigDB-style `.gmt` files (Entrez IDs) for pathway enrichment. The pipeline globs `*.gmt` at parse time; each file becomes one wildcard target. Only consulted when `magma_pathway: T` and/or `twas_gsea_pathway: T`.', Example = '`data/msigdb`')
 )
 
 df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
@@ -174,6 +175,7 @@ params <- list(
   list(Parameter = '`cojo`', Description = 'GCTA-COJO conditional analysis for independent associations', Part = 'Part 1'),
   list(Parameter = '`finemap`', Description = 'SuSiE fine-mapping analysis', Part = 'Part 1'),
   list(Parameter = '`ldsc`', Description = 'LD score regression for heritability and intercept estimation', Part = 'Part 1'),
+  list(Parameter = '`gencor_within_gwas_list`', Description = 'Bivariate LDSC rG among every pair of EUR primaries in `gwas_list` (requires `ldsc: T`; self-pairs and non-EUR primaries skipped)', Part = 'Part 1'),
   list(Parameter = '`magma_gene`', Description = 'MAGMA gene-level association analysis', Part = 'Part 2'),
   list(Parameter = '`twas_panel_fusion`', Description = 'TWAS using FUSION GTEx and non-GTEx weight panels', Part = 'Part 2'),
   list(Parameter = '`twas_panel_psychencode`', Description = 'TWAS using PsychENCODE panel', Part = 'Part 2'),
@@ -193,7 +195,9 @@ params <- list(
   list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
   list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
-  list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3')
+  list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
+  list(Parameter = '`magma_pathway`', Description = 'MAGMA gene-set enrichment against user-supplied `.gmt` pathway sets (requires `magma_gene: T` and `pathway_gmt_dir`)', Part = 'Part 3'),
+  list(Parameter = '`twas_gsea_pathway`', Description = 'Non-directional TWAS-GSEA against user-supplied `.gmt` pathway sets (requires a TWAS panel and `pathway_gmt_dir`)', Part = 'Part 3')
 )
 
 df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
@@ -286,6 +290,44 @@ ADHD06 data/munged/ADHD06.sumstats.gz EUR NA NA NA NA NA "ADHD" Psychiatric
 SCHI04 data/munged/SCHI04.sumstats.gz EUR NA NA NA NA NA "Schizophrenia" Psychiatric
 T2D12  data/munged/T2D12.sumstats.gz  EUR NA NA NA NA NA "Type 2 diabetes" Metabolic
 ```
+
+***
+
+## Within-primary-list rG (optional) {#gencor-within}
+
+If you want bivariate LDSC rG **among the primary GWAS you submitted** (e.g. how correlated your ALS GWAS is with your Parkinson's GWAS), set `gencor_within_gwas_list: T` in the config. This is independent of `gencor_gwas_list` — either or both can be enabled in the same run.
+
+Requirements:
+
+- `ldsc: T` (LDSC heritability must be enabled — rG relies on it).
+- At least two EUR primaries in `gwas_list`. Self-pairs and non-EUR primaries are skipped automatically; a single-EUR-primary run produces a header-only results file cleanly.
+
+The pipeline reuses each primary's `.cleaned.munged.mergealleles.sumstats.gz` (produced by the GWAS-QC step) and runs `ldsc.py --rg` for every unique pair, so no extra preprocessing is required. Results appear under `results/{gwas}/gencor_within/{gwas}_gencor_within_res.csv` and are packaged into the bundle at `gwas_qc$ldsc_gencor_within_dat`. The Shiny explorer renders them as an N×N heatmap under a new sub-tab of **SNP-h² & rG → Genetic correlation (rG) → Within primary GWAS list** on multi-GWAS bundles.
+
+***
+
+## Pathway enrichment (optional) {#pathway}
+
+Point the pipeline at a directory of MSigDB-style `.gmt` files (Entrez IDs) to run pathway enrichment via MAGMA and/or non-directional TWAS-GSEA. Nothing is downloaded — the `.gmt` files must be provided by the user.
+
+```yaml
+pathway_gmt_dir: data/msigdb    # directory of *.gmt files (Entrez IDs)
+magma_pathway: T                # MAGMA gene-set analysis
+twas_gsea_pathway: T            # non-directional TWAS-GSEA
+```
+
+The pipeline globs `*.gmt` in `pathway_gmt_dir` at parse time; each file drives one fan-out target per method. `magma_pathway` requires `magma_gene: T`; `twas_gsea_pathway` requires at least one TWAS panel (`twas_panel_fusion: T` or `twas_panel_psychencode: T`). Both require `pathway_gmt_dir` to be set — the pipeline aborts at startup otherwise.
+
+TWAS-GSEA needs gene symbols, but MSigDB Entrez `.gmt`s are keyed on numeric IDs, so the pipeline auto-converts each file using the shipped `NCBI37.3.gene.loc` (Entrez ↔ Symbol) map. The converted copies live under `{outdir}/results/pathway_gmts/` and the user's directory is never modified.
+
+**FDR is pooled across every gene set in every gmt file** (and across TWAS panels for the TWAS-GSEA side) — the reported `P.FDR` in the results table therefore reflects the full multiple-testing burden of the pathway pass.
+
+Results:
+
+- `results/{gwas}/magma/pathway/{gmt}/magma_pathway.clean.csv` — one row per gene set, cols `Name, NGENES, BETA, SE, P`.
+- `results/{gwas}/twas/pathway/{gmt}/twas_gsea_pathway_nondir_{weight}.clean.csv` — one row per gene set × TWAS panel, cols `Name, N, Estimate, SE, Z, P`.
+
+In the bundle these are surfaced pooled + FDR-adjusted at `tx$pathway$magma` and `tx$pathway$twas_gsea` (see the block-tree below). The Shiny explorer renders them under a new **Pathway** sub-tab of **Enrichment Analysis**, mirroring the DrugTargetor Drug view (Single-GWAS + Multi-GWAS sub-tabs, one method-specific table each).
 
 ***
 
@@ -481,11 +523,18 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
       clump/               # LD clumping results
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
-      ldsc/                # LD score regression results (incl. gencor)
+      ldsc/                # LD score regression results
+      gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
+      gencor_within/       # Bivariate LDSC among primaries in gwas_list;
+                           #   only when gencor_within_gwas_list: T
       magma/               # MAGMA gene-level and enrichment results
+        pathway/{gmt}/     # MAGMA pathway enrichment (one dir per user gmt);
+                           #   only when magma_pathway: T
       twas/                # TWAS results (combined across panels)
         conditional/       # Conditional TWAS results
         cmap/              # TWAS-GSEA CMAP results
+        pathway/{gmt}/     # TWAS-GSEA pathway enrichment (one dir per user
+                           #   gmt); only when twas_gsea_pathway: T
       smr/                 # SMR results by panel
         psychencode/
         metabrain/
@@ -549,6 +598,10 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
                                 #   $table has one row per secondary trait
                                 #   with rg, rg_se, rg_p, rg_p_fdr, n_snps
                                 #   + any extra columns from the list file
+    ldsc_gencor_within_dat      # NULL unless gencor_within_gwas_list: T;
+                                #   $table has one row per OTHER primary
+                                #   in the bundle (rg, rg_se, rg_p,
+                                #   rg_p_fdr, n_snps, gcov_int)
     manhattan_data              # list(data, offsets, indexes, p_threshold)
                                 #   consumed by the Shiny app's modifiable
                                 #   Manhattan tab; NULL for old bundles
@@ -599,6 +652,14 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
     cmap/                       # NULL unless twas_gsea_cmap: T
       drug                      # per-signature x panel results
       moa                       # per-MOA enrichment
+    pathway/                    # User-supplied .gmt pathway enrichment
+      magma                     # data.frame; NULL unless magma_pathway: T
+                                #   cols: Name, Gmt, N Genes, BETA, SE, P,
+                                #   P.FDR (pooled across every gmt)
+      twas_gsea                 # data.frame; NULL unless twas_gsea_pathway: T
+                                #   cols: Name, Panel, Gmt, N, Estimate, SE,
+                                #   Z, P, P.FDR (pooled across every gmt
+                                #   AND every TWAS panel)
 
   tissue/                       # Tissue enrichment
     specific/                   # NULL unless tissue_magma: T
@@ -657,9 +718,10 @@ shiny::runApp("shiny_apps/output_explorer_embed/")
 The Shiny app provides interactive tabs for exploring:
 
 - **Data Input & GWAS QC** - Summary statistic quality metrics
+- **SNP-h² & rG** - LDSC heritability (h²) and genetic correlation (rG). The rG sub-tab shows a forest plot against the reference panel (`gencor_gwas_list`) and, on multi-GWAS bundles with `gencor_within_gwas_list: T`, an N×N heatmap of pairwise rG among the primary GWAS.
 - **SNP Associations** - Clumping and fine-mapping results
 - **Molecular Associations** - TWAS, SMR, MAGMA, and PWAS gene-level results
-- **Enrichment** - Drug enrichment and tissue enrichment results
+- **Enrichment** - Drug enrichment (Drug Targetor), tissue enrichment, CMap, and — when `magma_pathway: T` and/or `twas_gsea_pathway: T` — a **Pathway** sub-tab with MAGMA and TWAS-GSEA tables sorted by pooled FDR.
 - **Configuration** - Pipeline settings used for the analysis
 
 ***
