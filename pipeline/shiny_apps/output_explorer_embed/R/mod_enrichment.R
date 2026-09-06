@@ -1076,7 +1076,51 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           ))
         }
 
-        pathway_multi_inner <- list()
+        pathway_multi_inner <- list(
+          tabPanel(title = "Summary", br(),
+            p("Cross-GWAS pathway enrichment heatmap. Same shape/colour convention as the DrugTargetor Drug summary — filled circle coloured by Z-score, nominal-sig cells get a black ring, FDR-sig cells get a black square outline. Facets are ", tags$em("GWAS × Method"), " so cross-primary patterns are legible side-by-side. FDR is per-GWAS (already pooled across gmts and TWAS panels within each primary at bundle-write time)."),
+            hr(),
+            tags$details(class = "gd-details",
+              tags$summary("Filter data"),
+              tags$div(class = "gd-details-body",
+                fluidRow(
+                  column(3,
+                    uiOutput(ns("pathway_summary_multi_gmt_ui")),
+                    uiOutput(ns("pathway_summary_multi_method_ui"))
+                  ),
+                  column(3,
+                    numericInput(ns("pathway_summary_multi_fdr"),
+                                 "FDR threshold:",
+                                 value = 0.05, min = 1e-6, max = 1, step = 0.01),
+                    radioButtons(ns("pathway_summary_multi_fdr_only"),
+                                 "Show FDR-significant pathways only:",
+                                 choices = c("True" = TRUE, "False" = FALSE),
+                                 selected = TRUE, inline = TRUE)
+                  ),
+                  column(3,
+                    numericInput(ns("pathway_summary_multi_top_n"),
+                                 "Top N pathways (by min FDR):",
+                                 value = 30, min = 5, max = 200, step = 5),
+                    textInput(ns("pathway_summary_multi_name"),
+                              "Filter by pathway name substring (optional):",
+                              value = "")
+                  ),
+                  column(3,
+                    selectInput(ns("pathway_summary_multi_sort"), "Sort rows by:",
+                                choices = c("Significance (min FDR)" = "significance",
+                                            "Alphabetical" = "alphabetical"),
+                                selected = "significance"),
+                    sliderInput(ns("pathway_summary_multi_font_size"),
+                                "Font size (pt):",
+                                min = 8, max = 20, value = 12, step = 1)
+                  )
+                )
+              )
+            ),
+            br(),
+            uiOutput(ns("pathway_summary_multi_plot_ui"))
+          )
+        )
         if (isTRUE(cf$magma_pathway)) {
           pathway_multi_inner <- c(pathway_multi_inner, list(
             tabPanel(title = "MAGMA", br(),
@@ -1319,6 +1363,108 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         long,
         sort_choice = input$pathway_summary_sort %||% "significance",
         font_size   = input$pathway_summary_font_size %||% 12,
+        point_size  = 5
+      )
+    }, res = 96)
+
+    # -------- Pathway Summary heatmap (Multi-GWAS Summary sub-tab) --------
+    # Same shape as the single-GWAS Summary but pooled across every primary
+    # in the bundle with a GWAS facet dimension. FDR remains per-primary
+    # (pooled across gmts / panels within each primary at bundle-write time).
+
+    pathway_long_multi_full <- reactive({
+      req(gwas_data())
+      gs <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else selected_gwas()
+      build_pathway_long_multi(gwas_data(), gs)
+    })
+
+    output$pathway_summary_multi_gmt_ui <- renderUI({
+      long <- pathway_long_multi_full()
+      if (is.null(long) || nrow(long) == 0) return(NULL)
+      choices <- sort(unique(long$Gmt))
+      selectInput(ns("pathway_summary_multi_gmt"),
+                  "Include these gmts:",
+                  choices = choices, selected = choices, multiple = TRUE)
+    })
+
+    output$pathway_summary_multi_method_ui <- renderUI({
+      long <- pathway_long_multi_full()
+      if (is.null(long) || nrow(long) == 0) return(NULL)
+      choices <- unique(long$Method)
+      selectInput(ns("pathway_summary_multi_method"),
+                  "Include these methods:",
+                  choices = choices, selected = choices, multiple = TRUE)
+    })
+
+    pathway_long_multi_filt <- reactive({
+      long <- pathway_long_multi_full()
+      if (is.null(long) || nrow(long) == 0) return(long)
+
+      m <- input$pathway_summary_multi_method
+      if (!is.null(m) && length(m) > 0) long <- long[Method %in% m]
+      g <- input$pathway_summary_multi_gmt
+      if (!is.null(g) && length(g) > 0) long <- long[Gmt %in% g]
+      thr <- input$pathway_summary_multi_fdr %||% 0.05
+      if (isTRUE(as.logical(input$pathway_summary_multi_fdr_only))) {
+        sig_names <- unique(long[!is.na(P.FDR) & P.FDR < thr, Name])
+        long <- long[Name %in% sig_names]
+      }
+      needle <- trimws(input$pathway_summary_multi_name %||% "")
+      if (nzchar(needle)) {
+        long <- long[grepl(needle, Name, ignore.case = TRUE)]
+      }
+      if (nrow(long) == 0) return(long)
+
+      top_n <- input$pathway_summary_multi_top_n %||% 30
+      agg <- long[, .(min_fdr = suppressWarnings(min(P.FDR, na.rm = TRUE))),
+                  by = Name]
+      agg[is.infinite(min_fdr), min_fdr := NA_real_]
+      keep <- agg[order(min_fdr, na.last = TRUE), head(Name, top_n)]
+      long[Name %in% keep]
+    })
+
+    pathway_summary_multi_dim <- reactive({
+      long <- pathway_long_multi_filt()
+      if (is.null(long) || nrow(long) == 0) return(list(width_px = 700, height_px = 400))
+      n_rows <- length(unique(long$Name))
+      n_cols <- length(unique(paste0(long$GWAS, "::", long$Method, "::", long$Panel)))
+      fs <- input$pathway_summary_multi_font_size %||% 12
+      lbl_pt <- max(strwidth_pt(as.character(unique(long$Name)), ps = fs))
+      lbl_px <- lbl_pt * 96 / 72
+      row_px <- max(22, round(fs * 2.2))
+      chrome <- 220  # extra room for the (GWAS × Method) facet strips
+      w <- as.integer(min(2000, lbl_px + 70 * n_cols + chrome))
+      h <- as.integer(min(2000, 100 + row_px * n_rows))
+      list(width_px = w, height_px = h)
+    })
+
+    output$pathway_summary_multi_plot_ui <- renderUI({
+      long <- pathway_long_multi_filt()
+      if (is.null(long) || nrow(long) == 0) {
+        return(tags$div(
+          class = "well",
+          style = "max-width: 720px; margin-top: 12px;",
+          tags$p(tags$b("No pathways to plot."),
+                 " Loosen the FDR threshold, disable the ",
+                 tags$em("FDR-significant only"),
+                 " toggle, or widen the name filter.")
+        ))
+      }
+      dims <- pathway_summary_multi_dim()
+      tags$div(style = "max-width: 100%; overflow-x: auto;",
+        plotOutput(ns("pathway_summary_multi_plot"),
+                   width  = paste0(dims$width_px,  "px"),
+                   height = paste0(dims$height_px, "px"))
+      )
+    })
+
+    output$pathway_summary_multi_plot <- renderPlot({
+      long <- pathway_long_multi_filt()
+      req(long, nrow(long) > 0)
+      build_pathway_summary_multi_gtable(
+        long,
+        sort_choice = input$pathway_summary_multi_sort %||% "significance",
+        font_size   = input$pathway_summary_multi_font_size %||% 12,
         point_size  = 5
       )
     }, res = 96)

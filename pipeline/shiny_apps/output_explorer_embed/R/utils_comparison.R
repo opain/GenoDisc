@@ -941,8 +941,10 @@ build_pathway_long <- function(gd, gwas) {
 #'                                Z values fall off the scale and render
 #'                                transparent (same as the Drug plot).
 #'   shape 21 (empty circle ring) nominal p < 0.05 overlay, black outline.
-#'   shape 15 (filled square)     FDR p < 0.05 overlay, black outline, no
-#'                                fill.
+#'   shape 22 (empty square)      FDR p < 0.05 overlay, black outline, no
+#'                                fill — deliberately shape 22 (not 15) so
+#'                                the coloured circle underneath is still
+#'                                visible through the transparent centre.
 #'
 #' Rows = pathway (`Name`); x = Panel; facet columns = Method (MAGMA one
 #' column, TWAS-GSEA one column per TWAS panel).
@@ -1017,7 +1019,7 @@ build_pathway_summary_gtable <- function(long,
     ggplot2::geom_point(
       data = long[!is.na(P.FDR) & P.FDR < 0.05],
       ggplot2::aes(x = Panel, y = Name),
-      colour = "black", fill = NA, size = point_size + 2, shape = 15
+      colour = "black", fill = NA, size = point_size + 2, shape = 22
     ) +
     ggplot2::facet_grid(cols = ggplot2::vars(Method),
                         scales = "free_x", space = "free_x") +
@@ -1028,6 +1030,117 @@ build_pathway_summary_gtable <- function(long,
       panel.grid.minor = ggplot2::element_blank()
     )
   gg
+}
+
+#' Multi-GWAS pathway summary long form
+#'
+#' Same shape as `build_pathway_long()` but pooled across every primary in
+#' `gwas_vec` with a `GWAS` column added. Each primary is bundled with its
+#' own pooled-FDR so the reported P.FDR is per-primary (see
+#' read_pathway_*() in package_results_functions.R).
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas_vec Character vector of primary GWAS names
+#' @return data.table with the same columns as build_pathway_long() plus
+#'   `GWAS`, ordered so `GWAS` is the first column.
+build_pathway_long_multi <- function(gd, gwas_vec) {
+  empty <- data.table::data.table(
+    GWAS = character(0), gwas = character(0),
+    Name = character(0), Gmt = character(0),
+    Method = character(0), Panel = character(0),
+    Z_signed = numeric(0), neg_log10_fdr = numeric(0),
+    P = numeric(0), P.FDR = numeric(0), N_Genes = integer(0)
+  )
+  if (length(gwas_vec) == 0L) return(empty)
+  parts <- lapply(gwas_vec, function(g) {
+    d <- build_pathway_long(gd, g)
+    if (is.null(d) || nrow(d) == 0L) return(NULL)
+    d[, GWAS := g]
+    d
+  })
+  parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)
+  if (length(parts) == 0L) return(empty)
+  out <- data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
+  data.table::setcolorder(out,
+    c("GWAS", setdiff(names(out), "GWAS")))
+  out
+}
+
+#' Multi-GWAS pathway summary heatmap
+#'
+#' Same shape/colour conventions as `build_pathway_summary_gtable()`; the
+#' only structural difference is that the facet-cols dimension is now
+#' `GWAS × Method` (one facet per primary × method), so cross-primary
+#' patterns are legible side-by-side. Panels stay on the x-axis inside
+#' each facet.
+#'
+#' Returns NULL on empty input.
+build_pathway_summary_multi_gtable <- function(long,
+                                                sort_choice = "significance",
+                                                font_size = 12,
+                                                point_size = 5,
+                                                theme_fn = ggplot2::theme_bw) {
+  if (is.null(long) || nrow(long) == 0) return(NULL)
+  long <- data.table::copy(long)
+
+  ord <- if (sort_choice == "alphabetical") {
+    sort(unique(long$Name), decreasing = TRUE)
+  } else {
+    # Rank by the SMALLEST P.FDR seen across any (GWAS, Method, Panel).
+    agg <- long[, .(min_fdr = suppressWarnings(min(P.FDR, na.rm = TRUE))), by = Name]
+    agg[is.infinite(min_fdr), min_fdr := NA_real_]
+    rev(agg[order(min_fdr, na.last = TRUE), Name])
+  }
+  long[, Name := factor(Name, levels = ord)]
+
+  methods <- c("MAGMA", "TWAS-GSEA (non-dir)")
+  methods <- methods[methods %in% long$Method]
+  long[, Method := factor(Method, levels = methods)]
+  # Preserve caller's GWAS ordering
+  long[, GWAS := factor(GWAS, levels = unique(long$GWAS))]
+
+  pos_data <- long[!is.na(Z_signed)]
+  mx <- suppressWarnings(max(pos_data$Z_signed, na.rm = TRUE))
+  if (!is.finite(mx) || mx <= 0) mx <- 1
+
+  gg <- ggplot2::ggplot(long, ggplot2::aes(x = Panel, y = Name)) +
+    ggplot2::geom_blank() +
+    theme_fn(base_size = font_size)
+
+  if (nrow(pos_data) > 0) {
+    gg <- gg +
+      ggplot2::geom_point(
+        data = pos_data,
+        ggplot2::aes(colour = Z_signed),
+        shape = 16, size = point_size
+      ) +
+      ggplot2::scale_colour_gradientn(
+        colours  = c("#FFFFFF", "#00CC66"),
+        na.value = "transparent",
+        name     = "Enrichment\nZ-score",
+        limits   = c(0, mx)
+      )
+  }
+
+  gg +
+    ggplot2::geom_point(
+      data = long[!is.na(P) & P < 0.05],
+      ggplot2::aes(x = Panel, y = Name),
+      colour = "black", fill = NA, size = point_size + 1
+    ) +
+    ggplot2::geom_point(
+      data = long[!is.na(P.FDR) & P.FDR < 0.05],
+      ggplot2::aes(x = Panel, y = Name),
+      colour = "black", fill = NA, size = point_size + 2, shape = 22
+    ) +
+    ggplot2::facet_grid(cols = ggplot2::vars(GWAS, Method),
+                        scales = "free_x", space = "free_x") +
+    ggplot2::labs(x = NULL, y = NULL) +
+    ggplot2::theme(
+      axis.text.x      = ggplot2::element_text(angle = 45, hjust = 1),
+      strip.text       = ggplot2::element_text(face = "bold"),
+      panel.grid.minor = ggplot2::element_blank()
+    )
 }
 
 #' @param gwas_list Optional data.frame from gd_config(gd)$gwas_list (uses
