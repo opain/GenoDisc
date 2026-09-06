@@ -542,9 +542,9 @@ An example is provided at <code>example_input/config.yaml</code>.</p>
 </summary>
 <table>
 <colgroup>
-<col width="10%" />
-<col width="72%" />
-<col width="16%" />
+<col width="6%" />
+<col width="85%" />
+<col width="8%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -576,6 +576,15 @@ An example is provided at <code>example_input/config.yaml</code>.</p>
 default.</td>
 <td align="left"><code>resources</code></td>
 </tr>
+<tr class="odd">
+<td align="left"><code>pathway_gmt_dir</code></td>
+<td align="left">Directory of user-supplied MSigDB-style
+<code>.gmt</code> files (Entrez IDs) for pathway enrichment. The
+pipeline globs <code>*.gmt</code> at parse time; each file becomes one
+wildcard target. Only consulted when <code>magma_pathway: T</code>
+and/or <code>twas_gsea_pathway: T</code>.</td>
+<td align="left"><code>data/msigdb</code></td>
+</tr>
 </tbody>
 </table>
 </details>
@@ -587,9 +596,9 @@ default.</td>
 (skip).</p>
 <table>
 <colgroup>
-<col width="40%" />
-<col width="53%" />
-<col width="6%" />
+<col width="25%" />
+<col width="71%" />
+<col width="3%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -623,109 +632,130 @@ estimation</td>
 <td align="left">Part 1</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>gencor_within_gwas_list</code></td>
+<td align="left">Bivariate LDSC rG among every pair of EUR primaries in
+<code>gwas_list</code> (requires <code>ldsc: T</code>; self-pairs and
+non-EUR primaries skipped)</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="even">
 <td align="left"><code>magma_gene</code></td>
 <td align="left">MAGMA gene-level association analysis</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_panel_fusion</code></td>
 <td align="left">TWAS using FUSION GTEx and non-GTEx weight panels</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_panel_psychencode</code></td>
 <td align="left">TWAS using PsychENCODE panel</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_conditional</code></td>
 <td align="left">Conditional analysis of significant TWAS hits</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>smr_expression_panel_psychencode</code></td>
 <td align="left">SMR using PsychENCODE eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>smr_expression_panel_metabrain_cortex</code></td>
 <td align="left">SMR using MetaBrain cortex eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td
 align="left"><code>smr_expression_panel_metabrain_basalganglia</code></td>
 <td align="left">SMR using MetaBrain basal ganglia eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td
 align="left"><code>smr_expression_panel_metabrain_cerebellum</code></td>
 <td align="left">SMR using MetaBrain cerebellum eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td
 align="left"><code>smr_expression_panel_metabrain_hippocampus</code></td>
 <td align="left">SMR using MetaBrain hippocampus eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td
 align="left"><code>smr_expression_panel_metabrain_spinalcord</code></td>
 <td align="left">SMR using MetaBrain spinal cord eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>smr_expression_panel_eqtlgen</code></td>
 <td align="left">SMR using eQTLGen blood eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>pwas_panel_rosmap</code></td>
 <td align="left">PWAS using ROSMAP brain pQTL weights</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>pwas_panel_banner</code></td>
 <td align="left">PWAS using Banner brain pQTL weights</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>smr_protein_panel_rosmap</code></td>
 <td align="left">SMR using ROSMAP pQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>magma_drugtargetor</code></td>
 <td align="left">MAGMA gene set enrichment using DrugTargetor drug-gene
 sets</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_gsea_drugtargetor</code></td>
 <td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene
 sets</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_gsea_drugtargetor_nondirectional</code></td>
 <td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_gsea_cmap</code></td>
 <td align="left">TWAS-GSEA against CMAP level5 drug signatures</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>gcsc</code></td>
 <td align="left">Gene co-regulation-based drug scoring (GCSC)</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>tissue_magma</code></td>
 <td align="left">MAGMA tissue enrichment analysis</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="even">
+<td align="left"><code>magma_pathway</code></td>
+<td align="left">MAGMA gene-set enrichment against user-supplied
+<code>.gmt</code> pathway sets (requires <code>magma_gene: T</code> and
+<code>pathway_gmt_dir</code>)</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>twas_gsea_pathway</code></td>
+<td align="left">Non-directional TWAS-GSEA against user-supplied
+<code>.gmt</code> pathway sets (requires a TWAS panel and
+<code>pathway_gmt_dir</code>)</td>
 <td align="left">Part 3</td>
 </tr>
 </tbody>
@@ -949,6 +979,76 @@ column):</strong></p>
 ADHD06 data/munged/ADHD06.sumstats.gz EUR NA NA NA NA NA &quot;ADHD&quot; Psychiatric
 SCHI04 data/munged/SCHI04.sumstats.gz EUR NA NA NA NA NA &quot;Schizophrenia&quot; Psychiatric
 T2D12  data/munged/T2D12.sumstats.gz  EUR NA NA NA NA NA &quot;Type 2 diabetes&quot; Metabolic</code></pre>
+<hr />
+</div>
+<div id="gencor-within" class="section level2">
+<h2>Within-primary-list rG (optional)</h2>
+<p>If you want bivariate LDSC rG <strong>among the primary GWAS you
+submitted</strong> (e.g. how correlated your ALS GWAS is with your
+Parkinson’s GWAS), set <code>gencor_within_gwas_list: T</code> in the
+config. This is independent of <code>gencor_gwas_list</code> — either or
+both can be enabled in the same run.</p>
+<p>Requirements:</p>
+<ul>
+<li><code>ldsc: T</code> (LDSC heritability must be enabled — rG relies
+on it).</li>
+<li>At least two EUR primaries in <code>gwas_list</code>. Self-pairs and
+non-EUR primaries are skipped automatically; a single-EUR-primary run
+produces a header-only results file cleanly.</li>
+</ul>
+<p>The pipeline reuses each primary’s
+<code>.cleaned.munged.mergealleles.sumstats.gz</code> (produced by the
+GWAS-QC step) and runs <code>ldsc.py --rg</code> for every unique pair,
+so no extra preprocessing is required. Results appear under
+<code>results/{gwas}/gencor_within/{gwas}_gencor_within_res.csv</code>
+and are packaged into the bundle at
+<code>gwas_qc$ldsc_gencor_within_dat</code>. The Shiny explorer renders
+them as an N×N heatmap under a new sub-tab of <strong>SNP-h² &amp; rG →
+Genetic correlation (rG) → Within primary GWAS list</strong> on
+multi-GWAS bundles.</p>
+<hr />
+</div>
+<div id="pathway" class="section level2">
+<h2>Pathway enrichment (optional)</h2>
+<p>Point the pipeline at a directory of MSigDB-style <code>.gmt</code>
+files (Entrez IDs) to run pathway enrichment via MAGMA and/or
+non-directional TWAS-GSEA. Nothing is downloaded — the <code>.gmt</code>
+files must be provided by the user.</p>
+<pre class="yaml"><code>pathway_gmt_dir: data/msigdb    # directory of *.gmt files (Entrez IDs)
+magma_pathway: T                # MAGMA gene-set analysis
+twas_gsea_pathway: T            # non-directional TWAS-GSEA</code></pre>
+<p>The pipeline globs <code>*.gmt</code> in <code>pathway_gmt_dir</code>
+at parse time; each file drives one fan-out target per method.
+<code>magma_pathway</code> requires <code>magma_gene: T</code>;
+<code>twas_gsea_pathway</code> requires at least one TWAS panel
+(<code>twas_panel_fusion: T</code> or
+<code>twas_panel_psychencode: T</code>). Both require
+<code>pathway_gmt_dir</code> to be set — the pipeline aborts at startup
+otherwise.</p>
+<p>TWAS-GSEA needs gene symbols, but MSigDB Entrez <code>.gmt</code>s
+are keyed on numeric IDs, so the pipeline auto-converts each file using
+the shipped <code>NCBI37.3.gene.loc</code> (Entrez ↔︎ Symbol) map. The
+converted copies live under <code>{outdir}/results/pathway_gmts/</code>
+and the user’s directory is never modified.</p>
+<p><strong>FDR is pooled across every gene set in every gmt
+file</strong> (and across TWAS panels for the TWAS-GSEA side) — the
+reported <code>P.FDR</code> in the results table therefore reflects the
+full multiple-testing burden of the pathway pass.</p>
+<p>Results:</p>
+<ul>
+<li><code>results/{gwas}/magma/pathway/{gmt}/magma_pathway.clean.csv</code>
+— one row per gene set, cols
+<code>Name, NGENES, BETA, SE, P</code>.</li>
+<li><code>results/{gwas}/twas/pathway/{gmt}/twas_gsea_pathway_nondir_{weight}.clean.csv</code>
+— one row per gene set × TWAS panel, cols
+<code>Name, N, Estimate, SE, Z, P</code>.</li>
+</ul>
+<p>In the bundle these are surfaced pooled + FDR-adjusted at
+<code>tx$pathway$magma</code> and <code>tx$pathway$twas_gsea</code> (see
+the block-tree below). The Shiny explorer renders them under a new
+<strong>Pathway</strong> sub-tab of <strong>Enrichment
+Analysis</strong>, mirroring the DrugTargetor Drug view (Single-GWAS +
+Multi-GWAS sub-tabs, one method-specific table each).</p>
 <hr />
 </div>
 <div id="gwas-format" class="section level2">
@@ -1266,11 +1366,18 @@ portable bundle:</p>
       clump/               # LD clumping results
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
-      ldsc/                # LD score regression results (incl. gencor)
+      ldsc/                # LD score regression results
+      gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
+      gencor_within/       # Bivariate LDSC among primaries in gwas_list;
+                           #   only when gencor_within_gwas_list: T
       magma/               # MAGMA gene-level and enrichment results
+        pathway/{gmt}/     # MAGMA pathway enrichment (one dir per user gmt);
+                           #   only when magma_pathway: T
       twas/                # TWAS results (combined across panels)
         conditional/       # Conditional TWAS results
         cmap/              # TWAS-GSEA CMAP results
+        pathway/{gmt}/     # TWAS-GSEA pathway enrichment (one dir per user
+                           #   gmt); only when twas_gsea_pathway: T
       smr/                 # SMR results by panel
         psychencode/
         metabrain/
@@ -1337,6 +1444,10 @@ as follows:</p>
                                 #   $table has one row per secondary trait
                                 #   with rg, rg_se, rg_p, rg_p_fdr, n_snps
                                 #   + any extra columns from the list file
+    ldsc_gencor_within_dat      # NULL unless gencor_within_gwas_list: T;
+                                #   $table has one row per OTHER primary
+                                #   in the bundle (rg, rg_se, rg_p,
+                                #   rg_p_fdr, n_snps, gcov_int)
     manhattan_data              # list(data, offsets, indexes, p_threshold)
                                 #   consumed by the Shiny app&#39;s modifiable
                                 #   Manhattan tab; NULL for old bundles
@@ -1387,6 +1498,14 @@ as follows:</p>
     cmap/                       # NULL unless twas_gsea_cmap: T
       drug                      # per-signature x panel results
       moa                       # per-MOA enrichment
+    pathway/                    # User-supplied .gmt pathway enrichment
+      magma                     # data.frame; NULL unless magma_pathway: T
+                                #   cols: Name, Gmt, N Genes, BETA, SE, P,
+                                #   P.FDR (pooled across every gmt)
+      twas_gsea                 # data.frame; NULL unless twas_gsea_pathway: T
+                                #   cols: Name, Panel, Gmt, N, Estimate, SE,
+                                #   Z, P, P.FDR (pooled across every gmt
+                                #   AND every TWAS panel)
 
   tissue/                       # Tissue enrichment
     specific/                   # NULL unless tissue_magma: T
@@ -1445,12 +1564,19 @@ shiny::runApp(&quot;shiny_apps/output_explorer_embed/&quot;)</code></pre>
 <ul>
 <li><strong>Data Input &amp; GWAS QC</strong> - Summary statistic
 quality metrics</li>
+<li><strong>SNP-h² &amp; rG</strong> - LDSC heritability (h²) and
+genetic correlation (rG). The rG sub-tab shows a forest plot against the
+reference panel (<code>gencor_gwas_list</code>) and, on multi-GWAS
+bundles with <code>gencor_within_gwas_list: T</code>, an N×N heatmap of
+pairwise rG among the primary GWAS.</li>
 <li><strong>SNP Associations</strong> - Clumping and fine-mapping
 results</li>
 <li><strong>Molecular Associations</strong> - TWAS, SMR, MAGMA, and PWAS
 gene-level results</li>
-<li><strong>Enrichment</strong> - Drug enrichment and tissue enrichment
-results</li>
+<li><strong>Enrichment</strong> - Drug enrichment (Drug Targetor),
+tissue enrichment, CMap, and — when <code>magma_pathway: T</code> and/or
+<code>twas_gsea_pathway: T</code> — a <strong>Pathway</strong> sub-tab
+with MAGMA and TWAS-GSEA tables sorted by pooled FDR.</li>
 <li><strong>Configuration</strong> - Pipeline settings used for the
 analysis</li>
 </ul>

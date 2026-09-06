@@ -616,7 +616,59 @@ confounding or population stratification in the GWAS</li>
 Genomes reference panel. LDSC is run on the Z-score formatted summary
 statistics written by <code>sumstat_cleaner.R</code> alongside the
 cleaned sumstats (<code>.cleaned.munged.sumstats.gz</code>).</p>
+<p>For LDSC compatibility, the cleaner writes a HapMap3-restricted
+<code>.cleaned.munged.mergealleles.sumstats.gz</code> copy (columns
+<code>CHR SNP BP A1 A2 Z N</code>) alongside the full-genome munged
+file. Only variants present in <code>w_hm3.snplist</code> with alleles
+matching the merge-alleles list are kept; strand-ambiguous SNPs are
+dropped. Every LDSC step downstream — heritability, rG against a
+reference panel, and within-list rG — reads this restricted copy so that
+both sides of any <code>--rg</code> call share the same SNP set and
+allele orientation.</p>
 <p>Results are stored in <code>{outdir}/results/{gwas}/ldsc/</code>.</p>
+<hr />
+</div>
+<div id="bivariate-ldsc-genetic-correlation" class="section level2">
+<h2>Bivariate LDSC (genetic correlation)</h2>
+<p>Genetic correlation (<span class="math inline">\(r_g\)</span>)
+between GWAS is estimated using bivariate LDSC
+(<code>ldsc.py --rg</code>). Because both sides of each pair are the
+<code>.cleaned.munged.mergealleles.sumstats.gz</code> files produced by
+the pipeline itself, allele orientation and SNP overlap are guaranteed
+by construction — the “Incompatible alleles in .sumstats files” error
+mode is avoided without special handling.</p>
+<p>Two independent rG passes are available:</p>
+<ul>
+<li><strong>Against a reference panel</strong>
+(<code>gencor_gwas_list</code>). One <code>--rg</code> call per (primary
+GWAS × reference trait); the reference list is a
+<code>gwas_list</code>-shaped file whose <code>path</code> column points
+at already-munged <code>.sumstats.gz</code> files. Per-pair results and
+the log per pair are written under
+<code>{outdir}/results/{gwas}/gencor/</code>; the aggregated per-primary
+CSV (<code>{gwas}_gencor_res.csv</code>) applies BH-FDR across every
+reference trait for that primary.</li>
+<li><strong>Within the primary list</strong>
+(<code>gencor_within_gwas_list: T</code>). One <code>--rg</code> call
+per unique (primary <span class="math inline">\(i\)</span>, primary
+<span class="math inline">\(j\)</span>) pair with <span
+class="math inline">\(i \ne j\)</span>. A helper rule synthesises a
+per-primary <code>gencor_within_list.txt</code> listing every other EUR
+primary (with <code>path</code> pointing at that primary’s
+<code>.cleaned.munged.mergealleles.sumstats.gz</code>), then reuses the
+same shell loop as the reference-panel case. Results land in
+<code>{outdir}/results/{gwas}/gencor_within/</code>. Self-pairs are
+excluded at list-build time; non-EUR primaries are skipped upstream by
+the pipeline’s standard <code>gwas_list_df_eur</code> filter.</li>
+</ul>
+<p>Failure handling is identical for both passes: <code>ldsc.py</code>
+exits <code>0</code> even on
+<code>KeyError: 'Incompatible alleles in .sumstats files'</code>, so the
+shell loop writes a <code>GENCOR_PAIR_FAILED:</code> marker on non-zero
+exit and the R post-processor
+(<code>scripts/process_ldsc_gencor.R</code>) treats that marker (and
+LDSC’s own <code>ERROR computing rg</code> line) as an <code>NA</code>
+row, keeping successful pairs intact.</p>
 <hr />
 </div>
 <div id="ld-clumping" class="section level2">
@@ -776,6 +828,53 @@ effect direction</li>
 enrichment results.</p>
 <hr />
 </div>
+<div id="pathway-enrichment-magma-twas-gsea" class="section level2">
+<h2>Pathway enrichment (MAGMA + TWAS-GSEA)</h2>
+<p>When <code>pathway_gmt_dir</code> is set and
+<code>magma_pathway: T</code> and/or <code>twas_gsea_pathway: T</code>
+are enabled, the same MAGMA gene-set-analysis and non-directional
+TWAS-GSEA machinery is applied to user-supplied <code>.gmt</code> files
+(typically MSigDB collections). The pipeline globs <code>*.gmt</code> in
+<code>pathway_gmt_dir</code> at parse time and fans out one job per
+(primary GWAS × gmt) for MAGMA, and one per (primary GWAS × TWAS panel ×
+gmt) for TWAS-GSEA.</p>
+<p><strong>Entrez ↔︎ Symbol conversion.</strong> MSigDB <code>.gmt</code>
+files are typically keyed on Entrez IDs. MAGMA operates directly on
+Entrez IDs (matching the <code>NCBI37.3.gene.loc</code> gene table it
+already uses), so no conversion is needed on that side. TWAS-GSEA
+matches gene set members to gene symbols instead, so a small
+pre-processing rule
+(<code>scripts/convert_gmt_entrez_to_symbol.R</code>) rewrites each
+<code>.gmt</code> into a symbol-keyed copy under
+<code>{outdir}/results/pathway_gmts/</code> using the same
+<code>NCBI37.3.gene.loc</code> file as the mapping. Genes without a
+symbol match are dropped with a per-gmt count logged; the user’s input
+directory is never modified.</p>
+<p><strong>Statistics.</strong> Both sides mirror the DrugTargetor
+equivalents:</p>
+<ul>
+<li>MAGMA runs a competitive gene-set test per gene set, emitting
+<code>NGENES, BETA, SE, P</code> in
+<code>magma_pathway.gsa.out</code>.</li>
+<li>TWAS-GSEA runs its non-directional right-tail enrichment (probit
+link on <span class="math inline">\(1 - P_{\text{TWAS}}\)</span>) per
+(panel, gmt) pair, emitting <code>Estimate, SE, T, P</code> in
+<code>.competitive.txt</code>.</li>
+</ul>
+<p>Per-gmt cleaned CSVs land under
+<code>{outdir}/results/{gwas}/magma/pathway/{gmt}/</code> and
+<code>{outdir}/results/{gwas}/twas/pathway/{gmt}/</code> with per-set
+BH-FDR <strong>deliberately deferred</strong> to bundle-write time.</p>
+<p><strong>Pooled FDR.</strong> The <code>read_pathway_magma()</code>
+and <code>read_pathway_twas_gsea()</code> helpers in
+<code>package_results_functions.R</code> <code>rbind</code> every
+per-gmt CSV for a primary before applying
+<code>p.adjust(P, method = "BH")</code> once — for TWAS-GSEA the pool
+also includes every TWAS panel. This means the reported
+<code>P.FDR</code> correctly reflects the full multiple-testing burden
+of the pathway pass, not the per-file burden.</p>
+<hr />
+</div>
 <div id="twas-gsea-cmap-drug-signatures" class="section level2">
 <h2>TWAS-GSEA CMAP drug signatures</h2>
 <p>In addition to DrugTargetor gene sets, TWAS-GSEA is also applied
@@ -821,13 +920,41 @@ identify independently enriched tissues.</p>
 <div id="results-packaging" class="section level1">
 <h1>Results packaging</h1>
 <p>The <code>package_results</code> rule (<code>rules/report.smk</code>)
-aggregates all analysis results into a single R list object saved as
-<code>results_package.rds</code>. This file is the primary output for
-downstream analysis and visualisation.</p>
-<p>The results package contains nested lists structured by GWAS and
-analysis type, and can be loaded directly into R or explored using the
-bundled <a href="pipeline_guide.html#using-the-shiny-explorer">Shiny
-application</a>.</p>
+aggregates every analysis into a split-per-block bundle:</p>
+<ul>
+<li><code>{outdir}/results/package/</code> — one <code>.rds</code> per
+analysis block (<code>gwas_qc</code>, <code>snp_assoc</code>,
+<code>mol_assoc/exp/fusion</code>, <code>tx/drug</code>,
+<code>tx/pathway</code>, <code>tissue</code>, …) organised as
+<code>gwas/&lt;GWAS&gt;/&lt;block&gt;.rds</code>, plus
+<code>configuration/config.rds</code>,
+<code>configuration/gwas_list.rds</code>, <code>manifest.json</code>,
+and a copy of <code>reader.R</code> so the bundle is
+self-contained.</li>
+<li><code>{outdir}/results/bundle.tar.gz</code> — the tarballed
+<code>package/</code> directory. This is the file the Shiny explorer
+accepts and the download the web app hands users.</li>
+</ul>
+<p>The canonical block IDs are defined in
+<code>scripts/reader.R:.gd_block_ids</code>. Downstream code loads
+blocks lazily via <code>gd_open()</code> →
+<code>gd_read(gd, "&lt;gwas&gt;", "&lt;block&gt;")</code> so that memory
+usage scales with the block being inspected rather than with the full
+bundle — see the <a
+href="pipeline_guide.html#reading-results-into-r">User Guide</a> for
+examples.</p>
+<p>Pooled-FDR helpers in
+<code>scripts/functions/package_results_functions.R</code>
+(e.g. <code>read_pathway_magma()</code>,
+<code>read_twas_gsea_drug()</code>,
+<code>read_twas_gsea_cmap_drug()</code>) compute BH-adjusted p-values
+across the natural pooling unit (all gmts for pathway, all panels for
+TWAS-GSEA, all CMAP signatures × panels for CMAP) at bundle-write time,
+so the FDR column in each block reflects the correct multiple-testing
+burden without the consumer having to re-adjust.</p>
+<p>For backwards compatibility, <code>gd_open()</code> also accepts a
+legacy monolithic <code>results_package.rds</code> produced by older
+pipeline runs.</p>
 <hr />
 <p>For questions or issues, please contact Oliver Pain (<a
 href="mailto:oliver.pain@kcl.ac.uk"
