@@ -44,6 +44,12 @@ if gencor_gwas_list_val not in (None, 'NA'):
         print("Error: gencor_gwas_list is set but ldsc is not 'T'; genetic correlation requires LDSC heritability - set ldsc: 'T'.")
         sys.exit(1)
 
+# Within-primary-list rG precondition (same rule: rG requires h2).
+if config.get('gencor_within_gwas_list', 'F') == 'T':
+    if config.get('ldsc', 'F') != 'T':
+        print("Error: gencor_within_gwas_list is 'T' but ldsc is not 'T'; genetic correlation requires LDSC heritability - set ldsc: 'T'.")
+        sys.exit(1)
+
 # Set outdir parameter
 outdir=config['outdir']
 

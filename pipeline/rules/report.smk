@@ -20,6 +20,9 @@ if config["ldsc"] == "T":
 if config["ldsc"] == "T" and config.get("gencor_gwas_list", "NA") not in (None, "NA"):
     myoutput.append(expand("{outdir}/results/{gwas}/gencor/{gwas}_gencor_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if config["ldsc"] == "T" and config.get("gencor_within_gwas_list", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["magma_gene"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

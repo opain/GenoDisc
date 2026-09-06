@@ -43,6 +43,12 @@ ldsc: F
 # Path to a gwas_list-format file of already-munged secondary GWAS.
 gencor_gwas_list: NA
 
+# Within-primary-list bivariate LDSC rG (requires ldsc: T).
+# T/F. When T, computes rG among every pair of EUR GWAS in gwas_list;
+# self-pairs and non-EUR primaries are skipped. Independent of
+# gencor_gwas_list: either or both may be enabled in the same run.
+gencor_within_gwas_list: F
+
 # MAGMA gene associations analysis
 magma_gene: F
 

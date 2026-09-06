@@ -188,6 +188,114 @@ rule process_ldsc_gencor:
       --config_file {params.config_file} > {log} 2>&1"
 
 ###
+# Within-primary-list bivariate LDSC (gencor among the GWAS the user submitted)
+#
+# Gated by config[gencor_within_gwas_list] (T/F). Independent of the reference-
+# panel gencor above; either or both can be enabled in the same run. Reuses
+# every primary's {gwas}.cleaned.munged.mergealleles.sumstats.gz (produced by
+# sumstat_prep_i), so no new preprocessing.
+###
+
+rule build_gencor_within_list:
+  # Emit the per-primary "secondary" list for ldsc_gencor_within: every OTHER
+  # EUR primary in gwas_list, with path = the mergealleles file that
+  # sumstat_prep_i writes. Schema matches gencor_gwas_list so the downstream
+  # rule + process_ldsc_gencor.R can consume it unchanged.
+  output:
+    "{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_list.txt"
+  run:
+    import os
+    os.makedirs(os.path.dirname(output[0]), exist_ok=True)
+    others = gwas_list_df_eur[gwas_list_df_eur['name'] != wildcards.gwas]
+    with open(output[0], 'w') as fh:
+      fh.write("name path population n sampling prevalence mean sd label\n")
+      for _, r in others.iterrows():
+        path = f"{wildcards.outdir}/results/{r['name']}/gwas_sumstat/{r['name']}.cleaned.munged.mergealleles.sumstats.gz"
+        # Wrap label in quotes to preserve embedded spaces (matches the format
+        # of tests/gencor_gwas_list_test_full.txt).
+        label = str(r.get('label', r['name'])).replace('"', '')
+        fh.write(f'{r["name"]} {path} {r["population"]} {r["n"]} {r["sampling"]} {r["prevalence"]} {r["mean"]} {r["sd"]} "{label}"\n')
+
+rule ldsc_gencor_within:
+  # Bivariate LDSC of {gwas} vs every other EUR primary. Mirrors ldsc_gencor
+  # (structure, failure marker, log location) but iterates the synthesised
+  # within-list and outputs to gencor_within/.
+  input:
+    within_list="{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_list.txt",
+    primary="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.mergealleles.sumstats.gz",
+    # Force DAG ordering: every EUR primary's mergealleles file must exist
+    # before we try to correlate against it. expand() over gwas_list_df_eur.
+    all_primaries=expand("{{outdir}}/results/{other}/gwas_sumstat/{other}.cleaned.munged.mergealleles.sumstats.gz",
+                        other=gwas_list_df_eur['name']),
+    ldsc_dir=f"{resdir}/software/ldsc/",
+    ld_scores=f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
+    hm3=f"{resdir}/data/ldsc/w_hm3.snplist"
+  output:
+    touch("{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_pairs.done")
+  benchmark:
+    "{outdir}/benchmarks/ldsc_gencor_within_{gwas}.tsv"
+  conda:
+    "../envs/ldsc.yaml"
+  params:
+    resdir=resdir
+  log:
+    "{outdir}/logs/ldsc_gencor_within-{gwas}.log"
+  shell:
+    """
+    (mkdir -p {outdir}/results/{wildcards.gwas}/gencor_within/
+
+    # Header-only list (single EUR primary in gwas_list) is a valid no-op.
+    if [ "$(tail -n +2 {input.within_list} | wc -l)" -eq 0 ]; then
+      echo "gencor_within: no other EUR primaries; skipping."
+      exit 0
+    fi
+
+    # All secondary paths are pipeline outputs, so they should exist by DAG
+    # construction. Match ldsc_gencor's pre-check anyway to surface any DAG
+    # inconsistency as a clear config error rather than an LDSC crash.
+    missing=$(tail -n +2 {input.within_list} | awk '{{print $1, $2}}' | while read name path; do
+      [ -f "${{path}}" ] || echo "  ${{name}} -> ${{path}}"
+    done)
+    if [ -n "$missing" ]; then
+      echo "ERROR: within-list mergealleles files missing (DAG inconsistency?):"
+      echo "$missing"
+      exit 1
+    fi
+
+    tail -n +2 {input.within_list} | awk '{{print $1, $2}}' | while read name path; do
+      out_prefix={outdir}/results/{wildcards.gwas}/gencor_within/{wildcards.gwas}__${{name}}
+      python2.7 {params.resdir}/software/ldsc/ldsc.py \
+        --rg {input.primary},${{path}} \
+        --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
+        --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
+        --out ${{out_prefix}} \
+        || echo "GENCOR_PAIR_FAILED: ${{name}}" >> ${{out_prefix}}.log
+    done) > {log} 2>&1
+    """
+
+rule process_ldsc_gencor_within:
+  input:
+    done="{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_pairs.done",
+    within_list="{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_list.txt"
+  output:
+    "{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_ldsc_gencor_within_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_ldsc_gencor_within-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/process_ldsc_gencor.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} \
+      --secondary_list {input.within_list} \
+      --gencor_dir {outdir}/results/{wildcards.gwas}/gencor_within \
+      --out_csv {output} > {log} 2>&1"
+
+###
 # Run LD clumping
 ###
 

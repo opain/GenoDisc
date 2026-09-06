@@ -7,7 +7,13 @@ option_list <- list(
   make_option("--config_file", action = "store", default = NA, type = "character",
               help = "Path to config file [required]"),
   make_option("--pipeline_dir", action = "store", default = NA, type = "character",
-              help = "Path to the pipeline directory [required]")
+              help = "Path to the pipeline directory [required]"),
+  make_option("--secondary_list", action = "store", default = NA, type = "character",
+              help = "Override for the secondary GWAS list. Defaults to config's `gencor_gwas_list`; the within-list rule (ldsc_gencor_within) passes its synthesised per-primary list here."),
+  make_option("--gencor_dir", action = "store", default = NA, type = "character",
+              help = "Override for the directory containing the per-pair LDSC .log files. Defaults to `{outdir}/results/{gwas}/gencor/`; the within-list rule points here at `.../gencor_within/`."),
+  make_option("--out_csv", action = "store", default = NA, type = "character",
+              help = "Override for the output CSV path. Defaults to `{gencor_dir}/{gwas}_gencor_res.csv`; the within-list rule writes `{gwas}_gencor_within_res.csv`.")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -16,15 +22,22 @@ options(pipeline_dir = opt$pipeline_dir)
 library(data.table)
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
-outdir      <- read_param(config = opt$config_file, param = 'outdir',           return_obj = F)
-gencor_path <- read_param(config = opt$config_file, param = 'gencor_gwas_list', return_obj = F)
+outdir <- read_param(config = opt$config_file, param = 'outdir', return_obj = F)
+
+# The within-list rule passes --secondary_list / --gencor_dir / --out_csv
+# explicitly. In the default (reference-panel) mode nothing is overridden
+# and we fall back to `gencor_gwas_list` in the config + the standard
+# `gencor/` directory + `{gwas}_gencor_res.csv` filename.
+gencor_path <- if (!is.na(opt$secondary_list)) opt$secondary_list else
+  read_param(config = opt$config_file, param = 'gencor_gwas_list', return_obj = F)
 
 if (is.null(gencor_path) || is.na(gencor_path) || gencor_path == '') {
-  stop("process_ldsc_gencor.R invoked but gencor_gwas_list is not set in the config.")
+  stop("process_ldsc_gencor.R invoked but neither --secondary_list nor gencor_gwas_list is set.")
 }
 
 secondary <- fread(gencor_path, sep = ' ', header = TRUE)
-gencor_dir <- file.path(outdir, 'results', opt$gwas, 'gencor')
+gencor_dir <- if (!is.na(opt$gencor_dir)) opt$gencor_dir else
+  file.path(outdir, 'results', opt$gwas, 'gencor')
 
 # Any column in gencor_gwas_list beyond the known system columns is treated
 # as facet-able metadata (e.g. category) and preserved through to the
@@ -82,24 +95,32 @@ parse_pair_log <- function(log_file) {
   out
 }
 
-rows <- vector('list', nrow(secondary))
-for (i in seq_len(nrow(secondary))) {
-  nm <- secondary$name[i]
-  log_file <- file.path(gencor_dir, paste0(opt$gwas, '__', nm, '.log'))
-  parsed <- tryCatch(parse_pair_log(log_file),
-                     error = function(e) list(rg = NA_real_, rg_se = NA_real_, rg_p = NA_real_,
-                                              gcov_int = NA_real_, n_snps = NA_integer_))
-  rows[[i]] <- data.table(
-    name     = nm,
-    label    = secondary$label[i],
-    rg       = parsed$rg,
-    rg_se    = parsed$rg_se,
-    rg_p     = parsed$rg_p,
-    n_snps   = parsed$n_snps,
-    gcov_int = parsed$gcov_int
-  )
+# Empty secondary list -> write a header-only CSV. Happens for the within-list
+# rule when gwas_list has a single EUR primary (nothing to pair against).
+if (nrow(secondary) == 0L) {
+  res <- data.table(name = character(), label = character(),
+                    rg = numeric(), rg_se = numeric(), rg_p = numeric(),
+                    n_snps = integer(), gcov_int = numeric())
+} else {
+  rows <- vector('list', nrow(secondary))
+  for (i in seq_len(nrow(secondary))) {
+    nm <- secondary$name[i]
+    log_file <- file.path(gencor_dir, paste0(opt$gwas, '__', nm, '.log'))
+    parsed <- tryCatch(parse_pair_log(log_file),
+                       error = function(e) list(rg = NA_real_, rg_se = NA_real_, rg_p = NA_real_,
+                                                gcov_int = NA_real_, n_snps = NA_integer_))
+    rows[[i]] <- data.table(
+      name     = nm,
+      label    = secondary$label[i],
+      rg       = parsed$rg,
+      rg_se    = parsed$rg_se,
+      rg_p     = parsed$rg_p,
+      n_snps   = parsed$n_snps,
+      gcov_int = parsed$gcov_int
+    )
+  }
+  res <- rbindlist(rows)
 }
-res <- rbindlist(rows)
 
 # BH-FDR across non-NA p-values
 res[, rg_p_fdr := NA_real_]
@@ -121,5 +142,6 @@ core_cols <- c('name', 'label', 'rg', 'rg_se', 'rg_p', 'rg_p_fdr', 'n_snps', 'gc
 setcolorder(res, c(core_cols, setdiff(names(res), core_cols)))
 
 dir.create(gencor_dir, recursive = TRUE, showWarnings = FALSE)
-out_csv <- file.path(gencor_dir, paste0(opt$gwas, '_gencor_res.csv'))
+out_csv <- if (!is.na(opt$out_csv)) opt$out_csv else
+  file.path(gencor_dir, paste0(opt$gwas, '_gencor_res.csv'))
 fwrite(res, out_csv)
