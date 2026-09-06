@@ -940,11 +940,13 @@ build_pathway_long <- function(gd, gwas) {
 #'                                limits = c(0, max) — depleted / negative
 #'                                Z values fall off the scale and render
 #'                                transparent (same as the Drug plot).
-#'   shape 21 (empty circle ring) nominal p < 0.05 overlay, black outline.
-#'   shape 22 (empty square)      FDR p < 0.05 overlay, black outline, no
-#'                                fill — deliberately shape 22 (not 15) so
-#'                                the coloured circle underneath is still
-#'                                visible through the transparent centre.
+#'   shape 21 (hollow circle)     nominal p < 0.05 overlay — deliberately
+#'                                shape 21 (not default 19) so the fill=NA
+#'                                keeps the centre transparent and the
+#'                                coloured circle underneath is still
+#'                                visible through the ring.
+#'   shape 22 (hollow square)     FDR p < 0.05 overlay — deliberately
+#'                                shape 22 (not 15) for the same reason.
 #'
 #' Rows = pathway (`Name`); x = Panel; facet columns = Method (MAGMA one
 #' column, TWAS-GSEA one column per TWAS panel).
@@ -1014,7 +1016,7 @@ build_pathway_summary_gtable <- function(long,
     ggplot2::geom_point(
       data = long[!is.na(P) & P < 0.05],
       ggplot2::aes(x = Panel, y = Name),
-      colour = "black", fill = NA, size = point_size + 1
+      colour = "black", fill = NA, size = point_size + 1, shape = 21
     ) +
     ggplot2::geom_point(
       data = long[!is.na(P.FDR) & P.FDR < 0.05],
@@ -1126,7 +1128,7 @@ build_pathway_summary_multi_gtable <- function(long,
     ggplot2::geom_point(
       data = long[!is.na(P) & P < 0.05],
       ggplot2::aes(x = Panel, y = Name),
-      colour = "black", fill = NA, size = point_size + 1
+      colour = "black", fill = NA, size = point_size + 1, shape = 21
     ) +
     ggplot2::geom_point(
       data = long[!is.na(P.FDR) & P.FDR < 0.05],
