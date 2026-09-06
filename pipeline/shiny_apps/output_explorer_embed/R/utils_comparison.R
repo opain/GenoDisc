@@ -852,6 +852,181 @@ build_gencor_within_heatmap <- function(long,
 #'
 #' @param gd A gd_result opened with gd_open()
 #' @param gwas_vec Character vector of GWAS names
+#' Long-form pathway enrichment summary for one primary GWAS
+#'
+#' Combines the two per-primary pathway tables carried by the bundle
+#' (`tx$pathway$magma` and `tx$pathway$twas_gsea`) into a single long-form
+#' data.table keyed on (Name, Gmt, Method, Panel). Powers the Pathway
+#' Summary heatmap: rows = pathway, columns/facets = Method × Panel × Gmt.
+#'
+#' MAGMA has no panel dimension so `Panel = "MAGMA"` (a placeholder so a
+#' single ggplot faceting scheme can carry both methods). TWAS-GSEA panels
+#' are the tidy labels applied by `tidy_panel_names()` inside
+#' `read_pathway_twas_gsea()`.
+#'
+#' Both methods emit `P` and `P.FDR`; MAGMA additionally has a signed
+#' `BETA`, TWAS-GSEA has `Estimate` + `Z`. To let one ggplot scale colour
+#' both consistently we derive a common `Z_signed` column:
+#'   MAGMA:      BETA / SE            (Wald-Z on the beta)
+#'   TWAS-GSEA:  Z                    (already emitted by TWAS-GSEA-fast)
+#' and an always-positive `neg_log10_fdr` for the alternative fill.
+#'
+#' Returns an empty data.table (with the expected columns) when neither
+#' pathway block is populated for this primary.
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas Character(1) primary GWAS name
+#' @return data.table: gwas, Name, Gmt, Method, Panel, Z_signed,
+#'   neg_log10_fdr, P, P.FDR, N_Genes
+build_pathway_long <- function(gd, gwas) {
+  empty <- data.table::data.table(
+    gwas = character(0), Name = character(0), Gmt = character(0),
+    Method = character(0), Panel = character(0),
+    Z_signed = numeric(0), neg_log10_fdr = numeric(0),
+    P = numeric(0), P.FDR = numeric(0), N_Genes = integer(0)
+  )
+
+  pathway <- gd_read(gd, gwas, "tx/pathway")
+  if (is.null(pathway)) return(empty)
+
+  parts <- list()
+
+  # MAGMA side
+  m <- pathway$magma
+  if (!is.null(m) && nrow(m) > 0) {
+    m <- as.data.frame(m)
+    parts[[length(parts) + 1L]] <- data.table::data.table(
+      gwas          = gwas,
+      Name          = as.character(m$Name),
+      Gmt           = as.character(m$Gmt),
+      Method        = "MAGMA",
+      Panel         = "MAGMA",
+      Z_signed      = suppressWarnings(m$BETA / m$SE),
+      neg_log10_fdr = -log10(pmax(suppressWarnings(as.numeric(m$P.FDR)), 1e-300)),
+      P             = suppressWarnings(as.numeric(m$P)),
+      P.FDR         = suppressWarnings(as.numeric(m$P.FDR)),
+      N_Genes       = suppressWarnings(as.integer(m$`N Genes`))
+    )
+  }
+
+  # TWAS-GSEA side (has Panel already)
+  t <- pathway$twas_gsea
+  if (!is.null(t) && nrow(t) > 0) {
+    t <- as.data.frame(t)
+    parts[[length(parts) + 1L]] <- data.table::data.table(
+      gwas          = gwas,
+      Name          = as.character(t$Name),
+      Gmt           = as.character(t$Gmt),
+      Method        = "TWAS-GSEA (non-dir)",
+      Panel         = as.character(t$Panel),
+      Z_signed      = suppressWarnings(as.numeric(t$Z)),
+      neg_log10_fdr = -log10(pmax(suppressWarnings(as.numeric(t$P.FDR)), 1e-300)),
+      P             = suppressWarnings(as.numeric(t$P)),
+      P.FDR         = suppressWarnings(as.numeric(t$P.FDR)),
+      N_Genes       = suppressWarnings(as.integer(t$N))
+    )
+  }
+
+  if (length(parts) == 0L) return(empty)
+  data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
+}
+
+#' Heatmap of the pathway summary long form
+#'
+#' Rows = pathway (`Name`); x = Panel; facet columns = Method (MAGMA
+#' single column, TWAS-GSEA multiple panels). Fill = signed Z when the
+#' `signed` colour scale is chosen (diverging RdBu, symmetric ±maxAbs),
+#' or -log10(P.FDR) for the "significance" scale (viridis, floor at 0).
+#' FDR-significant cells get a black square outline; nominally-significant
+#' get a thinner ring — same convention as the Drug Targetor summary.
+#'
+#' Assumes the caller has already narrowed to a manageable number of rows
+#' (typically ≤ 50). Returns NULL on an empty input.
+#'
+#' @param long data.table from build_pathway_long()
+#' @param sort_choice "significance" (default; by min P.FDR across
+#'   methods, most significant on top) or "alphabetical".
+#' @param fill "signed" (Z scale, diverging) or "significance"
+#'   (-log10 P.FDR, viridis).
+#' @param font_size numeric, ggplot base font size.
+#' @param point_size numeric, tile "point" size (matches Drug summary).
+#' @param theme_fn ggplot theme function.
+build_pathway_summary_gtable <- function(long,
+                                          sort_choice = "significance",
+                                          fill = "signed",
+                                          font_size = 12,
+                                          point_size = 5,
+                                          theme_fn = ggplot2::theme_bw) {
+  if (is.null(long) || nrow(long) == 0) return(NULL)
+  long <- data.table::copy(long)
+
+  # Row ordering
+  ord <- if (sort_choice == "alphabetical") {
+    sort(unique(long$Name), decreasing = TRUE)
+  } else {
+    agg <- long[, .(min_fdr = suppressWarnings(min(P.FDR, na.rm = TRUE))), by = Name]
+    agg[is.infinite(min_fdr), min_fdr := NA_real_]
+    # Most significant at top -> reverse so lowest FDR ends up last (top).
+    rev(agg[order(min_fdr, na.last = TRUE), Name])
+  }
+  long[, Name := factor(Name, levels = ord)]
+
+  methods <- c("MAGMA", "TWAS-GSEA (non-dir)")
+  methods <- methods[methods %in% long$Method]
+  long[, Method := factor(Method, levels = methods)]
+
+  gg <- ggplot2::ggplot(long, ggplot2::aes(x = Panel, y = Name)) +
+    ggplot2::geom_blank() +
+    theme_fn(base_size = font_size)
+
+  if (fill == "signed") {
+    mx <- suppressWarnings(max(abs(long$Z_signed), na.rm = TRUE))
+    if (!is.finite(mx) || mx == 0) mx <- 1
+    gg <- gg + ggplot2::geom_point(
+      data = long[!is.na(Z_signed)],
+      ggplot2::aes(fill = Z_signed), shape = 21, stroke = 0,
+      size = point_size
+    ) +
+    ggplot2::scale_fill_gradientn(
+      colours  = c("#2166AC","#67A9CF","#F7F7F7","#EF8A62","#B2182B"),
+      limits   = c(-mx, mx), name = "Z", na.value = "transparent"
+    )
+  } else {
+    mx <- suppressWarnings(max(long$neg_log10_fdr, na.rm = TRUE))
+    if (!is.finite(mx) || mx == 0) mx <- 1
+    gg <- gg + ggplot2::geom_point(
+      data = long[!is.na(neg_log10_fdr)],
+      ggplot2::aes(fill = neg_log10_fdr), shape = 21, stroke = 0,
+      size = point_size
+    ) +
+    ggplot2::scale_fill_viridis_c(
+      option = "D", limits = c(0, mx),
+      name = "-log10(FDR)", na.value = "transparent"
+    )
+  }
+
+  gg <- gg +
+    ggplot2::geom_point(
+      data = long[!is.na(P) & P < 0.05],
+      ggplot2::aes(x = Panel, y = Name),
+      colour = "black", fill = NA, size = point_size + 1, shape = 21
+    ) +
+    ggplot2::geom_point(
+      data = long[!is.na(P.FDR) & P.FDR < 0.05],
+      ggplot2::aes(x = Panel, y = Name),
+      colour = "black", fill = NA, size = point_size + 2, shape = 22
+    ) +
+    ggplot2::facet_grid(cols = ggplot2::vars(Method),
+                        scales = "free_x", space = "free_x") +
+    ggplot2::labs(x = NULL, y = NULL) +
+    ggplot2::theme(
+      axis.text.x    = ggplot2::element_text(angle = 45, hjust = 1),
+      strip.text     = ggplot2::element_text(face = "bold"),
+      panel.grid.minor = ggplot2::element_blank()
+    )
+  gg
+}
+
 #' @param gwas_list Optional data.frame from gd_config(gd)$gwas_list (uses
 #'   `name` / `label` columns to supply human-readable labels).
 #' @return data.table with columns: gwas, label, n_var_orig, build,

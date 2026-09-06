@@ -1012,7 +1012,55 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       # per method), Multi-GWAS view (long-form pooled tables with a GWAS
       # column). Only shown when the pipeline flag(s) were on.
       if (isTRUE(cf$pathway)) {
-        pathway_inner_single <- list()
+        pathway_inner_single <- list(
+          tabPanel(title = "Summary", br(),
+            p("Top pathways across every method and gmt. Colour is signed Wald-Z (MAGMA: BETA/SE; TWAS-GSEA: emitted Z). Nominally-significant cells get a black ring; FDR-significant cells get a black square outline. FDR is pooled across every gene set in every gmt for this GWAS (and across TWAS panels for TWAS-GSEA), so a cell that clears FDR here has cleared the full pathway-pass burden."),
+            hr(),
+            tags$details(class = "gd-details",
+              tags$summary("Filter data"),
+              tags$div(class = "gd-details-body",
+                fluidRow(
+                  column(3,
+                    uiOutput(ns("pathway_summary_gmt_ui")),
+                    uiOutput(ns("pathway_summary_method_ui"))
+                  ),
+                  column(3,
+                    numericInput(ns("pathway_summary_fdr"),
+                                 "FDR threshold:",
+                                 value = 0.05, min = 1e-6, max = 1, step = 0.01),
+                    radioButtons(ns("pathway_summary_fdr_only"),
+                                 "Show FDR-significant pathways only:",
+                                 choices = c("True" = TRUE, "False" = FALSE),
+                                 selected = TRUE, inline = TRUE)
+                  ),
+                  column(3,
+                    numericInput(ns("pathway_summary_top_n"),
+                                 "Top N pathways (by min FDR):",
+                                 value = 30, min = 5, max = 200, step = 5),
+                    textInput(ns("pathway_summary_name"),
+                              "Filter by pathway name substring (optional):",
+                              value = "")
+                  ),
+                  column(3,
+                    selectInput(ns("pathway_summary_sort"), "Sort rows by:",
+                                choices = c("Significance (min FDR)" = "significance",
+                                            "Alphabetical" = "alphabetical"),
+                                selected = "significance"),
+                    selectInput(ns("pathway_summary_fill"), "Colour scale:",
+                                choices = c("Signed Z" = "signed",
+                                            "-log10(FDR)" = "significance"),
+                                selected = "signed"),
+                    sliderInput(ns("pathway_summary_font_size"),
+                                "Font size (pt):",
+                                min = 8, max = 20, value = 12, step = 1)
+                  )
+                )
+              )
+            ),
+            br(),
+            uiOutput(ns("pathway_summary_plot_ui"))
+          )
+        )
         if (isTRUE(cf$magma_pathway)) {
           pathway_inner_single <- c(pathway_inner_single, list(
             tabPanel(title = "MAGMA", br(),
@@ -1168,6 +1216,117 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                               c(match("P",     names(tmp)),
                                 match("P.FDR", names(tmp))) - 1L)
     })
+
+    # -------- Pathway Summary heatmap (single-GWAS Summary sub-tab) --------
+
+    # Full long form for the current primary; downstream reactives filter it.
+    pathway_long_full <- reactive({
+      req(gwas_data(), selected_gwas())
+      build_pathway_long(gwas_data(), selected_gwas())
+    })
+
+    # Populate the filter widgets (gmt + method) from the actual data on
+    # each bundle load. renderUI ensures options match the loaded bundle.
+    output$pathway_summary_gmt_ui <- renderUI({
+      long <- pathway_long_full()
+      if (is.null(long) || nrow(long) == 0) return(NULL)
+      choices <- sort(unique(long$Gmt))
+      selectInput(ns("pathway_summary_gmt"),
+                  "Include these gmts:",
+                  choices = choices, selected = choices, multiple = TRUE)
+    })
+
+    output$pathway_summary_method_ui <- renderUI({
+      long <- pathway_long_full()
+      if (is.null(long) || nrow(long) == 0) return(NULL)
+      choices <- unique(long$Method)
+      selectInput(ns("pathway_summary_method"),
+                  "Include these methods:",
+                  choices = choices, selected = choices, multiple = TRUE)
+    })
+
+    # Filtered long form + top-N truncation.
+    pathway_long_filt <- reactive({
+      long <- pathway_long_full()
+      if (is.null(long) || nrow(long) == 0) return(long)
+
+      # Method filter
+      m <- input$pathway_summary_method
+      if (!is.null(m) && length(m) > 0) long <- long[Method %in% m]
+      # Gmt filter
+      g <- input$pathway_summary_gmt
+      if (!is.null(g) && length(g) > 0) long <- long[Gmt %in% g]
+      # FDR-only toggle
+      thr <- input$pathway_summary_fdr %||% 0.05
+      if (isTRUE(as.logical(input$pathway_summary_fdr_only))) {
+        # Keep only pathways with AT LEAST ONE cell < threshold, then keep
+        # all their cells so the heatmap row is complete.
+        sig_names <- unique(long[!is.na(P.FDR) & P.FDR < thr, Name])
+        long <- long[Name %in% sig_names]
+      }
+      # Substring name filter
+      needle <- trimws(input$pathway_summary_name %||% "")
+      if (nzchar(needle)) {
+        long <- long[grepl(needle, Name, ignore.case = TRUE)]
+      }
+      if (nrow(long) == 0) return(long)
+
+      # Top N by min FDR across methods
+      top_n <- input$pathway_summary_top_n %||% 30
+      agg <- long[, .(min_fdr = suppressWarnings(min(P.FDR, na.rm = TRUE))),
+                  by = Name]
+      agg[is.infinite(min_fdr), min_fdr := NA_real_]
+      keep <- agg[order(min_fdr, na.last = TRUE), head(Name, top_n)]
+      long[Name %in% keep]
+    })
+
+    pathway_summary_dim <- reactive({
+      long <- pathway_long_filt()
+      if (is.null(long) || nrow(long) == 0) return(list(width_px = 700, height_px = 400))
+      n_rows <- length(unique(long$Name))
+      n_cols <- length(unique(paste0(long$Method, "::", long$Panel)))
+      fs <- input$pathway_summary_font_size %||% 12
+      # Longest label -> pt -> px
+      lbl_pt <- max(strwidth_pt(as.character(unique(long$Name)), ps = fs))
+      lbl_px <- lbl_pt * 96 / 72
+      row_px <- max(22, round(fs * 2.2))
+      chrome <- 180
+      w <- as.integer(min(1600, lbl_px + 90 * n_cols + chrome))
+      h <- as.integer(min(2000, 80 + row_px * n_rows))
+      list(width_px = w, height_px = h)
+    })
+
+    output$pathway_summary_plot_ui <- renderUI({
+      long <- pathway_long_filt()
+      if (is.null(long) || nrow(long) == 0) {
+        return(tags$div(
+          class = "well",
+          style = "max-width: 720px; margin-top: 12px;",
+          tags$p(tags$b("No pathways to plot."),
+                 " Loosen the FDR threshold, disable the ",
+                 tags$em("FDR-significant only"),
+                 " toggle, or widen the name filter.")
+        ))
+      }
+      dims <- pathway_summary_dim()
+      tags$div(style = "max-width: 100%; overflow-x: auto;",
+        plotOutput(ns("pathway_summary_plot"),
+                   width  = paste0(dims$width_px,  "px"),
+                   height = paste0(dims$height_px, "px"))
+      )
+    })
+
+    output$pathway_summary_plot <- renderPlot({
+      long <- pathway_long_filt()
+      req(long, nrow(long) > 0)
+      build_pathway_summary_gtable(
+        long,
+        sort_choice = input$pathway_summary_sort %||% "significance",
+        fill        = input$pathway_summary_fill %||% "signed",
+        font_size   = input$pathway_summary_font_size %||% 12,
+        point_size  = 5
+      )
+    }, res = 96)
 
     #######
     # Prepare data for drug-specific association tables
