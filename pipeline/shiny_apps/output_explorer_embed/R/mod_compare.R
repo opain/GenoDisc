@@ -2801,11 +2801,13 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       req(length(choices) >= 1)
       # Hidden entirely for single-GWAS bundles.
       if (length(choices) < 2L) return(NULL)
-      cur <- isolate(input$gwas_pick)
-      keep <- if (is.null(cur)) choices else intersect(cur, choices)
-      if (length(keep) == 0) keep <- choices
+      # Always default to all-selected: this renderUI only fires when the
+      # bundle changes, and preserving a stale user selection across bundle
+      # loads was masked in the past by an isolate() + intersect() dance
+      # that also raced with selectize.js's client-side sync on first paint,
+      # leaving the visible pills out of sync with the plot's filter state.
       selectInput(session$ns("gwas_pick"), "Include GWAS:",
-                   choices = choices, selected = keep, multiple = TRUE)
+                   choices = choices, selected = choices, multiple = TRUE)
     })
 
     output$ref_pick_ui <- renderUI({
@@ -2817,11 +2819,11 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       # the user, values are what the input returns.
       opts <- stats::setNames(as.character(ref_pairs$ref_name),
                                 as.character(ref_pairs$ref_label))
-      cur <- isolate(input$ref_pick)
-      keep <- if (is.null(cur)) ref_pairs$ref_name else intersect(cur, ref_pairs$ref_name)
-      if (length(keep) == 0) keep <- ref_pairs$ref_name
+      # Default to every reference trait selected -- same reasoning as
+      # gwas_pick_ui above.
       selectInput(session$ns("ref_pick"), "Include reference traits:",
-                   choices = opts, selected = keep, multiple = TRUE)
+                   choices = opts, selected = ref_pairs$ref_name,
+                   multiple = TRUE)
     })
 
     output$row_facet_ui <- renderUI({
