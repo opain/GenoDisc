@@ -120,7 +120,22 @@ The pipeline accepts many common column name formats. Below are examples of reco
 
 The pipeline uses pre-computed LD scores from the European 1000 Genomes reference panel. LDSC is run on the Z-score formatted summary statistics written by `sumstat_cleaner.R` alongside the cleaned sumstats (`.cleaned.munged.sumstats.gz`).
 
+For LDSC compatibility, the cleaner writes a HapMap3-restricted `.cleaned.munged.mergealleles.sumstats.gz` copy (columns `CHR SNP BP A1 A2 Z N`) alongside the full-genome munged file. Only variants present in `w_hm3.snplist` with alleles matching the merge-alleles list are kept; strand-ambiguous SNPs are dropped. Every LDSC step downstream — heritability, rG against a reference panel, and within-list rG — reads this restricted copy so that both sides of any `--rg` call share the same SNP set and allele orientation.
+
 Results are stored in `{outdir}/results/{gwas}/ldsc/`.
+
+***
+
+## Bivariate LDSC (genetic correlation)
+
+Genetic correlation ($r_g$) between GWAS is estimated using bivariate LDSC (`ldsc.py --rg`). Because both sides of each pair are the `.cleaned.munged.mergealleles.sumstats.gz` files produced by the pipeline itself, allele orientation and SNP overlap are guaranteed by construction — the "Incompatible alleles in .sumstats files" error mode is avoided without special handling.
+
+Two independent rG passes are available:
+
+- **Against a reference panel** (`gencor_gwas_list`). One `--rg` call per (primary GWAS × reference trait); the reference list is a `gwas_list`-shaped file whose `path` column points at already-munged `.sumstats.gz` files. Per-pair results and the log per pair are written under `{outdir}/results/{gwas}/gencor/`; the aggregated per-primary CSV (`{gwas}_gencor_res.csv`) applies BH-FDR across every reference trait for that primary.
+- **Within the primary list** (`gencor_within_gwas_list: T`). One `--rg` call per unique (primary $i$, primary $j$) pair with $i \ne j$. A helper rule synthesises a per-primary `gencor_within_list.txt` listing every other EUR primary (with `path` pointing at that primary's `.cleaned.munged.mergealleles.sumstats.gz`), then reuses the same shell loop as the reference-panel case. Results land in `{outdir}/results/{gwas}/gencor_within/`. Self-pairs are excluded at list-build time; non-EUR primaries are skipped upstream by the pipeline's standard `gwas_list_df_eur` filter.
+
+Failure handling is identical for both passes: `ldsc.py` exits `0` even on `KeyError: 'Incompatible alleles in .sumstats files'`, so the shell loop writes a `GENCOR_PAIR_FAILED:` marker on non-zero exit and the R post-processor (`scripts/process_ldsc_gencor.R`) treats that marker (and LDSC's own `ERROR computing rg` line) as an `NA` row, keeping successful pairs intact.
 
 ***
 
@@ -243,6 +258,23 @@ Results are aggregated across TWAS panels and stored alongside other enrichment 
 
 ***
 
+## Pathway enrichment (MAGMA + TWAS-GSEA)
+
+When `pathway_gmt_dir` is set and `magma_pathway: T` and/or `twas_gsea_pathway: T` are enabled, the same MAGMA gene-set-analysis and non-directional TWAS-GSEA machinery is applied to user-supplied `.gmt` files (typically MSigDB collections). The pipeline globs `*.gmt` in `pathway_gmt_dir` at parse time and fans out one job per (primary GWAS × gmt) for MAGMA, and one per (primary GWAS × TWAS panel × gmt) for TWAS-GSEA.
+
+**Entrez ↔ Symbol conversion.** MSigDB `.gmt` files are typically keyed on Entrez IDs. MAGMA operates directly on Entrez IDs (matching the `NCBI37.3.gene.loc` gene table it already uses), so no conversion is needed on that side. TWAS-GSEA matches gene set members to gene symbols instead, so a small pre-processing rule (`scripts/convert_gmt_entrez_to_symbol.R`) rewrites each `.gmt` into a symbol-keyed copy under `{outdir}/results/pathway_gmts/` using the same `NCBI37.3.gene.loc` file as the mapping. Genes without a symbol match are dropped with a per-gmt count logged; the user's input directory is never modified.
+
+**Statistics.** Both sides mirror the DrugTargetor equivalents:
+
+- MAGMA runs a competitive gene-set test per gene set, emitting `NGENES, BETA, SE, P` in `magma_pathway.gsa.out`.
+- TWAS-GSEA runs its non-directional right-tail enrichment (probit link on $1 - P_{\text{TWAS}}$) per (panel, gmt) pair, emitting `Estimate, SE, T, P` in `.competitive.txt`.
+
+Per-gmt cleaned CSVs land under `{outdir}/results/{gwas}/magma/pathway/{gmt}/` and `{outdir}/results/{gwas}/twas/pathway/{gmt}/` with per-set BH-FDR **deliberately deferred** to bundle-write time.
+
+**Pooled FDR.** The `read_pathway_magma()` and `read_pathway_twas_gsea()` helpers in `package_results_functions.R` `rbind` every per-gmt CSV for a primary before applying `p.adjust(P, method = "BH")` once — for TWAS-GSEA the pool also includes every TWAS panel. This means the reported `P.FDR` correctly reflects the full multiple-testing burden of the pathway pass, not the per-file burden.
+
+***
+
 ## TWAS-GSEA CMAP drug signatures
 
 In addition to DrugTargetor gene sets, TWAS-GSEA is also applied using reprocessed [CMAP](https://clue.io/) (Connectivity Map) level 5 drug expression signatures. This identifies drugs that reverse the disease-associated gene expression pattern, which is a key strategy in computational drug repurposing.
@@ -275,9 +307,16 @@ Results are stored in `{outdir}/results/{gwas}/magma/`.
 
 # Results packaging
 
-The `package_results` rule (`rules/report.smk`) aggregates all analysis results into a single R list object saved as `results_package.rds`. This file is the primary output for downstream analysis and visualisation.
+The `package_results` rule (`rules/report.smk`) aggregates every analysis into a split-per-block bundle:
 
-The results package contains nested lists structured by GWAS and analysis type, and can be loaded directly into R or explored using the bundled [Shiny application](pipeline_guide.html#using-the-shiny-explorer).
+- `{outdir}/results/package/` — one `.rds` per analysis block (`gwas_qc`, `snp_assoc`, `mol_assoc/exp/fusion`, `tx/drug`, `tx/pathway`, `tissue`, …) organised as `gwas/<GWAS>/<block>.rds`, plus `configuration/config.rds`, `configuration/gwas_list.rds`, `manifest.json`, and a copy of `reader.R` so the bundle is self-contained.
+- `{outdir}/results/bundle.tar.gz` — the tarballed `package/` directory. This is the file the Shiny explorer accepts and the download the web app hands users.
+
+The canonical block IDs are defined in `scripts/reader.R:.gd_block_ids`. Downstream code loads blocks lazily via `gd_open()` → `gd_read(gd, "<gwas>", "<block>")` so that memory usage scales with the block being inspected rather than with the full bundle — see the [User Guide](pipeline_guide.html#reading-results-into-r) for examples.
+
+Pooled-FDR helpers in `scripts/functions/package_results_functions.R` (e.g. `read_pathway_magma()`, `read_twas_gsea_drug()`, `read_twas_gsea_cmap_drug()`) compute BH-adjusted p-values across the natural pooling unit (all gmts for pathway, all panels for TWAS-GSEA, all CMAP signatures × panels for CMAP) at bundle-write time, so the FDR column in each block reflects the correct multiple-testing burden without the consumer having to re-adjust.
+
+For backwards compatibility, `gd_open()` also accepts a legacy monolithic `results_package.rds` produced by older pipeline runs.
 
 ***
 
