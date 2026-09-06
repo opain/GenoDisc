@@ -52,6 +52,11 @@ parse_config_flags <- function(config) {
   twas_gsea_drugtargetor_nondirectional <- flag(config, "twas_gsea_drugtargetor_nondirectional")
   twas_gsea_cmap <- flag(config, "twas_gsea_cmap")
 
+  # Pathway (MSigDB .gmt) enrichment via MAGMA + non-directional TWAS-GSEA.
+  magma_pathway    <- flag(config, "magma_pathway")
+  twas_gsea_pathway <- flag(config, "twas_gsea_pathway")
+  pathway <- any(magma_pathway, twas_gsea_pathway)
+
   tissue_magma <- flag(config, "tissue_magma")
 
   # Composite flags
@@ -126,6 +131,9 @@ parse_config_flags <- function(config) {
     twas_gsea_drugtargetor = twas_gsea_drugtargetor,
     twas_gsea_drugtargetor_nondirectional = twas_gsea_drugtargetor_nondirectional,
     twas_gsea_cmap = twas_gsea_cmap,
+    magma_pathway = magma_pathway,
+    twas_gsea_pathway = twas_gsea_pathway,
+    pathway = pathway,
     tissue_magma = tissue_magma,
     mol_assoc = mol_assoc,
     metabrain = metabrain,

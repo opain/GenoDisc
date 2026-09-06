@@ -282,6 +282,12 @@ for(gwas_i in gwas_list$name){
   tx$cmap$drug<-read_twas_gsea_cmap_drug(config=opt$config, gwas=gwas_i)
   tx$cmap$moa<-read_twas_gsea_cmap_moa(config=opt$config, gwas=gwas_i)
 
+  # Pathway enrichment (MSigDB-style .gmt files) — see read_pathway_*
+  # helpers for the pooled-FDR contract.
+  tx$pathway<-list()
+  tx$pathway$magma<-read_pathway_magma(config=opt$config, gwas=gwas_i)
+  tx$pathway$twas_gsea<-read_pathway_twas_gsea(config=opt$config, gwas=gwas_i)
+
   #################
   # Tissue Enrichment
   #################

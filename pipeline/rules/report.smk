@@ -26,6 +26,12 @@ if config["ldsc"] == "T" and config.get("gencor_within_gwas_list", "F") == "T":
 if config["magma_gene"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if config.get("magma_pathway", "F") == "T" and pathway_gmts:
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/pathway/magma_pathway_all.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
+if config.get("twas_gsea_pathway", "F") == "T" and pathway_gmts:
+    myoutput.append(expand("{outdir}/results/{gwas}/twas/pathway/twas_gsea_pathway_all.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["magma_drugtargetor"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

@@ -369,6 +369,93 @@ rule format_twas_gsea_drugtargetor_nondirectional_results_all_panel:
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done")
 
+# -------------------------------------------------------------------------
+# Pathway (MSigDB-style .gmt) TWAS-GSEA — non-directional. Mirrors
+# run_twas_gsea_drug_targetor_nondirectional above, iterated over every
+# *.gmt in pathway_gmt_dir. User's .gmt files are Entrez-keyed; the
+# convert_pathway_gmt rule below produces a symbol-keyed copy under
+# {outdir}/results/pathway_gmts/ that TWAS-GSEA can use directly.
+# -------------------------------------------------------------------------
+
+rule convert_pathway_gmt:
+  # Per-gmt Entrez -> Symbol conversion. Runs once per gmt (no {gwas}
+  # wildcard); outputs land under the run outdir, not the user's gmt dir.
+  input:
+    lambda w: os.path.join(pathway_gmt_dir_val, f"{w.gmt}.gmt")
+  output:
+    "{outdir}/results/pathway_gmts/{gmt}_symbols.gmt"
+  benchmark:
+    "{outdir}/benchmarks/convert_pathway_gmt_{gmt}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    "{outdir}/logs/convert_pathway_gmt-{gmt}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/convert_gmt_entrez_to_symbol.R \
+      {input} {output} {params.resdir}/data/magma/NCBI37.3.gene.loc > {log} 2>&1"
+
+rule twas_gsea_pathway_nondirectional:
+  # Each gmt gets its own sub-directory so the (weight, gmt) pair in the
+  # filename doesn't force wildcard-splitting on the shared "_" separator
+  # (weight values contain underscores, e.g. "Whole_Blood").
+  resources:
+    mem_mb=50000,
+    cpus=5
+  input:
+    rules.install_twas_gsea.output,
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_{weight}_GW_clean.txt.gz",
+    "{outdir}/results/pathway_gmts/{gmt}_symbols.gmt",
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
+  output:
+    touch("{outdir}/results/{gwas}/twas/pathway/{gmt}/twas_gsea_pathway_nondir_{weight}.done")
+  benchmark:
+    "{outdir}/benchmarks/twas_gsea_pathway_nondirectional_{gwas}_{weight}_{gmt}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    "{outdir}/logs/twas_gsea_pathway_nondirectional-{gwas}-{weight}-{gmt}.log"
+  shell:
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/twas/pathway/{wildcards.gmt}/; \
+     Rscript --vanilla {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+      --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
+      --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+      --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
+      --gmt_file {outdir}/results/pathway_gmts/{wildcards.gmt}_symbols.gmt \
+      --n_cores 5 \
+      --covar GeneLength,NSNP \
+      --use_alt_id ID \
+      --min_Ngenes 2 \
+      --directional F \
+      --output {outdir}/results/{wildcards.gwas}/twas/pathway/{wildcards.gmt}/twas_gsea_pathway_nondir_{wildcards.weight}) > {log} 2>&1"
+
+rule format_twas_gsea_pathway_results:
+  input:
+    "{outdir}/results/{gwas}/twas/pathway/{gmt}/twas_gsea_pathway_nondir_{weight}.done"
+  output:
+    "{outdir}/results/{gwas}/twas/pathway/{gmt}/twas_gsea_pathway_nondir_{weight}.clean.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_pathway_results_{gwas}_{weight}_{gmt}.tsv"
+  conda:
+    "../envs/main.yaml"
+  log:
+    "{outdir}/logs/format_twas_gsea_pathway_results-{gwas}-{weight}-{gmt}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_pathway_results.R \
+      --competitive {outdir}/results/{wildcards.gwas}/twas/pathway/{wildcards.gmt}/twas_gsea_pathway_nondir_{wildcards.weight}.competitive.txt \
+      --out_csv {output} > {log} 2>&1"
+
+rule twas_gsea_pathway_all:
+  input:
+    lambda w: expand(
+      "{outdir}/results/{gwas}/twas/pathway/{gmt}/twas_gsea_pathway_nondir_{weight}.clean.csv",
+      outdir=[w.outdir], gwas=[w.gwas], weight=weights_nosplice, gmt=pathway_gmts)
+  output:
+    touch("{outdir}/results/{gwas}/twas/pathway/twas_gsea_pathway_all.done")
+
 #######
 # Run TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
 #######

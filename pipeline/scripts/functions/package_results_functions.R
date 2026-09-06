@@ -872,6 +872,81 @@ insert_atc_desc <- function(x, replacement_df) {
   return(x)
 }
 
+# ---------------------------------------------------------------------------
+# Pathway enrichment (MSigDB-style .gmt files, per-primary GWAS)
+#
+# The pipeline runs MAGMA gene-set analysis and non-directional TWAS-GSEA
+# against every *.gmt in pathway_gmt_dir. Cleaned per-gmt CSVs land under
+# results/{gwas}/{magma,twas}/pathway/{gmt}/. The bundle reader here pools
+# rows across every gmt (and every TWAS panel) and applies BH-FDR once so
+# the correction accounts for the full multiple-testing burden.
+# ---------------------------------------------------------------------------
+
+read_pathway_magma <- function(config, gwas){
+  if (read_param(config = config, param = 'magma_pathway',
+                 return_obj = FALSE) != 'T') return(NULL)
+  outdir <- read_param(config = config, param = 'outdir', return_obj = FALSE)
+  base   <- file.path(outdir, 'results', gwas, 'magma', 'pathway')
+  if (!dir.exists(base)) return(NULL)
+  gmts <- list.dirs(base, recursive = FALSE, full.names = FALSE)
+  if (length(gmts) == 0L) return(NULL)
+
+  rows <- list()
+  for (g in gmts) {
+    fp <- file.path(base, g, 'magma_pathway.clean.csv')
+    if (!file.exists(fp)) next
+    d <- fread(fp)
+    if (nrow(d) == 0L) next
+    d[, Gmt := g]
+    rows[[length(rows) + 1L]] <- d
+  }
+  if (length(rows) == 0L) return(NULL)
+
+  dat <- rbindlist(rows, use.names = TRUE, fill = TRUE)
+  # Pooled FDR across every gene set in every gmt for this primary.
+  dat[, P.FDR := p.adjust(P, method = 'fdr')]
+  setcolorder(dat, c('Name', 'Gmt', 'NGENES', 'BETA', 'SE', 'P', 'P.FDR'))
+  setnames(dat, 'NGENES', 'N Genes')
+  setorder(dat, P)
+  as.data.frame(dat)
+}
+
+read_pathway_twas_gsea <- function(config, gwas){
+  if (read_param(config = config, param = 'twas_gsea_pathway',
+                 return_obj = FALSE) != 'T') return(NULL)
+  outdir <- read_param(config = config, param = 'outdir', return_obj = FALSE)
+  base   <- file.path(outdir, 'results', gwas, 'twas', 'pathway')
+  if (!dir.exists(base)) return(NULL)
+  gmts <- list.dirs(base, recursive = FALSE, full.names = FALSE)
+  if (length(gmts) == 0L) return(NULL)
+
+  rows <- list()
+  for (g in gmts) {
+    csvs <- list.files(file.path(base, g),
+                       pattern = "^twas_gsea_pathway_nondir_.*\\.clean\\.csv$",
+                       full.names = TRUE)
+    for (fp in csvs) {
+      d <- fread(fp)
+      if (nrow(d) == 0L) next
+      panel <- sub("\\.clean\\.csv$", "",
+                   sub("^twas_gsea_pathway_nondir_", "", basename(fp)))
+      d[, Panel := panel]
+      d[, Gmt   := g]
+      rows[[length(rows) + 1L]] <- d
+    }
+  }
+  if (length(rows) == 0L) return(NULL)
+
+  dat <- rbindlist(rows, use.names = TRUE, fill = TRUE)
+  dat[, P.FDR := p.adjust(P, method = 'fdr')]
+  # Present tidy Panel labels the same way read_twas_gsea_drug does.
+  dat[, Panel := tidy_panel_names(Panel)]
+  setcolorder(dat, c('Name', 'Panel', 'Gmt', 'N',
+                     'Estimate', 'SE', 'Z', 'P', 'P.FDR'))
+  setorder(dat, P)
+  as.data.frame(dat)
+}
+
 read_gcsc<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)

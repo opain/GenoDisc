@@ -89,6 +89,63 @@ rule format_magma_results:
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
+# -------------------------------------------------------------------------
+# Pathway (MSigDB-style .gmt) enrichment — same MAGMA gene-set analysis as
+# magma_drug_targetor above, but iterated over every *.gmt in
+# pathway_gmt_dir. Enabled with config[magma_pathway] == 'T'; the wildcard
+# domain (pathway_gmts) is populated in dependencies.smk at parse time.
+# -------------------------------------------------------------------------
+
+rule magma_pathway:
+  # Each gmt gets its own sub-directory to avoid ambiguity between the
+  # {gmt} wildcard and any downstream {weight} wildcard whose values (e.g.
+  # "Whole_Blood") contain the same "_" separator.
+  input:
+    "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
+    lambda w: os.path.join(pathway_gmt_dir_val, f"{w.gmt}.gmt")
+  output:
+    "{outdir}/results/{gwas}/magma/pathway/{gmt}/magma_pathway.gsa.out"
+  benchmark:
+    "{outdir}/benchmarks/magma_pathway_{gwas}_{gmt}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir,
+    gmt_path=lambda w: os.path.join(pathway_gmt_dir_val, f"{w.gmt}.gmt")
+  log:
+    "{outdir}/logs/magma_pathway-{gwas}-{gmt}.log"
+  shell:
+    "(mkdir -p {outdir}/results/{wildcards.gwas}/magma/pathway/{wildcards.gmt}/; \
+     {params.resdir}/software/magma/magma \
+      --gene-results {outdir}/results/{wildcards.gwas}/magma/magma_gene_level.genes.raw \
+      --set-annot {params.gmt_path} \
+      --out {outdir}/results/{wildcards.gwas}/magma/pathway/{wildcards.gmt}/magma_pathway) > {log} 2>&1"
+
+rule format_magma_pathway_results:
+  input:
+    "{outdir}/results/{gwas}/magma/pathway/{gmt}/magma_pathway.gsa.out"
+  output:
+    "{outdir}/results/{gwas}/magma/pathway/{gmt}/magma_pathway.clean.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_magma_pathway_results_{gwas}_{gmt}.tsv"
+  conda:
+    "../envs/main.yaml"
+  log:
+    "{outdir}/logs/format_magma_pathway_results-{gwas}-{gmt}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_magma_pathway_results.R \
+      --gsa_out {input} --out_csv {output} > {log} 2>&1"
+
+# Fan-in target used by report.smk so it only needs one dependency per
+# primary rather than N per-gmt clean CSVs.
+rule magma_pathway_all:
+  input:
+    lambda w: expand(
+      "{outdir}/results/{gwas}/magma/pathway/{gmt}/magma_pathway.clean.csv",
+      outdir=[w.outdir], gwas=[w.gwas], gmt=pathway_gmts)
+  output:
+    touch("{outdir}/results/{gwas}/magma/pathway/magma_pathway_all.done")
+
 # Compare TWAS signiture compared to enriched drugs in MAGMA
 rule comp_magma_gsea_twas_results:
   input:

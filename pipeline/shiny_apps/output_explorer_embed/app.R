@@ -606,7 +606,7 @@ server <- function(input, output, session) {
     toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor))
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
     toggle("Molecular Associations", cf$mol_assoc)
-    toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma))
+    toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma, cf$pathway))
 
     # Release the CSS-level hide of downstream tabs now that Shiny has
     # decided which of them should be visible for the loaded bundle.

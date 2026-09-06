@@ -379,6 +379,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     .render_enrichment_picker("drug_single_gwas_ui", "drug_single_gwas")
     .render_enrichment_picker("atc_single_gwas_ui",  "atc_single_gwas")
     .render_enrichment_picker("cmap_single_gwas_ui", "cmap_single_gwas")
+    .render_enrichment_picker("pathway_single_gwas_ui", "pathway_single_gwas")
 
     # Hide the "Multi-GWAS" sub-tab under each Drug / ATC / CMap
     # panel when the bundle has only one GWAS — the cross-trait
@@ -412,13 +413,16 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       .hide_multi_when_single("drug_view_tabs")
       .hide_multi_when_single("atc_view_tabs")
       .hide_multi_when_single("cmap_view_tabs")
+      .hide_multi_when_single("pathway_view_tabs")
     }
 
     # Sync — any picker changed by the user becomes the new
     # active_enrichment_gwas; the reactive then propagates back to the
-    # other two widgets via updateSelectInput. `ignoreInit = TRUE`
+    # other widgets via updateSelectInput. `ignoreInit = TRUE`
     # keeps the initial default from bouncing around.
-    for (id in c("drug_single_gwas", "atc_single_gwas", "cmap_single_gwas")) {
+    .enrichment_picker_ids <- c("drug_single_gwas", "atc_single_gwas",
+                                "cmap_single_gwas", "pathway_single_gwas")
+    for (id in .enrichment_picker_ids) {
       local({
         this_id <- id
         observeEvent(input[[this_id]], {
@@ -431,7 +435,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     }
     observeEvent(active_enrichment_gwas(), {
       v <- active_enrichment_gwas()
-      for (id in c("drug_single_gwas", "atc_single_gwas", "cmap_single_gwas")) {
+      for (id in .enrichment_picker_ids) {
         if (!identical(isolate(input[[id]]), v)) {
           updateSelectInput(session, id, selected = v)
         }
@@ -1002,9 +1006,167 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
         ))
       }
+
+      # Pathway (MSigDB .gmt) enrichment — MAGMA + non-directional TWAS-GSEA.
+      # Structure mirrors Drug Targetor > Drug: Single-GWAS view (one sub-tab
+      # per method), Multi-GWAS view (long-form pooled tables with a GWAS
+      # column). Only shown when the pipeline flag(s) were on.
+      if (isTRUE(cf$pathway)) {
+        pathway_inner_single <- list()
+        if (isTRUE(cf$magma_pathway)) {
+          pathway_inner_single <- c(pathway_inner_single, list(
+            tabPanel(title = "MAGMA", br(),
+              p("MAGMA gene-set analysis on user-supplied pathway .gmt files. FDR is pooled across every gene set in every gmt for this GWAS."),
+              hr(),
+              dataTableOutput(ns("tx_pathway_magma_table"))
+            )
+          ))
+        }
+        if (isTRUE(cf$twas_gsea_pathway)) {
+          pathway_inner_single <- c(pathway_inner_single, list(
+            tabPanel(title = "TWAS-GSEA (non-directional)", br(),
+              p("Non-directional TWAS-GSEA on user-supplied pathway .gmt files. FDR is pooled across every gene set in every gmt across every TWAS panel for this GWAS."),
+              hr(),
+              dataTableOutput(ns("tx_pathway_twas_gsea_table"))
+            )
+          ))
+        }
+
+        pathway_multi_inner <- list()
+        if (isTRUE(cf$magma_pathway)) {
+          pathway_multi_inner <- c(pathway_multi_inner, list(
+            tabPanel(title = "MAGMA", br(),
+              p("MAGMA pathway results pooled across every GWAS in this bundle. FDR is per-GWAS (pooled across gmts within each primary)."),
+              hr(),
+              dataTableOutput(ns("tx_pathway_magma_table_multi"))
+            )
+          ))
+        }
+        if (isTRUE(cf$twas_gsea_pathway)) {
+          pathway_multi_inner <- c(pathway_multi_inner, list(
+            tabPanel(title = "TWAS-GSEA (non-directional)", br(),
+              p("TWAS-GSEA pathway results pooled across every GWAS in this bundle. FDR is per-GWAS (pooled across panels and gmts within each primary)."),
+              hr(),
+              dataTableOutput(ns("tx_pathway_twas_gsea_table_multi"))
+            )
+          ))
+        }
+
+        pathway_tab_body <- tabsetPanel(id = ns("pathway_view_tabs"),
+          tabPanel(title = "Single GWAS", value = "single",
+            uiOutput(ns("pathway_single_gwas_ui")),
+            do.call(tabsetPanel, pathway_inner_single)
+          ),
+          tabPanel(title = "Multi-GWAS", value = "multi",
+            do.call(tabsetPanel, pathway_multi_inner)
+          )
+        )
+        outer_tabs <- c(outer_tabs, list(
+          tabPanel(title = "Pathway", br(), pathway_tab_body)
+        ))
+      }
+
       if (!is.null(cmap_tab)) outer_tabs <- c(outer_tabs, list(cmap_tab))
 
       do.call(tabsetPanel, outer_tabs)
+    })
+
+    #######
+    # Pathway enrichment tables (MSigDB .gmt files)
+    #
+    # The bundle carries per-GWAS long-form tables with pooled FDR
+    # (read_pathway_magma / read_pathway_twas_gsea in
+    # package_results_functions.R). Single-GWAS tables show one primary at
+    # a time; Multi-GWAS tables stack every primary with a GWAS column.
+    #######
+
+    .render_pathway_table <- function(df, expo_cols_zero_indexed) {
+      # DT with exponential notation for P / P.FDR columns, matching the
+      # look-and-feel of the DrugTargetor tables.
+      js <- c(
+        "function(row, data, displayNum, index){",
+        paste0("  [", paste(expo_cols_zero_indexed, collapse = ","), "].forEach(function(i){"),
+        "    var v = data[i];",
+        "    if (v !== null && v !== undefined && v !== '') { $('td:eq(' + i + ')', row).html((+v).toExponential(2)); }",
+        "  });",
+        "}"
+      )
+      datatable(
+        df,
+        rownames = FALSE,
+        options = list(
+          rowCallback = JS(js),
+          pageLength  = 25,
+          order       = list(list(match("P.FDR", names(df)) - 1L, "asc")),
+          columnDefs  = list(list(className = "dt-center", targets = "_all"))
+        ),
+        escape = FALSE
+      )
+    }
+
+    # Single-GWAS
+    output$tx_pathway_magma_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
+      tmp <- gd_read(gwas_data(), selected_gwas(), "tx/pathway")$magma
+      if (is.null(tmp) || nrow(tmp) == 0) return(NULL)
+      tmp$BETA <- round(tmp$BETA, 3)
+      tmp$SE   <- round(tmp$SE, 3)
+      .render_pathway_table(tmp, expo_cols_zero_indexed =
+                              c(match("P",     names(tmp)),
+                                match("P.FDR", names(tmp))) - 1L)
+    })
+
+    output$tx_pathway_twas_gsea_table <- renderDataTable({
+      req(gwas_data(), selected_gwas())
+      tmp <- gd_read(gwas_data(), selected_gwas(), "tx/pathway")$twas_gsea
+      if (is.null(tmp) || nrow(tmp) == 0) return(NULL)
+      tmp$Estimate <- round(tmp$Estimate, 3)
+      tmp$SE       <- round(tmp$SE, 3)
+      tmp$Z        <- round(tmp$Z, 3)
+      .render_pathway_table(tmp, expo_cols_zero_indexed =
+                              c(match("P",     names(tmp)),
+                                match("P.FDR", names(tmp))) - 1L)
+    })
+
+    # Multi-GWAS: pool every primary with a GWAS column. Note that FDR is
+    # per-GWAS (already pooled across gmts / panels within each primary at
+    # bundle-write time); we're not re-pooling across primaries here.
+    .pathway_pooled <- function(method) {
+      req(gwas_data())
+      gs <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else selected_gwas()
+      rows <- list()
+      for (g in gs) {
+        d <- gd_read(gwas_data(), g, "tx/pathway")[[method]]
+        if (is.null(d) || nrow(d) == 0) next
+        d <- as.data.frame(d)
+        d$GWAS <- g
+        rows[[length(rows) + 1L]] <- d
+      }
+      if (length(rows) == 0L) return(NULL)
+      out <- do.call(rbind, rows)
+      # Put GWAS column first for readability.
+      out[, c("GWAS", setdiff(names(out), "GWAS")), drop = FALSE]
+    }
+
+    output$tx_pathway_magma_table_multi <- renderDataTable({
+      tmp <- .pathway_pooled("magma")
+      if (is.null(tmp)) return(NULL)
+      tmp$BETA <- round(tmp$BETA, 3)
+      tmp$SE   <- round(tmp$SE, 3)
+      .render_pathway_table(tmp, expo_cols_zero_indexed =
+                              c(match("P",     names(tmp)),
+                                match("P.FDR", names(tmp))) - 1L)
+    })
+
+    output$tx_pathway_twas_gsea_table_multi <- renderDataTable({
+      tmp <- .pathway_pooled("twas_gsea")
+      if (is.null(tmp)) return(NULL)
+      tmp$Estimate <- round(tmp$Estimate, 3)
+      tmp$SE       <- round(tmp$SE, 3)
+      tmp$Z        <- round(tmp$Z, 3)
+      .render_pathway_table(tmp, expo_cols_zero_indexed =
+                              c(match("P",     names(tmp)),
+                                match("P.FDR", names(tmp))) - 1L)
     })
 
     #######

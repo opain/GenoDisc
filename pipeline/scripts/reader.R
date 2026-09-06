@@ -33,6 +33,7 @@
   "tx/drug",
   "tx/atc",
   "tx/cmap",
+  "tx/pathway",
   "tissue"
 )
 

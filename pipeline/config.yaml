@@ -80,6 +80,15 @@ twas_gsea_drugtargetor: F
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: F
 
+# Pathway enrichment against user-supplied MSigDB-style .gmt files (Entrez gene IDs).
+# pathway_gmt_dir must be a directory whose *.gmt files the pipeline picks up
+# at parse time. TWAS-GSEA needs symbols; the pipeline auto-converts each gmt
+# using NCBI37.3.gene.loc. FDR is pooled across every gene set in every gmt
+# file at bundle-read time.
+pathway_gmt_dir: NA
+magma_pathway: F
+twas_gsea_pathway: F     # non-directional only
+
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
 # Set the flag to T and provide the path to the prop file produced by
 # DrugRepurposing/Code/Published/make_twas_gsea_prop.R

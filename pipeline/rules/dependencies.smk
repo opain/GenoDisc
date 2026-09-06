@@ -50,6 +50,36 @@ if config.get('gencor_within_gwas_list', 'F') == 'T':
         print("Error: gencor_within_gwas_list is 'T' but ldsc is not 'T'; genetic correlation requires LDSC heritability - set ldsc: 'T'.")
         sys.exit(1)
 
+# Pathway enrichment: glob the user's gmt dir at parse time so downstream
+# rules can expand() over pathway_gmts. Empty list is fine — the report/
+# dependencies gates then turn into no-ops.
+pathway_gmt_dir_val = config.get('pathway_gmt_dir', 'NA')
+if pathway_gmt_dir_val in (None, 'NA'):
+    pathway_gmts = []
+else:
+    pathway_gmts = sorted(
+        os.path.splitext(os.path.basename(f))[0]
+        for f in glob.glob(os.path.join(pathway_gmt_dir_val, '*.gmt'))
+    )
+    if not pathway_gmts:
+        print(f"WARNING: pathway_gmt_dir={pathway_gmt_dir_val} contains no *.gmt files.")
+
+# Method flags require pathway_gmt_dir to be set AND their upstream method.
+if config.get('magma_pathway', 'F') == 'T':
+    if pathway_gmt_dir_val in (None, 'NA'):
+        print("Error: magma_pathway is 'T' but pathway_gmt_dir is not set.")
+        sys.exit(1)
+    if config.get('magma_gene', 'F') != 'T':
+        print("Error: magma_pathway is 'T' but magma_gene is not 'T'; MAGMA gene-set analysis requires the MAGMA gene-level step.")
+        sys.exit(1)
+if config.get('twas_gsea_pathway', 'F') == 'T':
+    if pathway_gmt_dir_val in (None, 'NA'):
+        print("Error: twas_gsea_pathway is 'T' but pathway_gmt_dir is not set.")
+        sys.exit(1)
+    if config.get('twas_panel_fusion', 'F') != 'T' and config.get('twas_panel_psychencode', 'F') != 'T':
+        print("Error: twas_gsea_pathway is 'T' but no TWAS panel is enabled; set twas_panel_fusion: 'T' or twas_panel_psychencode: 'T'.")
+        sys.exit(1)
+
 # Set outdir parameter
 outdir=config['outdir']
 
