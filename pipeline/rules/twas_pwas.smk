@@ -428,7 +428,7 @@ rule twas_gsea_pathway_nondirectional:
       --n_cores 5 \
       --covar GeneLength,NSNP \
       --use_alt_id ID \
-      --min_Ngenes 2 \
+      --min_Ngenes 5 \
       --directional F \
       --output {outdir}/results/{wildcards.gwas}/twas/pathway/{wildcards.gmt}/twas_gsea_pathway_nondir_{wildcards.weight}) > {log} 2>&1"
 

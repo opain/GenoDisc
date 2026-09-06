@@ -36,6 +36,15 @@ missing <- setdiff(keep, names(d))
 if (length(missing) > 0) stop("Missing MAGMA output columns: ",
                               paste(missing, collapse = ","))
 
+# Drop pathways with fewer than 5 MAGMA-annotation-mapped genes.
+# Very small gene sets are underpowered in the MAGMA competitive test and
+# tend to dominate the tail of pooled-FDR ranking with noisy hits. Applied
+# per-gmt so the pooled FDR downstream is computed after the filter.
+MIN_NGENES <- 5L
+n_pre <- nrow(d)
+d <- d[NGENES >= MIN_NGENES]
+n_drop <- n_pre - nrow(d)
+
 fwrite(d[, ..keep], opt$out_csv)
-cat(sprintf("format_magma_pathway_results: wrote %d rows -> %s\n",
-            nrow(d), opt$out_csv))
+cat(sprintf("format_magma_pathway_results: wrote %d rows -> %s (dropped %d with NGENES < %d)\n",
+            nrow(d), opt$out_csv, n_drop, MIN_NGENES))
