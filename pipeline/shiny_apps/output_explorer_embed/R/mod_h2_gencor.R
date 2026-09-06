@@ -291,12 +291,41 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       list(width_px = width_px, height_px = height_px)
     })
 
+    # Within-primary-list rG data. Aggregates every primary's
+    # `ldsc_gencor_within_dat$table` from the bundle into a long-form matrix
+    # so the heatmap can render an N×N grid keyed on primary labels.
+    gencor_within_long <- reactive({
+      req(gwas_data())
+      pri <- if (!is.null(selected_gwas_multi)) selected_gwas_multi()
+             else selected_gwas()
+      build_gencor_within_long(gwas_data(), pri)
+    })
+
     output$gencor_ui <- renderUI({
       req(gwas_data(), selected_gwas(), config_flags())
 
       in_compare <- !is.null(comparison_mode) && isTRUE(comparison_mode())
       if (in_compare) {
-        return(gencor_compare_ui(NS(ns("gencor_compare"))))
+        # Two sub-tabs: within-primary-list matrix and against-reference
+        # panel (the pre-existing gencor_compare view). Order chosen so the
+        # user's own trait relationships are the default landing view.
+        return(tagList(
+          tabsetPanel(
+            id = ns("gencor_sub_tabs"),
+            tabPanel(
+              title = "Within primary GWAS list",
+              value = "within",
+              br(),
+              uiOutput(ns("gencor_within_ui"))
+            ),
+            tabPanel(
+              title = "Against reference panel",
+              value = "reference",
+              br(),
+              gencor_compare_ui(NS(ns("gencor_compare")))
+            )
+          )
+        ))
       }
 
       cf  <- config_flags()
@@ -490,6 +519,123 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         grDevices::dev.off()
       }
     )
+
+    # -------------------------------------------------------------------
+    # Within-primary-list rG heatmap (multi-GWAS only sub-tab)
+    # -------------------------------------------------------------------
+
+    output$gencor_within_ui <- renderUI({
+      req(gwas_data(), config_flags())
+      cf <- config_flags()
+
+      # Feature must have been on when the pipeline packaged this bundle.
+      # `gencor_within` mirrors `ldsc_gencor` in config_flags().
+      if (!isTRUE(cf$gencor_within)) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          icon("link", style = "font-size: 2em;"),
+          br(), br(),
+          tags$strong("Within-list bivariate LDSC not run"),
+          br(),
+          "Set gencor_within_gwas_list: T in the pipeline config to enable this view."
+        ))
+      }
+
+      long <- gencor_within_long()
+      if (is.null(long) || nrow(long) == 0) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          tags$strong("No within-list rG results in this bundle."),
+          br(),
+          "Requires ≥2 EUR primary GWAS in the run."
+        ))
+      }
+
+      tagList(
+        tags$p(
+          "Bivariate LDSC genetic correlation between every pair of primary ",
+          "GWAS in this bundle. Diagonal is self-correlation (rG = 1); ",
+          "off-diagonal cells marked with * are FDR-significant."
+        ),
+        tags$details(class = "gd-details",
+          tags$summary("Plot options"),
+          tags$div(class = "gd-details-body",
+            fluidRow(
+              column(4,
+                sliderInput(ns("gencor_within_font_size"),
+                            "Font size (pt):",
+                            min = 8, max = 20, value = 12, step = 1)
+              ),
+              column(4,
+                textInput(ns("gencor_within_title"),
+                          "Plot title (optional):", value = "")
+              )
+            )
+          )
+        ),
+        br(),
+        tags$div(style = "max-width: 900px; overflow-x: auto;",
+          plotOutput(ns("gencor_within_heatmap"),
+                     height = paste0(gencor_within_dim()$height_px, "px"),
+                     width  = paste0(gencor_within_dim()$width_px,  "px"))
+        ),
+        br(),
+        tags$div(style = "max-width: 900px;",
+          h4("Underlying data"),
+          DT::DTOutput(ns("gencor_within_table"))
+        )
+      )
+    })
+
+    gencor_within_dim <- reactive({
+      long <- gencor_within_long()
+      if (is.null(long) || nrow(long) == 0) return(list(width_px = 400, height_px = 300))
+      n <- length(unique(long$label_row))
+      fs <- input$gencor_within_font_size %||% 12
+      # Longest label in pt -> px (~1.33 px/pt); tiles are ~2× font size.
+      lbl_pt   <- max(strwidth_pt(as.character(unique(long$label_row)), ps = fs))
+      lbl_px   <- lbl_pt * 96 / 72
+      cell_px  <- max(40, round(fs * 3.2))
+      legend_px <- 140
+      list(
+        width_px  = as.integer(min(1400, n * cell_px + lbl_px + legend_px)),
+        height_px = as.integer(min(1400, n * cell_px + lbl_px + 40))
+      )
+    })
+
+    output$gencor_within_heatmap <- renderPlot({
+      long <- gencor_within_long()
+      req(long, nrow(long) > 0)
+      build_gencor_within_heatmap(
+        long,
+        font_size = input$gencor_within_font_size %||% 12,
+        title     = input$gencor_within_title %||% ""
+      )
+    }, res = 96)
+
+    output$gencor_within_table <- DT::renderDT({
+      long <- gencor_within_long()
+      req(long, nrow(long) > 0)
+      # Off-diagonal pairs only for the table; diagonal is trivially 1.
+      off <- long[as.character(long$gwas_row) != as.character(long$gwas_col)]
+      if (nrow(off) == 0) return(NULL)
+      show <- data.frame(
+        `GWAS 1`  = off$label_row,
+        `GWAS 2`  = off$label_col,
+        rg        = off$rg,
+        SE        = off$rg_se,
+        p         = off$rg_p,
+        `FDR p`   = off$rg_p_fdr,
+        `N SNPs`  = off$n_snps,
+        check.names = FALSE, stringsAsFactors = FALSE
+      )
+      DT::datatable(
+        show, rownames = FALSE,
+        options = list(pageLength = 25, order = list(list(3, "asc")))
+      ) %>%
+        DT::formatRound(columns = c("rg", "SE"), digits = 3) %>%
+        DT::formatSignif(columns = c("p", "FDR p"), digits = 3)
+    })
 
     # Auto-jump between sub-tabs on compare-mode transition would confuse
     # users here — both sub-tabs work in both modes (h² shows 1 vs N rows;

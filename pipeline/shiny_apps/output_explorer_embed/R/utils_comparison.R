@@ -710,6 +710,139 @@ build_gencor_long <- function(gd, gwas_vec) {
   data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
 }
 
+#' Build a long tibble of within-primary-list genetic correlations
+#'
+#' When the pipeline is run with `gencor_within_gwas_list: T`, each primary
+#' GWAS gets a `gwas_qc$ldsc_gencor_within_dat$table` whose rows are every
+#' OTHER primary in the bundle. Reading all of them yields both directions
+#' of each pair (rg(A,B) from A's file and rg(B,A) from B's file). Both are
+#' preserved so the heatmap can draw the full N×N matrix without special-
+#' casing symmetry; the diagonal is added as rg = 1 (self-correlation).
+#'
+#' Returns an empty data.table (with the expected columns) when no primary
+#' has within-list data (feature was off, or bundle has only one primary).
+#'
+#' @param gd A gd_result opened with gd_open()
+#' @param gwas_vec Character vector of primary GWAS names
+#' @return data.table with columns: gwas_row, gwas_col, label_row, label_col,
+#'   rg, rg_se, rg_p, rg_p_fdr, n_snps
+build_gencor_within_long <- function(gd, gwas_vec) {
+  empty <- data.table::data.table(
+    gwas_row = character(0), gwas_col = character(0),
+    label_row = character(0), label_col = character(0),
+    rg = numeric(0), rg_se = numeric(0),
+    rg_p = numeric(0), rg_p_fdr = numeric(0),
+    n_snps = integer(0)
+  )
+  if (length(gwas_vec) == 0) return(empty)
+
+  # gwas_list gives us the human-readable labels for the diagonal + fallbacks.
+  gl <- gd_config(gd)$gwas_list
+  label_of <- function(nm) {
+    if (!is.null(gl) && "name" %in% names(gl)) {
+      lbl <- gl$label[gl$name == nm]
+      if (length(lbl) > 0 && !is.na(lbl[1L]) && nzchar(as.character(lbl[1L])))
+        return(as.character(lbl[1L]))
+    }
+    nm
+  }
+
+  parts <- lapply(gwas_vec, function(g) {
+    tab <- safe_access(gd_read(gd, g, "gwas_qc"),
+                       "ldsc_gencor_within_dat", "table")
+    if (is.null(tab) || nrow(tab) == 0) return(NULL)
+    tab <- as.data.frame(tab)
+    data.table::data.table(
+      gwas_row  = g,
+      gwas_col  = as.character(tab$name),
+      label_row = label_of(g),
+      label_col = as.character(tab$label),
+      rg        = suppressWarnings(as.numeric(tab$rg)),
+      rg_se     = suppressWarnings(as.numeric(tab$rg_se)),
+      rg_p      = suppressWarnings(as.numeric(tab$rg_p)),
+      rg_p_fdr  = suppressWarnings(as.numeric(tab$rg_p_fdr)),
+      n_snps    = suppressWarnings(as.integer(tab$n_snps))
+    )
+  })
+  parts <- Filter(function(x) !is.null(x) && nrow(x) > 0, parts)
+  if (length(parts) == 0) return(empty)
+
+  off_diag <- data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
+
+  # Diagonal: self-correlation is 1 by construction and lets the heatmap
+  # render a clean N×N grid instead of a lattice with gaps.
+  in_data <- union(off_diag$gwas_row, off_diag$gwas_col)
+  diag_rows <- data.table::data.table(
+    gwas_row  = in_data,
+    gwas_col  = in_data,
+    label_row = vapply(in_data, label_of, character(1L)),
+    label_col = vapply(in_data, label_of, character(1L)),
+    rg        = 1,
+    rg_se     = 0,
+    rg_p      = NA_real_,
+    rg_p_fdr  = NA_real_,
+    n_snps    = NA_integer_
+  )
+  data.table::rbindlist(list(off_diag, diag_rows), use.names = TRUE, fill = TRUE)
+}
+
+#' Heatmap of within-primary-list genetic correlations
+#'
+#' Takes the long-form data from `build_gencor_within_long()` and renders an
+#' N×N tile heatmap keyed on primary-GWAS labels. Fill = rG on a diverging
+#' RdBu scale bounded at ±1. Cell text = rG value; FDR-significant off-
+#' diagonal cells get a trailing "*". Diagonal shows rG = 1 with no star.
+#'
+#' Returns NULL when the long-form table is empty (feature off, or single-
+#' primary bundle).
+#'
+#' @param long data.table from build_gencor_within_long()
+#' @param font_size numeric, base ggplot font size
+#' @param title character, optional plot title
+#' @param theme_fn ggplot theme function (e.g. ggplot2::theme_bw)
+build_gencor_within_heatmap <- function(long,
+                                        font_size = 12,
+                                        title = "",
+                                        theme_fn = ggplot2::theme_bw) {
+  if (is.null(long) || nrow(long) == 0) return(NULL)
+
+  # Preserve the caller's ordering of primaries where possible: use the order
+  # of first appearance of each gwas_row in the long form. This tends to be
+  # the gwas_list order, which is the users natural mental model.
+  ord <- unique(long$label_row)
+  long <- data.table::copy(long)
+  long[, label_row := factor(label_row, levels = ord)]
+  long[, label_col := factor(label_col, levels = ord)]
+
+  # Cell text: two decimals; star for FDR<0.05 off-diagonal cells only.
+  long[, cell_text := ifelse(is.na(rg), "",
+                              ifelse(is.na(rg_p_fdr) | as.character(gwas_row) == as.character(gwas_col),
+                                     sprintf("%.2f", rg),
+                                     ifelse(rg_p_fdr < 0.05,
+                                            sprintf("%.2f*", rg),
+                                            sprintf("%.2f", rg))))]
+
+  ggplot2::ggplot(long, ggplot2::aes(x = label_col, y = label_row, fill = rg)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.4) +
+    ggplot2::geom_text(ggplot2::aes(label = cell_text),
+                       size = font_size / .pt, colour = "black") +
+    ggplot2::scale_fill_gradient2(
+      low = "#2166AC", mid = "white", high = "#B2182B",
+      midpoint = 0, limits = c(-1, 1),
+      breaks = c(-1, -0.5, 0, 0.5, 1),
+      name = "rG"
+    ) +
+    ggplot2::scale_x_discrete(position = "top") +
+    ggplot2::coord_equal() +
+    ggplot2::labs(title = if (nzchar(title)) title else NULL, x = NULL, y = NULL) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(
+      axis.text.x  = ggplot2::element_text(angle = 45, hjust = 0),
+      panel.grid   = ggplot2::element_blank(),
+      legend.position = "right"
+    )
+}
+
 #' Per-GWAS QC statistics for the GWAS QC → QC Summary table
 #'
 #' Combines the fields shown in the single-GWAS QC Summary (N variants pre-QC,

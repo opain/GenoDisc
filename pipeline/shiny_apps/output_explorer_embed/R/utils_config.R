@@ -20,6 +20,9 @@ parse_config_flags <- function(config) {
   ldsc_gencor <- length(gencor_line) > 0 &&
                  !gencor_line[1] %in% c('gencor_gwas_list: NA', 'gencor_gwas_list: ')
 
+  # Within-primary-list bivariate LDSC: T/F flag.
+  gencor_within <- flag(config, "gencor_within_gwas_list")
+
   magma_gene <- flag(config, "magma_gene")
 
   twas_panel_psychencode <- flag(config, "twas_panel_psychencode")
@@ -99,6 +102,7 @@ parse_config_flags <- function(config) {
     finemap = finemap,
     ldsc = ldsc,
     ldsc_gencor = ldsc_gencor,
+    gencor_within = gencor_within,
     magma_gene = magma_gene,
     twas_panel_psychencode = twas_panel_psychencode,
     twas_panel_fusion = twas_panel_fusion,
