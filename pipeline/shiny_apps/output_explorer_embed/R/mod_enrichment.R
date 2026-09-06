@@ -1014,7 +1014,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (isTRUE(cf$pathway)) {
         pathway_inner_single <- list(
           tabPanel(title = "Summary", br(),
-            p("Top pathways across every method and gmt. Colour is signed Wald-Z (MAGMA: BETA/SE; TWAS-GSEA: emitted Z). Nominally-significant cells get a black ring; FDR-significant cells get a black square outline. FDR is pooled across every gene set in every gmt for this GWAS (and across TWAS panels for TWAS-GSEA), so a cell that clears FDR here has cleared the full pathway-pass burden."),
+            p("Top pathways across every method and gmt. Colour is the enrichment Z-score (MAGMA: BETA/SE; TWAS-GSEA: emitted Z; positive-only scale, white → green). Nominally-significant cells get a black ring; FDR-significant cells get a black square outline. FDR is pooled across every gene set in every gmt for this GWAS (and across TWAS panels for TWAS-GSEA), so a cell that clears FDR here has cleared the full pathway-pass burden. Same shape/colour convention as the DrugTargetor Drug summary."),
             hr(),
             tags$details(class = "gd-details",
               tags$summary("Filter data"),
@@ -1046,10 +1046,6 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                                 choices = c("Significance (min FDR)" = "significance",
                                             "Alphabetical" = "alphabetical"),
                                 selected = "significance"),
-                    selectInput(ns("pathway_summary_fill"), "Colour scale:",
-                                choices = c("Signed Z" = "signed",
-                                            "-log10(FDR)" = "significance"),
-                                selected = "signed"),
                     sliderInput(ns("pathway_summary_font_size"),
                                 "Font size (pt):",
                                 min = 8, max = 20, value = 12, step = 1)
@@ -1322,7 +1318,6 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       build_pathway_summary_gtable(
         long,
         sort_choice = input$pathway_summary_sort %||% "significance",
-        fill        = input$pathway_summary_fill %||% "signed",
         font_size   = input$pathway_summary_font_size %||% 12,
         point_size  = 5
       )
