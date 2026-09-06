@@ -150,7 +150,25 @@ titlecase <- function(x) {
 }
 
 ship_meta <- targets[status == "shipped"]
-ship_meta[, trait_category := titlecase(trimws(as.character(category)))]
+# Column MUST be named `category` — that's what the web app's picker reads
+# (modules/secondary_gwas.py, _build_meta: `row.get('category')`).
+# The pipeline output `gencor_gwas_list.txt` uses `trait_category` for its
+# own copy of this value; don't rename that.
+ship_meta[, category := titlecase(trimws(as.character(category)))]
+
+# Manual category overrides for shipped codes whose source `category`
+# field is blank. Keep small; if this grows, promote to a curated file.
+manual_category <- list(
+  URIN07 = "Nephrology"   # eGFRcrea (serum creatinine) — kidney biomarker
+)
+for (c in names(manual_category)) {
+  if (c %in% ship_meta$code &&
+      (is.na(ship_meta[code == c, category]) ||
+       ship_meta[code == c, category] == "")) {
+    ship_meta[code == c, category := manual_category[[c]]]
+  }
+}
+stopifnot(all(!is.na(ship_meta$category) & nzchar(ship_meta$category)))
 
 # short_label: keep curated (non-empty, <=40 chars); else auto-shorten trait_label
 sl_raw <- ship_meta$short_label
@@ -162,7 +180,7 @@ ship_meta[, short_label := short_final]
 
 slim <- ship_meta[, .(
   code,
-  trait_category,
+  category,
   trait_label,
   short_label,
   ancestry,
@@ -172,7 +190,7 @@ slim <- ship_meta[, .(
   sample_size_discovery,
   pmid
 )]
-setorder(slim, trait_category, short_label, code)
+setorder(slim, category, short_label, code)
 fwrite(slim, old_csv)
 cat("rebuilt ", basename(old_csv), " with ", nrow(slim), " rows / ",
     ncol(slim), " cols\n", sep = "")
