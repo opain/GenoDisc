@@ -1022,7 +1022,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                 fluidRow(
                   column(3,
                     uiOutput(ns("pathway_summary_gmt_ui")),
-                    uiOutput(ns("pathway_summary_method_ui"))
+                    uiOutput(ns("pathway_summary_method_ui")),
+                    uiOutput(ns("pathway_summary_panel_ui"))
                   ),
                   column(3,
                     numericInput(ns("pathway_summary_fdr"),
@@ -1121,7 +1122,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                 fluidRow(
                   column(3,
                     uiOutput(ns("pathway_summary_multi_gmt_ui")),
-                    uiOutput(ns("pathway_summary_multi_method_ui"))
+                    uiOutput(ns("pathway_summary_multi_method_ui")),
+                    uiOutput(ns("pathway_summary_multi_panel_ui"))
                   ),
                   column(3,
                     numericInput(ns("pathway_summary_multi_fdr"),
@@ -1355,6 +1357,21 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                   choices = choices, selected = choices, multiple = TRUE)
     })
 
+    # TWAS panel picker — MAGMA has a single "MAGMA" pseudo-panel so
+    # excluding it here means only the TWAS-GSEA panels (Whole_Blood,
+    # Brain_Cortex, etc.) are user-selectable. Matches the "Include
+    # expression / splicing panels" widget in the DrugTargetor Drug
+    # summary.
+    output$pathway_summary_panel_ui <- renderUI({
+      long <- pathway_long_full()
+      if (is.null(long) || nrow(long) == 0) return(NULL)
+      panels <- sort(unique(long[Method != "MAGMA", Panel]))
+      if (length(panels) == 0L) return(NULL)
+      selectInput(ns("pathway_summary_panel"),
+                  "Include TWAS panels:",
+                  choices = panels, selected = panels, multiple = TRUE)
+    })
+
     # Filtered long form + top-N truncation.
     pathway_long_filt <- reactive({
       long <- pathway_long_full()
@@ -1366,6 +1383,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       # Gmt filter
       g <- input$pathway_summary_gmt
       if (!is.null(g) && length(g) > 0) long <- long[Gmt %in% g]
+      # TWAS-GSEA panel filter (leaves MAGMA rows untouched — its Panel
+      # value "MAGMA" is a pseudo-panel and isn't in the widget's choices).
+      p <- input$pathway_summary_panel
+      if (!is.null(p) && length(p) > 0) {
+        long <- long[Method == "MAGMA" | Panel %in% p]
+      }
       # FDR-only toggle
       thr <- input$pathway_summary_fdr %||% 0.05
       if (isTRUE(as.logical(input$pathway_summary_fdr_only))) {
@@ -1515,6 +1538,16 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                   choices = choices, selected = choices, multiple = TRUE)
     })
 
+    output$pathway_summary_multi_panel_ui <- renderUI({
+      long <- pathway_long_multi_full()
+      if (is.null(long) || nrow(long) == 0) return(NULL)
+      panels <- sort(unique(long[Method != "MAGMA", Panel]))
+      if (length(panels) == 0L) return(NULL)
+      selectInput(ns("pathway_summary_multi_panel"),
+                  "Include TWAS panels:",
+                  choices = panels, selected = panels, multiple = TRUE)
+    })
+
     pathway_long_multi_filt <- reactive({
       long <- pathway_long_multi_full()
       if (is.null(long) || nrow(long) == 0) return(long)
@@ -1523,6 +1556,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (!is.null(m) && length(m) > 0) long <- long[Method %in% m]
       g <- input$pathway_summary_multi_gmt
       if (!is.null(g) && length(g) > 0) long <- long[Gmt %in% g]
+      p <- input$pathway_summary_multi_panel
+      if (!is.null(p) && length(p) > 0) {
+        long <- long[Method == "MAGMA" | Panel %in% p]
+      }
       thr <- input$pathway_summary_multi_fdr %||% 0.05
       if (isTRUE(as.logical(input$pathway_summary_multi_fdr_only))) {
         sig_names <- unique(long[!is.na(P.FDR) & P.FDR < thr, Name])
