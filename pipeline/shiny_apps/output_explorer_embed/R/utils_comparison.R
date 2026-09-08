@@ -936,17 +936,23 @@ build_pathway_long <- function(gd, gwas) {
 #' Mirrors the styling of `build_tx_drug_gtable()` (mod_enrichment.R) for
 #' visual consistency with the DrugTargetor Summary heatmap:
 #'
+#'   shape 15 (solid square)      FDR p < 0.05 overlay, drawn FIRST as a
+#'                                black background at point_size + 2 so
+#'                                the square's edges show as a black
+#'                                halo around the coloured circle in
+#'                                front. Solid (not hollow) to match the
+#'                                DrugTargetor Drug summary convention.
 #'   shape 16 (filled circle)     coloured by Z-score, white->green ramp,
-#'                                limits = c(0, max) — depleted / negative
-#'                                Z values fall off the scale and render
-#'                                transparent (same as the Drug plot).
-#'   shape 21 (hollow circle)     nominal p < 0.05 overlay — deliberately
-#'                                shape 21 (not default 19) so the fill=NA
-#'                                keeps the centre transparent and the
-#'                                coloured circle underneath is still
-#'                                visible through the ring.
-#'   shape 22 (hollow square)     FDR p < 0.05 overlay — deliberately
-#'                                shape 22 (not 15) for the same reason.
+#'                                limits = c(0, max), drawn ON TOP of the
+#'                                FDR square so the Z score is visible in
+#'                                the middle even for FDR-significant
+#'                                cells. Depleted / negative Z values
+#'                                fall off the scale as transparent.
+#'   shape 21 (hollow circle)     nominal p < 0.05 overlay, drawn LAST at
+#'                                point_size + 1 so the ring shows
+#'                                around the coloured circle. Hollow
+#'                                (fill = NA) so the colour still
+#'                                shows through the centre.
 #'
 #' Rows = pathway (`Name`); x = Panel; facet columns = Method (MAGMA one
 #' column, TWAS-GSEA one column per TWAS panel).
@@ -995,6 +1001,19 @@ build_pathway_summary_gtable <- function(long,
     ggplot2::geom_blank() +
     theme_fn(base_size = font_size)
 
+  # Layer order matters: FDR square drawn FIRST as the black background
+  # (solid, shape 15) so its corners protrude around the coloured circle
+  # that goes on top. Then the coloured circle. Nominal hollow ring LAST
+  # so it sits on top of the coloured circle showing colour through its
+  # transparent centre.
+
+  gg <- gg +
+    ggplot2::geom_point(
+      data = long[!is.na(P.FDR) & P.FDR < 0.05],
+      ggplot2::aes(x = Panel, y = Name),
+      colour = "black", size = point_size + 2, shape = 15
+    )
+
   if (nrow(pos_data) > 0) {
     gg <- gg +
       ggplot2::geom_point(
@@ -1010,18 +1029,11 @@ build_pathway_summary_gtable <- function(long,
       )
   }
 
-  # Nominal / FDR overlays are drawn only for cells that were actually
-  # tested (P / P.FDR non-NA and small enough).
   gg <- gg +
     ggplot2::geom_point(
       data = long[!is.na(P) & P < 0.05],
       ggplot2::aes(x = Panel, y = Name),
       colour = "black", fill = NA, size = point_size + 1, shape = 21
-    ) +
-    ggplot2::geom_point(
-      data = long[!is.na(P.FDR) & P.FDR < 0.05],
-      ggplot2::aes(x = Panel, y = Name),
-      colour = "black", fill = NA, size = point_size + 2, shape = 22
     ) +
     ggplot2::facet_grid(cols = ggplot2::vars(Method),
                         scales = "free_x", space = "free_x") +
@@ -1109,6 +1121,15 @@ build_pathway_summary_multi_gtable <- function(long,
     ggplot2::geom_blank() +
     theme_fn(base_size = font_size)
 
+  # Same layer order as the single-GWAS gtable: FDR solid square as
+  # background, coloured circle on top, nominal hollow ring last.
+  gg <- gg +
+    ggplot2::geom_point(
+      data = long[!is.na(P.FDR) & P.FDR < 0.05],
+      ggplot2::aes(x = Panel, y = Name),
+      colour = "black", size = point_size + 2, shape = 15
+    )
+
   if (nrow(pos_data) > 0) {
     gg <- gg +
       ggplot2::geom_point(
@@ -1129,11 +1150,6 @@ build_pathway_summary_multi_gtable <- function(long,
       data = long[!is.na(P) & P < 0.05],
       ggplot2::aes(x = Panel, y = Name),
       colour = "black", fill = NA, size = point_size + 1, shape = 21
-    ) +
-    ggplot2::geom_point(
-      data = long[!is.na(P.FDR) & P.FDR < 0.05],
-      ggplot2::aes(x = Panel, y = Name),
-      colour = "black", fill = NA, size = point_size + 2, shape = 22
     ) +
     ggplot2::facet_grid(cols = ggplot2::vars(GWAS, Method),
                         scales = "free_x", space = "free_x") +
