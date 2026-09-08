@@ -1045,10 +1045,45 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                     selectInput(ns("pathway_summary_sort"), "Sort rows by:",
                                 choices = c("Significance (min FDR)" = "significance",
                                             "Alphabetical" = "alphabetical"),
-                                selected = "significance"),
-                    sliderInput(ns("pathway_summary_font_size"),
-                                "Font size (pt):",
-                                min = 8, max = 20, value = 12, step = 1)
+                                selected = "significance")
+                  )
+                )
+              )
+            ),
+            tags$details(class = "gd-details",
+              tags$summary("Plot options"),
+              tags$div(class = "gd-details-body",
+                tags$p(class = "gd-details-intro",
+                  "Customise how the heatmap looks (title, theme, font size, point size) ",
+                  "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+                fluidRow(
+                  column(4,
+                    textInput(ns("plot_title_pathway"), "Plot title (optional):", value = ""),
+                    selectInput(ns("plot_theme_pathway"), "Theme:",
+                                choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                            "Classic" = "classic", "Light" = "light"),
+                                selected = "bw")
+                  ),
+                  column(4,
+                    sliderInput(ns("plot_font_size_pathway"), "Font size (pt):",
+                                min = 10, max = 20, value = 14, step = 1),
+                    sliderInput(ns("plot_point_size_pathway"), "Point size:",
+                                min = 2, max = 8, value = 5, step = 1)
+                  ),
+                  column(4,
+                    selectInput(ns("dl_format_pathway"), "Download format:",
+                                choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                                selected = "png"),
+                    numericInput(ns("dl_width_pathway"), "Width (inches):",
+                                 value = 12, min = 2, max = 40, step = 0.5),
+                    numericInput(ns("dl_height_pathway"), "Height (inches):",
+                                 value = 8, min = 2, max = 40, step = 0.5),
+                    conditionalPanel(
+                      condition = sprintf("input['%s'] == 'png'", ns("dl_format_pathway")),
+                      numericInput(ns("dl_dpi_pathway"), "Resolution (DPI, PNG only):",
+                                   value = 300, min = 72, max = 600, step = 25)
+                    ),
+                    downloadButton(ns("download_plot_pathway"), "Download plot")
                   )
                 )
               )
@@ -1109,10 +1144,45 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                     selectInput(ns("pathway_summary_multi_sort"), "Sort rows by:",
                                 choices = c("Significance (min FDR)" = "significance",
                                             "Alphabetical" = "alphabetical"),
-                                selected = "significance"),
-                    sliderInput(ns("pathway_summary_multi_font_size"),
-                                "Font size (pt):",
-                                min = 8, max = 20, value = 12, step = 1)
+                                selected = "significance")
+                  )
+                )
+              )
+            ),
+            tags$details(class = "gd-details",
+              tags$summary("Plot options"),
+              tags$div(class = "gd-details-body",
+                tags$p(class = "gd-details-intro",
+                  "Customise how the heatmap looks (title, theme, font size, point size) ",
+                  "and download it as a PNG, PDF, or SVG at the size and resolution you choose."),
+                fluidRow(
+                  column(4,
+                    textInput(ns("plot_title_pathway_multi"), "Plot title (optional):", value = ""),
+                    selectInput(ns("plot_theme_pathway_multi"), "Theme:",
+                                choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                            "Classic" = "classic", "Light" = "light"),
+                                selected = "bw")
+                  ),
+                  column(4,
+                    sliderInput(ns("plot_font_size_pathway_multi"), "Font size (pt):",
+                                min = 10, max = 20, value = 14, step = 1),
+                    sliderInput(ns("plot_point_size_pathway_multi"), "Point size:",
+                                min = 2, max = 8, value = 5, step = 1)
+                  ),
+                  column(4,
+                    selectInput(ns("dl_format_pathway_multi"), "Download format:",
+                                choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                                selected = "png"),
+                    numericInput(ns("dl_width_pathway_multi"), "Width (inches):",
+                                 value = 12, min = 2, max = 40, step = 0.5),
+                    numericInput(ns("dl_height_pathway_multi"), "Height (inches):",
+                                 value = 8, min = 2, max = 40, step = 0.5),
+                    conditionalPanel(
+                      condition = sprintf("input['%s'] == 'png'", ns("dl_format_pathway_multi")),
+                      numericInput(ns("dl_dpi_pathway_multi"), "Resolution (DPI, PNG only):",
+                                   value = 300, min = 72, max = 600, step = 25)
+                    ),
+                    downloadButton(ns("download_plot_pathway_multi"), "Download plot")
                   )
                 )
               )
@@ -1320,20 +1390,17 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       long[Name %in% keep]
     })
 
+    # Same calc_plot_dims used by the DrugTargetor Summary so row spacing
+    # is derived from font size and points can't overlap adjacent rows.
     pathway_summary_dim <- reactive({
       long <- pathway_long_filt()
-      if (is.null(long) || nrow(long) == 0) return(list(width_px = 700, height_px = 400))
-      n_rows <- length(unique(long$Name))
-      n_cols <- length(unique(paste0(long$Method, "::", long$Panel)))
-      fs <- input$pathway_summary_font_size %||% 12
-      # Longest label -> pt -> px
-      lbl_pt <- max(strwidth_pt(as.character(unique(long$Name)), ps = fs))
-      lbl_px <- lbl_pt * 96 / 72
-      row_px <- max(22, round(fs * 2.2))
-      chrome <- 180
-      w <- as.integer(min(1600, lbl_px + 90 * n_cols + chrome))
-      h <- as.integer(min(2000, 80 + row_px * n_rows))
-      list(width_px = w, height_px = h)
+      if (is.null(long) || nrow(long) == 0) {
+        return(list(height = 400, width = 700, panel_h_pt = 200, left_pad_pt = 0))
+      }
+      calc_plot_dims(as.data.frame(long),
+                     y_col = "Name", x_col = "Panel", facet_col = "Method",
+                     font_size = input$plot_font_size_pathway %||% 14,
+                     min_height = 350, min_panel_h_pt = 200)
     })
 
     output$pathway_summary_plot_ui <- renderUI({
@@ -1351,21 +1418,73 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       dims <- pathway_summary_dim()
       tags$div(style = "max-width: 100%; overflow-x: auto;",
         plotOutput(ns("pathway_summary_plot"),
-                   width  = paste0(dims$width_px,  "px"),
-                   height = paste0(dims$height_px, "px"))
+                   width  = paste0(round(dims$width),  "px"),
+                   height = paste0(round(dims$height), "px"))
       )
     })
 
     output$pathway_summary_plot <- renderPlot({
       long <- pathway_long_filt()
       req(long, nrow(long) > 0)
-      build_pathway_summary_gtable(
+      dims <- pathway_summary_dim()
+      gt <- build_pathway_summary_gtable(
         long,
         sort_choice = input$pathway_summary_sort %||% "significance",
-        font_size   = input$pathway_summary_font_size %||% 12,
-        point_size  = 5
+        font_size   = input$plot_font_size_pathway %||% 14,
+        point_size  = input$plot_point_size_pathway %||% 5,
+        theme_fn    = enr_theme_fn(input$plot_theme_pathway),
+        title       = input$plot_title_pathway %||% "",
+        panel_h_pt  = dims$panel_h_pt,
+        left_pad_pt = dims$left_pad_pt
       )
-    }, res = 96)
+      if (!is.null(gt)) grid::grid.draw(gt)
+    })
+
+    # Sync download width/height with on-screen dims (same idiom as
+    # the DrugTargetor Summary observer).
+    observeEvent(pathway_summary_dim(), {
+      dims <- pathway_summary_dim()
+      if (!is.null(dims$width) && dims$width > 100 && dims$height < 10000) {
+        updateNumericInput(session, "dl_width_pathway",
+                           value = round(dims$width  / 72, 1))
+        updateNumericInput(session, "dl_height_pathway",
+                           value = round(dims$height / 72, 1))
+      }
+    })
+
+    output$download_plot_pathway <- downloadHandler(
+      filename = function() {
+        sprintf("pathway_enrichment_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$dl_format_pathway %||% "png")
+      },
+      content = function(file) {
+        long <- pathway_long_filt()
+        req(long, nrow(long) > 0)
+        dims <- pathway_summary_dim()
+        gt <- build_pathway_summary_gtable(
+          long,
+          sort_choice = input$pathway_summary_sort %||% "significance",
+          font_size   = input$plot_font_size_pathway %||% 14,
+          point_size  = input$plot_point_size_pathway %||% 5,
+          theme_fn    = enr_theme_fn(input$plot_theme_pathway),
+          title       = input$plot_title_pathway %||% "",
+          panel_h_pt  = dims$panel_h_pt,
+          left_pad_pt = dims$left_pad_pt
+        )
+        w <- input$dl_width_pathway  %||% 12
+        h <- input$dl_height_pathway %||% 8
+        fmt <- input$dl_format_pathway %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$dl_dpi_pathway %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        if (!is.null(gt)) grid::grid.draw(gt) else grid::grid.text("No pathway data.")
+        grDevices::dev.off()
+      }
+    )
 
     # -------- Pathway Summary heatmap (Multi-GWAS Summary sub-tab) --------
     # Same shape as the single-GWAS Summary but pooled across every primary
@@ -1423,19 +1542,21 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       long[Name %in% keep]
     })
 
+    # Multi-GWAS dim calc: facets are `GWAS × Method` so we synthesise a
+    # combined facet column to hand to calc_plot_dims (which takes one
+    # facet_col). The exact per-facet width doesn't matter for the height
+    # decision, which is what actually drives row spacing.
     pathway_summary_multi_dim <- reactive({
       long <- pathway_long_multi_filt()
-      if (is.null(long) || nrow(long) == 0) return(list(width_px = 700, height_px = 400))
-      n_rows <- length(unique(long$Name))
-      n_cols <- length(unique(paste0(long$GWAS, "::", long$Method, "::", long$Panel)))
-      fs <- input$pathway_summary_multi_font_size %||% 12
-      lbl_pt <- max(strwidth_pt(as.character(unique(long$Name)), ps = fs))
-      lbl_px <- lbl_pt * 96 / 72
-      row_px <- max(22, round(fs * 2.2))
-      chrome <- 220  # extra room for the (GWAS × Method) facet strips
-      w <- as.integer(min(2000, lbl_px + 70 * n_cols + chrome))
-      h <- as.integer(min(2000, 100 + row_px * n_rows))
-      list(width_px = w, height_px = h)
+      if (is.null(long) || nrow(long) == 0) {
+        return(list(height = 400, width = 700, panel_h_pt = 200, left_pad_pt = 0))
+      }
+      df <- as.data.frame(long)
+      df$.facet <- paste(df$GWAS, df$Method, sep = "\n")
+      calc_plot_dims(df,
+                     y_col = "Name", x_col = "Panel", facet_col = ".facet",
+                     font_size = input$plot_font_size_pathway_multi %||% 14,
+                     min_height = 350, min_panel_h_pt = 200)
     })
 
     output$pathway_summary_multi_plot_ui <- renderUI({
@@ -1453,21 +1574,71 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       dims <- pathway_summary_multi_dim()
       tags$div(style = "max-width: 100%; overflow-x: auto;",
         plotOutput(ns("pathway_summary_multi_plot"),
-                   width  = paste0(dims$width_px,  "px"),
-                   height = paste0(dims$height_px, "px"))
+                   width  = paste0(round(dims$width),  "px"),
+                   height = paste0(round(dims$height), "px"))
       )
     })
 
     output$pathway_summary_multi_plot <- renderPlot({
       long <- pathway_long_multi_filt()
       req(long, nrow(long) > 0)
-      build_pathway_summary_multi_gtable(
+      dims <- pathway_summary_multi_dim()
+      gt <- build_pathway_summary_multi_gtable(
         long,
         sort_choice = input$pathway_summary_multi_sort %||% "significance",
-        font_size   = input$pathway_summary_multi_font_size %||% 12,
-        point_size  = 5
+        font_size   = input$plot_font_size_pathway_multi %||% 14,
+        point_size  = input$plot_point_size_pathway_multi %||% 5,
+        theme_fn    = enr_theme_fn(input$plot_theme_pathway_multi),
+        title       = input$plot_title_pathway_multi %||% "",
+        panel_h_pt  = dims$panel_h_pt,
+        left_pad_pt = dims$left_pad_pt
       )
-    }, res = 96)
+      if (!is.null(gt)) grid::grid.draw(gt)
+    })
+
+    observeEvent(pathway_summary_multi_dim(), {
+      dims <- pathway_summary_multi_dim()
+      if (!is.null(dims$width) && dims$width > 100 && dims$height < 10000) {
+        updateNumericInput(session, "dl_width_pathway_multi",
+                           value = round(dims$width  / 72, 1))
+        updateNumericInput(session, "dl_height_pathway_multi",
+                           value = round(dims$height / 72, 1))
+      }
+    })
+
+    output$download_plot_pathway_multi <- downloadHandler(
+      filename = function() {
+        sprintf("pathway_enrichment_multi_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$dl_format_pathway_multi %||% "png")
+      },
+      content = function(file) {
+        long <- pathway_long_multi_filt()
+        req(long, nrow(long) > 0)
+        dims <- pathway_summary_multi_dim()
+        gt <- build_pathway_summary_multi_gtable(
+          long,
+          sort_choice = input$pathway_summary_multi_sort %||% "significance",
+          font_size   = input$plot_font_size_pathway_multi %||% 14,
+          point_size  = input$plot_point_size_pathway_multi %||% 5,
+          theme_fn    = enr_theme_fn(input$plot_theme_pathway_multi),
+          title       = input$plot_title_pathway_multi %||% "",
+          panel_h_pt  = dims$panel_h_pt,
+          left_pad_pt = dims$left_pad_pt
+        )
+        w <- input$dl_width_pathway_multi  %||% 12
+        h <- input$dl_height_pathway_multi %||% 8
+        fmt <- input$dl_format_pathway_multi %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                               res = input$dl_dpi_pathway_multi %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        if (!is.null(gt)) grid::grid.draw(gt) else grid::grid.text("No pathway data.")
+        grDevices::dev.off()
+      }
+    )
 
     #######
     # Prepare data for drug-specific association tables

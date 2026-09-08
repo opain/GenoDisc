@@ -968,9 +968,12 @@ build_pathway_long <- function(gd, gwas) {
 #' @param theme_fn ggplot theme function.
 build_pathway_summary_gtable <- function(long,
                                           sort_choice = "significance",
-                                          font_size = 12,
+                                          font_size = 14,
                                           point_size = 5,
-                                          theme_fn = ggplot2::theme_bw) {
+                                          theme_fn = ggplot2::theme_bw,
+                                          title = "",
+                                          panel_h_pt = NULL,
+                                          left_pad_pt = 0) {
   if (is.null(long) || nrow(long) == 0) return(NULL)
   long <- data.table::copy(long)
 
@@ -1037,13 +1040,18 @@ build_pathway_summary_gtable <- function(long,
     ) +
     ggplot2::facet_grid(cols = ggplot2::vars(Method),
                         scales = "free_x", space = "free_x") +
-    ggplot2::labs(x = NULL, y = NULL) +
+    ggplot2::labs(x = NULL, y = NULL,
+                  title = if (nzchar(title)) title else NULL) +
     ggplot2::theme(
-      axis.text.x    = ggplot2::element_text(angle = 45, hjust = 1),
-      strip.text     = ggplot2::element_text(face = "bold"),
+      axis.text.x      = ggplot2::element_text(angle = 45, hjust = 1),
+      strip.text       = ggplot2::element_text(face = "bold"),
+      plot.title       = ggplot2::element_text(hjust = 0.5),
+      plot.margin      = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
+                                          l = left_pad_pt, unit = "pt"),
       panel.grid.minor = ggplot2::element_blank()
     )
-  gg
+  gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(gg))
+  reserve_legend_space(gt, panel_h_pt)
 }
 
 #' Multi-GWAS pathway summary long form
@@ -1091,9 +1099,12 @@ build_pathway_long_multi <- function(gd, gwas_vec) {
 #' Returns NULL on empty input.
 build_pathway_summary_multi_gtable <- function(long,
                                                 sort_choice = "significance",
-                                                font_size = 12,
+                                                font_size = 14,
                                                 point_size = 5,
-                                                theme_fn = ggplot2::theme_bw) {
+                                                theme_fn = ggplot2::theme_bw,
+                                                title = "",
+                                                panel_h_pt = NULL,
+                                                left_pad_pt = 0) {
   if (is.null(long) || nrow(long) == 0) return(NULL)
   long <- data.table::copy(long)
 
@@ -1145,7 +1156,7 @@ build_pathway_summary_multi_gtable <- function(long,
       )
   }
 
-  gg +
+  gg <- gg +
     ggplot2::geom_point(
       data = long[!is.na(P) & P < 0.05],
       ggplot2::aes(x = Panel, y = Name),
@@ -1153,12 +1164,18 @@ build_pathway_summary_multi_gtable <- function(long,
     ) +
     ggplot2::facet_grid(cols = ggplot2::vars(GWAS, Method),
                         scales = "free_x", space = "free_x") +
-    ggplot2::labs(x = NULL, y = NULL) +
+    ggplot2::labs(x = NULL, y = NULL,
+                  title = if (nzchar(title)) title else NULL) +
     ggplot2::theme(
       axis.text.x      = ggplot2::element_text(angle = 45, hjust = 1),
       strip.text       = ggplot2::element_text(face = "bold"),
+      plot.title       = ggplot2::element_text(hjust = 0.5),
+      plot.margin      = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
+                                          l = left_pad_pt, unit = "pt"),
       panel.grid.minor = ggplot2::element_blank()
     )
+  gt <- ggplot2::ggplot_gtable(ggplot2::ggplot_build(gg))
+  reserve_legend_space(gt, panel_h_pt)
 }
 
 #' @param gwas_list Optional data.frame from gd_config(gd)$gwas_list (uses
