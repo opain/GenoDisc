@@ -47,13 +47,11 @@ enr_theme_fn <- function(name) {
 #' files match what's on screen. Returns `NULL` if there's no data.
 #'
 #' @param d Filtered tissue data (Tissue, negLog10P, FDR_Sig, Retained).
-#' @param n_total Total number of tissues before filtering — used to derive
-#'   the Bonferroni threshold line.
 #' @param font_size Base font size in pt.
 #' @param point_size Point size for the dots.
 #' @param theme_fn A ggplot theme function (e.g. `ggplot2::theme_bw`).
 #' @param title Optional plot title; empty string draws no title.
-build_tissue_plot <- function(d, n_total, sort_choice = "significance",
+build_tissue_plot <- function(d, sort_choice = "significance",
                                font_size = 14, point_size = 5,
                                theme_fn = ggplot2::theme_bw, title = "") {
   if (is.null(d) || nrow(d) == 0) return(NULL)
@@ -78,14 +76,9 @@ build_tissue_plot <- function(d, n_total, sort_choice = "significance",
     levels = c("Not FDR-significant", "FDR-significant", "FDR-significant + independent")
   )
 
-  nom_line  <- -log10(0.05)
-  bonf_line <- -log10(0.05 / max(n_total, 1))
-
   gg <- ggplot2::ggplot(d, ggplot2::aes(x = negLog10P, y = Label)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
                           colour = "grey78", linewidth = 0.6) +
-    ggplot2::geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey55") +
-    ggplot2::geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey35") +
     ggplot2::geom_point(ggplot2::aes(fill = Status),
                         shape = 21, size = point_size, colour = "black", stroke = 0.4,
                         key_glyph = .draw_key_tissue_dot) +
@@ -1024,8 +1017,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
               "Y-axis" = "GTEx v8 tissue, ordered by significance or alphabetically (chosen in Filter data).",
               "Filled teal dot" = "FDR-significant (P.FDR < 0.05).",
               "Inner white dot (black outline)" = "Independent in the conditional analysis (still contributes signal after conditioning on the more significant tissues, or too collinear with them to distinguish).",
-              "Teal dot with inner white dot" = "FDR-significant and independent in the conditional analysis.",
-              "Dashed / dotted vertical lines" = "Nominal significance (p = 0.05) and the Bonferroni threshold."
+              "Teal dot with inner white dot" = "FDR-significant and independent in the conditional analysis."
             ), heading = "How to read this plot"),
             br(),
             fluidRow(column(width = 8, dataTableOutput(ns("tx_tissue_table")))),
@@ -2608,7 +2600,6 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (is.null(d) || nrow(d) == 0) return(NULL)
       build_tissue_plot(
         d = d,
-        n_total = nrow(tx_tissue_data()),
         sort_choice = input$sort_tissue %||% "significance",
         font_size = input$plot_font_size_tissue %||% 14,
         point_size = input$plot_point_size_tissue %||% 5,
@@ -2626,10 +2617,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       content = function(file) {
         p <- build_tissue_plot(
           d = tx_tissue_data_filtered(),
-          n_total = nrow(tx_tissue_data() %||% data.frame()),
           sort_choice = input$sort_tissue %||% "significance",
-          font_size = input$plot_font_size_tissue %||% 13,
-          point_size = input$plot_point_size_tissue %||% 3,
+          font_size = input$plot_font_size_tissue %||% 14,
+          point_size = input$plot_point_size_tissue %||% 5,
           theme_fn = enr_theme_fn(input$plot_theme_tissue),
           title = input$plot_title_tissue %||% ""
         )

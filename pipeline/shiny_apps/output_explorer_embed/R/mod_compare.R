@@ -273,7 +273,7 @@ tissue_compare_ui <- function(ns) {
       uiOutput(ns("tissue_compare_plot_ui"))
     ),
     gd_legend(list(
-      "Facet mode"                   = "One panel per GWAS; each row is a tissue and the horizontal bar shows -log10(P). Dashed line = nominal significance (P = 0.05); dotted line = Bonferroni across shown tissues.",
+      "Facet mode"                   = "One panel per GWAS; each row is a tissue and the horizontal bar shows -log10(P).",
       "Filled teal dot (facet)"      = "FDR-significant (P.FDR < 0.05).",
       "Inner white dot (black outline)" = "Independent in the conditional analysis (still contributes signal after conditioning on the more significant tissues, or too collinear with them to distinguish). Shown in both facet and heatmap modes.",
       "Teal dot with inner white dot (facet)" = "FDR-significant and independent in the conditional analysis.",
@@ -380,16 +380,9 @@ tissue_compare_ui <- function(ns) {
   slice[, Label := factor(as.character(entity_id), levels = tissue_levels)]
   slice[, gwas  := factor(gwas, levels = gwas_vec)]
 
-  # Bonferroni line: total tissues in the CURRENT slice (per-facet population).
-  n_total  <- length(unique(slice$entity_id))
-  nom_line  <- -log10(0.05)
-  bonf_line <- -log10(0.05 / max(n_total, 1))
-
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = negLog10P, y = Label)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
                           colour = "grey78", linewidth = 0.5) +
-    ggplot2::geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey55") +
-    ggplot2::geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey35") +
     ggplot2::geom_point(ggplot2::aes(fill = Status),
                         shape = 21, size = point_size, colour = "black", stroke = 0.4,
                         key_glyph = .draw_key_tissue_dot) +
