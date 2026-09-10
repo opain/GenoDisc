@@ -599,12 +599,17 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       dims <- .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = n_cols_dim,
-        font_size = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
+        font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
         y_labels  = y_lab
       )
       # Facet mode needs extra width per facet (each panel is a full mini-plot,
-      # not a single-cell heatmap column).
-      if (is_facet) dims$width <- dims$width * 1.4
+      # not a single-cell heatmap column). Height is locked to the single-GWAS
+      # tissue plot's 900px so the two views feel visually consistent — the
+      # multi-GWAS facet reuses the same y-axis so row spacing should match.
+      if (is_facet) {
+        dims$width  <- dims$width * 1.4
+        dims$height <- 900
+      }
       dims
     })
 

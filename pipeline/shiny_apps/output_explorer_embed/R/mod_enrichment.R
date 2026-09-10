@@ -1017,7 +1017,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
             ),
             br(),
             tags$div(style = "max-width: 900px;",
-              plotOutput(ns("tx_tissue_plot"), height = "700px")
+              plotOutput(ns("tx_tissue_plot"), height = "900px")
             ),
             gd_legend(list(
               "X-axis" = "-log10(p-value) for tissue-specific expression enrichment; further right = stronger.",
