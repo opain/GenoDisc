@@ -250,9 +250,9 @@ tissue_compare_ui <- function(ns) {
                                       "SNP-h²"       = "h2"),
                          selected = "as_selected"),
             sliderInput(ns("plot_font_size"), "Font size (pt):",
-                         min = 8, max = 20, value = 12, step = 1),
+                         min = 8, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
-                         min = 2, max = 10, value = 4, step = 1)
+                         min = 2, max = 10, value = 5, step = 1)
           ),
           column(3,
             selectInput(ns("dl_format"), "Download format:",
@@ -274,8 +274,9 @@ tissue_compare_ui <- function(ns) {
     ),
     gd_legend(list(
       "Facet mode"                   = "One panel per GWAS; each row is a tissue and the horizontal bar shows -log10(P). Dashed line = nominal significance (P = 0.05); dotted line = Bonferroni across shown tissues.",
-      "Filled point (facet)"         = "Green fill = FDR-significant (P.FDR < 0.05); white fill = not FDR-significant.",
-      "Inner white dot (black outline)" = "Retained after the conditional analysis (shown in both facet and heatmap modes).",
+      "Filled teal dot (facet)"      = "FDR-significant (P.FDR < 0.05).",
+      "Inner white dot (black outline)" = "Independent in the conditional analysis (still contributes signal after conditioning on the more significant tissues, or too collinear with them to distinguish). Shown in both facet and heatmap modes.",
+      "Teal dot with inner white dot (facet)" = "FDR-significant and independent in the conditional analysis.",
       "Cell colour (heatmap)"        = "-log10(P) on a teal ramp.",
       "Ring around a circle"         = "Heatmap: nominal-significant (P < 0.05).",
       "Black square around a circle" = "Heatmap: FDR-significant (P.FDR < 0.05)."
@@ -283,7 +284,16 @@ tissue_compare_ui <- function(ns) {
     br(),
     tags$div(style = "max-width: 1100px;",
       h4("Underlying data"),
-      DT::DTOutput(ns("tissue_compare_tbl"))
+      DT::DTOutput(ns("tissue_compare_tbl")),
+      gd_legend(list(
+        "GWAS"     = "Primary GWAS the row belongs to.",
+        "Tissue"   = "GTEx v8 tissue.",
+        "BETA"     = "Tissue-specific expression enrichment effect size.",
+        "SE"       = "Standard error of BETA.",
+        "P"        = "Enrichment p-value (smaller = stronger enrichment).",
+        "P.FDR"    = "Benjamini-Hochberg FDR-adjusted p-value; < 0.05 is the usual significance threshold.",
+        "Retained" = "Yes = the tissue is kept after conditional analysis, because it still shows independent enrichment (conditional P < 0.05) or is too collinear with a more significant tissue to distinguish. '—' means the tissue wasn't tested in the conditional pass (only FDR-significant tissues are)."
+      ), heading = "Column guide")
     )
   )
 }
@@ -340,8 +350,8 @@ tissue_compare_ui <- function(ns) {
 .tissue_compare_facet_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                           sig_threshold = 0.05,
                                           sort_choice = "significance",
-                                          font_size = 12,
-                                          point_size = 3) {
+                                          font_size = 14,
+                                          point_size = 5) {
   packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
                                     "fdr", sig_threshold)
   if (is.null(packed)) return(NULL)
@@ -349,6 +359,13 @@ tissue_compare_ui <- function(ns) {
   slice[, negLog10P := -log10(pmax(p, 1e-300))]
   slice[, FDR_Sig   := !is.na(fdr) & fdr < 0.05]
   slice[, Retained  := !is.na(evidence) & evidence]
+  # 3-level status matches build_tissue_plot() so the single- and
+  # multi-GWAS views share the exact same fill legend.
+  slice[, Status := factor(
+    data.table::fifelse(FDR_Sig & Retained, "FDR-significant + independent",
+      data.table::fifelse(FDR_Sig, "FDR-significant", "Not FDR-significant")),
+    levels = c("Not FDR-significant", "FDR-significant", "FDR-significant + independent")
+  )]
 
   # Shared tissue ordering across facets. Recurrence-based row order from
   # `.tissue_compare_frame` puts recurrent hits first (via `rec$entity_id`),
@@ -373,22 +390,29 @@ tissue_compare_ui <- function(ns) {
                           colour = "grey78", linewidth = 0.5) +
     ggplot2::geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey55") +
     ggplot2::geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey35") +
-    ggplot2::geom_point(ggplot2::aes(fill = FDR_Sig),
-                        shape = 21, size = point_size, colour = "black", stroke = 0.4) +
+    ggplot2::geom_point(ggplot2::aes(fill = Status),
+                        shape = 21, size = point_size, colour = "black", stroke = 0.4,
+                        key_glyph = .draw_key_tissue_dot) +
     ggplot2::scale_fill_manual(
-      values = c(`FALSE` = "white", `TRUE` = "#0f766e"),
-      labels = c(`FALSE` = "Not FDR-significant", `TRUE` = "FDR-significant"),
-      name = NULL)
+      values = c(
+        "Not FDR-significant"           = "white",
+        "FDR-significant"               = "#0f766e",
+        "FDR-significant + independent" = "#0f766e"
+      ),
+      drop = FALSE, name = NULL,
+      guide = ggplot2::guide_legend(override.aes = list(
+        alpha = c(1, 1, 0.99)
+      )))
 
-  # Retained-in-conditional marker: small inner WHITE dot with a thin
-  # black outline (shape 21). White-on-dark-green (FDR-sig fill) and
-  # white-on-white (not-sig fill) both read clearly because of the
-  # black stroke.
+  # Retained-in-conditional overlay in the plot area — inner white dot on
+  # top of the FDR-sig teal fill. `show.legend = FALSE` so the composite
+  # legend key comes from the main fill scale via key_glyph.
   ret <- slice[Retained == TRUE]
   if (nrow(ret) > 0) {
     gg <- gg + ggplot2::geom_point(data = ret, shape = 21, fill = "white",
                                      colour = "black", stroke = 0.6,
-                                     size = point_size * 0.45)
+                                     size = point_size * 0.45,
+                                     show.legend = FALSE)
   }
 
   gg +
@@ -546,8 +570,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
           only_recurrent = isTRUE(input$only_recurrent),
           k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
           sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
-          font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
-          point_size     = if (is.null(input$plot_point_size)) 3 else as.numeric(input$plot_point_size)
+          font_size      = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
+          point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size)
         )
       } else {
         .tissue_compare_ggplot(
@@ -557,8 +581,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
           k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
           sig_basis      = "fdr",
           sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
-          font_size      = if (is.null(input$plot_font_size)) 12 else as.numeric(input$plot_font_size),
-          point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
+          font_size      = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
+          point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size)
         )
       }
     })

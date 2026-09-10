@@ -301,6 +301,16 @@ Results include drug-level scores and ATC classification enrichment, stored in `
 
 MAGMA tissue enrichment analysis tests whether genes expressed in specific tissues are enriched for GWAS associations. This uses GTEx tissue expression profiles to identify tissues where GWAS-associated genes are preferentially expressed, and performs conditional analysis to identify independently enriched tissues.
 
+**Conditional analysis.** The marginal test evaluates each GTEx tissue independently, so several tissues can appear enriched simply because their expression profiles overlap with the true driving tissue rather than carrying independent signal. To resolve this, `scripts/magma_tissue_conditional.R` takes the tissues that are FDR-significant (`P.FDR ≤ 0.05`) in the marginal test, orders them by p-value, and iteratively re-tests each remaining tissue while conditioning on the current lead tissue's expression profile (via MAGMA's `condition-hide`, alongside the `Average` expression covariate).
+
+A tissue is **retained** if any of the following hold after conditioning:
+
+- **Collinear with the lead** — the conditional model cannot separate its signal from the lead's (variance-explained is undefined / `NA`). The tissue is kept because it is statistically indistinguishable from the lead, not because it adds independent information.
+- **Comparable marginal strength** — its marginal χ² is within 95% of the lead's (`R2_ratio > 0.95`), i.e. the two tissues are essentially co-leading.
+- **Still significant after conditioning** — its conditional `P < 0.05`, meaning it contributes signal beyond what the lead explains.
+
+Tissues that fail all three criteria are dropped, because their marginal enrichment is adequately accounted for by tissues already retained. The final set is written to `magma_tissue_conditional.indep.txt`. A retained tissue should be interpreted as a plausible driver of the GWAS signal, but retention does not imply it acts independently of every other retained tissue: some are kept precisely because collinearity prevents that distinction.
+
 Results are stored in `{outdir}/results/{gwas}/magma/`.
 
 ***

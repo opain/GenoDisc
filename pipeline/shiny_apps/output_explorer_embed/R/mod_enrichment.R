@@ -9,6 +9,38 @@ enr_theme_fn <- function(name) {
   )
 }
 
+#' Custom legend-key glyph for the tissue lollipop plots (single- and
+#' multi-GWAS). Draws a plain filled circle for the first two levels of the
+#' fill scale ("Not FDR-significant", "FDR-significant"), and a composite
+#' outer-teal / inner-white dot for the "FDR-significant + independent"
+#' level (tissues retained after MAGMA's conditional analysis).
+#'
+#' The independent key is identified via a sentinel alpha value smuggled
+#' through `override.aes = list(alpha = c(1, 1, 0.99))`. `alpha` only
+#' affects legend keys (not plot data), so the difference is invisible
+#' outside the guide. Referenced from both `build_tissue_plot()` and
+#' `.tissue_compare_facet_ggplot()` so the two views share the exact same
+#' legend rendering.
+.draw_key_tissue_dot <- function(data, params, size) {
+  outer <- grid::pointsGrob(
+    0.5, 0.5, pch = 21,
+    gp = grid::gpar(col = data$colour %||% "black",
+                    fill = data$fill %||% "grey50",
+                    lwd = 0.6)
+  )
+  is_independent <- !is.null(data$alpha) && !is.na(data$alpha) &&
+                    data$alpha < 1 - 1e-4
+  if (is_independent) {
+    inner <- grid::pointsGrob(
+      0.5, 0.5, pch = 21,
+      gp = grid::gpar(col = "black", fill = "white", lwd = 0.6),
+      size = grid::unit(0.4, "char")
+    )
+    return(grid::grobTree(outer, inner))
+  }
+  outer
+}
+
 #' Build the tissue-enrichment lollipop plot as a ggplot object.
 #'
 #' Shared by the on-screen `renderPlot` and the download handler so saved
@@ -22,7 +54,7 @@ enr_theme_fn <- function(name) {
 #' @param theme_fn A ggplot theme function (e.g. `ggplot2::theme_bw`).
 #' @param title Optional plot title; empty string draws no title.
 build_tissue_plot <- function(d, n_total, sort_choice = "significance",
-                               font_size = 13, point_size = 3,
+                               font_size = 14, point_size = 5,
                                theme_fn = ggplot2::theme_bw, title = "") {
   if (is.null(d) || nrow(d) == 0) return(NULL)
 
@@ -34,29 +66,59 @@ build_tissue_plot <- function(d, n_total, sort_choice = "significance",
   } else {
     d <- d[order(d$negLog10P), ]
   }
-  d$Label <- ifelse(d$Retained, paste0(d$Tissue, " *"), d$Tissue)
-  d$Label <- factor(d$Label, levels = d$Label)
-  face_vec <- ifelse(d$Retained, "bold", "plain")
+  d$Label <- factor(d$Tissue, levels = d$Tissue)
+
+  # 3-level status factor drives the fill legend. Retention (independence
+  # after conditioning) is only ever computed among FDR-sig tissues
+  # (magma_tissue_conditional.R), so the "independent-only" combination
+  # doesn't exist as a category.
+  d$Status <- factor(
+    ifelse(d$FDR_Sig & d$Retained, "FDR-significant + independent",
+      ifelse(d$FDR_Sig, "FDR-significant", "Not FDR-significant")),
+    levels = c("Not FDR-significant", "FDR-significant", "FDR-significant + independent")
+  )
 
   nom_line  <- -log10(0.05)
   bonf_line <- -log10(0.05 / max(n_total, 1))
 
-  ggplot2::ggplot(d, ggplot2::aes(x = negLog10P, y = Label)) +
+  gg <- ggplot2::ggplot(d, ggplot2::aes(x = negLog10P, y = Label)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
                           colour = "grey78", linewidth = 0.6) +
     ggplot2::geom_vline(xintercept = nom_line,  linetype = "dashed", colour = "grey55") +
     ggplot2::geom_vline(xintercept = bonf_line, linetype = "dotted", colour = "grey35") +
-    ggplot2::geom_point(ggplot2::aes(fill = FDR_Sig),
-                        shape = 21, size = point_size, colour = "black", stroke = 0.4) +
+    ggplot2::geom_point(ggplot2::aes(fill = Status),
+                        shape = 21, size = point_size, colour = "black", stroke = 0.4,
+                        key_glyph = .draw_key_tissue_dot) +
     ggplot2::scale_fill_manual(
-      values = c(`FALSE` = "white", `TRUE` = "#0f766e"),
-      labels = c(`FALSE` = "Not FDR-significant", `TRUE` = "FDR-significant"),
-      name = NULL) +
+      values = c(
+        "Not FDR-significant"           = "white",
+        "FDR-significant"               = "#0f766e",
+        "FDR-significant + independent" = "#0f766e"
+      ),
+      drop = FALSE, name = NULL,
+      guide = ggplot2::guide_legend(override.aes = list(
+        # Sentinel: `alpha < 1` on the third key tells .draw_key_tissue_dot
+        # to render the composite (outer teal + inner white). alpha does
+        # not affect plot data — only the legend key rendering.
+        alpha = c(1, 1, 0.99)
+      )))
+
+  # Retained-in-conditional overlay in the plot area — the inner white dot
+  # that sits on top of the FDR-sig teal fill. `show.legend = FALSE` because
+  # the composite key comes from the main fill scale via key_glyph.
+  ret <- d[d$FDR_Sig & d$Retained, , drop = FALSE]
+  if (nrow(ret) > 0) {
+    gg <- gg + ggplot2::geom_point(data = ret, shape = 21, fill = "white",
+                                   colour = "black", stroke = 0.6,
+                                   size = point_size * 0.45,
+                                   show.legend = FALSE)
+  }
+
+  gg +
     ggplot2::labs(x = expression(-log[10](italic(P))), y = NULL,
                   title = if (nzchar(title)) title else NULL) +
     theme_fn(base_size = font_size) +
     ggplot2::theme(
-      axis.text.y = ggplot2::element_text(face = face_vec),
       legend.position = "top",
       panel.grid.major.y = ggplot2::element_blank(),
       panel.grid.minor = ggplot2::element_blank(),
@@ -531,7 +593,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           "BETA" = "Tissue-specific expression enrichment effect size.",
           "SE" = "Standard error of BETA.",
           "P" = lg_p, "P.FDR" = lg_pfdr,
-          "Retained" = "TRUE = the tissue stays FDR-significant after conditioning on the other significant tissues.")
+          "Retained" = "TRUE = the tissue is kept after conditional analysis, because it still shows independent enrichment (conditional P < 0.05) or is too collinear with a more significant tissue to distinguish.")
       )
       gd_legend(items, heading = "Column guide")
     }
@@ -885,7 +947,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         if (!is.null(tissue_data) && nrow(tissue_data) > 0) {
           tissue_tab <- tabPanel(
             title="Tissue", br(),
-            p("MAGMA tissue-specific enrichment across GTEx v8 tissues. Each dot is a tissue; further right means stronger enrichment. Filled teal dots are FDR-significant; a bold label with * means the tissue is retained in the conditional analysis. Use ", tags$b("Filter data"), " to restrict which tissues appear and ", tags$b("Plot options"), " to customise or download the figure."),
+            p("MAGMA tissue-specific enrichment across GTEx v8 tissues. Each dot is a tissue; further right means stronger enrichment. Filled teal dots are FDR-significant; a small inner white dot means the tissue is ", tags$em("independent"), " in the conditional analysis — i.e. it still contributes signal after conditioning on the more significant tissues, or is too collinear with them to distinguish (see the ", tags$a(href = "https://opain.github.io/GenoDisc/pipeline_technical.html#magma-tissue-enrichment", target = "_blank", "technical docs"), " for the exact criteria). Use ", tags$b("Filter data"), " to restrict which tissues appear and ", tags$b("Plot options"), " to customise or download the figure."),
             hr(),
             tags$details(class = "gd-details",
               tags$summary("Filter data"),
@@ -931,9 +993,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                   ),
                   column(4,
                     sliderInput(ns("plot_font_size_tissue"), "Font size (pt):",
-                                min = 8, max = 20, value = 13, step = 1),
+                                min = 8, max = 20, value = 14, step = 1),
                     sliderInput(ns("plot_point_size_tissue"), "Point size:",
-                                min = 1, max = 8, value = 3, step = 1)
+                                min = 1, max = 8, value = 5, step = 1)
                   ),
                   column(4,
                     selectInput(ns("dl_format_tissue"), "Download format:",
@@ -961,7 +1023,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
               "X-axis" = "-log10(p-value) for tissue-specific expression enrichment; further right = stronger.",
               "Y-axis" = "GTEx v8 tissue, ordered by significance or alphabetically (chosen in Filter data).",
               "Filled teal dot" = "FDR-significant (P.FDR < 0.05).",
-              "Bold label with *" = "Retained in the conditional analysis (still significant after conditioning on the other significant tissues).",
+              "Inner white dot (black outline)" = "Independent in the conditional analysis (still contributes signal after conditioning on the more significant tissues, or too collinear with them to distinguish).",
+              "Teal dot with inner white dot" = "FDR-significant and independent in the conditional analysis.",
               "Dashed / dotted vertical lines" = "Nominal significance (p = 0.05) and the Bonferroni threshold."
             ), heading = "How to read this plot"),
             br(),
@@ -2547,8 +2610,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         d = d,
         n_total = nrow(tx_tissue_data()),
         sort_choice = input$sort_tissue %||% "significance",
-        font_size = input$plot_font_size_tissue %||% 13,
-        point_size = input$plot_point_size_tissue %||% 3,
+        font_size = input$plot_font_size_tissue %||% 14,
+        point_size = input$plot_point_size_tissue %||% 5,
         theme_fn = enr_theme_fn(input$plot_theme_tissue),
         title = input$plot_title_tissue %||% ""
       )
