@@ -2771,12 +2771,23 @@ gencor_compare_ui <- function(ns) {
     ggplot2::aes(fill = rg_plot), shape = 21, stroke = 0,
     size = point_size)
 
+  # Narrow-white palette: brand red → white → brand blue but with pale
+  # anchors sitting at ±0.02 rather than reached only near ±0.3, so the
+  # near-white band is compressed to |rg| < ~0.02 and small-magnitude
+  # significant cells carry a visible directional colour while the full
+  # [-1, 1] range is preserved. Matches build_gencor_within_heatmap().
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = ref_label)) +
     base_layer +
-    ggplot2::scale_fill_gradient2(
-      low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
-      limits = c(-1.2, 1.2), na.value = .gd_grey,
-      name = expression("Genetic correlation ("*r[g]*")")
+    ggplot2::scale_fill_gradientn(
+      colours = c(.gd_red, "#e35151", "#ed9292", "#f6c9c9",
+                   "#FFFFFF",
+                   "#c9d4fa", "#92aaf5", "#4f7fef", .gd_blue),
+      values  = scales::rescale(c(-1, -0.5, -0.15, -0.02,
+                                    0,
+                                    0.02, 0.15, 0.5, 1)),
+      limits  = c(-1.2, 1.2), na.value = .gd_grey,
+      breaks  = c(-1, -0.5, 0, 0.5, 1),
+      name    = expression("Genetic correlation ("*r[g]*")")
     )
 
   gg <- .compare_add_sig_overlays(gg, slice, base_layer,

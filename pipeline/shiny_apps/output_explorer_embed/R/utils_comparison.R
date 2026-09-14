@@ -827,15 +827,26 @@ build_gencor_within_heatmap <- function(long,
                                             sprintf("%.2f*", rg),
                                             sprintf("%.2f", rg))))]
 
+  # Narrow-white RdBu palette: same ColorBrewer stops as the default
+  # divergent palette, but the pale-colour anchors sit at ±0.02 rather
+  # than being reached only near ±0.3. That squeezes the near-white
+  # band into |rg| < ~0.02, so cells at |rg| = 0.05 already carry
+  # visible directional colour, while the mid- and high-magnitude
+  # colours still span the full [-1, 1] range as before.
   ggplot2::ggplot(long, ggplot2::aes(x = label_col, y = label_row, fill = rg)) +
     ggplot2::geom_tile(colour = "white", linewidth = 0.4) +
     ggplot2::geom_text(ggplot2::aes(label = cell_text),
                        size = font_size / .pt, colour = "black") +
-    ggplot2::scale_fill_gradient2(
-      low = "#2166AC", mid = "white", high = "#B2182B",
-      midpoint = 0, limits = c(-1, 1),
-      breaks = c(-1, -0.5, 0, 0.5, 1),
-      name = "rG"
+    ggplot2::scale_fill_gradientn(
+      colours = c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0",
+                   "#FFFFFF",
+                   "#FDDBC7", "#F4A582", "#D6604D", "#B2182B"),
+      values  = scales::rescale(c(-1, -0.5, -0.15, -0.02,
+                                    0,
+                                    0.02, 0.15, 0.5, 1)),
+      limits  = c(-1, 1),
+      breaks  = c(-1, -0.5, 0, 0.5, 1),
+      name    = "rG"
     ) +
     ggplot2::scale_x_discrete(position = "top") +
     ggplot2::coord_equal() +
