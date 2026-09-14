@@ -560,15 +560,41 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         tags$details(class = "gd-details",
           tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
+            tags$p(class = "gd-details-intro",
+              "Customise how the heatmap looks (title, theme, font size) ",
+              "and download it as a PNG, PDF, or SVG at the size and ",
+              "resolution you choose."),
             fluidRow(
+              column(4,
+                textInput(ns("gencor_within_title"),
+                          "Plot title (optional):", value = ""),
+                selectInput(ns("gencor_within_theme"), "Theme:",
+                            choices = c("Black & white" = "bw",
+                                        "Minimal" = "minimal",
+                                        "Classic" = "classic",
+                                        "Light" = "light"),
+                            selected = "bw")
+              ),
               column(4,
                 sliderInput(ns("gencor_within_font_size"),
                             "Font size (pt):",
                             min = 8, max = 20, value = 12, step = 1)
               ),
               column(4,
-                textInput(ns("gencor_within_title"),
-                          "Plot title (optional):", value = "")
+                selectInput(ns("gencor_within_dl_format"), "Download format:",
+                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
+                            selected = "png"),
+                numericInput(ns("gencor_within_dl_width"), "Width (inches):",
+                             value = 8, min = 2, max = 40, step = 0.5),
+                numericInput(ns("gencor_within_dl_height"), "Height (inches):",
+                             value = 8, min = 2, max = 40, step = 0.5),
+                conditionalPanel(
+                  condition = sprintf("input['%s'] == 'png'", ns("gencor_within_dl_format")),
+                  numericInput(ns("gencor_within_dl_dpi"),
+                               "Resolution (DPI, PNG only):",
+                               value = 300, min = 72, max = 600, step = 25)
+                ),
+                downloadButton(ns("gencor_within_download"), "Download plot")
               )
             )
           )
@@ -609,9 +635,58 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       build_gencor_within_heatmap(
         long,
         font_size = input$gencor_within_font_size %||% 12,
-        title     = input$gencor_within_title %||% ""
+        title     = input$gencor_within_title %||% "",
+        theme_fn  = mol_theme_fn(input$gencor_within_theme)
       )
     }, res = 96)
+
+    # Keep the default download dims in sync with the on-screen plot so
+    # the first download matches what the user is looking at. Once the
+    # user edits Width/Height the observer re-syncs on the next on-screen
+    # dim change (matches the mol_assoc download pattern).
+    observeEvent(gencor_within_dim(), {
+      dims <- gencor_within_dim()
+      if (dims$width_px > 100) {
+        updateNumericInput(session, "gencor_within_dl_width",
+                            value = round(dims$width_px  / 96, 1))
+        updateNumericInput(session, "gencor_within_dl_height",
+                            value = round(dims$height_px / 96, 1))
+      }
+    })
+
+    output$gencor_within_download <- downloadHandler(
+      filename = function() {
+        sprintf("gencor_within_%s.%s",
+                format(Sys.time(), "%Y%m%d_%H%M%S"),
+                input$gencor_within_dl_format %||% "png")
+      },
+      content = function(file) {
+        long <- gencor_within_long()
+        if (is.null(long) || nrow(long) == 0) {
+          grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
+          grid::grid.text("No data to plot.")
+          grDevices::dev.off()
+          return(invisible())
+        }
+        p <- build_gencor_within_heatmap(
+          long,
+          font_size = input$gencor_within_font_size %||% 12,
+          title     = input$gencor_within_title %||% "",
+          theme_fn  = mol_theme_fn(input$gencor_within_theme)
+        )
+        w   <- input$gencor_within_dl_width  %||% 8
+        h   <- input$gencor_within_dl_height %||% 8
+        fmt <- input$gencor_within_dl_format %||% "png"
+        switch(fmt,
+          png = grDevices::png(file, width = w, height = h, units = "in",
+                                res = input$gencor_within_dl_dpi %||% 300),
+          pdf = grDevices::pdf(file, width = w, height = h),
+          svg = grDevices::svg(file, width = w, height = h)
+        )
+        if (!is.null(p)) print(p)
+        grDevices::dev.off()
+      }
+    )
 
     output$gencor_within_table <- DT::renderDT({
       long <- gencor_within_long()
