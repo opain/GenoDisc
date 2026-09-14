@@ -674,7 +674,7 @@ read_twas_gsea_drug<-function(config, gwas, mode = 'directional'){
     dat<-dat[,c("NAME","Panel","N_Mem_Avail","Estimate","SE","P","P.FDR","Direction","Reversal_Z","ATC_code","ATC_desc") , with=F]
     names(dat)<-c('Name','Panel','N Genes','Estimate','SE','P','P.FDR','Direction','Reversal_Z','ATC Code','ATC Description')
 
-    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
+    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/search_results/',utils::URLencode(as.character(dat$Name), reserved = TRUE),'" target="_blank" rel="noopener noreferrer">Link</a>')
 
   }
   return(dat)
@@ -859,7 +859,7 @@ read_magma_drug<-function(config, gwas){
     dat<-dat[,c("NAME","NGENES","BETA","SE","P","P.FDR",'ATC_code','ATC_desc') , with=F]
     names(dat)<-c('Name','N Genes',"BETA","SE",'P','P.FDR','ATC Code','ATC Description')
 
-    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
+    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/search_results/',utils::URLencode(as.character(dat$Name), reserved = TRUE),'" target="_blank" rel="noopener noreferrer">Link</a>')
 
   }
 
@@ -980,7 +980,7 @@ read_gcsc<-function(config, gwas){
     dat<-dat[,c("Drug","Enrichment","SE","Z","P","P.FDR",'ATC_code','ATC_desc') , with=F]
     names(dat)<-c('Name',"Enrichment","SE","Z","P","P.FDR",'ATC Code','ATC Description')
 
-    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/g/#search_results/all/query=',dat$Name,'">','Link','</a>')
+    dat$ChEMBL<-paste0('<a href="https://www.ebi.ac.uk/chembl/search_results/',utils::URLencode(as.character(dat$Name), reserved = TRUE),'" target="_blank" rel="noopener noreferrer">Link</a>')
   }
   return(dat)
 }

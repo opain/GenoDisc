@@ -366,6 +366,17 @@ tissue_compare_ui <- function(ns) {
       data.table::fifelse(FDR_Sig, "FDR-significant", "Not FDR-significant")),
     levels = c("Not FDR-significant", "FDR-significant", "FDR-significant + independent")
   )]
+  # Drop unused levels so the shared legend only lists categories
+  # actually present in the data — without this, bundles with no
+  # FDR-sig tissues still show ghost legend entries for the two teal
+  # levels.
+  slice[, Status := droplevels(Status)]
+  alpha_by_level <- c(
+    "Not FDR-significant"           = 1,
+    "FDR-significant"               = 1,
+    "FDR-significant + independent" = 0.99
+  )
+  alpha_override <- unname(alpha_by_level[levels(slice$Status)])
 
   # Shared tissue ordering across facets. Recurrence-based row order from
   # `.tissue_compare_frame` puts recurrent hits first (via `rec$entity_id`),
@@ -392,10 +403,8 @@ tissue_compare_ui <- function(ns) {
         "FDR-significant"               = "#0f766e",
         "FDR-significant + independent" = "#0f766e"
       ),
-      drop = FALSE, name = NULL,
-      guide = ggplot2::guide_legend(override.aes = list(
-        alpha = c(1, 1, 0.99)
-      )))
+      name = NULL,
+      guide = ggplot2::guide_legend(override.aes = list(alpha = alpha_override)))
 
   # Retained-in-conditional overlay in the plot area — inner white dot on
   # top of the FDR-sig teal fill. `show.legend = FALSE` so the composite

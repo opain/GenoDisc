@@ -1,3 +1,17 @@
+#' Build an <a> tag linking to the current ChEMBL search URL for a drug name,
+#' opening in a new tab. Called at table-render time to overwrite whatever
+#' ChEMBL link the bundle baked in — old bundles use the pre-2025 URL form
+#' (`chembl/g/#search_results/all/query=...`) which no longer works, and
+#' the baked links have no `target="_blank"` so they navigate away from
+#' the Shiny app.
+.chembl_search_link <- function(name) {
+  # URL-encode the name so drugs with spaces or `%` work.
+  encoded <- vapply(as.character(name), utils::URLencode, character(1L),
+                     reserved = TRUE)
+  paste0('<a href="https://www.ebi.ac.uk/chembl/search_results/', encoded,
+         '" target="_blank" rel="noopener noreferrer">Link</a>')
+}
+
 #' Resolve the "Plot options" theme dropdown value to a ggplot theme function.
 enr_theme_fn <- function(name) {
   switch(name %||% "bw",
@@ -75,6 +89,21 @@ build_tissue_plot <- function(d, sort_choice = "significance",
       ifelse(d$FDR_Sig, "FDR-significant", "Not FDR-significant")),
     levels = c("Not FDR-significant", "FDR-significant", "FDR-significant + independent")
   )
+  # Drop unused levels so the legend only lists categories actually
+  # present in the data — without this, bundles with no FDR-sig
+  # tissues still show ghost legend entries for the two teal levels.
+  d$Status <- droplevels(d$Status)
+
+  # Alpha overrides indexed by level so they still line up after
+  # droplevels reshuffles which entries the guide draws. Sentinel
+  # `alpha < 1` on the composite key tells .draw_key_tissue_dot to
+  # render outer teal + inner white; alpha doesn't affect plot data.
+  alpha_by_level <- c(
+    "Not FDR-significant"           = 1,
+    "FDR-significant"               = 1,
+    "FDR-significant + independent" = 0.99
+  )
+  alpha_override <- unname(alpha_by_level[levels(d$Status)])
 
   gg <- ggplot2::ggplot(d, ggplot2::aes(x = negLog10P, y = Label)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
@@ -88,13 +117,8 @@ build_tissue_plot <- function(d, sort_choice = "significance",
         "FDR-significant"               = "#0f766e",
         "FDR-significant + independent" = "#0f766e"
       ),
-      drop = FALSE, name = NULL,
-      guide = ggplot2::guide_legend(override.aes = list(
-        # Sentinel: `alpha < 1` on the third key tells .draw_key_tissue_dot
-        # to render the composite (outer teal + inner white). alpha does
-        # not affect plot data — only the legend key rendering.
-        alpha = c(1, 1, 0.99)
-      )))
+      name = NULL,
+      guide = ggplot2::guide_legend(override.aes = list(alpha = alpha_override)))
 
   # Retained-in-conditional overlay in the plot area — the inner white dot
   # that sits on top of the FDR-sig teal fill. `show.legend = FALSE` because
@@ -1751,6 +1775,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if(is.null(tmp)) return(NULL)
       tmp$BETA<-round(tmp$BETA,3)
       tmp$SE<-round(tmp$SE,3)
+      if ("ChEMBL" %in% names(tmp) && "Name" %in% names(tmp)) {
+        tmp$ChEMBL <- .chembl_search_link(tmp$Name)
+      }
 
       datatable(
         tmp,
@@ -1782,6 +1809,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       tmp$Enrichment<-round(tmp$Enrichment, 3)
       tmp$SE<-round(tmp$SE, 3)
       tmp$Z<-round(tmp$Z, 3)
+      if ("ChEMBL" %in% names(tmp) && "Name" %in% names(tmp)) {
+        tmp$ChEMBL <- .chembl_search_link(tmp$Name)
+      }
 
       datatable(
         tmp,
@@ -1815,6 +1845,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if(is.null(tmp)) return(NULL)
       tmp$Estimate<-round(tmp$Estimate, 3)
       tmp$SE<-round(tmp$SE, 3)
+      if ("ChEMBL" %in% names(tmp) && "Name" %in% names(tmp)) {
+        tmp$ChEMBL <- .chembl_search_link(tmp$Name)
+      }
 
       # Explicit column selection: show Direction alongside Estimate, hide
       # Reversal_Z (used for plotting only; Direction conveys the same info
