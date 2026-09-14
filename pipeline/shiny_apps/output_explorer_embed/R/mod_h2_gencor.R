@@ -551,6 +551,17 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         ))
       }
 
+      # GWAS pool (all primaries appearing anywhere in the long form).
+      # Baked into the multi-select at renderUI time so the choices are
+      # available as soon as the tab is rendered — no updateSelectInput
+      # race. Kept in first-appearance order so the picker matches the
+      # heatmap axis ordering.
+      gwas_pool  <- unique(long$gwas_row)
+      label_pool <- vapply(gwas_pool,
+                            function(g) unique(as.character(long$label_row[long$gwas_row == g]))[1L],
+                            character(1L))
+      choices    <- stats::setNames(gwas_pool, label_pool)
+
       tagList(
         tags$p(
           "Bivariate LDSC genetic correlation between every pair of primary ",
@@ -558,12 +569,27 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
           "off-diagonal cells marked with * are FDR-significant."
         ),
         tags$details(class = "gd-details",
+          tags$summary("Filter data"),
+          tags$div(class = "gd-details-body",
+            tags$p(class = "gd-details-intro",
+              "Restrict the heatmap to a subset of primary GWAS."),
+            fluidRow(
+              column(6,
+                selectInput(ns("gencor_within_include"),
+                            "Include these GWAS:",
+                            choices = choices, selected = gwas_pool,
+                            multiple = TRUE)
+              )
+            )
+          )
+        ),
+        tags$details(class = "gd-details",
           tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
             tags$p(class = "gd-details-intro",
-              "Customise how the heatmap looks (title, theme, font size) ",
-              "and download it as a PNG, PDF, or SVG at the size and ",
-              "resolution you choose."),
+              "Customise how the heatmap looks (title, theme, font sizes, ",
+              "cell labels) and download it as a PNG, PDF, or SVG at the ",
+              "size and resolution you choose."),
             fluidRow(
               column(4,
                 textInput(ns("gencor_within_title"),
@@ -573,12 +599,19 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
                                         "Minimal" = "minimal",
                                         "Classic" = "classic",
                                         "Light" = "light"),
-                            selected = "bw")
+                            selected = "bw"),
+                radioButtons(ns("gencor_within_show_labels"),
+                              "Show rG numbers on cells:",
+                              choices = c("Yes" = "TRUE", "No" = "FALSE"),
+                              selected = "TRUE", inline = TRUE)
               ),
               column(4,
-                sliderInput(ns("gencor_within_font_size"),
-                            "Font size (pt):",
-                            min = 8, max = 20, value = 12, step = 1)
+                sliderInput(ns("gencor_within_axis_font_size"),
+                            "Axis / legend font size (pt):",
+                            min = 8, max = 20, value = 12, step = 1),
+                sliderInput(ns("gencor_within_cell_font_size"),
+                            "Cell rG font size (pt):",
+                            min = 6, max = 16, value = 9, step = 1)
               ),
               column(4,
                 selectInput(ns("gencor_within_dl_format"), "Download format:",
@@ -600,10 +633,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
           )
         ),
         br(),
-        tags$div(style = "max-width: 900px; overflow-x: auto;",
-          plotOutput(ns("gencor_within_heatmap"),
-                     height = paste0(gencor_within_dim()$height_px, "px"),
-                     width  = paste0(gencor_within_dim()$width_px,  "px"))
+        # Plot lives inside its own uiOutput so that plot-dim changes
+        # (driven by font-size sliders and the GWAS filter) do NOT
+        # invalidate the enclosing renderUI — which would rebuild every
+        # widget above and reset the sliders to their static defaults.
+        tags$div(style = "max-width: 1400px; overflow-x: auto;",
+          uiOutput(ns("gencor_within_plot_slot"))
         ),
         br(),
         tags$div(style = "max-width: 900px;",
@@ -613,15 +648,28 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       )
     })
 
-    gencor_within_dim <- reactive({
+    # Long-form data filtered to the user's included GWAS. Falls back to
+    # the full set when nothing is selected so the plot never goes blank.
+    gencor_within_long_filtered <- reactive({
       long <- gencor_within_long()
+      req(long, nrow(long) > 0)
+      keep <- input$gencor_within_include
+      if (is.null(keep) || length(keep) == 0) return(long)
+      long[gwas_row %in% keep & gwas_col %in% keep]
+    })
+
+    gencor_within_dim <- reactive({
+      long <- gencor_within_long_filtered()
       if (is.null(long) || nrow(long) == 0) return(list(width_px = 400, height_px = 300))
       n <- length(unique(long$label_row))
-      fs <- input$gencor_within_font_size %||% 12
-      # Longest label in pt -> px (~1.33 px/pt); tiles are ~2× font size.
-      lbl_pt   <- max(strwidth_pt(as.character(unique(long$label_row)), ps = fs))
+      axis_fs <- input$gencor_within_axis_font_size %||% 12
+      cell_fs <- input$gencor_within_cell_font_size %||% 9
+      # Longest label in pt -> px (~1.33 px/pt); cell size floored at
+      # 3.5× the larger of axis/cell font so "%.2f*" fits and axis
+      # labels aren't crushed.
+      lbl_pt   <- max(strwidth_pt(as.character(unique(long$label_row)), ps = axis_fs))
       lbl_px   <- lbl_pt * 96 / 72
-      cell_px  <- max(40, round(fs * 3.2))
+      cell_px  <- max(40, round(max(axis_fs, cell_fs) * 3.5))
       legend_px <- 140
       list(
         width_px  = as.integer(min(1400, n * cell_px + lbl_px + legend_px)),
@@ -629,14 +677,22 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       )
     })
 
+    output$gencor_within_plot_slot <- renderUI({
+      plotOutput(session$ns("gencor_within_heatmap"),
+                  height = paste0(gencor_within_dim()$height_px, "px"),
+                  width  = paste0(gencor_within_dim()$width_px,  "px"))
+    })
+
     output$gencor_within_heatmap <- renderPlot({
-      long <- gencor_within_long()
+      long <- gencor_within_long_filtered()
       req(long, nrow(long) > 0)
       build_gencor_within_heatmap(
         long,
-        font_size = input$gencor_within_font_size %||% 12,
-        title     = input$gencor_within_title %||% "",
-        theme_fn  = mol_theme_fn(input$gencor_within_theme)
+        font_size      = input$gencor_within_axis_font_size %||% 12,
+        cell_font_size = input$gencor_within_cell_font_size %||% 9,
+        show_cell_text = isTRUE(as.logical(input$gencor_within_show_labels %||% "TRUE")),
+        title          = input$gencor_within_title %||% "",
+        theme_fn       = mol_theme_fn(input$gencor_within_theme)
       )
     }, res = 96)
 
@@ -661,7 +717,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
                 input$gencor_within_dl_format %||% "png")
       },
       content = function(file) {
-        long <- gencor_within_long()
+        long <- gencor_within_long_filtered()
         if (is.null(long) || nrow(long) == 0) {
           grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
           grid::grid.text("No data to plot.")
@@ -670,9 +726,11 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         }
         p <- build_gencor_within_heatmap(
           long,
-          font_size = input$gencor_within_font_size %||% 12,
-          title     = input$gencor_within_title %||% "",
-          theme_fn  = mol_theme_fn(input$gencor_within_theme)
+          font_size      = input$gencor_within_axis_font_size %||% 12,
+          cell_font_size = input$gencor_within_cell_font_size %||% 9,
+          show_cell_text = isTRUE(as.logical(input$gencor_within_show_labels %||% "TRUE")),
+          title          = input$gencor_within_title %||% "",
+          theme_fn       = mol_theme_fn(input$gencor_within_theme)
         )
         w   <- input$gencor_within_dl_width  %||% 8
         h   <- input$gencor_within_dl_height %||% 8
@@ -689,7 +747,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
     )
 
     output$gencor_within_table <- DT::renderDT({
-      long <- gencor_within_long()
+      long <- gencor_within_long_filtered()
       req(long, nrow(long) > 0)
       # Off-diagonal pairs only for the table; diagonal is trivially 1.
       off <- long[as.character(long$gwas_row) != as.character(long$gwas_col)]

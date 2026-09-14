@@ -802,11 +802,17 @@ build_gencor_within_long <- function(gd, gwas_vec) {
 #' primary bundle).
 #'
 #' @param long data.table from build_gencor_within_long()
-#' @param font_size numeric, base ggplot font size
+#' @param font_size numeric, base ggplot font size (axis / legend text)
+#' @param cell_font_size numeric, font size for the rG number drawn inside
+#'   each cell. Ignored when `show_cell_text = FALSE`.
+#' @param show_cell_text logical; if `FALSE`, the per-cell rG number is
+#'   omitted (colour + legend only).
 #' @param title character, optional plot title
 #' @param theme_fn ggplot theme function (e.g. ggplot2::theme_bw)
 build_gencor_within_heatmap <- function(long,
                                         font_size = 12,
+                                        cell_font_size = 9,
+                                        show_cell_text = TRUE,
                                         title = "",
                                         theme_fn = ggplot2::theme_bw) {
   if (is.null(long) || nrow(long) == 0) return(NULL)
@@ -833,10 +839,13 @@ build_gencor_within_heatmap <- function(long,
   # band into |rg| < ~0.02, so cells at |rg| = 0.05 already carry
   # visible directional colour, while the mid- and high-magnitude
   # colours still span the full [-1, 1] range as before.
-  ggplot2::ggplot(long, ggplot2::aes(x = label_col, y = label_row, fill = rg)) +
-    ggplot2::geom_tile(colour = "white", linewidth = 0.4) +
-    ggplot2::geom_text(ggplot2::aes(label = cell_text),
-                       size = font_size / .pt, colour = "black") +
+  gg <- ggplot2::ggplot(long, ggplot2::aes(x = label_col, y = label_row, fill = rg)) +
+    ggplot2::geom_tile(colour = "white", linewidth = 0.4)
+  if (isTRUE(show_cell_text)) {
+    gg <- gg + ggplot2::geom_text(ggplot2::aes(label = cell_text),
+                                  size = cell_font_size / .pt, colour = "black")
+  }
+  gg +
     ggplot2::scale_fill_gradientn(
       colours = c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0",
                    "#FFFFFF",
