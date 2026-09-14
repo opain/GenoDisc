@@ -752,11 +752,16 @@ build_gencor_within_long <- function(gd, gwas_vec) {
                        "ldsc_gencor_within_dat", "table")
     if (is.null(tab) || nrow(tab) == 0) return(NULL)
     tab <- as.data.frame(tab)
+    # label_col resolved via `label_of()` (same source as label_row) so
+    # both axes share a label source. The inner per-GWAS `tab$label`
+    # column can be all-NA when the bundle's gwas_list carries no user
+    # labels — using it directly puts every between-GWAS estimate into
+    # a single NA column in the heatmap.
     data.table::data.table(
       gwas_row  = g,
       gwas_col  = as.character(tab$name),
       label_row = label_of(g),
-      label_col = as.character(tab$label),
+      label_col = vapply(as.character(tab$name), label_of, character(1L)),
       rg        = suppressWarnings(as.numeric(tab$rg)),
       rg_se     = suppressWarnings(as.numeric(tab$rg_se)),
       rg_p      = suppressWarnings(as.numeric(tab$rg_p)),
