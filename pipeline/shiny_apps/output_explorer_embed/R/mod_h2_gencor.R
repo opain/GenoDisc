@@ -643,7 +643,15 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         br(),
         tags$div(style = "max-width: 900px;",
           h4("Underlying data"),
-          DT::DTOutput(ns("gencor_within_table"))
+          DT::DTOutput(ns("gencor_within_table")),
+          gd_legend(list(
+            "GWAS 1 / GWAS 2" = "The two primary GWAS in this bundle whose bivariate LDSC genetic correlation is reported (one row per unordered pair, both directions kept since each primary's ldsc_gencor_within block reports rg against every other primary).",
+            "rg"              = "Bivariate LDSC genetic correlation estimate. Bounded roughly in [-1, 1]; occasional out-of-bounds estimates reflect LDSC noise.",
+            "SE"              = "Standard error of the rg estimate.",
+            "p"               = "Bivariate LDSC p-value for rg differing from 0.",
+            "FDR p"           = "Benjamini-Hochberg-adjusted p-value across all off-diagonal pairs in the bundle; < 0.05 is the usual significance threshold.",
+            "N SNPs"          = "Number of SNPs LDSC used to estimate rg for this pair."
+          ), heading = "Column guide")
         )
       )
     })
@@ -678,9 +686,18 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
     })
 
     output$gencor_within_plot_slot <- renderUI({
-      plotOutput(session$ns("gencor_within_heatmap"),
-                  height = paste0(gencor_within_dim()$height_px, "px"),
-                  width  = paste0(gencor_within_dim()$width_px,  "px"))
+      legend_items <- list(
+        "Rows / columns" = "Each row and each column is a primary GWAS in this bundle; a cell (row i, column j) is the bivariate LDSC genetic correlation between GWAS i and GWAS j.",
+        "Colour"         = "Genetic correlation: red = positive rg (traits share direction of effect), blue = negative rg (opposing direction), near-white = ~zero. Colour is stretched around zero so weak-but-real signals still show direction.",
+        "Cell number"    = "Point estimate of rg. Trailing '*' = FDR-significant off-diagonal pair (BH across the bundle, adjusted p < 0.05).",
+        "Diagonal"       = "Self-correlation, fixed at rg = 1 by construction (drawn to keep the grid square)."
+      )
+      tagList(
+        plotOutput(session$ns("gencor_within_heatmap"),
+                    height = paste0(gencor_within_dim()$height_px, "px"),
+                    width  = paste0(gencor_within_dim()$width_px,  "px")),
+        gd_legend(legend_items, heading = "How to read this plot")
+      )
     })
 
     output$gencor_within_heatmap <- renderPlot({
