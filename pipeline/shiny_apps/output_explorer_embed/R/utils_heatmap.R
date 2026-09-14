@@ -66,7 +66,15 @@ facet_target_width_pt <- function(group_label, panel_names, font_size = 14) {
 calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Method",
                            facet_order = NULL, font_size = 14, min_height = 0,
                            min_panel_h_pt = 0) {
-  if (nrow(df) == 0) {
+  # Non-data.frame input can arrive when an upstream
+  # *_summary_data_filtered() returns NULL after a bundle swap (e.g.
+  # loading a bundle with no enrichment data after one that had some) —
+  # callers then mutate the NULL into a bare list via `$Name[...] <- ...`
+  # assignment, which has NULL nrow. `if (NULL == 0)` produces
+  # logical(0), and `FALSE || logical(0)` propagates to NA, crashing the
+  # session with "missing value where TRUE/FALSE needed". Guarding on
+  # `is.data.frame(df)` short-circuits the whole class of failures.
+  if (!is.data.frame(df) || nrow(df) == 0) {
     return(list(height = 100, width = 100, left_pad_pt = 0, panel_h_pt = 0))
   }
 
