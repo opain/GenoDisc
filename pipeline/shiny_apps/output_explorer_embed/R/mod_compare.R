@@ -2739,7 +2739,8 @@ gencor_compare_ui <- function(ns) {
 }
 
 .gencor_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 6,
-                             group_by_category = TRUE) {
+                             group_by_category = TRUE,
+                             row_facet_col = NULL) {
   if (nrow(long) == 0) return(NULL)
   slice <- long[gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
@@ -2758,6 +2759,18 @@ gencor_compare_ui <- function(ns) {
   slice[, ref_label := factor(ref_label, levels = rev(ref_order$ref_label))]
   slice[, nom_sig := !is.na(rg_p)     & rg_p     < 0.05]
   slice[, fdr_sig := !is.na(rg_p_fdr) & rg_p_fdr < 0.05]
+
+  # Row-facet handling — mirrors .gencor_facet_ggplot: bucket NA / empty
+  # into "Unknown" so the strip is never blank, and only apply the facet
+  # if the column actually splits the data into >1 group.
+  use_row_facet <- !is.null(row_facet_col) &&
+                    row_facet_col %in% names(slice) &&
+                    length(unique(slice[[row_facet_col]])) > 1
+  if (use_row_facet) {
+    vals <- as.character(slice[[row_facet_col]])
+    vals[is.na(vals) | vals == ""] <- "Unknown"
+    slice[[row_facet_col]] <- vals
+  }
   # Clamp rg to [-1.2, 1.2] so occasional out-of-bounds estimates don't
   # push the fill scale off the diverging endpoints.
   slice[, rg_plot := pmax(-1.2, pmin(rg, 1.2))]
@@ -2771,22 +2784,26 @@ gencor_compare_ui <- function(ns) {
     ggplot2::aes(fill = rg_plot), shape = 21, stroke = 0,
     size = point_size)
 
-  # Narrow-white palette: brand red → white → brand blue but with pale
-  # anchors sitting at ±0.02 rather than reached only near ±0.3, so the
-  # near-white band is compressed to |rg| < ~0.02 and small-magnitude
-  # significant cells carry a visible directional colour while the full
-  # [-1, 1] range is preserved. Matches build_gencor_within_heatmap().
+  # Narrow-white palette: brand blue → white → brand red (blue = negative
+  # rG, red = positive rG, matching build_gencor_within_heatmap and the
+  # convention on the within-list plot). Pale anchors sit at ±0.02 rather
+  # than being reached only near ±0.3, so the near-white band is
+  # compressed to |rg| < ~0.02 and small-magnitude significant cells
+  # carry a visible directional colour while the full [-1, 1] range is
+  # preserved.
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = ref_label)) +
     base_layer +
     ggplot2::scale_fill_gradientn(
-      colours = c(.gd_red, "#e35151", "#ed9292", "#f6c9c9",
+      colours = c(.gd_blue, "#4f7fef", "#92aaf5", "#c9d4fa",
                    "#FFFFFF",
-                   "#c9d4fa", "#92aaf5", "#4f7fef", .gd_blue),
+                   "#f6c9c9", "#ed9292", "#e35151", .gd_red),
       values  = scales::rescale(c(-1, -0.5, -0.15, -0.02,
                                     0,
                                     0.02, 0.15, 0.5, 1)),
       limits  = c(-1.2, 1.2), na.value = .gd_grey,
-      breaks  = c(-1, -0.5, 0, 0.5, 1),
+      # Only endpoint + midpoint labels — the horizontal bottom legend
+      # doesn't have room for -0.5 / +0.5 without them overlapping.
+      breaks  = c(-1, 0, 1),
       name    = expression("Genetic correlation ("*r[g]*")")
     )
 
@@ -2795,10 +2812,15 @@ gencor_compare_ui <- function(ns) {
                                     fdr_flag = "fdr_sig",
                                     point_size = point_size)
 
-  gg +
+  # When row-faceting we want each band to show only its own traits, so
+  # scale_y_discrete must drop unused levels; without this, drop = FALSE
+  # forces every trait to appear as an empty row in every band. Without
+  # row-facets we keep drop = FALSE so that a trait tested only in some
+  # GWAS still keeps its row.
+  gg <- gg +
     ggplot2::scale_x_discrete(position = "top", drop = FALSE,
                                 expand = ggplot2::expansion(add = 0.5)) +
-    ggplot2::scale_y_discrete(drop = FALSE,
+    ggplot2::scale_y_discrete(drop = use_row_facet,
                                 expand = ggplot2::expansion(add = 0.5)) +
     ggplot2::coord_cartesian(clip = "off") +
     ggplot2::labs(x = NULL, y = NULL) +
@@ -2811,6 +2833,20 @@ gencor_compare_ui <- function(ns) {
       legend.box = "horizontal",
       plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
     )
+
+  if (use_row_facet) {
+    # `space = "free_y"` sizes each row band to its trait count, matching
+    # the facet-mode plot; strip_text.y rotated 0 so labels read left-to-
+    # right beside the band rather than turned on their side.
+    gg <- gg + ggplot2::facet_grid(
+      rows   = ggplot2::vars(.data[[row_facet_col]]),
+      scales = "free_y", space = "free_y"
+    ) + ggplot2::theme(
+      strip.background = ggplot2::element_rect(fill = "grey93", colour = NA),
+      strip.text.y     = ggplot2::element_text(angle = 0, face = "bold")
+    )
+  }
+  gg
 }
 
 gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
@@ -2916,12 +2952,15 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
           show_facet_col_strip = length(gwas_vec_r()) > 1L
         )
       } else {
+        row_facet <- input$row_facet
+        if (isTRUE(row_facet == "__none__")) row_facet <- NULL
         .gencor_ggplot(
           long              = long,
           gwas_vec          = gwas_vec_r(),
           font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
           point_size        = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size),
-          group_by_category = identical(input$trait_order %||% "category", "category")
+          group_by_category = identical(input$trait_order %||% "category", "category"),
+          row_facet_col     = row_facet
         )
       }
     })
