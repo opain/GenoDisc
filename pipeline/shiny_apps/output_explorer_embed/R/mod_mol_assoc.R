@@ -220,16 +220,21 @@ mol_assoc_single_ui <- function(ns) {
           "restrict the view to specific genes, and decide how a gene is ",
           "labelled ", tags$em("high-confidence"), "."),
         fluidRow(
+          # These four selectInputs live behind `output$mol_body` renderUI
+          # (built server-side in molAssocServer), so their client-side
+          # binding doesn't exist until the user visits the tab. Populating
+          # via updateSelectInput races with binding — messages sent before
+          # the widget is bound are silently dropped, leaving empty
+          # dropdowns. Render each widget via its own renderUI so choices
+          # are baked in at widget-creation time.
           column(4,
-            selectInput(ns("selected_methods_mol"), "Include results from these methods:", "", multiple = T),
-            selectInput(ns("selected_expr_panels_mol"), "Include expression / splicing panels:", "", multiple = T),
-            selectInput(ns("selected_protein_panels_mol"), "Include protein panels:", "", multiple = T)
+            uiOutput(ns("selected_methods_mol_ui")),
+            uiOutput(ns("selected_expr_panels_mol_ui")),
+            uiOutput(ns("selected_protein_panels_mol_ui"))
           ),
           column(4,
             textInput(ns("geneInput_mol"), "Show only these genes (comma- or space-separated):"),
-            selectInput(ns("selected_group_hc_mol"),
-                        "Define 'high-confidence' as significant in any of:",
-                        "", multiple = T)
+            uiOutput(ns("selected_group_hc_mol_ui"))
           ),
           column(4,
             radioButtons(ns("mol_layout"), "Feature ordering:",
@@ -476,31 +481,59 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     ########
-    # Update selectInputs when summary data changes
+    # Filter-widget choice population
     ########
 
-    observe({
-      all_func_res <- mol_assoc_summary_data()
-      req(all_func_res)
+    # Bundle-anchored summary reactive: reads the first GWAS in the bundle
+    # (methods and panels are bundle-level via config flags, so choices are
+    # stable across GWAS-picker changes in multi-mode). Using this instead
+    # of `mol_assoc_summary_data()` avoids the filter widgets being torn
+    # down and rebuilt every time the user switches the per-tab GWAS picker.
+    bundle_mol_summary_data <- reactive({
+      req(gwas_data(), config_flags())
+      g0 <- gd_gwas(gwas_data())[1L]
+      build_mol_assoc_data(gwas_data(), g0, config_flags())
+    })
 
-      methods <- unique(all_func_res$Method)
-      updateSelectInput(session, "selected_methods_mol", choices = methods, selected = methods)
+    output$selected_methods_mol_ui <- renderUI({
+      req(bundle_mol_summary_data())
+      methods <- unique(bundle_mol_summary_data()$Method)
+      selectInput(session$ns("selected_methods_mol"),
+                  "Include results from these methods:",
+                  choices = methods, selected = methods, multiple = TRUE)
+    })
 
-      expr_panels <- unique(all_func_res$Panel[all_func_res$Type == 'Expr.' | all_func_res$Type == 'Splice'])
-      updateSelectInput(session, "selected_expr_panels_mol", choices = expr_panels, selected = expr_panels)
+    output$selected_expr_panels_mol_ui <- renderUI({
+      req(bundle_mol_summary_data())
+      d <- bundle_mol_summary_data()
+      panels <- unique(d$Panel[d$Type == 'Expr.' | d$Type == 'Splice'])
+      selectInput(session$ns("selected_expr_panels_mol"),
+                  "Include expression / splicing panels:",
+                  choices = panels, selected = panels, multiple = TRUE)
+    })
 
-      protein_panels <- unique(all_func_res$Panel[all_func_res$Type == 'Protein'])
-      updateSelectInput(session, "selected_protein_panels_mol", choices = protein_panels, selected = protein_panels)
+    output$selected_protein_panels_mol_ui <- renderUI({
+      req(bundle_mol_summary_data())
+      d <- bundle_mol_summary_data()
+      panels <- unique(d$Panel[d$Type == 'Protein'])
+      selectInput(session$ns("selected_protein_panels_mol"),
+                  "Include protein panels:",
+                  choices = panels, selected = panels, multiple = TRUE)
+    })
 
-      res_group <- paste0(all_func_res$Method, '\n', all_func_res$Type)
+    output$selected_group_hc_mol_ui <- renderUI({
+      req(bundle_mol_summary_data())
+      d <- bundle_mol_summary_data()
+      res_group <- paste0(d$Method, '\n', d$Type)
       res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
-      res_group[res_group == 'MAGMA\n'] <- 'MAGMA'
-      res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
-
-      hc_groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice', 'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein')
+      res_group[res_group == 'MAGMA\n']             <- 'MAGMA'
+      res_group[res_group == 'Nearest\nGene\n']     <- 'Nearest\nGene'
+      hc_groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice',
+                     'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein')
       hc_groups <- hc_groups[hc_groups %in% res_group]
-
-      updateSelectInput(session, "selected_group_hc_mol", choices = hc_groups, selected = hc_groups)
+      selectInput(session$ns("selected_group_hc_mol"),
+                  "Define 'high-confidence' as significant in any of:",
+                  choices = hc_groups, selected = hc_groups, multiple = TRUE)
     })
 
     ########
