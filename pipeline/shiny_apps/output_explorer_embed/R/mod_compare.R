@@ -170,6 +170,7 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   w_key <- key("dl_width")
   h_key <- key("dl_height")
   u_key <- key("dl_units")
+  d_key <- key("dl_dpi")
   # observeEvent (not observe) so this only fires on ON-SCREEN dim changes
   # — reading input[[u_key]] inside an `observe({})` block created a
   # reactive dep on the units picker, so toggling units re-fired this
@@ -179,12 +180,11 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   observeEvent(dims_reactive(), {
     dims <- dims_reactive()
     u    <- input[[u_key]] %||% "in"
-    # `.dl_and_download_column` doesn't expose a DPI input in the compare
-    # module (all handlers hard-code res = 300), so match that here.
+    dpi  <- input[[d_key]] %||% 300
     w_in <- max(2, round(dims$width  / 96 * 2) / 2)
     h_in <- max(2, round(dims$height / 96 * 2) / 2)
-    w    <- .convert_dim(w_in, "in", u, dpi = 300)
-    h    <- .convert_dim(h_in, "in", u, dpi = 300)
+    w    <- .convert_dim(w_in, "in", u, dpi = dpi)
+    h    <- .convert_dim(h_in, "in", u, dpi = dpi)
     rd   <- if (identical(u, "px")) 0 else 1
     if (is.finite(w)) updateNumericInput(session, w_key, value = round(w, rd))
     if (is.finite(h)) updateNumericInput(session, h_key, value = round(h, rd))
@@ -193,8 +193,7 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 
 # Wire the auto-convert observer for a prefix-based dl_ block. Call once
 # per compare-module that uses .dl_and_download_column (or the bare
-# "dl_" block in the tissue-compare view). No DPI input in the compare
-# module, so falls back to 300 for px conversions.
+# "dl_" block in the tissue-compare view).
 .dl_units_watch <- function(input, session, prefix = "") {
   key <- function(base) if (nzchar(prefix)) paste0(prefix, "_", base) else base
   prev <- reactiveVal("in")
@@ -203,7 +202,7 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
                          width_id = key("dl_width"),
                          height_id = key("dl_height"),
                          prev_val = prev,
-                         dpi_id   = NULL,
+                         dpi_id   = key("dl_dpi"),
                          default_dpi = 300)
 }
 
@@ -295,6 +294,11 @@ tissue_compare_ui <- function(ns) {
                          value = 10, min = 0.1, max = 20000, step = 0.5),
             numericInput(ns("dl_height"), "Height:",
                          value = 10, min = 0.1, max = 20000, step = 0.5),
+            conditionalPanel(
+              condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
+              numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
+                            value = 300, min = 72, max = 600, step = 25)
+            ),
             downloadButton(ns("download_plot"), "Download plot"),
             downloadButton(ns("download_csv"), "Download matrix CSV")
           )
@@ -716,7 +720,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$dl_width,
           h     = input$dl_height,
           units = input$dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$dl_dpi   %||% 300)
         print(p)
         grDevices::dev.off()
       }
@@ -1022,7 +1026,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$locus_dl_width,
           h     = input$locus_dl_height,
           units = input$locus_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$locus_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -1070,8 +1074,9 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
 )
 
 .dl_and_download_column <- function(ns, prefix, default_w = 10, default_h = 12) {
+  fmt_id <- ns(paste0(prefix, "_dl_format"))
   column(3,
-    selectInput(ns(paste0(prefix, "_dl_format")), "Download format:",
+    selectInput(fmt_id, "Download format:",
                 choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                 selected = "png"),
     selectInput(ns(paste0(prefix, "_dl_units")), "Units:",
@@ -1080,6 +1085,12 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
                  value = default_w, min = 0.1, max = 20000, step = 0.5),
     numericInput(ns(paste0(prefix, "_dl_height")), "Height:",
                  value = default_h, min = 0.1, max = 20000, step = 0.5),
+    conditionalPanel(
+      condition = sprintf("input['%s'] == 'png'", fmt_id),
+      numericInput(ns(paste0(prefix, "_dl_dpi")),
+                    "Resolution (DPI, PNG only):",
+                    value = 300, min = 72, max = 600, step = 25)
+    ),
     downloadButton(ns(paste0(prefix, "_download_plot")), "Download plot"),
     downloadButton(ns(paste0(prefix, "_download_csv")), "Download matrix CSV")
   )
@@ -1429,7 +1440,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$gene_dl_width,
           h     = input$gene_dl_height,
           units = input$gene_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$gene_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -1880,7 +1891,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$magma_dl_width,
           h     = input$magma_dl_height,
           units = input$magma_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$magma_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -1991,7 +2002,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$gsea_dl_width,
           h     = input$gsea_dl_height,
           units = input$gsea_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$gsea_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -2428,7 +2439,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$magma_dl_width,
           h     = input$magma_dl_height,
           units = input$magma_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$magma_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -2540,7 +2551,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$gsea_dl_width,
           h     = input$gsea_dl_height,
           units = input$gsea_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$gsea_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -3135,7 +3146,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
           w     = input$gencor_dl_width,
           h     = input$gencor_dl_height,
           units = input$gencor_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$gencor_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -3486,7 +3497,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$pert_dl_width,
           h     = input$pert_dl_height,
           units = input$pert_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$pert_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -3610,7 +3621,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
           w     = input$moa_dl_width,
           h     = input$moa_dl_height,
           units = input$moa_dl_units %||% "in",
-          dpi   = 300)
+          dpi   = input$moa_dl_dpi   %||% 300)
         print(p); grDevices::dev.off()
       }
     )
