@@ -417,10 +417,12 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
               selectInput(ns("mh_dl_format"), "Download format:",
                           choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                           selected = "png"),
-              numericInput(ns("mh_dl_width"), "Width (inches):",
-                           value = 12, min = 2, max = 40, step = 0.5),
-              numericInput(ns("mh_dl_height"), "Height (inches):",
-                           value = 5, min = 2, max = 40, step = 0.5),
+              selectInput(ns("mh_dl_units"), "Units:",
+                          choices = .dl_units_choices, selected = "in"),
+              numericInput(ns("mh_dl_width"), "Width:",
+                           value = 12, min = 0.1, max = 20000, step = 0.5),
+              numericInput(ns("mh_dl_height"), "Height:",
+                           value = 5, min = 0.1, max = 20000, step = 0.5),
               conditionalPanel(
                 condition = sprintf("input['%s'] == 'png'", ns("mh_dl_format")),
                 numericInput(ns("mh_dl_dpi"), "Resolution (DPI, PNG only):",
@@ -524,6 +526,15 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
+    mh_dl_units_prev <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "mh_dl_units",
+                           width_id = "mh_dl_width",
+                           height_id = "mh_dl_height",
+                           prev_val = mh_dl_units_prev,
+                           dpi_id   = "mh_dl_dpi",
+                           default_dpi = 300)
+
     output$mh_download <- downloadHandler(
       filename = function() {
         sprintf("manhattan_%s.%s",
@@ -553,15 +564,12 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           col_member   = input$mh_col_member   %||% "#2ca02c",
           col_index    = input$mh_col_index    %||% "#006400"
         )
-        w   <- input$mh_dl_width  %||% 12
-        h   <- input$mh_dl_height %||% 5
-        fmt <- input$mh_dl_format %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$mh_dl_dpi %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$mh_dl_format %||% "png",
+          w     = input$mh_dl_width  %||% 12,
+          h     = input$mh_dl_height %||% 5,
+          units = input$mh_dl_units  %||% "in",
+          dpi   = input$mh_dl_dpi    %||% 300)
         print(p)
         grDevices::dev.off()
       }

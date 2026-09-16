@@ -273,10 +273,12 @@ mol_assoc_single_ui <- function(ns) {
             selectInput(ns("dl_format"), "Download format:",
                         choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                         selected = "png"),
-            numericInput(ns("dl_width"), "Width (inches):",
-                         value = 12, min = 2, max = 40, step = 0.5),
-            numericInput(ns("dl_height"), "Height (inches):",
-                         value = 8, min = 2, max = 40, step = 0.5),
+            selectInput(ns("dl_units"), "Units:",
+                        choices = .dl_units_choices, selected = "in"),
+            numericInput(ns("dl_width"), "Width:",
+                         value = 12, min = 0.1, max = 20000, step = 0.5),
+            numericInput(ns("dl_height"), "Height:",
+                         value = 8, min = 0.1, max = 20000, step = 0.5),
             conditionalPanel(
               condition = sprintf("input['%s'] == 'png'", ns("dl_format")),
               numericInput(ns("dl_dpi"), "Resolution (DPI, PNG only):",
@@ -930,13 +932,30 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # User overrides get replaced whenever the on-screen dims change.
     ########
 
+    # Sync on-screen dims -> width/height, converting into the current
+    # unit. Dims from plot_dim_mol() are in pt (72 pt = 1 in); convert to
+    # in and then to the picked unit.
     observeEvent(plot_dim_mol(), {
       dims <- plot_dim_mol()
-      if (dims$width > 100 && dims$height < 10000) {
-        updateNumericInput(session, "dl_width",  value = round(dims$width  / 72, 1))
-        updateNumericInput(session, "dl_height", value = round(dims$height / 72, 1))
-      }
+      if (!is.list(dims) || is.null(dims$width) || is.null(dims$height)) return()
+      if (!(dims$width > 100 && dims$height < 10000)) return()
+      u   <- input$dl_units %||% "in"
+      dpi <- input$dl_dpi   %||% 300
+      w   <- .convert_dim(dims$width  / 72, "in", u, dpi = dpi)
+      h   <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
+      rd  <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "dl_width",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "dl_height", value = round(h, rd))
     })
+
+    dl_units_prev <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "dl_units",
+                           width_id = "dl_width",
+                           height_id = "dl_height",
+                           prev_val = dl_units_prev,
+                           dpi_id   = "dl_dpi",
+                           default_dpi = 300)
 
     output$download_plot <- downloadHandler(
       filename = function() {
@@ -964,15 +983,12 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           panel_h_pt = plot_dim_mol()[['panel_h_pt']],
           left_pad_pt = plot_dim_mol()[['left_pad_pt']]
         )
-        w <- input$dl_width  %||% 12
-        h <- input$dl_height %||% 8
-        fmt <- input$dl_format %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$dl_dpi %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$dl_format %||% "png",
+          w     = input$dl_width  %||% 12,
+          h     = input$dl_height %||% 8,
+          units = input$dl_units  %||% "in",
+          dpi   = input$dl_dpi    %||% 300)
         if (!is.null(gt)) grid::grid.draw(gt)
         grDevices::dev.off()
       }

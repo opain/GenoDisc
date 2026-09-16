@@ -407,10 +407,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
                 selectInput(ns("gencor_dl_format"), "Download format:",
                             choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                             selected = "png"),
-                numericInput(ns("gencor_dl_width"), "Width (inches):",
-                             value = 8, min = 2, max = 40, step = 0.5),
-                numericInput(ns("gencor_dl_height"), "Height (inches):",
-                             value = 9, min = 2, max = 40, step = 0.5),
+                selectInput(ns("gencor_dl_units"), "Units:",
+                            choices = .dl_units_choices, selected = "in"),
+                numericInput(ns("gencor_dl_width"), "Width:",
+                             value = 8, min = 0.1, max = 20000, step = 0.5),
+                numericInput(ns("gencor_dl_height"), "Height:",
+                             value = 9, min = 0.1, max = 20000, step = 0.5),
                 conditionalPanel(
                   condition = sprintf("input['%s'] == 'png'", ns("gencor_dl_format")),
                   numericInput(ns("gencor_dl_dpi"), "Resolution (DPI, PNG only):",
@@ -479,11 +481,23 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
 
     observeEvent(plot_dim_gencor(), {
       dims <- plot_dim_gencor()
-      updateNumericInput(session, "gencor_dl_width",
-                         value = round(dims$width_px  / 96, 1))
-      updateNumericInput(session, "gencor_dl_height",
-                         value = round(dims$height_px / 96, 1))
+      u    <- input$gencor_dl_units %||% "in"
+      dpi  <- input$gencor_dl_dpi   %||% 300
+      w    <- .convert_dim(dims$width_px  / 96, "in", u, dpi = dpi)
+      h    <- .convert_dim(dims$height_px / 96, "in", u, dpi = dpi)
+      rd   <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "gencor_dl_width",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "gencor_dl_height", value = round(h, rd))
     })
+
+    gencor_units_prev <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "gencor_dl_units",
+                           width_id = "gencor_dl_width",
+                           height_id = "gencor_dl_height",
+                           prev_val = gencor_units_prev,
+                           dpi_id   = "gencor_dl_dpi",
+                           default_dpi = 300)
 
     output$gencor_download <- downloadHandler(
       filename = function() {
@@ -506,15 +520,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
           grDevices::dev.off()
           return(invisible())
         }
-        w <- input$gencor_dl_width  %||% 8
-        h <- input$gencor_dl_height %||% 9
-        fmt <- input$gencor_dl_format %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$gencor_dl_dpi %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$gencor_dl_format %||% "png",
+          w     = input$gencor_dl_width  %||% 8,
+          h     = input$gencor_dl_height %||% 9,
+          units = input$gencor_dl_units  %||% "in",
+          dpi   = input$gencor_dl_dpi    %||% 300)
         print(p)
         grDevices::dev.off()
       }
@@ -617,10 +628,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
                 selectInput(ns("gencor_within_dl_format"), "Download format:",
                             choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                             selected = "png"),
-                numericInput(ns("gencor_within_dl_width"), "Width (inches):",
-                             value = 8, min = 2, max = 40, step = 0.5),
-                numericInput(ns("gencor_within_dl_height"), "Height (inches):",
-                             value = 8, min = 2, max = 40, step = 0.5),
+                selectInput(ns("gencor_within_dl_units"), "Units:",
+                            choices = .dl_units_choices, selected = "in"),
+                numericInput(ns("gencor_within_dl_width"), "Width:",
+                             value = 8, min = 0.1, max = 20000, step = 0.5),
+                numericInput(ns("gencor_within_dl_height"), "Height:",
+                             value = 8, min = 0.1, max = 20000, step = 0.5),
                 conditionalPanel(
                   condition = sprintf("input['%s'] == 'png'", ns("gencor_within_dl_format")),
                   numericInput(ns("gencor_within_dl_dpi"),
@@ -719,13 +732,24 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
     # dim change (matches the mol_assoc download pattern).
     observeEvent(gencor_within_dim(), {
       dims <- gencor_within_dim()
-      if (dims$width_px > 100) {
-        updateNumericInput(session, "gencor_within_dl_width",
-                            value = round(dims$width_px  / 96, 1))
-        updateNumericInput(session, "gencor_within_dl_height",
-                            value = round(dims$height_px / 96, 1))
-      }
+      if (!(dims$width_px > 100)) return()
+      u   <- input$gencor_within_dl_units %||% "in"
+      dpi <- input$gencor_within_dl_dpi   %||% 300
+      w   <- .convert_dim(dims$width_px  / 96, "in", u, dpi = dpi)
+      h   <- .convert_dim(dims$height_px / 96, "in", u, dpi = dpi)
+      rd  <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "gencor_within_dl_width",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "gencor_within_dl_height", value = round(h, rd))
     })
+
+    gencor_within_units_prev <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "gencor_within_dl_units",
+                           width_id = "gencor_within_dl_width",
+                           height_id = "gencor_within_dl_height",
+                           prev_val = gencor_within_units_prev,
+                           dpi_id   = "gencor_within_dl_dpi",
+                           default_dpi = 300)
 
     output$gencor_within_download <- downloadHandler(
       filename = function() {
@@ -749,15 +773,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
           title          = input$gencor_within_title %||% "",
           theme_fn       = mol_theme_fn(input$gencor_within_theme)
         )
-        w   <- input$gencor_within_dl_width  %||% 8
-        h   <- input$gencor_within_dl_height %||% 8
-        fmt <- input$gencor_within_dl_format %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                                res = input$gencor_within_dl_dpi %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$gencor_within_dl_format %||% "png",
+          w     = input$gencor_within_dl_width  %||% 8,
+          h     = input$gencor_within_dl_height %||% 8,
+          units = input$gencor_within_dl_units  %||% "in",
+          dpi   = input$gencor_within_dl_dpi    %||% 300)
         if (!is.null(p)) print(p)
         grDevices::dev.off()
       }

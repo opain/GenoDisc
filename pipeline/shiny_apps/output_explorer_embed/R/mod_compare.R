@@ -160,20 +160,45 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 }
 
 # Sync the download Width/Height numericInputs to the current on-screen plot
-# dimensions. Whenever `dims_reactive()` changes (font size, row count, GWAS
-# selection etc.), the numericInputs update to match. User edits get
-# overwritten on the next dims change - that's acceptable since the correct
-# default is more useful than persistent overrides.
-.sync_dl_dims <- function(session, dims_reactive, prefix = "") {
-  w_key <- if (nzchar(prefix)) paste0(prefix, "_dl_width")  else "dl_width"
-  h_key <- if (nzchar(prefix)) paste0(prefix, "_dl_height") else "dl_height"
+# dimensions, converting to whatever unit is currently selected. Whenever
+# `dims_reactive()` changes (font size, row count, GWAS selection etc.),
+# the numericInputs update to match. User edits get overwritten on the
+# next dims change - that's acceptable since the correct default is more
+# useful than persistent overrides.
+.sync_dl_dims <- function(session, dims_reactive, prefix = "", input = session$input) {
+  key   <- function(base) if (nzchar(prefix)) paste0(prefix, "_", base) else base
+  w_key <- key("dl_width")
+  h_key <- key("dl_height")
+  u_key <- key("dl_units")
   observe({
     dims <- dims_reactive()
+    u    <- input[[u_key]] %||% "in"
+    # `.dl_and_download_column` doesn't expose a DPI input in the compare
+    # module (all handlers hard-code res = 300), so match that here.
     w_in <- max(2, round(dims$width  / 96 * 2) / 2)
     h_in <- max(2, round(dims$height / 96 * 2) / 2)
-    updateNumericInput(session, w_key, value = w_in)
-    updateNumericInput(session, h_key, value = h_in)
+    w    <- .convert_dim(w_in, "in", u, dpi = 300)
+    h    <- .convert_dim(h_in, "in", u, dpi = 300)
+    rd   <- if (identical(u, "px")) 0 else 1
+    if (is.finite(w)) updateNumericInput(session, w_key, value = round(w, rd))
+    if (is.finite(h)) updateNumericInput(session, h_key, value = round(h, rd))
   })
+}
+
+# Wire the auto-convert observer for a prefix-based dl_ block. Call once
+# per compare-module that uses .dl_and_download_column (or the bare
+# "dl_" block in the tissue-compare view). No DPI input in the compare
+# module, so falls back to 300 for px conversions.
+.dl_units_watch <- function(input, session, prefix = "") {
+  key <- function(base) if (nzchar(prefix)) paste0(prefix, "_", base) else base
+  prev <- reactiveVal("in")
+  dl_units_auto_convert(input, session,
+                         units_id = key("dl_units"),
+                         width_id = key("dl_width"),
+                         height_id = key("dl_height"),
+                         prev_val = prev,
+                         dpi_id   = NULL,
+                         default_dpi = 300)
 }
 
 # Add the "outline for nominal-sig" (larger solid black circle behind the
@@ -258,10 +283,12 @@ tissue_compare_ui <- function(ns) {
             selectInput(ns("dl_format"), "Download format:",
                         choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                         selected = "png"),
-            numericInput(ns("dl_width"), "Width (in):",
-                         value = 10, min = 4, max = 24, step = 0.5),
-            numericInput(ns("dl_height"), "Height (in):",
-                         value = 10, min = 4, max = 24, step = 0.5),
+            selectInput(ns("dl_units"), "Units:",
+                        choices = .dl_units_choices, selected = "in"),
+            numericInput(ns("dl_width"), "Width:",
+                         value = 10, min = 0.1, max = 20000, step = 0.5),
+            numericInput(ns("dl_height"), "Height:",
+                         value = 10, min = 0.1, max = 20000, step = 0.5),
             downloadButton(ns("download_plot"), "Download plot"),
             downloadButton(ns("download_csv"), "Download matrix CSV")
           )
@@ -616,6 +643,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, plot_dims)
+    .dl_units_watch(input, session)
 
     output$tissue_compare_plot_ui <- renderUI({
       if (is.null(plot_obj())) return(.compare_empty_state("tissues"))
@@ -677,15 +705,12 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         if (is.null(p)) {
           grDevices::png(file, width = 400, height = 200); dev.off(); return()
         }
-        fmt <- input$dl_format
-        w <- input$dl_width; h <- input$dl_height
-        if (fmt == "png") {
-          grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        } else if (fmt == "pdf") {
-          grDevices::pdf(file, width = w, height = h)
-        } else {
-          grDevices::svg(file, width = w, height = h)
-        }
+        open_plot_device(file,
+          fmt   = input$dl_format,
+          w     = input$dl_width,
+          h     = input$dl_height,
+          units = input$dl_units %||% "in",
+          dpi   = 300)
         print(p)
         grDevices::dev.off()
       }
@@ -928,6 +953,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, plot_dims, "locus")
+    .dl_units_watch(input, session, "locus")
 
     output$locus_compare_plot_ui <- renderUI({
       if (is.null(plot_obj())) return(.compare_empty_state("loci"))
@@ -985,11 +1011,12 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$locus_dl_format),
       content = function(file) {
         p <- plot_obj(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$locus_dl_format
-        w <- input$locus_dl_width; h <- input$locus_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$locus_dl_format,
+          w     = input$locus_dl_width,
+          h     = input$locus_dl_height,
+          units = input$locus_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -1041,10 +1068,12 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
     selectInput(ns(paste0(prefix, "_dl_format")), "Download format:",
                 choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                 selected = "png"),
-    numericInput(ns(paste0(prefix, "_dl_width")), "Width (in):",
-                 value = default_w, min = 4, max = 24, step = 0.5),
-    numericInput(ns(paste0(prefix, "_dl_height")), "Height (in):",
-                 value = default_h, min = 4, max = 32, step = 0.5),
+    selectInput(ns(paste0(prefix, "_dl_units")), "Units:",
+                choices = .dl_units_choices, selected = "in"),
+    numericInput(ns(paste0(prefix, "_dl_width")), "Width:",
+                 value = default_w, min = 0.1, max = 20000, step = 0.5),
+    numericInput(ns(paste0(prefix, "_dl_height")), "Height:",
+                 value = default_h, min = 0.1, max = 20000, step = 0.5),
     downloadButton(ns(paste0(prefix, "_download_plot")), "Download plot"),
     downloadButton(ns(paste0(prefix, "_download_csv")), "Download matrix CSV")
   )
@@ -1300,6 +1329,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, plot_dims, "gene")
+    .dl_units_watch(input, session, "gene")
 
     output$gene_compare_plot_ui <- renderUI({
       if (is.null(plot_obj())) return(.compare_empty_state("genes"))
@@ -1388,11 +1418,12 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$gene_dl_format),
       content = function(file) {
         p <- plot_obj(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$gene_dl_format
-        w <- input$gene_dl_width; h <- input$gene_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$gene_dl_format,
+          w     = input$gene_dl_width,
+          h     = input$gene_dl_height,
+          units = input$gene_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -1791,6 +1822,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, magma_dims, "magma")
+    .dl_units_watch(input, session, "magma")
 
     output$atc_magma_plot_ui <- renderUI({
       if (is.null(magma_plot())) return(.compare_empty_state("ATC classes"))
@@ -1837,11 +1869,12 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$magma_dl_format),
       content = function(file) {
         p <- magma_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$magma_dl_format
-        w <- input$magma_dl_width; h <- input$magma_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$magma_dl_format,
+          w     = input$magma_dl_width,
+          h     = input$magma_dl_height,
+          units = input$magma_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -1897,6 +1930,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, gsea_dims, "gsea")
+    .dl_units_watch(input, session, "gsea")
 
     output$atc_gsea_plot_ui <- renderUI({
       if (is.null(gsea_plot())) return(.compare_empty_state("ATC classes"))
@@ -1946,11 +1980,12 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$gsea_dl_format),
       content = function(file) {
         p <- gsea_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$gsea_dl_format
-        w <- input$gsea_dl_width; h <- input$gsea_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$gsea_dl_format,
+          w     = input$gsea_dl_width,
+          h     = input$gsea_dl_height,
+          units = input$gsea_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -2334,6 +2369,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, magma_dims, "magma")
+    .dl_units_watch(input, session, "magma")
 
     output$drug_magma_plot_ui <- renderUI({
       if (is.null(magma_plot())) return(.compare_empty_state("drugs"))
@@ -2381,11 +2417,12 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$magma_dl_format),
       content = function(file) {
         p <- magma_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$magma_dl_format
-        w <- input$magma_dl_width; h <- input$magma_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$magma_dl_format,
+          w     = input$magma_dl_width,
+          h     = input$magma_dl_height,
+          units = input$magma_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -2442,6 +2479,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, gsea_dims, "gsea")
+    .dl_units_watch(input, session, "gsea")
 
     output$drug_gsea_plot_ui <- renderUI({
       if (is.null(gsea_plot())) return(.compare_empty_state("drugs"))
@@ -2491,11 +2529,12 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$gsea_dl_format),
       content = function(file) {
         p <- gsea_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$gsea_dl_format
-        w <- input$gsea_dl_width; h <- input$gsea_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$gsea_dl_format,
+          w     = input$gsea_dl_width,
+          h     = input$gsea_dl_height,
+          units = input$gsea_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -2993,6 +3032,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
     })
 
     .sync_dl_dims(session, plot_dims, "gencor")
+    .dl_units_watch(input, session, "gencor")
 
     output$gencor_plot_ui <- renderUI({
       long <- gencor_long()
@@ -3084,11 +3124,12 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       content = function(file) {
         p <- plot_obj()
         if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$gencor_dl_format
-        w <- input$gencor_dl_width; h <- input$gencor_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$gencor_dl_format,
+          w     = input$gencor_dl_width,
+          h     = input$gencor_dl_height,
+          units = input$gencor_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -3377,6 +3418,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, pert_dims, "pert")
+    .dl_units_watch(input, session, "pert")
 
     output$cmap_pert_plot_ui <- renderUI({
       if (is.null(pert_plot())) return(.compare_empty_state("perturbations"))
@@ -3433,11 +3475,12 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$pert_dl_format),
       content = function(file) {
         p <- pert_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$pert_dl_format
-        w <- input$pert_dl_width; h <- input$pert_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$pert_dl_format,
+          w     = input$pert_dl_width,
+          h     = input$pert_dl_height,
+          units = input$pert_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )
@@ -3499,6 +3542,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
     })
 
     .sync_dl_dims(session, moa_dims, "moa")
+    .dl_units_watch(input, session, "moa")
 
     output$cmap_moa_plot_ui <- renderUI({
       if (is.null(moa_plot())) return(.compare_empty_state("MOAs"))
@@ -3555,11 +3599,12 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      input$moa_dl_format),
       content = function(file) {
         p <- moa_plot(); if (is.null(p)) { grDevices::png(file); dev.off(); return() }
-        fmt <- input$moa_dl_format
-        w <- input$moa_dl_width; h <- input$moa_dl_height
-        if (fmt == "png") grDevices::png(file, width = w, height = h, units = "in", res = 300)
-        else if (fmt == "pdf") grDevices::pdf(file, width = w, height = h)
-        else grDevices::svg(file, width = w, height = h)
+        open_plot_device(file,
+          fmt   = input$moa_dl_format,
+          w     = input$moa_dl_width,
+          h     = input$moa_dl_height,
+          units = input$moa_dl_units %||% "in",
+          dpi   = 300)
         print(p); grDevices::dev.off()
       }
     )

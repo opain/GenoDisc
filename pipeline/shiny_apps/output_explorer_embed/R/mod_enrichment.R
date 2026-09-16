@@ -711,9 +711,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                   selectInput(ns("dl_format_drug"), "Download format:",
                               choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                               selected = "png"),
-                  numericInput(ns("dl_width_drug"), "Width (inches):",
+                  selectInput(ns("dl_units_drug"), "Units:",
+                              choices = .dl_units_choices, selected = "in"),
+                  numericInput(ns("dl_width_drug"), "Width:",
                                value = 12, min = 2, max = 40, step = 0.5),
-                  numericInput(ns("dl_height_drug"), "Height (inches):",
+                  numericInput(ns("dl_height_drug"), "Height:",
                                value = 8, min = 2, max = 40, step = 0.5),
                   conditionalPanel(
                     condition = sprintf("input['%s'] == 'png'", ns("dl_format_drug")),
@@ -808,9 +810,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                   selectInput(ns("dl_format_atc"), "Download format:",
                               choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                               selected = "png"),
-                  numericInput(ns("dl_width_atc"), "Width (inches):",
+                  selectInput(ns("dl_units_atc"), "Units:",
+                              choices = .dl_units_choices, selected = "in"),
+                  numericInput(ns("dl_width_atc"), "Width:",
                                value = 12, min = 2, max = 40, step = 0.5),
-                  numericInput(ns("dl_height_atc"), "Height (inches):",
+                  numericInput(ns("dl_height_atc"), "Height:",
                                value = 8, min = 2, max = 40, step = 0.5),
                   conditionalPanel(
                     condition = sprintf("input['%s'] == 'png'", ns("dl_format_atc")),
@@ -1018,9 +1022,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                     selectInput(ns("dl_format_tissue"), "Download format:",
                                 choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                                 selected = "png"),
-                    numericInput(ns("dl_width_tissue"), "Width (inches):",
+                    selectInput(ns("dl_units_tissue"), "Units:",
+                                choices = .dl_units_choices, selected = "in"),
+                    numericInput(ns("dl_width_tissue"), "Width:",
                                  value = 8, min = 2, max = 40, step = 0.5),
-                    numericInput(ns("dl_height_tissue"), "Height (inches):",
+                    numericInput(ns("dl_height_tissue"), "Height:",
                                  value = 9, min = 2, max = 40, step = 0.5),
                     conditionalPanel(
                       condition = sprintf("input['%s'] == 'png'", ns("dl_format_tissue")),
@@ -1154,9 +1160,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                     selectInput(ns("dl_format_pathway"), "Download format:",
                                 choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                                 selected = "png"),
-                    numericInput(ns("dl_width_pathway"), "Width (inches):",
+                    selectInput(ns("dl_units_pathway"), "Units:",
+                                choices = .dl_units_choices, selected = "in"),
+                    numericInput(ns("dl_width_pathway"), "Width:",
                                  value = 12, min = 2, max = 40, step = 0.5),
-                    numericInput(ns("dl_height_pathway"), "Height (inches):",
+                    numericInput(ns("dl_height_pathway"), "Height:",
                                  value = 8, min = 2, max = 40, step = 0.5),
                     conditionalPanel(
                       condition = sprintf("input['%s'] == 'png'", ns("dl_format_pathway")),
@@ -1254,9 +1262,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                     selectInput(ns("dl_format_pathway_multi"), "Download format:",
                                 choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
                                 selected = "png"),
-                    numericInput(ns("dl_width_pathway_multi"), "Width (inches):",
+                    selectInput(ns("dl_units_pathway_multi"), "Units:",
+                                choices = .dl_units_choices, selected = "in"),
+                    numericInput(ns("dl_width_pathway_multi"), "Width:",
                                  value = 12, min = 2, max = 40, step = 0.5),
-                    numericInput(ns("dl_height_pathway_multi"), "Height (inches):",
+                    numericInput(ns("dl_height_pathway_multi"), "Height:",
                                  value = 8, min = 2, max = 40, step = 0.5),
                     conditionalPanel(
                       condition = sprintf("input['%s'] == 'png'", ns("dl_format_pathway_multi")),
@@ -1543,16 +1553,27 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     # Sync download width/height with on-screen dims (same idiom as
-    # the DrugTargetor Summary observer).
+    # the DrugTargetor Summary observer). Converts to the current unit.
     observeEvent(pathway_summary_dim(), {
       dims <- pathway_summary_dim()
-      if (!is.null(dims$width) && dims$width > 100 && dims$height < 10000) {
-        updateNumericInput(session, "dl_width_pathway",
-                           value = round(dims$width  / 72, 1))
-        updateNumericInput(session, "dl_height_pathway",
-                           value = round(dims$height / 72, 1))
-      }
+      if (is.null(dims$width) || !(dims$width > 100 && dims$height < 10000)) return()
+      u   <- input$dl_units_pathway %||% "in"
+      dpi <- input$dl_dpi_pathway   %||% 300
+      w   <- .convert_dim(dims$width  / 72, "in", u, dpi = dpi)
+      h   <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
+      rd  <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "dl_width_pathway",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "dl_height_pathway", value = round(h, rd))
     })
+
+    dl_units_prev_pathway <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "dl_units_pathway",
+                           width_id = "dl_width_pathway",
+                           height_id = "dl_height_pathway",
+                           prev_val = dl_units_prev_pathway,
+                           dpi_id   = "dl_dpi_pathway",
+                           default_dpi = 300)
 
     output$download_plot_pathway <- downloadHandler(
       filename = function() {
@@ -1574,15 +1595,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           panel_h_pt  = dims$panel_h_pt,
           left_pad_pt = dims$left_pad_pt
         )
-        w <- input$dl_width_pathway  %||% 12
-        h <- input$dl_height_pathway %||% 8
-        fmt <- input$dl_format_pathway %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$dl_dpi_pathway %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$dl_format_pathway %||% "png",
+          w     = input$dl_width_pathway  %||% 12,
+          h     = input$dl_height_pathway %||% 8,
+          units = input$dl_units_pathway  %||% "in",
+          dpi   = input$dl_dpi_pathway    %||% 300)
         if (!is.null(gt)) grid::grid.draw(gt) else grid::grid.text("No pathway data.")
         grDevices::dev.off()
       }
@@ -1714,13 +1732,24 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     observeEvent(pathway_summary_multi_dim(), {
       dims <- pathway_summary_multi_dim()
-      if (!is.null(dims$width) && dims$width > 100 && dims$height < 10000) {
-        updateNumericInput(session, "dl_width_pathway_multi",
-                           value = round(dims$width  / 72, 1))
-        updateNumericInput(session, "dl_height_pathway_multi",
-                           value = round(dims$height / 72, 1))
-      }
+      if (is.null(dims$width) || !(dims$width > 100 && dims$height < 10000)) return()
+      u   <- input$dl_units_pathway_multi %||% "in"
+      dpi <- input$dl_dpi_pathway_multi   %||% 300
+      w   <- .convert_dim(dims$width  / 72, "in", u, dpi = dpi)
+      h   <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
+      rd  <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "dl_width_pathway_multi",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "dl_height_pathway_multi", value = round(h, rd))
     })
+
+    dl_units_prev_pathway_multi <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "dl_units_pathway_multi",
+                           width_id = "dl_width_pathway_multi",
+                           height_id = "dl_height_pathway_multi",
+                           prev_val = dl_units_prev_pathway_multi,
+                           dpi_id   = "dl_dpi_pathway_multi",
+                           default_dpi = 300)
 
     output$download_plot_pathway_multi <- downloadHandler(
       filename = function() {
@@ -1742,15 +1771,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           panel_h_pt  = dims$panel_h_pt,
           left_pad_pt = dims$left_pad_pt
         )
-        w <- input$dl_width_pathway_multi  %||% 12
-        h <- input$dl_height_pathway_multi %||% 8
-        fmt <- input$dl_format_pathway_multi %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$dl_dpi_pathway_multi %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$dl_format_pathway_multi %||% "png",
+          w     = input$dl_width_pathway_multi  %||% 12,
+          h     = input$dl_height_pathway_multi %||% 8,
+          units = input$dl_units_pathway_multi  %||% "in",
+          dpi   = input$dl_dpi_pathway_multi    %||% 300)
         if (!is.null(gt)) grid::grid.draw(gt) else grid::grid.text("No pathway data.")
         grDevices::dev.off()
       }
@@ -2002,11 +2028,24 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # replaced whenever the on-screen dims change.
     observeEvent(plot_dim_drug(), {
       dims <- plot_dim_drug()
-      if (dims$width > 100 && dims$height < 10000) {
-        updateNumericInput(session, "dl_width_drug",  value = round(dims$width  / 72, 1))
-        updateNumericInput(session, "dl_height_drug", value = round(dims$height / 72, 1))
-      }
+      if (!(dims$width > 100 && dims$height < 10000)) return()
+      u   <- input$dl_units_drug %||% "in"
+      dpi <- input$dl_dpi_drug   %||% 300
+      w   <- .convert_dim(dims$width  / 72, "in", u, dpi = dpi)
+      h   <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
+      rd  <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "dl_width_drug",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "dl_height_drug", value = round(h, rd))
     })
+
+    dl_units_prev_drug <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "dl_units_drug",
+                           width_id = "dl_width_drug",
+                           height_id = "dl_height_drug",
+                           prev_val = dl_units_prev_drug,
+                           dpi_id   = "dl_dpi_drug",
+                           default_dpi = 300)
 
     output$download_plot_drug <- downloadHandler(
       filename = function() {
@@ -2025,15 +2064,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           panel_h_pt = plot_dim_drug()[['panel_h_pt']],
           left_pad_pt = plot_dim_drug()[['left_pad_pt']]
         )
-        w <- input$dl_width_drug  %||% 12
-        h <- input$dl_height_drug %||% 8
-        fmt <- input$dl_format_drug %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$dl_dpi_drug %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$dl_format_drug %||% "png",
+          w     = input$dl_width_drug  %||% 12,
+          h     = input$dl_height_drug %||% 8,
+          units = input$dl_units_drug  %||% "in",
+          dpi   = input$dl_dpi_drug    %||% 300)
         if (!is.null(gt)) grid::grid.draw(gt)
         grDevices::dev.off()
       }
@@ -2311,11 +2347,24 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     observeEvent(plot_dim_atc(), {
       dims <- plot_dim_atc()
-      if (dims$width > 100 && dims$height < 10000) {
-        updateNumericInput(session, "dl_width_atc",  value = round(dims$width  / 72, 1))
-        updateNumericInput(session, "dl_height_atc", value = round(dims$height / 72, 1))
-      }
+      if (!(dims$width > 100 && dims$height < 10000)) return()
+      u   <- input$dl_units_atc %||% "in"
+      dpi <- input$dl_dpi_atc   %||% 300
+      w   <- .convert_dim(dims$width  / 72, "in", u, dpi = dpi)
+      h   <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
+      rd  <- if (identical(u, "px")) 0 else 1
+      if (is.finite(w)) updateNumericInput(session, "dl_width_atc",  value = round(w, rd))
+      if (is.finite(h)) updateNumericInput(session, "dl_height_atc", value = round(h, rd))
     })
+
+    dl_units_prev_atc <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "dl_units_atc",
+                           width_id = "dl_width_atc",
+                           height_id = "dl_height_atc",
+                           prev_val = dl_units_prev_atc,
+                           dpi_id   = "dl_dpi_atc",
+                           default_dpi = 300)
 
     output$download_plot_atc <- downloadHandler(
       filename = function() {
@@ -2334,15 +2383,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           panel_h_pt = plot_dim_atc()[['panel_h_pt']],
           left_pad_pt = plot_dim_atc()[['left_pad_pt']]
         )
-        w <- input$dl_width_atc  %||% 12
-        h <- input$dl_height_atc %||% 8
-        fmt <- input$dl_format_atc %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$dl_dpi_atc %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$dl_format_atc %||% "png",
+          w     = input$dl_width_atc  %||% 12,
+          h     = input$dl_height_atc %||% 8,
+          units = input$dl_units_atc  %||% "in",
+          dpi   = input$dl_dpi_atc    %||% 300)
         if (!is.null(gt)) grid::grid.draw(gt)
         grDevices::dev.off()
       }
@@ -2641,6 +2687,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
+    dl_units_prev_tissue <- reactiveVal("in")
+    dl_units_auto_convert(input, session,
+                           units_id = "dl_units_tissue",
+                           width_id = "dl_width_tissue",
+                           height_id = "dl_height_tissue",
+                           prev_val = dl_units_prev_tissue,
+                           dpi_id   = "dl_dpi_tissue",
+                           default_dpi = 300)
+
     output$download_plot_tissue <- downloadHandler(
       filename = function() {
         sprintf("tissue_enrichment_%s.%s",
@@ -2662,15 +2717,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           grDevices::dev.off()
           return(invisible())
         }
-        w <- input$dl_width_tissue  %||% 8
-        h <- input$dl_height_tissue %||% 9
-        fmt <- input$dl_format_tissue %||% "png"
-        switch(fmt,
-          png = grDevices::png(file, width = w, height = h, units = "in",
-                               res = input$dl_dpi_tissue %||% 300),
-          pdf = grDevices::pdf(file, width = w, height = h),
-          svg = grDevices::svg(file, width = w, height = h)
-        )
+        open_plot_device(file,
+          fmt   = input$dl_format_tissue %||% "png",
+          w     = input$dl_width_tissue  %||% 8,
+          h     = input$dl_height_tissue %||% 9,
+          units = input$dl_units_tissue  %||% "in",
+          dpi   = input$dl_dpi_tissue    %||% 300)
         print(p)
         grDevices::dev.off()
       }

@@ -13,6 +13,7 @@ library(sass)
 library(memoise)
 library(jsonlite)
 library(colourpicker)
+library(ggrepel)   # used by mod_snp_assoc.R for Manhattan-plot gene labels
 
 # Load functions and modules
 source('functions.R')
