@@ -170,7 +170,13 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   w_key <- key("dl_width")
   h_key <- key("dl_height")
   u_key <- key("dl_units")
-  observe({
+  # observeEvent (not observe) so this only fires on ON-SCREEN dim changes
+  # — reading input[[u_key]] inside an `observe({})` block created a
+  # reactive dep on the units picker, so toggling units re-fired this
+  # observer and overwrote whatever `dl_units_auto_convert` (or a
+  # manual user edit) had put in width / height with the on-screen
+  # dims in the new unit.
+  observeEvent(dims_reactive(), {
     dims <- dims_reactive()
     u    <- input[[u_key]] %||% "in"
     # `.dl_and_download_column` doesn't expose a DPI input in the compare
