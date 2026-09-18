@@ -37,12 +37,15 @@
   "tissue"
 )
 
-.gd_new <- function(root_dir, manifest, legacy_data = NULL) {
+.gd_new <- function(root_dir, manifest, legacy_data = NULL, extract_dir = NULL) {
   structure(
     list(
       root_dir    = root_dir,
       manifest    = manifest,
       legacy_data = legacy_data,
+      # extract_dir is populated for tarball opens (the tempdir untar wrote to)
+      # so callers can unlink it when the bundle is swapped or the session ends.
+      extract_dir = extract_dir,
       cache       = new.env(parent = emptyenv())
     ),
     class = "gd_result"
@@ -125,12 +128,18 @@ gd_open <- function(path) {
     extract_dir <- tempfile("gd_bundle_")
     dir.create(extract_dir)
     ec <- utils::untar(path, exdir = extract_dir)
-    if (!identical(ec, 0L) && !is.null(ec)) stop("gd_open: failed to extract ", path)
+    if (!identical(ec, 0L) && !is.null(ec)) {
+      unlink(extract_dir, recursive = TRUE)
+      stop("gd_open: failed to extract ", path)
+    }
     mf <- list.files(extract_dir, pattern = "^manifest\\.json$", recursive = TRUE, full.names = TRUE)
-    if (length(mf) != 1L) stop("gd_open: expected exactly one manifest.json inside the bundle; found ", length(mf))
+    if (length(mf) != 1L) {
+      unlink(extract_dir, recursive = TRUE)
+      stop("gd_open: expected exactly one manifest.json inside the bundle; found ", length(mf))
+    }
     root_dir <- dirname(mf[1L])
     manifest <- jsonlite::fromJSON(mf[1L], simplifyVector = FALSE)
-    return(.gd_new(root_dir = root_dir, manifest = manifest))
+    return(.gd_new(root_dir = root_dir, manifest = manifest, extract_dir = extract_dir))
   }
 
   # Directory containing manifest.json
@@ -165,9 +174,17 @@ gd_blocks <- function(gd, gwas) {
 
 gd_read <- function(gd, gwas, block) {
   stopifnot(inherits(gd, "gd_result"))
+  cache <- gd$cache
   cache_key <- paste0(gwas, "|", block)
-  hit <- gd$cache[[cache_key]]
-  if (!is.null(hit)) return(hit$value)   # cached NULL still returns NULL
+
+  # Reserved LRU bookkeeping keys inside cache env. `|` is illegal in these
+  # so they can't collide with real "<gwas>|<block>" keys.
+  hit <- cache[[cache_key]]
+  if (!is.null(hit)) {
+    lru <- cache$.__lru__
+    cache$.__lru__ <- c(setdiff(lru, cache_key), cache_key)
+    return(hit$value)                  # cached NULL still returns NULL
+  }
 
   if (.gd_is_legacy(gd)) {
     keys  <- strsplit(block, "/", fixed = TRUE)[[1L]]
@@ -181,7 +198,23 @@ gd_read <- function(gd, gwas, block) {
     }
   }
 
-  gd$cache[[cache_key]] <- list(value = value)
+  bytes <- as.numeric(utils::object.size(value))
+  cache[[cache_key]] <- list(value = value, bytes = bytes)
+  cache$.__lru__   <- c(cache$.__lru__, cache_key)
+  prev_bytes       <- cache$.__bytes__
+  cache$.__bytes__ <- (if (is.null(prev_bytes)) 0 else prev_bytes) + bytes
+
+  # Evict oldest until under cap. Keep at least the just-inserted entry so a
+  # single oversize block is still returned (it just won't survive the next
+  # insertion).
+  cap <- as.numeric(getOption("genodisc.cache_bytes", 200 * 1024^2))
+  while (isTRUE(cache$.__bytes__ > cap) && length(cache$.__lru__) > 1L) {
+    victim <- cache$.__lru__[1L]
+    cache$.__lru__   <- cache$.__lru__[-1L]
+    cache$.__bytes__ <- cache$.__bytes__ - cache[[victim]]$bytes
+    rm(list = victim, envir = cache)
+  }
+
   value
 }
 

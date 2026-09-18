@@ -24,6 +24,20 @@ dataInputServer <- function(id) {
 
     rds_path <- reactiveVal('')
 
+    # Extract dir of the currently-loaded bundle, so we can unlink it on
+    # bundle swap and session end (shinyapps.io 1 GB RAM / small /tmp).
+    prev_extract_dir <- reactiveVal(NULL)
+    session$onSessionEnded(function() {
+      d <- isolate(prev_extract_dir())
+      if (!is.null(d) && dir.exists(d)) unlink(d, recursive = TRUE)
+    })
+
+    .is_shiny_upload <- function(p) {
+      if (!nzchar(p)) return(FALSE)
+      startsWith(normalizePath(p, mustWork = FALSE),
+                 normalizePath(tempdir(), mustWork = FALSE))
+    }
+
     # Uploads land at a random datapath with no extension. gd_open dispatches
     # on file extension (tarball vs .rds), so we rename to preserve it.
     observeEvent(input$file, {
@@ -60,7 +74,14 @@ dataInputServer <- function(id) {
 
     gwas_data <- reactive({
       req(rds_path() != '')
-      gd <- tryCatch(gd_open(rds_path()), error = function(e) {
+      path <- rds_path()
+
+      # Release the previous bundle's extract dir before opening the next.
+      old_dir <- isolate(prev_extract_dir())
+      if (!is.null(old_dir) && dir.exists(old_dir)) unlink(old_dir, recursive = TRUE)
+      prev_extract_dir(NULL)
+
+      gd <- tryCatch(gd_open(path), error = function(e) {
         showNotification(paste0("Could not open file: ", conditionMessage(e)), type = "error")
         NULL
       })
@@ -69,6 +90,40 @@ dataInputServer <- function(id) {
         showNotification("Results package contains no GWAS.", type = "error")
         req(FALSE)
       }
+
+      # Bundle guard: refuse bundles the current instance can't afford to
+      # render. Caps are configurable so a self-hosted user with more RAM
+      # can raise them via options() at startup.
+      max_gwas  <- as.integer(getOption("genodisc.max_gwas", 8L))
+      max_bytes <- as.numeric(getOption("genodisc.max_bundle_bytes", 400 * 1024^2))
+      n_gwas    <- length(gd_gwas(gd))
+      total_bytes <- {
+        blocks <- gd_manifest(gd)$blocks
+        s <- 0
+        for (g in names(blocks)) for (b in names(blocks[[g]])) {
+          bb <- blocks[[g]][[b]]$bytes
+          if (!is.null(bb) && !is.na(bb)) s <- s + as.numeric(bb)
+        }
+        s
+      }
+      if (n_gwas > max_gwas || total_bytes > max_bytes) {
+        showNotification(sprintf(
+          "Bundle too large for this instance: %d GWAS / %.0f MB of block data (limits: %d GWAS / %.0f MB). Split the bundle or upload a smaller one.",
+          n_gwas, total_bytes / 1024^2, max_gwas, max_bytes / 1024^2),
+          type = "error", duration = NULL)
+        if (!is.null(gd$extract_dir) && dir.exists(gd$extract_dir)) {
+          unlink(gd$extract_dir, recursive = TRUE)
+        }
+        req(FALSE)
+      }
+
+      # Extraction succeeded — release the uploaded tarball so we don't hold
+      # both it and the extracted tree in /tmp for the session. Only touch
+      # files under tempdir() (i.e. actual shiny uploads, not the shipped
+      # example bundle).
+      if (.is_shiny_upload(path) && file.exists(path)) unlink(path)
+
+      prev_extract_dir(gd$extract_dir)
       gd
     })
 

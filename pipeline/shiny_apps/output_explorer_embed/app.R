@@ -20,7 +20,13 @@ source('functions.R')
 source('reader.R')
 for (f in list.files("R", full.names = TRUE, pattern = "\\.R$")) source(f)
 
-options(shiny.maxRequestSize = 600 * 1024 * 1024)
+# 150 MB cap: matches the 1 GB shinyapps.io RAM budget for an ALS-scale bundle
+# (see tests/memory_profile). Set as a default so a caller (e.g. the profile
+# harness, or a self-hosted deployment with more RAM) can lift it via
+# options(shiny.maxRequestSize=...) before runApp() without being clobbered.
+if (is.null(getOption("shiny.maxRequestSize"))) {
+  options(shiny.maxRequestSize = 150 * 1024 * 1024)
+}
 options(shiny.legacy.datatable = TRUE)
 
 # Define UI

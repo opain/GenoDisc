@@ -38,9 +38,19 @@ mkdir -p "$RUN_TMP"
 pkill -f "shiny::runApp.*port = ${PORT}" 2>/dev/null || true
 sleep 1
 
-# Start app in background with scoped TMPDIR
+# Start app in background with scoped TMPDIR. GENODISC_MAX_* raise the
+# in-app bundle guard so we can profile bundles bigger than production
+# would normally admit; the LRU cache cap is intentionally left at its
+# default so we measure realistic user-facing memory behaviour.
+GD_MAX_GWAS="${GENODISC_MAX_GWAS:-64}"
+GD_MAX_BYTES="${GENODISC_MAX_BUNDLE_BYTES:-4294967296}"     # 4 GB
+GD_UPLOAD_BYTES="${SHINY_MAX_REQUEST_SIZE:-2147483648}"     # 2 GB, lifts app.R's production cap
+OPTS="options(genodisc.max_gwas=${GD_MAX_GWAS}L, genodisc.max_bundle_bytes=${GD_MAX_BYTES}, shiny.maxRequestSize=${GD_UPLOAD_BYTES})"
+if [ -n "${GENODISC_CACHE_BYTES:-}" ]; then
+  OPTS="$OPTS; options(genodisc.cache_bytes=${GENODISC_CACHE_BYTES})"
+fi
 env TMPDIR="$RUN_TMP" "$RSCRIPT" \
-  -e "shiny::runApp('$APP_DIR', port = ${PORT}, host = '127.0.0.1', launch.browser = FALSE)" \
+  -e "${OPTS}; shiny::runApp('$APP_DIR', port = ${PORT}, host = '127.0.0.1', launch.browser = FALSE)" \
   > "$APP_LOG" 2>&1 &
 APP_PID=$!
 echo "started app pid=$APP_PID  log=$APP_LOG"
