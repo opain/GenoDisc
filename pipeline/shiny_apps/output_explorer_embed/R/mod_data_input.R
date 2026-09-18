@@ -92,11 +92,9 @@ dataInputServer <- function(id) {
       }
 
       # Bundle guard: refuse bundles the current instance can't afford to
-      # render. Caps are configurable so a self-hosted user with more RAM
-      # can raise them via options() at startup.
-      max_gwas  <- as.integer(getOption("genodisc.max_gwas", 8L))
+      # render. Cap is on total block-data size (from manifest); configurable
+      # via options() so a self-hosted user with more RAM can raise it.
       max_bytes <- as.numeric(getOption("genodisc.max_bundle_bytes", 400 * 1024^2))
-      n_gwas    <- length(gd_gwas(gd))
       total_bytes <- {
         blocks <- gd_manifest(gd)$blocks
         s <- 0
@@ -106,10 +104,10 @@ dataInputServer <- function(id) {
         }
         s
       }
-      if (n_gwas > max_gwas || total_bytes > max_bytes) {
+      if (total_bytes > max_bytes) {
         showNotification(sprintf(
-          "Bundle too large for this instance: %d GWAS / %.0f MB of block data (limits: %d GWAS / %.0f MB). Split the bundle or upload a smaller one.",
-          n_gwas, total_bytes / 1024^2, max_gwas, max_bytes / 1024^2),
+          "Bundle too large for this instance: %.0f MB of block data (limit: %.0f MB). Split the bundle or upload a smaller one.",
+          total_bytes / 1024^2, max_bytes / 1024^2),
           type = "error", duration = NULL)
         if (!is.null(gd$extract_dir) && dir.exists(gd$extract_dir)) {
           unlink(gd$extract_dir, recursive = TRUE)

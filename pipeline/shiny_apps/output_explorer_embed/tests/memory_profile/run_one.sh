@@ -42,10 +42,9 @@ sleep 1
 # in-app bundle guard so we can profile bundles bigger than production
 # would normally admit; the LRU cache cap is intentionally left at its
 # default so we measure realistic user-facing memory behaviour.
-GD_MAX_GWAS="${GENODISC_MAX_GWAS:-64}"
 GD_MAX_BYTES="${GENODISC_MAX_BUNDLE_BYTES:-4294967296}"     # 4 GB
 GD_UPLOAD_BYTES="${SHINY_MAX_REQUEST_SIZE:-2147483648}"     # 2 GB, lifts app.R's production cap
-OPTS="options(genodisc.max_gwas=${GD_MAX_GWAS}L, genodisc.max_bundle_bytes=${GD_MAX_BYTES}, shiny.maxRequestSize=${GD_UPLOAD_BYTES})"
+OPTS="options(genodisc.max_bundle_bytes=${GD_MAX_BYTES}, shiny.maxRequestSize=${GD_UPLOAD_BYTES})"
 if [ -n "${GENODISC_CACHE_BYTES:-}" ]; then
   OPTS="$OPTS; options(genodisc.cache_bytes=${GENODISC_CACHE_BYTES})"
 fi
