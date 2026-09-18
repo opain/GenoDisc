@@ -94,7 +94,7 @@ dataInputServer <- function(id) {
       # Bundle guard: refuse bundles the current instance can't afford to
       # render. Cap is on total block-data size (from manifest); configurable
       # via options() so a self-hosted user with more RAM can raise it.
-      max_bytes <- as.numeric(getOption("genodisc.max_bundle_bytes", 400 * 1024^2))
+      max_bytes <- as.numeric(getOption("genodisc.max_bundle_bytes", 150 * 1024^2))
       total_bytes <- {
         blocks <- gd_manifest(gd)$blocks
         s <- 0
