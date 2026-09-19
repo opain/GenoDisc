@@ -89,6 +89,17 @@ pathway_gmt_dir: NA
 magma_pathway: F
 twas_gsea_pathway: F     # non-directional only
 
+# Post-hoc MAGMA gene-set x GTEx tissue interaction (de Leeuw 2018, Nat Commun 9:3768).
+# For each GWAS x tissue x set (>= min_set_size genes), tests whether a pathway's
+# genetic association is specific to genes strongly expressed in that tissue,
+# with overall_expression and overall_expression x set included as covariates.
+# Reuses magma_gene_level.genes.raw and GTEx_v8_tissue.tsv - no new gene analysis.
+# Requires magma_gene: T and pathway_gmt_dir set.
+magma_interaction:
+  enabled: false
+  min_set_size: 100
+  fdr_threshold: 0.05
+
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
 # Set the flag to T and provide the path to the prop file produced by
 # DrugRepurposing/Code/Published/make_twas_gsea_prop.R

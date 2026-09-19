@@ -83,3 +83,10 @@ gcsc_tissues: ["Whole_Blood"]
 # MAGMA tissue-specific + conditional tissue enrichment (GTEx v8)
 tissue_magma: T
 
+# MAGMA gene-set x tissue interaction analysis (uses the two GMTs in resources/data/msigdb)
+pathway_gmt_dir: resources/data/msigdb
+magma_interaction:
+  enabled: true
+  min_set_size: 25         # MAGMA v1.10 hard floor for --model interaction-sc-size
+  fdr_threshold: 0.05
+

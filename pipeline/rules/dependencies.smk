@@ -80,6 +80,35 @@ if config.get('twas_gsea_pathway', 'F') == 'T':
         print("Error: twas_gsea_pathway is 'T' but no TWAS panel is enabled; set twas_panel_fusion: 'T' or twas_panel_psychencode: 'T'.")
         sys.exit(1)
 
+# MAGMA gene-set x tissue interaction (post-hoc de Leeuw 2018 analysis).
+magma_interaction_cfg = config.get('magma_interaction', {})
+if not isinstance(magma_interaction_cfg, dict):
+    print(f"Error: magma_interaction must be a mapping (got {type(magma_interaction_cfg).__name__}).")
+    sys.exit(1)
+magma_interaction_enabled = magma_interaction_cfg.get('enabled', False)
+if magma_interaction_enabled not in (True, False):
+    print(f"Error: magma_interaction.enabled must be true or false (got {magma_interaction_enabled!r}).")
+    sys.exit(1)
+if magma_interaction_enabled:
+    if config.get('magma_gene', 'F') != 'T':
+        print("Error: magma_interaction.enabled is true but magma_gene is not 'T'; the interaction module reuses magma_gene_level.genes.raw.")
+        sys.exit(1)
+    if pathway_gmt_dir_val in (None, 'NA'):
+        print("Error: magma_interaction.enabled is true but pathway_gmt_dir is not set.")
+        sys.exit(1)
+    if not pathway_gmts:
+        print(f"Error: magma_interaction.enabled is true but pathway_gmt_dir={pathway_gmt_dir_val} contains no *.gmt files.")
+        sys.exit(1)
+    mss = magma_interaction_cfg.get('min_set_size', 100)
+    if not isinstance(mss, int) or isinstance(mss, bool) or mss < 25:
+        # MAGMA v1.10 rejects --model interaction-sc-size below 25.
+        print(f"Error: magma_interaction.min_set_size must be an int >= 25 (MAGMA hard floor); got {mss!r}.")
+        sys.exit(1)
+    fdr_thr = magma_interaction_cfg.get('fdr_threshold', 0.05)
+    if isinstance(fdr_thr, bool) or not isinstance(fdr_thr, (int, float)) or not (0 < fdr_thr <= 1):
+        print(f"Error: magma_interaction.fdr_threshold must be a number in (0, 1] (got {fdr_thr!r}).")
+        sys.exit(1)
+
 # Set outdir parameter
 outdir=config['outdir']
 
@@ -1275,6 +1304,9 @@ if config["magma_drugtargetor"] == "T":
     ])
 
 if config["tissue_magma"] == "T":
+    resource_inputs.append(rules.prep_tissue_exp.output)
+
+if magma_interaction_enabled:
     resource_inputs.append(rules.prep_tissue_exp.output)
 
 # TWAS

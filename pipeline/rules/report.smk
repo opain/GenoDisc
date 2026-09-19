@@ -29,6 +29,10 @@ if config["magma_gene"] == "T":
 if config.get("magma_pathway", "F") == "T" and pathway_gmts:
     myoutput.append(expand("{outdir}/results/{gwas}/magma/pathway/magma_pathway_all.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+if magma_interaction_enabled:
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/interaction/interaction_results.tsv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/interaction/interaction_calibration.tsv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config.get("twas_gsea_pathway", "F") == "T" and pathway_gmts:
     myoutput.append(expand("{outdir}/results/{gwas}/twas/pathway/twas_gsea_pathway_all.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
