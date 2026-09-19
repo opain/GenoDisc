@@ -89,4 +89,5 @@ magma_interaction:
   enabled: true
   min_set_size: 25         # MAGMA v1.10 hard floor for --model interaction-sc-size
   fdr_threshold: 0.05
+  n_cores: 1
 

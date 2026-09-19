@@ -18,13 +18,16 @@ suppressMessages(library(optparse))
 suppressMessages(library(data.table))
 suppressMessages(library(yaml))
 suppressMessages(library(jsonlite))
+suppressMessages(library(parallel))
 
 opt <- parse_args(OptionParser(option_list = list(
   make_option("--pipeline_dir", type = "character"),
   make_option("--gwas",         type = "character"),
   make_option("--config_file",  type = "character"),
   make_option("--resdir",       type = "character"),
-  make_option("--outdir",       type = "character")
+  make_option("--outdir",       type = "character"),
+  make_option("--n_cores",      type = "integer", default = 1L,
+              help = "Parallel workers for the per-set MAGMA loop [default: 1]")
 )))
 
 # The pipeline sets resdir: NA to mean "resources"; mirror the
@@ -210,11 +213,13 @@ parse_inter_tissue <- function(d) {
 # uses interaction-each={S} to produce one t x S test per tissue.
 # The Average main effect AND the Average x S interaction MUST be
 # included as covariates - see the spec's non-negotiable check.
+# Parallelised over sets via parallel::mclapply when --n_cores > 1.
 # ---------------------------------------------------------------------
-commands <- list()
-primary <- vector("list", length(sets))
+n_cores <- if (is.null(opt$n_cores)) 1L else max(1L, as.integer(opt$n_cores))
+cat(sprintf("magma_interaction: using %d parallel worker(s) for the per-set MAGMA loop\n",
+            n_cores))
 
-for (i in seq_along(sets)) {
+run_primary <- function(i) {
   s <- sets[[i]]
   set_gmt_path <- file.path(tmp_root, sprintf("set_%05d.gmt", i))
   covar_path   <- file.path(tmp_root, sprintf("cov_%05d.tsv", i))
@@ -233,36 +238,63 @@ for (i in seq_along(sets)) {
       sprintf("analyse=list,%s,%s", s$name, tissue_analyse)
   )
   r <- run_magma(args, prefix)
-  commands[[length(commands) + 1L]] <- list(
+  # Free the covar file immediately; keep .gmt and .gsa.out for now.
+  unlink(covar_path)
+
+  cmd_entry <- list(
     stage = "primary", set_index = i, gmt = s$gmt, set = s$name,
     n_in_set = s$n_in_set, cmd = r$cmd, status = r$status
   )
-  # Free the covar file immediately; keep .gmt and .gsa.out for now.
-  unlink(covar_path)
-  if (r$status != 0L) {
-    warning(sprintf("MAGMA failed for set %s (status %d); see %s.stderr",
-                    s$name, r$status, prefix))
-    next
-  }
 
-  d <- read_gsa(prefix)
-  if (is.null(d) || nrow(d) == 0L) next
-  # INTER-SC = "interaction: set by covariate" per MAGMA manual p.24
-  d <- d[TYPE == "INTER-SC"]
-  if (nrow(d) == 0L) next
-  tissue_name <- parse_inter_tissue(d)
-  primary[[i]] <- data.table(
+  # Always emit one row per tissue for this set (spec: do not silently
+  # drop anything). Rows where MAGMA did not return an INTER-SC entry
+  # are filled with NA.
+  skeleton <- data.table(
     gwas           = opt$gwas,
-    tissue         = tissue_name,
+    tissue         = tissue_cols,
     gene_set       = s$name,
     gmt            = s$gmt,
     n_genes_in_set = s$n_in_set,
-    n_genes_tested = as.integer(d$NGENES),
-    beta           = as.numeric(d$BETA),
-    se             = as.numeric(d$SE),
-    p_interaction  = as.numeric(d$P)
+    n_genes_tested = NA_integer_,
+    beta           = NA_real_,
+    se             = NA_real_,
+    p_interaction  = NA_real_
   )
+
+  if (r$status != 0L) {
+    return(list(cmd = cmd_entry, row = skeleton,
+                warn = sprintf("MAGMA failed for set %s (status %d); see %s.stderr",
+                               s$name, r$status, prefix)))
+  }
+
+  d <- read_gsa(prefix)
+  if (is.null(d) || nrow(d) == 0L) return(list(cmd = cmd_entry, row = skeleton))
+  # INTER-SC = "interaction: set by covariate" per MAGMA manual p.24
+  d <- d[TYPE == "INTER-SC"]
+  if (nrow(d) == 0L) return(list(cmd = cmd_entry, row = skeleton))
+  d[, tissue_name := parse_inter_tissue(d)]
+  # Left-merge onto the tissue skeleton: any tissue MAGMA skipped stays NA.
+  m <- match(skeleton$tissue, d$tissue_name)
+  ok <- !is.na(m)
+  skeleton$n_genes_tested[ok] <- as.integer(d$NGENES[m[ok]])
+  skeleton$beta[ok]           <- as.numeric(d$BETA[m[ok]])
+  skeleton$se[ok]             <- as.numeric(d$SE[m[ok]])
+  skeleton$p_interaction[ok]  <- as.numeric(d$P[m[ok]])
+  list(cmd = cmd_entry, row = skeleton)
 }
+
+par_lapply <- function(x, FUN) {
+  if (n_cores > 1L) {
+    parallel::mclapply(x, FUN, mc.cores = n_cores, mc.preschedule = FALSE)
+  } else {
+    lapply(x, FUN)
+  }
+}
+
+primary_results <- par_lapply(seq_along(sets), run_primary)
+commands <- lapply(primary_results, `[[`, "cmd")
+for (pr in primary_results) if (!is.null(pr$warn)) warning(pr$warn, call. = FALSE)
+primary <- lapply(primary_results, `[[`, "row")
 
 results <- rbindlist(Filter(Negate(is.null), primary), use.names = TRUE, fill = TRUE)
 if (nrow(results) == 0L) {
@@ -352,18 +384,18 @@ run_top25 <- function(s, tissue_name) {
       "direction-sets=greater"
   )
   r <- run_magma(args, prefix)
-  commands[[length(commands) + 1L]] <<- list(
+  cmd_entry <- list(
     stage = "top25", set = s$name, tissue = tissue_name,
     cmd = r$cmd, status = r$status
   )
-  if (r$status != 0L) return(NA_real_)
+  if (r$status != 0L) return(list(p = NA_real_, cmd = cmd_entry))
   d <- read_gsa(prefix)
-  if (is.null(d) || nrow(d) == 0L) return(NA_real_)
+  if (is.null(d) || nrow(d) == 0L) return(list(p = NA_real_, cmd = cmd_entry))
   # The row corresponding to top_name; match on FULL_NAME to sidestep 30-char truncation.
   nm <- if ("FULL_NAME" %in% names(d)) d$FULL_NAME else d$VARIABLE
   hit <- which(as.character(nm) == top_name)
-  if (length(hit) == 0L) return(NA_real_)
-  as.numeric(d$P[hit[1]])
+  if (length(hit) == 0L) return(list(p = NA_real_, cmd = cmd_entry))
+  list(p = as.numeric(d$P[hit[1]]), cmd = cmd_entry)
 }
 
 # --- Follow-up 2: neighbourhood-peel outlier removal -----------------
@@ -434,20 +466,21 @@ run_outlier_check <- function(s, tissue_name) {
       sprintf("analyse=list,%s,%s", s$name, tissue_analyse)
   )
   r <- run_magma(args, prefix)
-  commands[[length(commands) + 1L]] <<- list(
+  cmd_entry <- list(
     stage = "outlier", set = s$name, tissue = tissue_name,
     n_outliers = as.integer(n_out),
     cmd = r$cmd, status = r$status
   )
-  if (r$status != 0L) return(list(p = NA_real_, n_out = as.integer(n_out)))
+  na_ret <- function() list(p = NA_real_, n_out = as.integer(n_out), cmd = cmd_entry)
+  if (r$status != 0L) return(na_ret())
   d <- read_gsa(prefix)
-  if (is.null(d) || nrow(d) == 0L) return(list(p = NA_real_, n_out = as.integer(n_out)))
+  if (is.null(d) || nrow(d) == 0L) return(na_ret())
   d <- d[TYPE == "INTER-SC"]
-  if (nrow(d) == 0L) return(list(p = NA_real_, n_out = as.integer(n_out)))
+  if (nrow(d) == 0L) return(na_ret())
   d[, .tissue := parse_inter_tissue(d)]
   hit <- which(d$.tissue == tissue_name)
-  if (length(hit) == 0L) return(list(p = NA_real_, n_out = as.integer(n_out)))
-  list(p = as.numeric(d$P[hit[1]]), n_out = as.integer(n_out))
+  if (length(hit) == 0L) return(na_ret())
+  list(p = as.numeric(d$P[hit[1]]), n_out = as.integer(n_out), cmd = cmd_entry)
 }
 
 # Initialise follow-up columns with NA
@@ -462,20 +495,36 @@ if (nrow(results) > 0L) {
   fdr_hits <- which(results$fdr < fdr_thr)
   cat(sprintf("magma_interaction: %d row(s) pass primary FDR (%g); running follow-up tests\n",
               length(fdr_hits), fdr_thr))
-  for (k in fdr_hits) {
+  run_followup <- function(k) {
     row_gmt <- results$gmt[k]
     row_set <- results$gene_set[k]
     row_tis <- results$tissue[k]
     s <- set_lookup[[paste(row_gmt, row_set, sep = "|")]]
-    if (is.null(s)) next
-    top_p <- tryCatch(run_top25(s, row_tis),
-                      error = function(e) { warning(conditionMessage(e)); NA_real_ })
-    outres <- tryCatch(run_outlier_check(s, row_tis),
-                       error = function(e) { warning(conditionMessage(e));
-                                             list(p = NA_real_, n_out = NA_integer_) })
-    results$p_top25[k]                        <- top_p
-    results$p_interaction_outliers_removed[k] <- outres$p
-    results$n_outliers[k]                     <- outres$n_out
+    if (is.null(s)) return(NULL)
+    top <- tryCatch(run_top25(s, row_tis),
+                    error = function(e) list(p = NA_real_,
+                                             cmd = list(stage = "top25", set = s$name,
+                                                        tissue = row_tis,
+                                                        error = conditionMessage(e))))
+    out <- tryCatch(run_outlier_check(s, row_tis),
+                    error = function(e) list(p = NA_real_, n_out = NA_integer_,
+                                             cmd = list(stage = "outlier", set = s$name,
+                                                        tissue = row_tis,
+                                                        error = conditionMessage(e))))
+    list(k = k,
+         p_top25 = top$p,
+         p_outliers_removed = out$p,
+         n_out = out$n_out,
+         cmds = list(top$cmd, out$cmd))
+  }
+  followups <- par_lapply(fdr_hits, run_followup)
+  for (fu in followups) {
+    if (is.null(fu)) next
+    k <- fu$k
+    results$p_top25[k]                        <- fu$p_top25
+    results$p_interaction_outliers_removed[k] <- fu$p_outliers_removed
+    results$n_outliers[k]                     <- fu$n_out
+    for (ce in fu$cmds) if (!is.null(ce)) commands[[length(commands) + 1L]] <- ce
   }
 }
 

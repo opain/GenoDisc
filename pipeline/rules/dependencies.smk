@@ -108,6 +108,10 @@ if magma_interaction_enabled:
     if isinstance(fdr_thr, bool) or not isinstance(fdr_thr, (int, float)) or not (0 < fdr_thr <= 1):
         print(f"Error: magma_interaction.fdr_threshold must be a number in (0, 1] (got {fdr_thr!r}).")
         sys.exit(1)
+    nc = magma_interaction_cfg.get('n_cores', 1)
+    if not isinstance(nc, int) or isinstance(nc, bool) or nc < 1:
+        print(f"Error: magma_interaction.n_cores must be an int >= 1 (got {nc!r}).")
+        sys.exit(1)
 
 # Set outdir parameter
 outdir=config['outdir']

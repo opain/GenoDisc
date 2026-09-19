@@ -8,6 +8,8 @@
 # and GTEx_v8_tissue.tsv - no new gene analysis is performed here.
 ##########
 
+_mi_n_cores = int(magma_interaction_cfg.get('n_cores', 1)) if magma_interaction_enabled else 1
+
 rule magma_gene_set_by_tissue_interaction:
   input:
     genes_raw = "{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
@@ -22,9 +24,12 @@ rule magma_gene_set_by_tissue_interaction:
     "{outdir}/benchmarks/magma_gene_set_by_tissue_interaction_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
+  resources:
+    cpus=_mi_n_cores
   params:
     resdir=resdir,
-    config_file=config['config_file']
+    config_file=config['config_file'],
+    n_cores=_mi_n_cores
   log:
     "{outdir}/logs/magma_gene_set_by_tissue_interaction-{gwas}.log"
   shell:
@@ -33,7 +38,8 @@ rule magma_gene_set_by_tissue_interaction:
        --gwas {wildcards.gwas} \
        --config_file {params.config_file} \
        --resdir {params.resdir} \
-       --outdir {outdir} > {log} 2>&1"
+       --outdir {outdir} \
+       --n_cores {params.n_cores} > {log} 2>&1"
 
 rule magma_gene_set_by_tissue_interaction_all:
   input:

@@ -99,6 +99,7 @@ magma_interaction:
   enabled: false
   min_set_size: 100
   fdr_threshold: 0.05
+  n_cores: 1               # parallel workers for the per-set MAGMA loop
 
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
 # Set the flag to T and provide the path to the prop file produced by
