@@ -112,6 +112,18 @@ if magma_interaction_enabled:
     if not isinstance(nc, int) or isinstance(nc, bool) or nc < 1:
         print(f"Error: magma_interaction.n_cores must be an int >= 1 (got {nc!r}).")
         sys.exit(1)
+    fpt = magma_interaction_cfg.get('followup_p_threshold', 1e-4)
+    if isinstance(fpt, bool) or not isinstance(fpt, (int, float)) or not (0 < fpt <= 1):
+        print(f"Error: magma_interaction.followup_p_threshold must be a number in (0, 1] (got {fpt!r}).")
+        sys.exit(1)
+    bpt = magma_interaction_cfg.get('bias_flag_p_threshold', 1e-3)
+    if isinstance(bpt, bool) or not isinstance(bpt, (int, float)) or not (0 < bpt <= 1):
+        print(f"Error: magma_interaction.bias_flag_p_threshold must be a number in (0, 1] (got {bpt!r}).")
+        sys.exit(1)
+    bmt = magma_interaction_cfg.get('bias_flag_min_tissues', 5)
+    if not isinstance(bmt, int) or isinstance(bmt, bool) or bmt < 1:
+        print(f"Error: magma_interaction.bias_flag_min_tissues must be an int >= 1 (got {bmt!r}).")
+        sys.exit(1)
 
 # Set outdir parameter
 outdir=config['outdir']

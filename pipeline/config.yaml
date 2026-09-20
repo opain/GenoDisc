@@ -99,7 +99,10 @@ magma_interaction:
   enabled: false
   min_set_size: 100
   fdr_threshold: 0.05
-  n_cores: 1               # parallel workers for the per-set MAGMA loop
+  n_cores: 1                    # parallel workers for the per-set MAGMA loop
+  followup_p_threshold: 1.0e-4  # top-25% + outlier follow-ups fire on any row with p_interaction below this
+  bias_flag_p_threshold: 1.0e-3 # a set is flagged bias-suspect if...
+  bias_flag_min_tissues: 5      # ...at least this many tissues have p_interaction below bias_flag_p_threshold
 
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures (directional)
 # Set the flag to T and provide the path to the prop file produced by

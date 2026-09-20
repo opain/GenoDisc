@@ -28,7 +28,8 @@ expected_cols <- c(
   "beta", "se",
   "p_interaction", "p_interaction_outliers_removed",
   "n_outliers", "p_top25",
-  "fdr", "p_bonferroni_tissue", "retained"
+  "fdr", "p_bonferroni_tissue", "retained",
+  "set_n_tissues_p_low", "set_bias_suspect"
 )
 
 check_gwas <- function(g) {

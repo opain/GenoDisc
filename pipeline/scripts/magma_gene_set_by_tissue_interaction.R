@@ -39,8 +39,11 @@ mi  <- cfg$magma_interaction
 if (is.null(mi) || !isTRUE(mi$enabled)) {
   stop("magma_interaction.enabled is not true in ", opt$config_file)
 }
-min_set_size <- as.integer(if (is.null(mi$min_set_size))  100L else mi$min_set_size)
-fdr_thr      <- as.numeric(if (is.null(mi$fdr_threshold)) 0.05 else mi$fdr_threshold)
+min_set_size    <- as.integer(if (is.null(mi$min_set_size))          100L  else mi$min_set_size)
+fdr_thr         <- as.numeric(if (is.null(mi$fdr_threshold))         0.05  else mi$fdr_threshold)
+followup_p_thr  <- as.numeric(if (is.null(mi$followup_p_threshold))  1e-4  else mi$followup_p_threshold)
+bias_p_thr      <- as.numeric(if (is.null(mi$bias_flag_p_threshold)) 1e-3  else mi$bias_flag_p_threshold)
+bias_min_hits   <- as.integer(if (is.null(mi$bias_flag_min_tissues)) 5L    else mi$bias_flag_min_tissues)
 gmt_dir      <- cfg$pathway_gmt_dir
 if (is.null(gmt_dir) || identical(gmt_dir, "NA")) {
   stop("pathway_gmt_dir must be set for magma_interaction")
@@ -492,9 +495,15 @@ if (nrow(results) > 0L) {
   # Index sets by (gmt, gene_set) for lookup in follow-ups
   set_lookup <- setNames(sets, vapply(sets, function(s) paste(s$gmt, s$name, sep = "|"),
                                       FUN.VALUE = character(1)))
-  fdr_hits <- which(results$fdr < fdr_thr)
-  cat(sprintf("magma_interaction: %d row(s) pass primary FDR (%g); running follow-up tests\n",
-              length(fdr_hits), fdr_thr))
+  # Fire follow-up diagnostics on any row with p_interaction below
+  # `followup_p_threshold` (default 1e-4). This is broader than primary FDR:
+  # under set-level bias many nominally-small p-values can appear without any
+  # row passing BH-FDR, and the top-25% / outlier tests are exactly the
+  # discriminator between real tissue-specific effects and set-level leakage.
+  fdr_hits <- which(!is.na(results$p_interaction) &
+                    results$p_interaction < followup_p_thr)
+  cat(sprintf("magma_interaction: %d row(s) with p_interaction < %g; running follow-up tests\n",
+              length(fdr_hits), followup_p_thr))
   run_followup <- function(k) {
     row_gmt <- results$gmt[k]
     row_set <- results$gene_set[k]
@@ -532,6 +541,21 @@ results[, retained := !is.na(fdr) & fdr < fdr_thr &
         ((!is.na(p_top25)                        & p_top25 < 0.05) |
          (!is.na(p_interaction_outliers_removed) & p_interaction_outliers_removed < 0.05))]
 
+# Set-level bias flag: count the number of tissues (out of n_tissues) at which
+# this set fires below `bias_flag_p_threshold`. Real tissue-specific effects
+# concentrate in a small number of biologically related tissues; set-level
+# leakage (see plan + de Leeuw 2018 top-25% discussion) spreads across many
+# unrelated tissues. `set_bias_suspect` is a coarse but informative flag.
+if (nrow(results) > 0L) {
+  results[, set_n_tissues_p_low :=
+            sum(!is.na(p_interaction) & p_interaction < bias_p_thr),
+          by = .(gmt, gene_set)]
+  results[, set_bias_suspect := set_n_tissues_p_low >= bias_min_hits]
+} else {
+  results[, set_n_tissues_p_low := integer()]
+  results[, set_bias_suspect    := logical()]
+}
+
 # ---------------------------------------------------------------------
 # Write outputs (fixed column order matching the spec).
 # ---------------------------------------------------------------------
@@ -540,7 +564,8 @@ cols <- c("gwas", "tissue", "gene_set", "gmt",
           "beta", "se",
           "p_interaction", "p_interaction_outliers_removed",
           "n_outliers", "p_top25",
-          "fdr", "p_bonferroni_tissue", "retained")
+          "fdr", "p_bonferroni_tissue", "retained",
+          "set_n_tissues_p_low", "set_bias_suspect")
 fwrite(results[, ..cols], out_results, sep = "\t")
 fwrite(calib, out_calib, sep = "\t")
 writeLines(jsonlite::toJSON(commands, auto_unbox = TRUE, pretty = FALSE), out_cmds)
