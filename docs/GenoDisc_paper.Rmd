@@ -12,13 +12,15 @@ library(data.table)
 * Run pipeline for all GWAS
 * Collate and compare results
 
-***
-
-# Download and format GWAS sumstats
+# V1
 
 ***
 
-## Schizophrenia (SCZ)
+## Download and format GWAS sumstats
+
+***
+
+### Schizophrenia (SCZ)
 
 PMID: 35396580
 EUR only
@@ -46,7 +48,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/
 
 ***
 
-## Bipolar Disorder (BIP)
+### Bipolar Disorder (BIP)
 
 PMID: 39843750 (https://pgc.unc.edu/for-researchers/download-results/)
 
@@ -72,7 +74,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP/
 
 ***
 
-## Major Depressive Disorder (MDD)
+### Major Depressive Disorder (MDD)
 
 I have access to the latest sumstat (incl. 23andMe). Not yet published.
 
@@ -99,7 +101,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MDD/
 
 ***
 
-## ADHD
+### ADHD
 
 PMID: 36702997 (https://pgc.unc.edu/for-researchers/download-results/)
 
@@ -126,7 +128,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD
 
 ***
 
-## Autism Spectrum Disorders (ASD)
+### Autism Spectrum Disorders (ASD)
 
 PMID: 30804558
 Already available on Rosalind: /scratch/prj/gwas_sumstats/cleaned/AUTI07.gz
@@ -150,7 +152,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ASD/
 
 ***
 
-## Amyotrophic Lateral Sclerosis (ALS)
+### Amyotrophic Lateral Sclerosis (ALS)
 
 PMID: 34873335
 European only.
@@ -158,7 +160,7 @@ Already available on Rosalind: /users/k1806347/brc_scratch/Data/GWAS_sumstats/AL
 
 ***
 
-## Alzheimer's Disease (ALZ)
+### Alzheimer's Disease (ALZ)
 
 PMID: 34493870
 Excludes 23andMe.
@@ -179,7 +181,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/
 
 ***
 
-## Parkinson's Disease (PRK)
+### Parkinson's Disease (PRK)
 
 Publicly available version
 PMID: 31701892
@@ -210,7 +212,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/
 
 ***
 
-## Migraine (MIG)
+### Migraine (MIG)
 
 PMID: 35115687
 Excl. 23andMe
@@ -231,7 +233,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MIG/
 
 ***
 
-# Create configuration
+## Create configuration
 
 ```{r}
 
@@ -312,7 +314,7 @@ write.table(config, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/
 
 ***
 
-# Run pipeline for all GWAS
+## Run pipeline for all GWAS
 
 ```{bash}
 cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
@@ -329,7 +331,66 @@ snakemake \
 
 ***
 
+# V2
+
+- Run using latest neurohack version.
+- Add rG analysis
+- Drop CMAP analysis
+
 # Run using neurohack version
+
+```{r}
+####
+# Make a gencor_gwas_list with all GWAS in reference
+####
+
+secondary_gwas <- fread('/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas/sumstat_repo.csv')
+gencor_gwas_list <- data.table(
+  name = secondary_gwas$code,
+  path = paste0('/scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/secondary_gwas/', secondary_gwas$code, '.sumstats.gz'),
+  population = 'EUR',
+  n = NA,
+  sampling = NA,
+  prevalence = NA,
+  mean = NA,
+  sd = NA,
+  label = paste0('"',secondary_gwas$short_label, '"'),
+  trait_category = paste0('"',secondary_gwas$category, '"')
+)
+
+write.table(gencor_gwas_list, 
+            '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gencor_gwas_list.txt',
+            col.names = T, 
+            row.names = F, 
+            quote = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "outdir: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_neuropsych_v2", 
+  "config_file: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych_v2.yaml", 
+  "gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gwas_list_neuropsych.txt", 
+  "magma_gene: T", 
+  "magma_drugtargetor: T", 
+  "tissue_magma: T",
+  "magma_pathway: T",
+  "pathway_gmt_dir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/msigdb",
+  "magma_interaction:",
+  "  enabled: true",
+  "  min_set_size: 100",
+  "  fdr_threshold: 0.05",
+  "  n_cores: 8",
+  "ldsc: T",
+  "gencor_gwas_list: /users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/gencor_gwas_list.txt",
+  "gencor_within_gwas_list: T",
+  "resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources"
+)
+
+write.table(config, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych_v2.yaml', col.names=F, row.names=F, quote=F)
+
+```
 
 ```{bash}
 
@@ -340,20 +401,251 @@ cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
 snakemake \
   -n \
   --profile slurm \
-  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.neurohack.yaml \
+  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych_v2.yaml \
   --use-conda \
   --conda-prefix /scratch/prj/neurohackpain/GenoDisc/conda-envs \
   run_package_results
 
+```
 
-cd /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline
-snakemake \
-  --configfile=/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.yaml \
-  --use-conda \
-  --profile slurm \
-  run_package_results \
-  -n
-  
-/users/k1806347/oliverpainfel/Analyses/genodisc_validation/config/config_neuropsych.neurohack.yaml
+
+***
+
+# Get effective sample size of each GWAS
+
+```{r}
+
+library(data.table)
+
+gwas_files <- list.files('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper', pattern = 'reformat', full.names = T, recursive = T)
+
+effective_n <- NULL
+for(i in gwas_files){
+  dat<-fread(i)
+  med_n <- median(dat$N)
+  effective_n <- rbind(
+    effective_n,
+    data.table(
+      gwas = gsub('\\/.*','', gsub('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/','', i)),
+      n_eff = med_n
+    )
+  )
+}
+
+
+effective_n <- NULL
+for(i in gwas_files){
+  dat<-fread(i)
+  med_n <- median(dat$N)
+  effective_n <- rbind(
+    effective_n,
+    data.table(
+      gwas = gsub('\\/.*','', gsub('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/','', i)),
+      n_eff = med_n
+    )
+  )
+}
+
+/users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_neuropsych
 
 ```
+
+***
+
+# MAGMA gene-set x tissue interaction summary
+
+Cross-GWAS summary of the post-hoc MAGMA gene-set x tissue interaction
+module (`magma_gene_set_by_tissue_interaction` rule) for the 9 neuro/psych
+GWAS. Reads `interaction_results.tsv` and `interaction_calibration.tsv`
+per GWAS from `output_neuropsych_v2/results/<gwas>/magma/interaction/`.
+No pipeline re-run needed — this whole section reads the finished
+outputs.
+
+```{r interaction-load, eval=F, echo=T}
+library(data.table)
+library(ggplot2)
+
+outdir_root <- '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/output_neuropsych_v2/results'
+gwas_list   <- c('SCZ','ADHD','ALS','ALZ','ASD','BIP','MDD','MIG','PRK')
+
+load_gwas <- function(g) {
+  base <- file.path(outdir_root, g, 'magma', 'interaction')
+  r <- fread(file.path(base, 'interaction_results.tsv'))
+  c <- fread(file.path(base, 'interaction_calibration.tsv'))
+  # The interaction module writes 17 cols on eff5452+; earlier SCZ output
+  # was patched post-hoc to append the two set-level diagnostic columns.
+  stopifnot('set_n_tissues_p_low' %in% names(r),
+            'set_bias_suspect'    %in% names(r))
+  r[, gwas := g]; c[, gwas := g]
+  list(results = r, calib = c)
+}
+all_data <- lapply(gwas_list, load_gwas)
+results  <- rbindlist(lapply(all_data, `[[`, 'results'))
+calib    <- rbindlist(lapply(all_data, `[[`, 'calib'))
+```
+
+## Headline table per GWAS
+
+`n_fdr_05` = rows passing BH-FDR<0.05 within a GWAS across the full
+tissue x set grid. `n_retained` = rows passing FDR AND at least one of
+the two de-Leeuw-2018 follow-up tests (top-25% or outlier-removed).
+`n_bias_suspect_sets` counts distinct gene sets with p_interaction<1e-3
+in >=5 tissues within that GWAS — the fingerprint of a set-level effect
+leaking across unrelated tissues (see Section
+"Interpreting the bias flag" below).
+
+```{r interaction-headline, eval=F, echo=T}
+headline <- results[, .(
+  n_rows              = .N,
+  n_tests             = sum(!is.na(p_interaction)),
+  pct_tested          = round(100 * sum(!is.na(p_interaction)) / .N, 1),
+  n_fdr_05            = sum(!is.na(fdr) & fdr < 0.05),
+  n_bonf_tissue_05    = sum(!is.na(p_bonferroni_tissue) & p_bonferroni_tissue < 0.05),
+  n_retained          = sum(retained, na.rm = TRUE),
+  n_bias_suspect_sets = uniqueN(paste(gmt, gene_set)[set_bias_suspect])
+), by = gwas]
+
+calib_summary <- calib[, .(
+  n_tissues_finite = sum(is.finite(lambda_gc)),
+  lambda_min       = round(min(lambda_gc, na.rm = TRUE), 3),
+  lambda_median    = round(median(lambda_gc, na.rm = TRUE), 3),
+  lambda_max       = round(max(lambda_gc, na.rm = TRUE), 3),
+  median_p_median  = round(median(median_p, na.rm = TRUE), 3)
+), by = gwas]
+
+headline <- merge(headline, calib_summary, by = 'gwas', sort = FALSE)
+setorder(headline, gwas)
+knitr::kable(headline, caption = 'MAGMA gene-set x tissue interaction: per-GWAS headline')
+```
+
+## Calibration across tissues
+
+Boxplot of lambda_GC across the 54 GTEx v8 tissues per GWAS. Under a
+well-calibrated null the lambdas should sit around 1. All 9 GWAS pass
+this basic check (lambda medians 0.88-0.98).
+
+```{r interaction-calibration-plot, eval=F, echo=T, fig.width=8, fig.height=4.5}
+ggplot(calib, aes(x = gwas, y = lambda_gc)) +
+  geom_hline(yintercept = 1, colour = 'grey60', linetype = 'dashed') +
+  geom_boxplot(outlier.size = 0.6, fill = 'grey85') +
+  geom_jitter(width = 0.15, alpha = 0.4, size = 0.7) +
+  labs(x = NULL, y = expression(lambda[GC]),
+       title = 'Per-tissue calibration of MAGMA interaction p-values',
+       subtitle = '54 tissues per GWAS') +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+## Hits and bias flags per GWAS
+
+```{r interaction-hits-plot, eval=F, echo=T, fig.width=9, fig.height=5}
+sig_long <- melt(headline[, .(gwas, n_fdr_05, n_bonf_tissue_05,
+                              n_retained, n_bias_suspect_sets)],
+                 id.vars = 'gwas', variable.name = 'metric',
+                 value.name = 'count')
+sig_long[, metric := factor(metric,
+                            levels = c('n_fdr_05','n_bonf_tissue_05',
+                                       'n_retained','n_bias_suspect_sets'),
+                            labels = c('BH-FDR<0.05 rows',
+                                       'Per-tissue Bonf<0.05 rows',
+                                       'Retained rows',
+                                       'Bias-suspect sets'))]
+ggplot(sig_long, aes(x = gwas, y = count, fill = metric)) +
+  geom_col(position = position_dodge(width = 0.85), width = 0.8) +
+  geom_text(aes(label = count), position = position_dodge(width = 0.85),
+            vjust = -0.3, size = 3) +
+  labs(x = NULL, y = 'count',
+       title = 'Interaction hits and bias flags per GWAS',
+       fill = NULL) +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1),
+        legend.position = 'bottom')
+```
+
+## Top interaction hits (p_interaction < 1e-4) across GWAS
+
+Rows below list every interaction with a raw p < 1e-4 pooled across the
+9 GWAS. `p_top25` and `p_interaction_outliers_removed` are the two
+de-Leeuw-2018 follow-up p-values — a real tissue-specific effect
+should retain a small p through both. `set_bias_suspect` is the
+set-level bias flag from the wrapper.
+
+```{r interaction-top-hits, eval=F, echo=T}
+top_hits <- results[!is.na(p_interaction) & p_interaction < 1e-4,
+                    .(gwas, tissue, gene_set, gmt, n_genes_in_set,
+                      beta = round(beta, 3),
+                      p_interaction = signif(p_interaction, 3),
+                      fdr = signif(fdr, 3),
+                      p_bonferroni_tissue = signif(p_bonferroni_tissue, 3),
+                      p_top25 = signif(p_top25, 3),
+                      p_out = signif(p_interaction_outliers_removed, 3),
+                      n_outliers,
+                      set_bias_suspect,
+                      set_n_tissues_p_low,
+                      retained)]
+setorder(top_hits, p_interaction)
+knitr::kable(head(top_hits, 25),
+             caption = 'Top 25 gene-set x tissue interaction hits, p<1e-4')
+```
+
+## Retained hits (survive both follow-up tests)
+
+The rows most defensible for the paper — pass primary BH-FDR AND at
+least one follow-up test at p<0.05, AND are NOT flagged bias-suspect.
+
+```{r interaction-retained, eval=F, echo=T}
+retained_clean <- top_hits[retained == TRUE & set_bias_suspect == FALSE]
+knitr::kable(retained_clean,
+             caption = 'Retained interaction hits, non-bias-flagged')
+```
+
+## Interpreting the bias flag
+
+On the initial genome-wide COAD01 test-drive of this module, several
+brain/nervous-system-related gene sets (GOBP_POSTSYNAPSE_ORGANIZATION
+and neighbours) surfaced with nominally-significant p_interaction in
+20-40 of the 54 tissues — including many peripheral tissues where a
+tissue-specific brain-pathway signal is a priori implausible. A manual
+top-25% follow-up on POSTSYNAPSE x Breast_Mammary_Tissue confirmed the
+bias: primary p=1.65e-6 collapsed to p=0.003, meaning the highest-Breast-
+residual genes within the set did NOT concentrate the signal, as they
+should under a real tissue-specific effect. The set-level bias
+(commit `eff5452`) counts, per set, how many tissues have
+p_interaction<1e-3; sets with >=5 are flagged. Under the global null,
+this joint event has probability ~0, so any non-zero count is
+informative. Sets flagged in this column should be treated with
+caution — they typically capture within-set gene heterogeneity
+(correlated with a within-set expression axis not captured by
+`Average`) rather than a tissue-specific pathway effect.
+
+```{r interaction-bias-sets, eval=F, echo=T}
+bias_sets <- unique(results[set_bias_suspect == TRUE,
+                            .(gwas, gmt, gene_set, n_genes_in_set,
+                              set_n_tissues_p_low)])
+setorder(bias_sets, -set_n_tissues_p_low)
+knitr::kable(head(bias_sets, 25),
+             caption = 'Top bias-suspect sets across the 9 GWAS')
+```
+
+## QQ plots per GWAS
+
+Thin the mass by showing only the 5,000 smallest p-values per GWAS; the
+tail is where any real signal must live.
+
+```{r interaction-qq, eval=F, echo=T, fig.width=9, fig.height=8}
+qq_dt <- results[!is.na(p_interaction)]
+qq_dt[, p_rank   := frank(p_interaction, ties.method = 'average'), by = gwas]
+qq_dt[, n        := .N, by = gwas]
+qq_dt[, expected := -log10(p_rank / (n + 1))]
+qq_dt[, observed := -log10(p_interaction)]
+
+ggplot(qq_dt[p_rank <= 5000], aes(x = expected, y = observed)) +
+  geom_abline(intercept = 0, slope = 1, colour = 'red', linetype = 'dashed') +
+  geom_point(alpha = 0.3, size = 0.5) +
+  facet_wrap(~ gwas, ncol = 3, scales = 'free') +
+  labs(x = expression(-log[10](p[expected])),
+       y = expression(-log[10](p[observed])),
+       title = 'QQ plot of interaction p-values (top 5k per GWAS)') +
+  theme_bw()
+```
+
