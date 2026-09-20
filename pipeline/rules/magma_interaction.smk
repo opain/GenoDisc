@@ -9,6 +9,11 @@
 ##########
 
 _mi_n_cores = int(magma_interaction_cfg.get('n_cores', 1)) if magma_interaction_enabled else 1
+# 'auto' -> R script prefers /dev/shm if writable, else R's tempdir(); on shared-FS
+# clusters (CephFS/Lustre) this is ~9x faster than the default when running with
+# n_cores > 1. Users can override to any node-local path (e.g. /dev/shm or a
+# local scratch SSD) via magma_interaction.tmpdir in the config.
+_mi_tmpdir = (magma_interaction_cfg.get('tmpdir', 'auto') if magma_interaction_enabled else 'auto')
 
 rule magma_gene_set_by_tissue_interaction:
   input:
@@ -29,7 +34,8 @@ rule magma_gene_set_by_tissue_interaction:
   params:
     resdir=resdir,
     config_file=config['config_file'],
-    n_cores=_mi_n_cores
+    n_cores=_mi_n_cores,
+    tmpdir=_mi_tmpdir
   log:
     "{outdir}/logs/magma_gene_set_by_tissue_interaction-{gwas}.log"
   shell:
@@ -39,7 +45,8 @@ rule magma_gene_set_by_tissue_interaction:
        --config_file {params.config_file} \
        --resdir {params.resdir} \
        --outdir {outdir} \
-       --n_cores {params.n_cores} > {log} 2>&1"
+       --n_cores {params.n_cores} \
+       --tmpdir {params.tmpdir} > {log} 2>&1"
 
 rule magma_gene_set_by_tissue_interaction_all:
   input:

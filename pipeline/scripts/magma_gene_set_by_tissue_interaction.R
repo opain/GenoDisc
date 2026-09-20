@@ -27,7 +27,9 @@ opt <- parse_args(OptionParser(option_list = list(
   make_option("--resdir",       type = "character"),
   make_option("--outdir",       type = "character"),
   make_option("--n_cores",      type = "integer", default = 1L,
-              help = "Parallel workers for the per-set MAGMA loop [default: 1]")
+              help = "Parallel workers for the per-set MAGMA loop [default: 1]"),
+  make_option("--tmpdir",       type = "character", default = NA_character_,
+              help = "Root for the per-set MAGMA temp workspace. 'auto' or unset -> prefer /dev/shm if writable, else R's tempdir(). On shared-filesystem clusters (CephFS, Lustre etc.) 8+ concurrent MAGMA workers block on I/O and slow ~9x; pointing at a node-local RAM disk (/dev/shm) or SSD restores expected speed.")
 )))
 
 # The pipeline sets resdir: NA to mean "resources"; mirror the
@@ -161,9 +163,34 @@ if (length(sets) == 0L) {
 # ---------------------------------------------------------------------
 # Helpers: temp workspace, single-set GMT writer, MAGMA runner.
 # ---------------------------------------------------------------------
-tmp_root <- tempfile("magma_interaction_")
+# Auto-select a fast temp root: node-local /dev/shm (RAM-backed) if
+# writable, else R's tempdir(). Users can override via --tmpdir (or the
+# magma_interaction.tmpdir config key) - critical on shared-FS clusters
+# where CephFS/Lustre I/O contention balloons per-set MAGMA wall time
+# from ~8s (local) to ~70s (shared) under 8-way concurrency.
+resolve_tmpdir <- function(user_tmpdir) {
+  if (!is.null(user_tmpdir) && !is.na(user_tmpdir) && nzchar(user_tmpdir) &&
+      !identical(tolower(user_tmpdir), "auto")) {
+    dir.create(user_tmpdir, recursive = TRUE, showWarnings = FALSE)
+    if (!dir.exists(user_tmpdir) || file.access(user_tmpdir, mode = 2) != 0L) {
+      stop("--tmpdir=", user_tmpdir, " is not a writable directory")
+    }
+    return(user_tmpdir)
+  }
+  # Auto: prefer /dev/shm; else fall back to R's tempdir().
+  for (cand in c("/dev/shm", tempdir())) {
+    if (dir.exists(cand) && file.access(cand, mode = 2) == 0L) return(cand)
+  }
+  tempdir()
+}
+# Config file may also set the tmpdir; CLI takes precedence.
+cfg_tmpdir <- if (!is.null(mi$tmpdir) && !identical(mi$tmpdir, "NA")) mi$tmpdir else NA_character_
+tmpdir_root <- resolve_tmpdir(if (!is.null(opt$tmpdir) && !is.na(opt$tmpdir))
+                                opt$tmpdir else cfg_tmpdir)
+tmp_root <- tempfile("magma_interaction_", tmpdir = tmpdir_root)
 dir.create(tmp_root)
 on.exit(unlink(tmp_root, recursive = TRUE), add = TRUE)
+cat(sprintf("magma_interaction: per-set MAGMA temp workspace = %s\n", tmp_root))
 
 write_gmt <- function(path, sets_list) {
   # sets_list is a list of list(name=, genes=)

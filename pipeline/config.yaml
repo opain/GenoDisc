@@ -100,6 +100,7 @@ magma_interaction:
   min_set_size: 100
   fdr_threshold: 0.05
   n_cores: 1                    # parallel workers for the per-set MAGMA loop
+  tmpdir: auto                  # temp workspace root; 'auto' -> /dev/shm if writable, else R's tempdir(). Point at node-local RAM disk / SSD to avoid ~9x slowdown from shared-FS I/O contention when n_cores > 1.
   followup_p_threshold: 1.0e-4  # top-25% + outlier follow-ups fire on any row with p_interaction below this
   bias_flag_p_threshold: 1.0e-3 # a set is flagged bias-suspect if...
   bias_flag_min_tissues: 5      # ...at least this many tissues have p_interaction below bias_flag_p_threshold

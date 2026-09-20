@@ -124,6 +124,10 @@ if magma_interaction_enabled:
     if not isinstance(bmt, int) or isinstance(bmt, bool) or bmt < 1:
         print(f"Error: magma_interaction.bias_flag_min_tissues must be an int >= 1 (got {bmt!r}).")
         sys.exit(1)
+    td = magma_interaction_cfg.get('tmpdir', 'auto')
+    if not isinstance(td, str) or not td:
+        print(f"Error: magma_interaction.tmpdir must be a non-empty string (got {td!r}); use 'auto' to auto-select.")
+        sys.exit(1)
 
 # Set outdir parameter
 outdir=config['outdir']
