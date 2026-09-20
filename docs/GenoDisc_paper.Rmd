@@ -627,6 +627,73 @@ knitr::kable(head(bias_sets, 25),
              caption = 'Top bias-suspect sets across the 9 GWAS')
 ```
 
+## Restricted to conditionally-independent tissues
+
+de Leeuw et al. 2018 restricted the tissue axis to a small number of
+tissues that (a) were marginally significant in the gene-property step
+and (b) survived the conditional (independence) analysis. The
+interaction module by design deviates from that (all 54 tissues, to
+avoid missing tissue-specific pathway effects hiding under a null
+marginal tissue association). But it is worth reporting the restricted
+analysis alongside: it slashes the multiple-testing burden and focuses
+attention on tissues with independent evidence of relevance.
+
+For each GWAS, `magma_tissue_conditional.indep.txt` (from the
+`magma_tissue_conditional` rule) lists the conditionally-independent
+tissues. Restricting the interaction grid to those tissues and
+recomputing BH-FDR within the reduced (tissue x set) grid yields:
+
+```{r interaction-restricted, eval=F, echo=T}
+indep_tissues <- list()
+for (g in gwas_list) {
+  ind_f <- file.path(outdir_root, g, 'magma',
+                     'magma_tissue_conditional.indep.txt')
+  indep_tissues[[g]] <- if (file.exists(ind_f)) readLines(ind_f) else character(0)
+}
+
+restricted <- rbindlist(lapply(gwas_list, function(g) {
+  tis <- indep_tissues[[g]]
+  if (length(tis) == 0) return(NULL)
+  rr <- results[gwas == g & tissue %in% tis]
+  rr[, fdr_restricted        := p.adjust(p_interaction, method = 'BH')]
+  rr[, bonf_tissue_restricted := pmin(1, p_interaction * .N), by = tissue]
+  rr[, retained_restricted := !is.na(fdr_restricted) & fdr_restricted < 0.05 &
+        ((!is.na(p_top25)                        & p_top25 < 0.05) |
+         (!is.na(p_interaction_outliers_removed) & p_interaction_outliers_removed < 0.05)) &
+        set_bias_suspect == FALSE]
+  rr
+}), fill = TRUE)
+
+# Grid summary per GWAS
+grid_summary <- restricted[, .(
+  n_indep_tissues     = uniqueN(tissue),
+  n_rows              = .N,
+  n_tested            = sum(!is.na(p_interaction)),
+  n_fdr_restricted_05 = sum(!is.na(fdr_restricted) & fdr_restricted < 0.05),
+  n_retained_restricted = sum(retained_restricted, na.rm = TRUE)
+), by = gwas]
+knitr::kable(grid_summary,
+             caption = 'Restricted (conditionally-independent tissues) interaction analysis: per-GWAS grid summary')
+
+# The surviving hit(s)
+knitr::kable(restricted[retained_restricted == TRUE,
+                        .(gwas, tissue, gene_set, gmt, n_genes_in_set,
+                          beta = round(beta,3),
+                          p_interaction = signif(p_interaction,3),
+                          fdr_restricted = signif(fdr_restricted,3),
+                          fdr_global = signif(fdr,3),
+                          p_top25 = signif(p_top25,3),
+                          p_out_rm = signif(p_interaction_outliers_removed,3),
+                          set_bias_suspect)],
+             caption = 'Interactions passing restricted FDR AND at least one follow-up test AND not bias-flagged')
+```
+
+Note that hits found in the full 54-tissue analysis but in a tissue
+that is NOT in that GWAS's independent-tissue list drop out here. In
+particular the ADHD Stomach x endosome global hits are lost because
+Stomach is not a conditionally-independent enriched tissue for ADHD
+(independent tissues are cerebellar only).
+
 ## QQ plots per GWAS
 
 Thin the mass by showing only the 5,000 smallest p-values per GWAS; the
