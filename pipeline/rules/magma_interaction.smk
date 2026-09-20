@@ -29,6 +29,12 @@ rule magma_gene_set_by_tissue_interaction:
     "{outdir}/benchmarks/magma_gene_set_by_tissue_interaction_{gwas}.tsv"
   conda:
     "../envs/main.yaml"
+  # `threads:` is what slurm profiles universally translate into
+  # `--cpus-per-task`, so declaring it here makes sure each job actually
+  # gets the requested cores. `resources.cpus` is kept alongside as
+  # supplementary metadata for profiles that read it (or for callers
+  # setting it via --set-resources).
+  threads: _mi_n_cores
   resources:
     cpus=_mi_n_cores
   params:
