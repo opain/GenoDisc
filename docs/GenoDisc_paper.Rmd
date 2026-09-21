@@ -718,7 +718,7 @@ Two caveats up front:
    not extreme. Read the tissue pointer as *directional* evidence
    rather than as a formal significance test.
 
-```{r interaction-vs-main, eval=F, echo=T}
+```{r interaction-vs-main, eval=T, echo=T}
 # Load standard main-effect pathway enrichment per GWAS (already
 # produced by the magma_pathway rule for both msigdb GMTs) and pool
 # BH-FDR across both gmts within each GWAS - same convention as the
@@ -746,14 +746,14 @@ main_sig <- main[fdr_main < 0.05,
                  .(gwas, gene_set, gmt,
                    n_genes_main = NGENES, beta_main = BETA,
                    p_main = P, fdr_main)]
-size_summary <- merge(
-  main_sig[, .(n_main_sig = .N), by = gwas],
-  main_sig[, .(n_main_sig_in_interaction = uniqueN(paste(gene_set, gmt))),
-           by = gwas][merge := TRUE][
-             merge(main_sig, results[, .(gwas, gene_set, gmt)],
-                   by = c('gwas','gene_set','gmt'))[, .N, by = gwas],
-             on = 'gwas'],
-  by = 'gwas', all = TRUE)
+n_main_sig    <- main_sig[, .(n_main_sig = .N), by = gwas]
+in_interaction <- unique(results[, .(gwas, gene_set, gmt)])
+n_testable    <- merge(main_sig, in_interaction,
+                       by = c('gwas', 'gene_set', 'gmt'))[
+                       , .(n_main_sig_testable = .N), by = gwas]
+size_summary <- merge(n_main_sig, n_testable, by = 'gwas', all = TRUE)
+size_summary[is.na(n_main_sig_testable), n_main_sig_testable := 0L]
+setorder(size_summary, gwas)
 knitr::kable(size_summary,
              caption = 'Main-effect FDR<0.05 gene sets per GWAS, and how many are large enough to be in the interaction module (n_genes >= 100)')
 
