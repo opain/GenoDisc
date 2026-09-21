@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, eval = F)
 library(data.table)
 ```
 
@@ -25,7 +25,7 @@ library(data.table)
 PMID: 35396580
 EUR only
 
-```{r, eval=F, echo=T}
+```{r}
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ', recursive = T)
 system('wget --no-check-certificate -O /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ.original.gz https://figshare.com/ndownloader/files/34517828')
 
@@ -52,7 +52,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/
 
 PMID: 39843750 (https://pgc.unc.edu/for-researchers/download-results/)
 
-```{r, eval=F, echo=T}
+```{r}
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP', recursive = T)
 
 ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP/BIP.original.gz')
@@ -78,7 +78,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/BIP/
 
 I have access to the latest sumstat (incl. 23andMe). Not yet published.
 
-```{r, eval=F, echo=T}
+```{r}
 
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MDD', recursive = T)
 
@@ -105,7 +105,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MDD/
 
 PMID: 36702997 (https://pgc.unc.edu/for-researchers/download-results/)
 
-```{r, eval=F, echo=T}
+```{r}
 
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD', recursive = T)
 
@@ -133,7 +133,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ADHD
 PMID: 30804558
 Already available on Rosalind: /scratch/prj/gwas_sumstats/cleaned/AUTI07.gz
 
-```{r, eval=F, echo=T}
+```{r}
 
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ASD', recursive = T)
 
@@ -165,7 +165,7 @@ Already available on Rosalind: /users/k1806347/brc_scratch/Data/GWAS_sumstats/AL
 PMID: 34493870
 Excludes 23andMe.
 
-```{r, eval=F, echo=T}
+```{r}
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ', recursive = T)
 system('wget --no-check-certificate -O /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/ALZ.original.gz https://ctg.cncr.nl/documents/p1651/PGCALZ2sumstatsExcluding23andMe.txt.gz')
 
@@ -186,7 +186,7 @@ fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/ALZ/
 Publicly available version
 PMID: 31701892
 
-```{r, eval=F, echo=T}
+```{r}
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK', recursive = T)
 system('wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1FZ9UL99LAqyWnyNBxxlx6qOUlfAnublN" -O /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/PRK.original.zip && rm -rf /tmp/cookies.txt')
 setwd('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/PRK/')
@@ -218,7 +218,7 @@ PMID: 35115687
 Excl. 23andMe
 Requested from Dale Nyholt.
 
-```{r, eval=F, echo=T}
+```{r}
 
 dir.create('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/MIG', recursive = T)
 
@@ -316,7 +316,7 @@ write.table(config, '/users/k1806347/oliverpainfel/Analyses/genodisc_validation/
 
 ## Run pipeline for all GWAS
 
-```{bash}
+```{bash, eval = F}
 cd /users/k1806347/oliverpainfel/Software/MyGit/GenoDisc/pipeline
 conda activate genodisc
   
@@ -461,7 +461,7 @@ per GWAS from `output_neuropsych_v2/results/<gwas>/magma/interaction/`.
 No pipeline re-run needed — this whole section reads the finished
 outputs.
 
-```{r interaction-load, eval=F, echo=T}
+```{r interaction-load, eval = T}
 library(data.table)
 library(ggplot2)
 
@@ -494,7 +494,7 @@ in >=5 tissues within that GWAS — the fingerprint of a set-level effect
 leaking across unrelated tissues (see Section
 "Interpreting the bias flag" below).
 
-```{r interaction-headline, eval=F, echo=T}
+```{r interaction-headline, eval = T}
 headline <- results[, .(
   n_rows              = .N,
   n_tests             = sum(!is.na(p_interaction)),
@@ -524,7 +524,7 @@ Boxplot of lambda_GC across the 54 GTEx v8 tissues per GWAS. Under a
 well-calibrated null the lambdas should sit around 1. All 9 GWAS pass
 this basic check (lambda medians 0.88-0.98).
 
-```{r interaction-calibration-plot, eval=F, echo=T, fig.width=8, fig.height=4.5}
+```{r interaction-calibration-plot, fig.width=8, fig.height=4.5, eval = T}
 ggplot(calib, aes(x = gwas, y = lambda_gc)) +
   geom_hline(yintercept = 1, colour = 'grey60', linetype = 'dashed') +
   geom_boxplot(outlier.size = 0.6, fill = 'grey85') +
@@ -538,7 +538,7 @@ ggplot(calib, aes(x = gwas, y = lambda_gc)) +
 
 ## Hits and bias flags per GWAS
 
-```{r interaction-hits-plot, eval=F, echo=T, fig.width=9, fig.height=5}
+```{r interaction-hits-plot, fig.width=9, fig.height=5, eval = T}
 sig_long <- melt(headline[, .(gwas, n_fdr_05, n_bonf_tissue_05,
                               n_retained, n_bias_suspect_sets)],
                  id.vars = 'gwas', variable.name = 'metric',
@@ -570,7 +570,7 @@ de-Leeuw-2018 follow-up p-values — a real tissue-specific effect
 should retain a small p through both. `set_bias_suspect` is the
 set-level bias flag from the wrapper.
 
-```{r interaction-top-hits, eval=F, echo=T}
+```{r interaction-top-hits, eval = T}
 top_hits <- results[!is.na(p_interaction) & p_interaction < 1e-4,
                     .(gwas, tissue, gene_set, gmt, n_genes_in_set,
                       beta = round(beta, 3),
@@ -593,7 +593,7 @@ knitr::kable(head(top_hits, 25),
 The rows most defensible for the paper — pass primary BH-FDR AND at
 least one follow-up test at p<0.05, AND are NOT flagged bias-suspect.
 
-```{r interaction-retained, eval=F, echo=T}
+```{r interaction-retained, eval = T}
 retained_clean <- top_hits[retained == TRUE & set_bias_suspect == FALSE]
 knitr::kable(retained_clean,
              caption = 'Retained interaction hits, non-bias-flagged')
@@ -618,7 +618,7 @@ caution — they typically capture within-set gene heterogeneity
 (correlated with a within-set expression axis not captured by
 `Average`) rather than a tissue-specific pathway effect.
 
-```{r interaction-bias-sets, eval=F, echo=T}
+```{r interaction-bias-sets, eval = T}
 bias_sets <- unique(results[set_bias_suspect == TRUE,
                             .(gwas, gmt, gene_set, n_genes_in_set,
                               set_n_tissues_p_low)])
@@ -643,7 +643,7 @@ For each GWAS, `magma_tissue_conditional.indep.txt` (from the
 tissues. Restricting the interaction grid to those tissues and
 recomputing BH-FDR within the reduced (tissue x set) grid yields:
 
-```{r interaction-restricted, eval=F, echo=T}
+```{r interaction-restricted, eval = T}
 indep_tissues <- list()
 for (g in gwas_list) {
   ind_f <- file.path(outdir_root, g, 'magma',
@@ -694,12 +694,160 @@ particular the ADHD Stomach x endosome global hits are lost because
 Stomach is not a conditionally-independent enriched tissue for ADHD
 (independent tissues are cerebellar only).
 
+## Interaction results for main-effect FDR-significant gene sets
+
+The interaction analysis is underpowered as a discovery scan across
+~150K (set x tissue) cells per GWAS - only 3 rows survive global FDR
+(all in ADHD Stomach) and 1 survives the restricted-tissue FDR
+(ALZ Whole_Blood x Endocytosis). A more informative use of the same
+outputs is as a *follow-up annotation* on gene sets already picked up
+by the standard MAGMA pathway analysis (main effect, no interaction):
+for each main-effect FDR<0.05 set, we can read off which tissue the
+interaction test points to, and whether that tissue is one this GWAS
+independently associates with. This slashes the multiple-testing burden
+(~54 x n_main_sig_sets instead of the full grid) and lets the
+interaction module serve as a *"which tissue is driving this pathway?"*
+diagnostic.
+
+Two caveats up front:
+1. The interaction module requires `n_genes_in_set >= 100` (MAGMA's
+   `interaction-sc-size` hard floor). Many main-effect FDR-sig sets are
+   smaller than this and drop out of the join - ALS, PRK and ADHD lose
+   their main-sig sets entirely for this reason.
+2. Power is still modest. Most `min_int_p` values are 1e-3 to 1e-2,
+   not extreme. Read the tissue pointer as *directional* evidence
+   rather than as a formal significance test.
+
+```{r interaction-vs-main, eval=F, echo=T}
+# Load standard main-effect pathway enrichment per GWAS (already
+# produced by the magma_pathway rule for both msigdb GMTs) and pool
+# BH-FDR across both gmts within each GWAS - same convention as the
+# rest of the report.
+load_main <- function(g) {
+  f2 <- file.path(outdir_root, g,
+                  'magma/pathway/c2.all.v2026.1.Hs.entrez/magma_pathway.gsa.out')
+  f5 <- file.path(outdir_root, g,
+                  'magma/pathway/c5.go.v2026.1.Hs.entrez/magma_pathway.gsa.out')
+  d <- rbind(
+    fread(cmd = paste("grep -v '^#'", shQuote(f2)))[, gmt := 'c2.all.v2026.1.Hs.entrez'],
+    fread(cmd = paste("grep -v '^#'", shQuote(f5)))[, gmt := 'c5.go.v2026.1.Hs.entrez'],
+    fill = TRUE)
+  d[, gwas := g]
+  nm <- if ('FULL_NAME' %in% names(d)) 'FULL_NAME' else 'VARIABLE'
+  d[, gene_set := as.character(get(nm))]
+  d[, fdr_main := p.adjust(P, method = 'BH')]
+  d
+}
+main <- rbindlist(lapply(gwas_list, load_main), fill = TRUE)
+
+# Per GWAS: how many main-sig sets, and how many are large enough to have
+# been tested in the interaction module?
+main_sig <- main[fdr_main < 0.05,
+                 .(gwas, gene_set, gmt,
+                   n_genes_main = NGENES, beta_main = BETA,
+                   p_main = P, fdr_main)]
+size_summary <- merge(
+  main_sig[, .(n_main_sig = .N), by = gwas],
+  main_sig[, .(n_main_sig_in_interaction = uniqueN(paste(gene_set, gmt))),
+           by = gwas][merge := TRUE][
+             merge(main_sig, results[, .(gwas, gene_set, gmt)],
+                   by = c('gwas','gene_set','gmt'))[, .N, by = gwas],
+             on = 'gwas'],
+  by = 'gwas', all = TRUE)
+knitr::kable(size_summary,
+             caption = 'Main-effect FDR<0.05 gene sets per GWAS, and how many are large enough to be in the interaction module (n_genes >= 100)')
+
+# Join main-sig sets to their per-tissue interaction rows
+joined <- merge(main_sig,
+                results[, .(gwas, gene_set, gmt, tissue,
+                            n_int = n_genes_in_set,
+                            beta_int = beta,
+                            p_int = p_interaction,
+                            p_top25,
+                            p_out = p_interaction_outliers_removed,
+                            bias = set_bias_suspect)],
+                by = c('gwas','gene_set','gmt'), all.x = TRUE)
+
+# Per set: which tissue is the top interaction hit, is it in the indep set?
+per_set <- joined[!is.na(p_int),
+                  .(top_int_tissue    = tissue[which.min(p_int)],
+                    top_int_p         = min(p_int),
+                    top_int_p_bonf54  = pmin(1, min(p_int) * 54),
+                    top_indep_tissue  = tissue[
+                      tissue %in% indep_tissues[[unique(gwas)]]][
+                        which.min(p_int[tissue %in% indep_tissues[[unique(gwas)]]])],
+                    top_indep_p       = suppressWarnings(min(p_int[
+                                          tissue %in% indep_tissues[[unique(gwas)]]],
+                                          na.rm = TRUE)),
+                    bias_flagged      = any(bias, na.rm = TRUE)),
+                  by = .(gwas, gene_set, gmt, p_main, fdr_main, n_genes_main)]
+per_set[is.infinite(top_indep_p), top_indep_p := NA_real_]
+
+# Any main-sig set where the top interaction tissue is an indep tissue at p<0.05
+tissue_pointers <- per_set[!is.na(top_indep_p) & top_indep_p < 0.05]
+setorder(tissue_pointers, gwas, top_indep_p)
+
+knitr::kable(
+  tissue_pointers[, .(gwas,
+                      gene_set = substr(gene_set, 1, 55),
+                      p_main = signif(p_main, 3),
+                      fdr_main = signif(fdr_main, 3),
+                      top_int_tissue_global = top_int_tissue,
+                      top_int_p_global = signif(top_int_p, 3),
+                      top_indep_tissue,
+                      top_indep_p = signif(top_indep_p, 3),
+                      bias_flagged)],
+  caption = 'Main-sig gene sets whose interaction test points at a conditionally-independent tissue (p<0.05)')
+
+# Summary counts
+knitr::kable(
+  per_set[, .(
+    n_main_sig_testable    = .N,
+    n_with_bonf54_int_hit  = sum(top_int_p_bonf54 < 0.05, na.rm = TRUE),
+    n_pointing_to_indep_lt_05 = sum(top_indep_p < 0.05, na.rm = TRUE),
+    n_bias_flagged         = sum(bias_flagged, na.rm = TRUE)
+  ), by = gwas],
+  caption = 'Per-GWAS summary: how the interaction module annotates main-effect FDR-sig sets')
+```
+
+The interpretable pattern that emerges:
+
+- **ALZ** (Whole_Blood + Spleen independent): main-sig sets that also
+  show interaction signal are all immune / endocytic - Receptor
+  Mediated Endocytosis (Whole_Blood, p=8.8e-6), Adaptive Immune
+  Response (Whole_Blood, p=1.7e-4), Positive Regulation of Endocytosis
+  (Spleen, p=0.016), Cell Surface (Spleen, p=0.023), Immune Response
+  Regulating Cell Surface (Spleen, p=0.019). Coherent with peripheral
+  immune / APOE / TREM2 biology.
+- **SCZ** (cortex + cerebellum + Pituitary independent): synaptic /
+  neuron sets point to Brain Frontal Cortex BA9 (Neuron Projection,
+  p=0.002) and Pituitary (Synapse, Cell-Cell Signaling, Synaptic
+  Signaling, Trans-Synaptic Signaling - all p in 0.007 to 0.048).
+  Pituitary directionality is consistent with SCZ HPA-axis /
+  neurohormonal literature.
+- **MDD** (cortex + cerebellum + Pituitary independent): synapse
+  organisation and neuron-projection sets point to Brain_Frontal_Cortex
+  and Brain_Cerebellar_Hemisphere. One CELL_JUNCTION_ASSEMBLY hit is
+  bias-flagged and should be treated with caution.
+- **BIP, MIG**: no main-sig set produces an interaction hit in an
+  independent tissue.
+- **ALS, PRK, ADHD, ASD**: no main-sig sets survive the interaction
+  module's set-size filter (or, for ADHD/ASD, no main-sig sets at all
+  at FDR<0.05), so this annotation is empty for them.
+
+Read as *hypothesis generation* rather than formal discovery: for a
+main-effect pathway that's already survived FDR, the interaction test
+tells you which of the GWAS-relevant tissues might be driving it. The
+ALZ endocytosis-in-blood pointer is the strongest example - it
+recovers known biology and is the same signal that survives the strict
+restricted-tissue discovery scan.
+
 ## QQ plots per GWAS
 
 Thin the mass by showing only the 5,000 smallest p-values per GWAS; the
 tail is where any real signal must live.
 
-```{r interaction-qq, eval=F, echo=T, fig.width=9, fig.height=8}
+```{r interaction-qq, fig.width=9, fig.height=8, eval = T}
 qq_dt <- results[!is.na(p_interaction)]
 qq_dt[, p_rank   := frank(p_interaction, ties.method = 'average'), by = gwas]
 qq_dt[, n        := .N, by = gwas]
