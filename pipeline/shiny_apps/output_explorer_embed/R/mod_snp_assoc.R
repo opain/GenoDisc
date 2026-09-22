@@ -30,7 +30,7 @@ build_manhattan_plot <- function(md,
                                   highlight_threshold = 5e-8,
                                   label_variants = FALSE,
                                   label_threshold = 5e-8,
-                                  font_size = 12,
+                                  font_size = 14,
                                   point_size = 0.9,
                                   theme_fn = ggplot2::theme_bw,
                                   title = "",
@@ -250,15 +250,21 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # is silently dropped, leaving the picker with an empty option set.
     .render_per_gwas_picker <- function(output_id, input_id, label = "GWAS:") {
       output[[output_id]] <- renderUI({
-        choices <- selected_gwas_multi()
-        req(length(choices) >= 1)
+        gwas_vec <- selected_gwas_multi()
+        req(length(gwas_vec) >= 1)
         # Suppress the picker for single-GWAS bundles.
-        if (length(choices) < 2L) return(NULL)
+        if (length(gwas_vec) < 2L) return(NULL)
         cur <- isolate(input[[input_id]])
-        keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-        div(style = "max-width: 260px; margin-bottom: 10px;",
+        keep <- if (!is.null(cur) && cur %in% gwas_vec) cur else gwas_vec[1L]
+        choices <- gwas_choices(gwas_data(), gwas_vec)
+        # Width sized to the longest label so the widget shows the full
+        # GWAS name and the dropdown arrow doesn't wrap to a new line.
+        widest <- max(nchar(names(choices)), 12L, na.rm = TRUE)
+        w_px   <- max(320L, as.integer(round(widest * 8.5)) + 60L)
+        div(style = sprintf("width: %dpx; margin-bottom: 10px;", w_px),
           selectInput(session$ns(input_id), label,
-                       choices = choices, selected = keep, multiple = FALSE))
+                       choices = choices, selected = keep,
+                       multiple = FALSE, width = "100%"))
       })
     }
 
@@ -388,7 +394,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                                       "Classic" = "classic", "Light" = "light"),
                           selected = "bw"),
               sliderInput(ns("mh_font_size"), "Font size (pt):",
-                          min = 8, max = 20, value = 12, step = 1),
+                          min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("mh_point_size"), "Point size:",
                           min = 0.3, max = 3, value = 0.9, step = 0.1)
             ),
@@ -515,7 +521,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         highlight_threshold  = min(parse_p(input$mh_highlight_threshold, 5e-8), 1e-5),
         label_variants      = isTRUE(input$mh_label),
         label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
-        font_size           = input$mh_font_size  %||% 12,
+        font_size           = input$mh_font_size  %||% 14,
         point_size          = input$mh_point_size %||% 0.9,
         theme_fn            = mol_theme_fn(input$mh_theme),
         title               = input$mh_title      %||% "",
@@ -555,7 +561,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           highlight_threshold = parse_p(input$mh_highlight_threshold, 5e-8),
           label_variants      = isTRUE(input$mh_label),
           label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
-          font_size           = input$mh_font_size  %||% 12,
+          font_size           = input$mh_font_size  %||% 14,
           point_size          = input$mh_point_size %||% 0.9,
           theme_fn            = mol_theme_fn(input$mh_theme),
           title               = input$mh_title      %||% "",

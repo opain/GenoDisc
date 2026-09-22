@@ -63,16 +63,20 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
     # pick across bundle-selection changes when the pick is still valid.
     .render_per_gwas_picker <- function(output_id, input_id, label = "GWAS:") {
       output[[output_id]] <- renderUI({
-        choices <- selected_gwas_multi()
-        req(length(choices) >= 1)
+        gwas_vec <- selected_gwas_multi()
+        req(length(gwas_vec) >= 1)
         # Suppress the picker for single-GWAS bundles — nothing to pick
         # between, and the widget is just noise.
-        if (length(choices) < 2L) return(NULL)
+        if (length(gwas_vec) < 2L) return(NULL)
         cur <- isolate(input[[input_id]])
-        keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-        div(style = "max-width: 260px; margin-bottom: 10px;",
+        keep <- if (!is.null(cur) && cur %in% gwas_vec) cur else gwas_vec[1L]
+        choices <- gwas_choices(gwas_data(), gwas_vec)
+        widest <- max(nchar(names(choices)), 12L, na.rm = TRUE)
+        w_px   <- max(320L, as.integer(round(widest * 8.5)) + 60L)
+        div(style = sprintf("width: %dpx; margin-bottom: 10px;", w_px),
           selectInput(session$ns(input_id), label,
-                       choices = choices, selected = keep, multiple = FALSE))
+                       choices = choices, selected = keep,
+                       multiple = FALSE, width = "100%"))
       })
     }
     if (!is.null(selected_gwas_multi)) {

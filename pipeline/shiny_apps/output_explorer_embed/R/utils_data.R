@@ -302,7 +302,7 @@ build_drug_summary_data <- function(gd, gwas) {
     g <- safe_access(drug, slot)
     if (is.null(g)) return(NULL)
     g$Method <- method_label
-    # Reversal_Z is positive when the drug opposes the disease TWAS signature
+    # Reversal_Z is positive when the drug opposes the trait's TWAS signature
     # (candidate therapeutic direction). For directional and non-directional
     # variants alike this is set by the format script / read function, so the
     # Shiny app no longer applies any sign flips here.
@@ -370,7 +370,7 @@ build_atc_summary_data <- function(gd, gwas) {
     g <- safe_access(atc, slot)
     if (is.null(g)) return(NULL)
     # P.FDR is already computed in the RDS (per-panel by the read function);
-    # Reversal_Z is positive when the class opposes the disease TWAS signature.
+    # Reversal_Z is positive when the class opposes the trait's TWAS signature.
     g$Z <- g$Reversal_Z
     g$Z[!is.finite(g$Z)] <- NA_real_
     g$FDR_Sig <- g$P.FDR < 0.05
@@ -403,7 +403,7 @@ build_atc_summary_data <- function(gd, gwas) {
 #' Build CMAP per-signature drug summary data
 #'
 #' One row per (cmap_name x cell_iname x pert_itime x pert_idose x weight panel).
-#' Reversal_Z is positive when the perturbation opposes the disease TWAS
+#' Reversal_Z is positive when the perturbation opposes the trait's TWAS
 #' signature (candidate therapeutic). Used directly as the colour aesthetic
 #' for the heatmap.
 build_cmap_drug_summary_data <- function(gd, gwas) {
@@ -445,7 +445,7 @@ build_cmap_moa_summary_data <- function(gd, gwas) {
   if (is.null(d) || nrow(d) == 0) return(NULL)
   d <- as.data.frame(d)
   d$Name    <- d$MOA
-  # Reversal_Z is positive when the MOA opposes the disease TWAS signature.
+  # Reversal_Z is positive when the MOA opposes the trait's TWAS signature.
   # The MOA Wilcoxon's HL = in - out (opposite to the DrugTargetor ATC HL =
   # out - in), but the sign convention is normalised at the format / read
   # layer, so no flipping is needed here.

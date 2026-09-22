@@ -216,7 +216,12 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
   # grey shape 21 outline in some ggplot versions.
   dir_data <- all_gs_all[Method == 'TWAS-GSEA' & !is.na(Z)]
   pos_data <- all_gs_all[Method != 'TWAS-GSEA' & !is.na(Z)]
-  dir_max <- if (nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Z), na.rm = TRUE)) else NA
+  # Match_Z inverts Reversal_Z so positive = matches the trait signature.
+  # The colour palette is red→white→blue mapped low→high, so blue now
+  # falls on positive Match_Z (matches) and red on negative (opposes) —
+  # consistent with the multi-GWAS view.
+  if (nrow(dir_data) > 0) dir_data[, Match_Z := -Z]
+  dir_max <- if (nrow(dir_data) > 0) suppressWarnings(max(abs(dir_data$Match_Z), na.rm = TRUE)) else NA
   pos_max <- if (nrow(pos_data) > 0) suppressWarnings(max(pos_data$Z,      na.rm = TRUE)) else NA
   if (!is.finite(dir_max)) dir_max <- NA
   if (!is.finite(pos_max)) pos_max <- NA
@@ -230,9 +235,9 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
     theme_fn()
   if (nrow(dir_data) > 0 && is.finite(dir_max)) {
     heatmap <- heatmap +
-      ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
+      ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Match_Z), shape = 21, stroke = 0, size = point_size) +
       ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                    na.value = "transparent", name = "TWAS-GSEA\nZ-score",
+                                    na.value = "transparent", name = "TWAS-GSEA\nMatch Z-score",
                                     limits = c(-dir_max, dir_max))
   }
   if (nrow(pos_data) > 0 && is.finite(pos_max)) {
@@ -248,7 +253,7 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
     ggplot2::geom_point(data = all_gs_all[!is.na(P)     & P     < 0.05, ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
     ggplot2::geom_point(data = all_gs_all[!is.na(P.FDR) & P.FDR < 0.05, ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
   if (nrow(dir_data) > 0) {
-    heatmap <- heatmap + ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size)
+    heatmap <- heatmap + ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Match_Z), shape = 21, stroke = 0, size = point_size)
   }
   if (nrow(pos_data) > 0) {
     heatmap <- heatmap + ggplot2::geom_point(data = pos_data, ggplot2::aes(colour = Z), shape = 16, size = point_size)
@@ -342,7 +347,11 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   # shape 21 in some ggplot versions.
   dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA' & !is.na(Z)]
   pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA' & !is.na(Z)]
-  dir_max_atc <- if (nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Z), na.rm = TRUE)) else NA
+  # Match_Z = -Reversal_Z so positive value = matches trait signature; the
+  # palette then puts blue on positive (matches) and red on negative
+  # (opposes), matching the multi-GWAS ATC compare view.
+  if (nrow(dir_data_atc) > 0) dir_data_atc[, Match_Z := -Z]
+  dir_max_atc <- if (nrow(dir_data_atc) > 0) suppressWarnings(max(abs(dir_data_atc$Match_Z), na.rm = TRUE)) else NA
   pos_max_atc <- if (nrow(pos_data_atc) > 0) suppressWarnings(max(pos_data_atc$Z,      na.rm = TRUE)) else NA
   if (!is.finite(dir_max_atc)) dir_max_atc <- NA
   if (!is.finite(pos_max_atc)) pos_max_atc <- NA
@@ -356,9 +365,9 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
     theme_fn()
   if (nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)) {
     heatmap <- heatmap +
-      ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size) +
+      ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Match_Z), shape = 21, stroke = 0, size = point_size) +
       ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                                    na.value = "transparent", name = "TWAS-GSEA\nZ-score",
+                                    na.value = "transparent", name = "TWAS-GSEA\nMatch Z-score",
                                     limits = c(-dir_max_atc, dir_max_atc))
   }
   if (nrow(pos_data_atc) > 0 && is.finite(pos_max_atc)) {
@@ -372,7 +381,7 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
     ggplot2::geom_point(data = all_gs_atc_all[which(all_gs_atc_all$Nom_Sig == TRUE), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 1) +
     ggplot2::geom_point(data = all_gs_atc_all[which(all_gs_atc_all$FDR_Sig == TRUE), ], ggplot2::aes(x = Panel, y = Name), colour = 'black', fill = NA, size = point_size + 2, shape = 15)
   if (nrow(dir_data_atc) > 0) {
-    heatmap <- heatmap + ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Z), shape = 21, stroke = 0, size = point_size)
+    heatmap <- heatmap + ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Match_Z), shape = 21, stroke = 0, size = point_size)
   }
   if (nrow(pos_data_atc) > 0) {
     heatmap <- heatmap + ggplot2::geom_point(data = pos_data_atc, ggplot2::aes(colour = Z), shape = 16, size = point_size)
@@ -444,15 +453,19 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Render helper — 3 uiOutputs, 3 unique input ids, one shared value.
     .render_enrichment_picker <- function(output_id, input_id) {
       output[[output_id]] <- renderUI({
-        choices <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
-        req(length(choices) >= 1)
+        gwas_vec <- if (!is.null(selected_gwas_multi)) selected_gwas_multi() else parent_selected_gwas()
+        req(length(gwas_vec) >= 1)
         # Suppress the picker for single-GWAS bundles.
-        if (length(choices) < 2L) return(NULL)
+        if (length(gwas_vec) < 2L) return(NULL)
         v <- isolate(active_enrichment_gwas())
-        keep <- if (!is.null(v) && v %in% choices) v else choices[1L]
-        div(style = "max-width: 260px; margin-bottom: 12px;",
+        keep <- if (!is.null(v) && v %in% gwas_vec) v else gwas_vec[1L]
+        choices <- gwas_choices(gwas_data(), gwas_vec)
+        widest <- max(nchar(names(choices)), 12L, na.rm = TRUE)
+        w_px   <- max(320L, as.integer(round(widest * 8.5)) + 60L)
+        div(style = sprintf("width: %dpx; margin-bottom: 12px;", w_px),
           selectInput(session$ns(input_id), "GWAS:",
-                       choices = choices, selected = keep, multiple = FALSE))
+                       choices = choices, selected = keep,
+                       multiple = FALSE, width = "100%"))
       })
     }
     .render_enrichment_picker("drug_single_gwas_ui", "drug_single_gwas")
@@ -548,9 +561,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       lg_est  <- "Enrichment effect size from the gene-set analysis."
       lg_dir  <- paste0(
         "Direction of effect (relative to the trait being analysed): ",
-        "'Opposes disease' = the drug's expression signature counteracts the trait's ",
-        "predicted signature; 'Matches disease' = it mimics the trait's signature. ",
-        "(Column labels use 'disease' generically; interpretation is the same for any trait.)")
+        "'Opposes trait signature' = the drug's expression signature counteracts the trait's ",
+        "predicted signature; 'Matches trait signature' = it mimics the trait's signature.")
       items <- switch(which,
         drug_magma = list(
           "Name" = "Drug name.",
@@ -1673,7 +1685,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                   by = Name]
       agg[is.infinite(min_fdr), min_fdr := NA_real_]
       keep <- agg[order(min_fdr, na.last = TRUE), head(Name, top_n)]
-      long[Name %in% keep]
+      long <- long[Name %in% keep]
+      # Relabel GWAS facets with human-readable labels for display.
+      if (nrow(long) > 0) {
+        lut <- gwas_labels(gwas_data())
+        long[, GWAS := unname(ifelse(GWAS %in% names(lut), lut[GWAS], GWAS))]
+      }
+      long
     })
 
     # Multi-GWAS dim calc: facets are `GWAS × Method` so we synthesise a
@@ -1882,6 +1900,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                           'P','P.FDR','ATC Code','ATC Description','ChEMBL'),
                         names(tmp))
       tmp <- tmp[, keep, with = FALSE]
+      if ("Direction" %in% names(tmp)) tmp$Direction <- direction_display(tmp$Direction)
 
       datatable(
         tmp,
@@ -2084,11 +2103,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
             tags$b("Figure legend. "),
             "Each point shows a drug-enrichment Z-score for one method/expression-panel combination. ",
-            tags$b("Directional TWAS-GSEA"), " uses a diverging palette: ",
-            tags$span(style = "color:#FF0000;", tags$b("red")), " indicates the drug-target signature is ",
-            tags$i("opposite"), " to the trait's TWAS signature, and ",
-            tags$span(style = "color:#0066FF;", tags$b("blue")), " indicates the drug-target signature ",
-            tags$i("matches"), " the trait's signature. ",
+            tags$b("Directional TWAS-GSEA"), " uses a diverging palette on the Match Z-score (= -Reversal_Z): ",
+            tags$span(style = "color:#0066FF;", tags$b("blue")), " (positive Match Z) indicates the drug-target signature ",
+            tags$i("matches"), " the trait's TWAS signature, and ",
+            tags$span(style = "color:#FF0000;", tags$b("red")), " (negative Match Z) indicates the drug-target signature is ",
+            tags$i("opposite"), " to the trait's signature. ",
             tags$b("MAGMA, GCSC, and non-directional TWAS-GSEA"), " use a sequential white-to-",
             tags$span(style = "color:#00CC66;", tags$b("green")),
             " palette: green indicates that genes targeted by the drug are enriched for the trait's association signal (no direction-of-effect interpretation). ",
@@ -2206,6 +2225,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       # disease" / "Matches disease" / NA). Reversal_Z is used by the heatmap
       # only and is dropped from this table to keep it scannable.
       tmp<-tmp[,c("Name","Panel","N Drugs","Estimate","Direction","P","P.FDR"), with=F]
+      if ("Direction" %in% names(tmp)) tmp$Direction <- direction_display(tmp$Direction)
 
       # JS callback: P (5) and P.FDR (6) in scientific notation.
       js <- c(
@@ -2403,11 +2423,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
             tags$b("Figure legend. "),
             "Each point shows an ATC-class enrichment Z-score for one method/expression-panel combination. ",
-            tags$b("Directional TWAS-GSEA"), " uses a diverging palette: ",
-            tags$span(style = "color:#FF0000;", tags$b("red")), " indicates drugs in the ATC class collectively ",
-            tags$i("oppose"), " the trait's TWAS signature, and ",
-            tags$span(style = "color:#0066FF;", tags$b("blue")), " indicates the class collectively ",
-            tags$i("matches"), " the trait's signature. ",
+            tags$b("Directional TWAS-GSEA"), " uses a diverging palette on the Match Z-score (= -Reversal_Z): ",
+            tags$span(style = "color:#0066FF;", tags$b("blue")), " (positive Match Z) indicates drugs in the ATC class collectively ",
+            tags$i("match"), " the trait's TWAS signature, and ",
+            tags$span(style = "color:#FF0000;", tags$b("red")), " (negative Match Z) indicates the class collectively ",
+            tags$i("opposes"), " the trait's signature. ",
             tags$b("MAGMA, GCSC, and non-directional TWAS-GSEA"), " use a sequential white-to-",
             tags$span(style = "color:#00CC66;", tags$b("green")),
             " palette: green indicates that drugs in the ATC class are enriched for the trait's association signal (no direction-of-effect interpretation). ",
@@ -2519,11 +2539,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     # Shared CMAP heatmap helper. Faceted by cell line, reuses the red/blue
     # diverging palette + nominal/FDR overlays as the directional DrugTargetor
-    # TWAS-GSEA plot. Z is already negated upstream so red = drug reverses
-    # disease signature.
+    # TWAS-GSEA plot. Match_Z = -Reversal_Z so positive = perturbation
+    # matches the trait signature and blue (positive Match_Z) = matches,
+    # red (negative Match_Z) = opposes.
     cmap_heatmap <- function(d, sort_choice, facet_col = NULL, left_pad_pt = 0){
       if(is.null(d) || nrow(d) == 0) return(NULL)
-      best_z <- tapply(d$Z, d$Name, function(x) max(x, na.rm = TRUE))
+      d$Match_Z <- -d$Z
+      best_z <- tapply(d$Match_Z, d$Name, function(x) max(x, na.rm = TRUE))
       best_z[!is.finite(best_z)] <- NA
       if(identical(sort_choice, 'Alphabetical')){
         lvl <- sort(names(best_z), decreasing = TRUE)
@@ -2532,18 +2554,18 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       }
       d$Name <- factor(d$Name, levels = lvl)
 
-      z_max <- max(abs(d$Z), na.rm = TRUE)
+      z_max <- max(abs(d$Match_Z), na.rm = TRUE)
       if(!is.finite(z_max) || z_max == 0) z_max <- 1
 
       p <- ggplot(d, aes(x = Panel, y = Name)) +
         theme_bw() +
-        geom_point(aes(fill = Z), shape = 21, stroke = 0, size = 5) +
+        geom_point(aes(fill = Match_Z), shape = 21, stroke = 0, size = 5) +
         scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
-                             na.value = NA, name = "CMAP\nZ-score",
+                             na.value = NA, name = "CMAP\nMatch Z-score",
                              limits = c(-z_max, z_max)) +
         geom_point(data = d[d$Nom_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 6) +
         geom_point(data = d[d$FDR_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 7, shape = 15) +
-        geom_point(aes(fill = Z), shape = 21, stroke = 0, size = 5) +
+        geom_point(aes(fill = Match_Z), shape = 21, stroke = 0, size = 5) +
         theme(axis.text.x = element_text(angle = 45, hjust = 1),
               plot.title  = element_text(hjust = 0.5),
               text        = element_text(size = 14),
@@ -2558,11 +2580,11 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     cmap_legend_div <- tags$div(style = "max-width: 800px; font-size: 0.9em; margin-top: 10px;",
       tags$b("Figure legend. "),
-      "Each point shows a CMAP TWAS-GSEA Z-score for one expression panel. ",
-      tags$span(style = "color:#FF0000;", tags$b("Red")), " = drug signature is ", tags$i("opposite"),
+      "Each point shows a CMAP TWAS-GSEA Match Z-score (= -Reversal_Z) for one expression panel. ",
+      tags$span(style = "color:#0066FF;", tags$b("Blue")), " (positive Match Z) = drug signature ", tags$i("matches"),
+      " the trait's TWAS signature. ",
+      tags$span(style = "color:#FF0000;", tags$b("Red")), " (negative Match Z) = drug signature is ", tags$i("opposite"),
       " to the trait's TWAS signature. ",
-      tags$span(style = "color:#0066FF;", tags$b("Blue")), " = drug signature ", tags$i("matches"),
-      " the trait. ",
       "Hollow black circles mark nominally significant results (P < 0.05); black squares mark FDR-significant results (FDR < 0.05)."
     )
 
@@ -2632,6 +2654,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       req(gwas_data(), selected_gwas())
       d <- gd_read(gwas_data(), selected_gwas(), "tx/cmap")$drug
       if(is.null(d)) return(NULL)
+      if ("Direction" %in% names(d)) d$Direction <- direction_display(d$Direction)
       # Hide Reversal_Z from the table (it is used by the heatmap; Direction
       # column conveys the same information in human-readable form).
       hide_idx <- which(names(d) == 'Reversal_Z') - 1L
@@ -2645,6 +2668,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       req(gwas_data(), selected_gwas())
       d <- gd_read(gwas_data(), selected_gwas(), "tx/cmap")$moa
       if(is.null(d)) return(NULL)
+      if ("Direction" %in% names(d)) d$Direction <- direction_display(d$Direction)
       hide_idx <- which(names(d) == 'Reversal_Z') - 1L
       cdefs <- list(list(className = 'dt-center', targets = '_all'))
       if(length(hide_idx) == 1L) cdefs <- c(cdefs, list(list(visible = FALSE, targets = hide_idx)))

@@ -134,4 +134,46 @@ populations<-data.frame(original=c('EUR'),
                         cleaned=c('European'))
 populations <- setNames(populations$original, populations$clean)
 
+# Named vector of GWAS name -> label for a bundle. Falls back to the raw
+# name when a bundle predates the label column or the label is blank.
+# The names of the returned vector are the raw GWAS names, values are the
+# labels. Use with `[name_vec]` to look up labels for an arbitrary subset.
+gwas_labels <- function(gd) {
+  gl <- gd_config(gd)$gwas_list
+  if (is.null(gl) || !nrow(gl)) return(setNames(character(0), character(0)))
+  nm <- as.character(gl$name)
+  lb <- if ("label" %in% names(gl)) as.character(gl$label) else nm
+  miss <- is.na(lb) | !nzchar(lb)
+  lb[miss] <- nm[miss]
+  setNames(lb, nm)
+}
+
+# Look up display labels for a vector of raw GWAS names. Unknown names
+# fall through as themselves.
+gwas_label_of <- function(gd, name_vec) {
+  if (length(name_vec) == 0) return(character(0))
+  lut <- gwas_labels(gd)
+  nm  <- as.character(name_vec)
+  out <- unname(lut[nm])
+  out[is.na(out)] <- nm[is.na(out)]
+  out
+}
+
+# Build a choices vector for selectInput: names = display label,
+# values = raw name. Preserves the order of `name_vec`.
+gwas_choices <- function(gd, name_vec) {
+  setNames(as.character(name_vec), gwas_label_of(gd, name_vec))
+}
+
+# Display-only remap of the Direction column so language works for
+# non-disease traits. Underlying data still uses "Matches disease" /
+# "Opposes disease" so downstream string comparisons are unchanged.
+direction_display <- function(x) {
+  x <- as.character(x)
+  out <- x
+  out[!is.na(x) & x == "Matches disease"] <- "Matches trait signature"
+  out[!is.na(x) & x == "Opposes disease"] <- "Opposes trait signature"
+  out
+}
+
 

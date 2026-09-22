@@ -19,7 +19,7 @@ detect_gencor_facet_cols <- function(tab) {
 }
 
 build_gencor_plot <- function(tab, sort_choice = "rg", facet_by = NULL,
-                               font_size = 13, point_size = 3,
+                               font_size = 14, point_size = 5,
                                theme_fn = ggplot2::theme_bw, title = "") {
   if (is.null(tab) || nrow(tab) == 0) return(NULL)
   dt <- data.table::as.data.table(tab)[!is.na(rg) & !is.na(rg_se)]
@@ -267,7 +267,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
     plot_dim_gencor <- reactive({
       tab <- gencor_table_filtered_plot()
       if (is.null(tab) || nrow(tab) == 0) return(list(width_px = 700L, height_px = 220L))
-      fs <- input$gencor_font_size %||% 13
+      fs <- input$gencor_font_size %||% 14
       label_pt <- max(strwidth_pt(as.character(tab$label), ps = fs)) + 10
       label_px <- label_pt * 96 / 72
       chrome_px <- 60 + 480 + 40
@@ -399,9 +399,9 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
               ),
               column(4,
                 sliderInput(ns("gencor_font_size"), "Font size (pt):",
-                            min = 8, max = 20, value = 13, step = 1),
+                            min = 8, max = 20, value = 14, step = 1),
                 sliderInput(ns("gencor_point_size"), "Point size:",
-                            min = 1, max = 8, value = 3, step = 1)
+                            min = 1, max = 8, value = 5, step = 1)
               ),
               column(4,
                 selectInput(ns("gencor_dl_format"), "Download format:",
@@ -472,8 +472,8 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         tab = gencor_table_filtered_plot(),
         sort_choice = input$gencor_sort %||% "rg",
         facet_by = input$gencor_facet %||% "",
-        font_size = input$gencor_font_size %||% 13,
-        point_size = input$gencor_point_size %||% 3,
+        font_size = input$gencor_font_size %||% 14,
+        point_size = input$gencor_point_size %||% 5,
         theme_fn = mol_theme_fn(input$gencor_theme),
         title = input$gencor_title %||% ""
       )
@@ -509,8 +509,8 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         p <- build_gencor_plot(
           tab = gencor_table_filtered(),
           sort_choice = input$gencor_sort %||% "rg",
-          font_size = input$gencor_font_size %||% 13,
-          point_size = input$gencor_point_size %||% 3,
+          font_size = input$gencor_font_size %||% 14,
+          point_size = input$gencor_point_size %||% 5,
           theme_fn = mol_theme_fn(input$gencor_theme),
           title = input$gencor_title %||% ""
         )
@@ -619,7 +619,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
               column(4,
                 sliderInput(ns("gencor_within_axis_font_size"),
                             "Axis / legend font size (pt):",
-                            min = 8, max = 20, value = 12, step = 1),
+                            min = 8, max = 20, value = 14, step = 1),
                 sliderInput(ns("gencor_within_cell_font_size"),
                             "Cell rG font size (pt):",
                             min = 6, max = 16, value = 9, step = 1)
@@ -683,7 +683,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       long <- gencor_within_long_filtered()
       if (is.null(long) || nrow(long) == 0) return(list(width_px = 400, height_px = 300))
       n <- length(unique(long$label_row))
-      axis_fs <- input$gencor_within_axis_font_size %||% 12
+      axis_fs <- input$gencor_within_axis_font_size %||% 14
       cell_fs <- input$gencor_within_cell_font_size %||% 9
       # Longest label in pt -> px (~1.33 px/pt); cell size floored at
       # 3.5× the larger of axis/cell font so "%.2f*" fits and axis
@@ -718,7 +718,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       req(long, nrow(long) > 0)
       build_gencor_within_heatmap(
         long,
-        font_size      = input$gencor_within_axis_font_size %||% 12,
+        font_size      = input$gencor_within_axis_font_size %||% 14,
         cell_font_size = input$gencor_within_cell_font_size %||% 9,
         show_cell_text = isTRUE(as.logical(input$gencor_within_show_labels %||% "TRUE")),
         title          = input$gencor_within_title %||% "",
@@ -767,7 +767,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         }
         p <- build_gencor_within_heatmap(
           long,
-          font_size      = input$gencor_within_axis_font_size %||% 12,
+          font_size      = input$gencor_within_axis_font_size %||% 14,
           cell_font_size = input$gencor_within_cell_font_size %||% 9,
           show_cell_text = isTRUE(as.logical(input$gencor_within_show_labels %||% "TRUE")),
           title          = input$gencor_within_title %||% "",

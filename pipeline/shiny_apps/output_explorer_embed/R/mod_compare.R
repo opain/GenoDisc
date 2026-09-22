@@ -44,14 +44,30 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   ifelse(is.na(v), "NA", formatC(as.integer(v), format = "d", big.mark = ","))
 }
 
+# Factor the `gwas` column with raw names as levels but human-readable
+# labels as the displayed values. When `gwas_labels_map` (a named char
+# vector, raw name -> label) is supplied, axis tick labels, facet strips
+# and legend items pick up the label; otherwise falls back to the raw
+# name for backward compatibility.
+.gwas_factor <- function(x, gwas_vec, gwas_labels_map = NULL) {
+  labs <- if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec
+  labs[is.na(labs) | !nzchar(labs)] <- gwas_vec[is.na(labs) | !nzchar(labs)]
+  factor(x, levels = gwas_vec, labels = labs)
+}
+
 # Plot dimensions for a compare heatmap given its row and column counts. Mimics
 # the sizing used by calc_plot_dims() for the single-GWAS heatmaps but does not
 # require a facet column. Returns pixel dimensions suitable for plotOutput().
-.compare_plot_dims <- function(n_rows, n_cols, font_size = 11,
+.compare_plot_dims <- function(n_rows, n_cols, font_size = 14,
                                  y_labels = NULL,
                                  min_height = 300, min_width = 500,
                                  min_panel_h_pt = 120) {
-  fs_ratio <- font_size / 11
+  # fs_ratio anchored at 14pt so this matches calc_plot_dims() in
+  # utils_heatmap.R. Coefficient bumped from 22 to 26 so multi-GWAS
+  # heatmap rows breathe like the single-GWAS heatmaps at the default
+  # font size (previously the MAGMA-ATC compare view had visibly denser
+  # rows than the single-GWAS ATC view).
+  fs_ratio <- font_size / 14
   y_label_px <- if (!is.null(y_labels) && length(y_labels) > 0) {
     max(nchar(as.character(y_labels)), na.rm = TRUE) * font_size * 0.55 + 20
   } else 160
@@ -59,7 +75,7 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   # Panel height scales with row count but is floored at min_panel_h_pt so
   # short heatmaps (1-3 rows) still leave room for the bottom legend rather
   # than being crushed.
-  panel_h <- max(min_panel_h_pt, max(18, 22 * fs_ratio) * max(1L, n_rows))
+  panel_h <- max(min_panel_h_pt, max(22, 26 * fs_ratio) * max(1L, n_rows))
   x_label_h <- 6 * font_size + 30
   legend_h  <- 60   # bottom colour-bar legend
   height <- max(min_height, x_label_h + panel_h + legend_h + 40)
@@ -92,7 +108,7 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 # GWAS. Called from the row-click observers on each compare view's DT
 # table. Answers "is this entity real across methods / traits, or one
 # LD block / one method?".
-.show_entity_detail <- function(ent_id, ent_type, long, gwas_vec) {
+.show_entity_detail <- function(ent_id, ent_type, long, gwas_vec, gwas_labels_map = NULL) {
   if (is.null(ent_id) || is.na(ent_id) || !nzchar(ent_id)) return(invisible())
   detail <- long[entity_type == ent_type &
                     entity_id   == ent_id &
@@ -112,14 +128,14 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
                                     "—", as.character(v))
   fmt_bool <- function(v) ifelse(is.na(v), "—", ifelse(v, "Yes", "No"))
   out <- data.frame(
-    GWAS       = factor(detail$gwas, levels = gwas_vec),
+    GWAS       = .gwas_factor(detail$gwas, gwas_vec, gwas_labels_map),
     Method     = fmt_char(detail$method),
     Panel      = fmt_char(detail$panel),
     Statistic  = .fmt_sig(detail$statistic, 3),
     SE         = .fmt_sig(detail$se, 3),
     P          = .fmt_sig(detail$p, 3),
     `P.FDR`    = .fmt_sig(detail$fdr, 3),
-    Direction  = fmt_char(detail$direction),
+    Direction  = fmt_char(direction_display(detail$direction)),
     Evidence   = fmt_bool(detail$evidence),
     check.names = FALSE, stringsAsFactors = FALSE
   )
@@ -214,7 +230,7 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 .compare_add_sig_overlays <- function(gg, data, base_layer,
                                         nominal_flag = "nom_sig",
                                         fdr_flag = "fdr_sig",
-                                        point_size = 4) {
+                                        point_size = 5) {
   nom <- data[data[[nominal_flag]] %in% TRUE, ]
   fdr <- data[data[[fdr_flag]]     %in% TRUE, ]
   if (nrow(nom) > 0) {
@@ -337,7 +353,8 @@ tissue_compare_ui <- function(ns) {
 
 # Long -> tidy plotting frame with tier categorisation
 .tissue_compare_frame <- function(long, gwas_vec, only_recurrent, k_min,
-                                    sig_basis = "fdr", sig_threshold = 0.05) {
+                                    sig_basis = "fdr", sig_threshold = 0.05,
+                                    gwas_labels_map = NULL) {
   # Slice to tissue rows and to the selected GWAS
   slice <- long[method == "MAGMA-tissue" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
@@ -360,7 +377,7 @@ tissue_compare_ui <- function(ns) {
   if (nrow(rec) == 0) return(NULL)
   slice <- slice[entity_id %in% rec$entity_id]
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
 
   # Tier fill uses standard fixed thresholds (P<0.05, FDR<0.05) so the
   # legend is unambiguous regardless of the user's recurrence basis.
@@ -388,9 +405,11 @@ tissue_compare_ui <- function(ns) {
                                           sig_threshold = 0.05,
                                           sort_choice = "significance",
                                           font_size = 14,
-                                          point_size = 5) {
+                                          point_size = 5,
+                                          gwas_labels_map = NULL) {
   packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
-                                    "fdr", sig_threshold)
+                                    "fdr", sig_threshold,
+                                    gwas_labels_map = gwas_labels_map)
   if (is.null(packed)) return(NULL)
   slice <- data.table::copy(packed$slice)
   slice[, negLog10P := -log10(pmax(p, 1e-300))]
@@ -426,7 +445,7 @@ tissue_compare_ui <- function(ns) {
     rev(as.character(packed$rec$entity_id))
   }
   slice[, Label := factor(as.character(entity_id), levels = tissue_levels)]
-  slice[, gwas  := factor(gwas, levels = gwas_vec)]
+  slice[, gwas  := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
 
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = negLog10P, y = Label)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
@@ -470,35 +489,40 @@ tissue_compare_ui <- function(ns) {
 .tissue_compare_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                     sig_basis = "fdr",
                                     sig_threshold = 0.05,
-                                    font_size = 12,
-                                    point_size = 4) {
+                                    font_size = 14,
+                                    point_size = 5,
+                                    gwas_labels_map = NULL) {
   packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
-                                    sig_basis, sig_threshold)
+                                    sig_basis, sig_threshold,
+                                    gwas_labels_map = gwas_labels_map)
   if (is.null(packed)) return(NULL)
   slice <- packed$slice
 
-  # Point-style heatmap: filled coloured circle by -log10(P). Overlays:
-  # solid black ring for nominal-sig (P < 0.05); solid black square for
-  # FDR-sig; inner solid dot for tissues retained after the conditional
-  # analysis. Data circle is redrawn last so the fill sits inside the
-  # overlay markers.
-  slice[, minus_log10 := pmin(-log10(p), 12)]
+  # Point-style heatmap: filled coloured circle by enrichment Z-score
+  # (Z = -qnorm(P), same convention as the single-GWAS tissue plot).
+  # Overlays: solid black ring for nominal-sig (P < 0.05); solid black
+  # square for FDR-sig; inner solid dot for tissues retained after the
+  # conditional analysis. Data circle is redrawn last so the fill sits
+  # inside the overlay markers.
+  slice[, enrich_z := -qnorm(pmax(pmin(p, 1 - 1e-16), 1e-300))]
   slice[, nom_sig := !is.na(p) & p < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
   slice[, retained := !is.na(evidence) & evidence]
 
-  scale_lab <- "-log10(P)"
+  scale_lab <- "Enrichment\nZ-score"
+  max_val <- suppressWarnings(max(slice$enrich_z, na.rm = TRUE))
+  if (!is.finite(max_val) || max_val <= 0) max_val <- 1
 
   base_layer <- ggplot2::geom_point(
-    ggplot2::aes(fill = minus_log10), shape = 21, stroke = 0,
+    ggplot2::aes(fill = enrich_z), shape = 21, stroke = 0,
     size = point_size)
 
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
     base_layer +
-    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
+    ggplot2::scale_fill_gradient(low = "#FFFFFF", high = "#00CC66",
                                    name = scale_lab,
                                    na.value = .gd_grey,
-                                   limits = c(0, 12))
+                                   limits = c(0, max_val))
 
   gg <- .compare_add_sig_overlays(gg, slice, base_layer,
                                     nominal_flag = "nom_sig",
@@ -550,12 +574,13 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
     # whole UI lives inside a renderUI swap in mod_enrichment. Hidden
     # entirely for single-GWAS bundles (nothing to pick between).
     output$gwas_pick_ui <- renderUI({
-      choices <- selected_gwas_multi()
-      req(length(choices) >= 1)
-      if (length(choices) < 2L) return(NULL)
+      gwas_vec <- selected_gwas_multi()
+      req(length(gwas_vec) >= 1)
+      if (length(gwas_vec) < 2L) return(NULL)
       cur <- isolate(input$gwas_pick)
-      keep <- if (is.null(cur)) choices else intersect(cur, choices)
-      if (length(keep) == 0) keep <- choices
+      keep <- if (is.null(cur)) gwas_vec else intersect(cur, gwas_vec)
+      if (length(keep) == 0) keep <- gwas_vec
+      choices <- gwas_choices(gwas_data(), gwas_vec)
       selectInput(session$ns("gwas_pick"), "Include GWAS:",
                    choices = choices, selected = keep, multiple = TRUE)
     })
@@ -610,7 +635,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
           k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
           sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
           font_size      = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
-          point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size)
+          point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size),
+          gwas_labels_map = gwas_labels(gwas_data())
         )
       } else {
         .tissue_compare_ggplot(
@@ -621,7 +647,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
           sig_basis      = "fdr",
           sig_threshold  = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
           font_size      = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
-          point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size)
+          point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size),
+          gwas_labels_map = gwas_labels(gwas_data())
         )
       }
     })
@@ -681,7 +708,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- tissue_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS     = factor(slice$gwas, levels = gwas_vec_r()),
+        GWAS     = .gwas_factor(slice$gwas, gwas_vec_r(), gwas_labels(gwas_data())),
         Tissue   = slice$entity_id,
         BETA     = .fmt_sig(slice$statistic, 3),
         SE       = .fmt_sig(slice$se, 3),
@@ -703,7 +730,8 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- tissue_tbl_slice()
       if (nrow(slice) < sel) return()
       .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "tissue", comparison_long(), gwas_vec_r())
+                            "tissue", comparison_long(), gwas_vec_r(),
+                            gwas_labels_map = gwas_labels(gwas_data()))
     }, ignoreInit = TRUE)
 
     output$download_plot <- downloadHandler(
@@ -733,6 +761,7 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec <- gwas_vec_r()
         long <- tissue_long_filt()[method == "MAGMA-tissue" & gwas %in% gwas_vec]
         wide <- pivot_matrix(long, "fdr", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         ret  <- pivot_matrix(long, "evidence", gwas_vec)
         display <- ifelse(
           is.na(wide), "NT",
@@ -809,9 +838,9 @@ locus_compare_ui <- function(ns) {
                          choices = .compare_gwas_sort_choices,
                          selected = "as_selected"),
             sliderInput(ns("plot_font_size"), "Font size (pt):",
-                         min = 8, max = 20, value = 11, step = 1),
+                         min = 8, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
-                         min = 2, max = 10, value = 4, step = 1)
+                         min = 2, max = 10, value = 5, step = 1)
           )
         ),
         fluidRow(
@@ -839,8 +868,9 @@ locus_compare_ui <- function(ns) {
 .locus_compare_ggplot <- function(long, gwas_vec, method_pick,
                                      only_recurrent, k_min,
                                      sig_threshold = 5e-8,
-                                     row_cap = 50, font_size = 11,
-                                     point_size = 4) {
+                                     row_cap = 50, font_size = 14,
+                                     point_size = 5,
+                                     gwas_labels_map = NULL) {
   slice <- long[method == method_pick & gwas %in% gwas_vec &
                     entity_type == "locus"]
   if (nrow(slice) == 0) return(NULL)
@@ -865,7 +895,7 @@ locus_compare_ui <- function(ns) {
   slice[, nom_sig := !is.na(p) & p < 5e-8]   # GWS threshold as the "hit" mark
   slice[, fdr_sig := !is.na(p) & p < sig_threshold]
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
 
   base_layer <- ggplot2::geom_point(
     ggplot2::aes(fill = minus_log10), shape = 21, stroke = 0,
@@ -946,8 +976,9 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
         k_min          = if (is.null(input$k_min)) 2L else as.integer(input$k_min),
         sig_threshold  = if (is.null(input$sig_threshold)) 5e-8 else as.numeric(input$sig_threshold),
         row_cap        = if (is.null(input$row_cap)) 50L else as.integer(input$row_cap),
-        font_size      = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
-        point_size     = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
+        font_size      = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
+        point_size     = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -957,7 +988,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(gwas_vec_r()),
-        font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
@@ -992,7 +1023,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- locus_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = gwas_vec_r()),
+        GWAS       = .gwas_factor(slice$gwas, gwas_vec_r(), gwas_labels(gwas_data())),
         Locus      = slice$entity_id,
         BETA       = .fmt_sig(slice$statistic, 3),
         SE         = .fmt_sig(slice$se, 3),
@@ -1011,7 +1042,8 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- locus_tbl_slice()
       if (nrow(slice) < sel) return()
       .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "locus", comparison_long(), gwas_vec_r())
+                            "locus", comparison_long(), gwas_vec_r(),
+                            gwas_labels_map = gwas_labels(gwas_data()))
     }, ignoreInit = TRUE)
 
     output$locus_download_plot <- downloadHandler(
@@ -1042,6 +1074,7 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     entity_type == "locus"]
         long <- pick_best_per_cell(long, c("gwas", "entity_id"))
         wide <- pivot_matrix(long, "p", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         display <- ifelse(is.na(wide), "",
                           format(wide, scientific = TRUE, digits = 3))
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
@@ -1156,9 +1189,9 @@ gene_compare_ui <- function(ns) {
                          choices = .compare_gwas_sort_choices,
                          selected = "as_selected"),
             sliderInput(ns("plot_font_size"), "Font size (pt):",
-                         min = 8, max = 20, value = 11, step = 1),
+                         min = 8, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
-                         min = 2, max = 10, value = 4, step = 1)
+                         min = 2, max = 10, value = 5, step = 1)
           )
         ),
         fluidRow(
@@ -1187,8 +1220,9 @@ gene_compare_ui <- function(ns) {
                                     only_recurrent, k_min,
                                     sig_basis = "fdr", sig_threshold = 0.05,
                                     evidence_required = FALSE,
-                                    row_cap = 50, font_size = 11,
-                                    point_size = 4) {
+                                    row_cap = 50, font_size = 14,
+                                    point_size = 5,
+                                    gwas_labels_map = NULL) {
   slice <- long[method == method_pick & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
@@ -1230,7 +1264,7 @@ gene_compare_ui <- function(ns) {
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
 
   scale_lab <- "-log10(FDR)"
 
@@ -1329,8 +1363,9 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         sig_threshold     = if (is.null(input$sig_threshold)) 0.05 else as.numeric(input$sig_threshold),
         evidence_required = isTRUE(input$evidence_required),
         row_cap           = if (is.null(input$row_cap)) 50L else as.integer(input$row_cap),
-        font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
-        point_size        = if (is.null(input$plot_point_size)) 4 else as.numeric(input$plot_point_size)
+        font_size         = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
+        point_size        = if (is.null(input$plot_point_size)) 5 else as.numeric(input$plot_point_size),
+        gwas_labels_map   = gwas_labels(gwas_data())
       )
     })
 
@@ -1340,7 +1375,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(gwas_vec_r()),
-        font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
@@ -1390,7 +1425,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
       is_magma  <- method_pick == "MAGMA-gene"
 
       out <- data.frame(
-        GWAS  = factor(slice$gwas, levels = gwas_vec_r()),
+        GWAS  = .gwas_factor(slice$gwas, gwas_vec_r(), gwas_labels(gwas_data())),
         Gene  = slice$entity_id,
         stringsAsFactors = FALSE
       )
@@ -1425,7 +1460,8 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- gene_tbl_slice()
       if (nrow(slice) < sel) return()
       .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "gene", comparison_long(), gwas_vec_r())
+                            "gene", comparison_long(), gwas_vec_r(),
+                            gwas_labels_map = gwas_labels(gwas_data()))
     }, ignoreInit = TRUE)
 
     output$gene_download_plot <- downloadHandler(
@@ -1460,6 +1496,7 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
           long <- pick_best_per_cell(long, c("gwas", "entity_id"))
         }
         wide <- pivot_matrix(long, "fdr", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         display <- ifelse(is.na(wide), "",
                           format(wide, scientific = TRUE, digits = 3))
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
@@ -1484,7 +1521,8 @@ atc_compare_ui <- function(ns) {
   tabsetPanel(
     tabPanel("MAGMA", br(),
       p("Cross-GWAS MAGMA drug-class enrichment. Cell colour intensity is ",
-        "-log10(FDR); cells with FDR < 0.05 are outlined in black."),
+        "the enrichment Z-score (Z = -qnorm(P), same convention as the ",
+        "single-GWAS view); cells with FDR < 0.05 are outlined in black."),
       hr(),
       tags$details(class = "gd-details",
         tags$summary("Filter data"),
@@ -1508,9 +1546,9 @@ atc_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("magma_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1),
+                           min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("magma_plot_point_size"), "Point size:",
-                           min = 2, max = 10, value = 4, step = 1)
+                           min = 2, max = 10, value = 5, step = 1)
             ),
             .dl_and_download_column(ns, "magma", default_h = 12)
           )
@@ -1531,10 +1569,11 @@ atc_compare_ui <- function(ns) {
       )
     ),
     tabPanel("TWAS-GSEA", br(),
-      p("Cross-GWAS TWAS-GSEA drug-class enrichment. Cell colour is signed by ",
-        "direction of effect (blue = matches disease signature; red = opposes ",
-        "disease signature). Intensity is -log10(FDR). Hatched cells = the ",
-        "class was not tested in that GWAS (not the same as 'not significant')."),
+      p("Cross-GWAS TWAS-GSEA drug-class enrichment. Cell colour is the ",
+        "Match Z-score (= -Reversal_Z): blue = positive Z = the class ",
+        "matches the trait signature; red = negative Z = opposes it. ",
+        "Blank cell = the class was not tested in that GWAS (not the ",
+        "same as 'not significant')."),
       hr(),
       tags$details(class = "gd-details",
         tags$summary("Filter data"),
@@ -1561,9 +1600,9 @@ atc_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("gsea_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1),
+                           min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("gsea_plot_point_size"), "Point size:",
-                           min = 2, max = 10, value = 4, step = 1)
+                           min = 2, max = 10, value = 5, step = 1)
             ),
             .dl_and_download_column(ns, "gsea", default_h = 12)
           )
@@ -1577,8 +1616,8 @@ atc_compare_ui <- function(ns) {
         "Ring around a circle"         = "Nominal-significant (P < 0.05).",
         "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
         "Blank cell"                   = "ATC class was not tested in that GWAS.",
-        "Blue"                         = "Direction 'Matches disease' — drug class shares the trait's TWAS signature.",
-        "Red"                          = "Direction 'Opposes disease' — drug class counteracts the trait's TWAS signature."
+        "Blue (positive Match Z)"      = "Drug class shares the trait's TWAS signature (matches trait signature).",
+        "Red (negative Match Z)"       = "Drug class counteracts the trait's TWAS signature (opposes trait signature)."
       ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
@@ -1599,7 +1638,8 @@ atc_compare_ui <- function(ns) {
 
 .atc_magma_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                  sig_basis = "fdr", sig_threshold = 0.05,
-                                 font_size = 11, point_size = 4) {
+                                 font_size = 14, point_size = 5,
+                                 gwas_labels_map = NULL) {
   slice <- long[method == "MAGMA-ATC" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
@@ -1614,30 +1654,33 @@ atc_compare_ui <- function(ns) {
 
   slice[, entity_label := factor(entity_label,
     levels = rev(label_map$entity_label[match(rec$entity_id, label_map$entity_id)]))]
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
-  slice[, minus_log10_fdr := -log10(fdr)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
+  # Enrichment Z from the nominal P (matches the single-GWAS convention
+  # in mod_enrichment.R: Z = -qnorm(P)). Using Z, not -log10(FDR), keeps
+  # the single- and multi-GWAS ATC-MAGMA views on the same colour ramp.
+  slice[, enrich_z := -qnorm(pmax(pmin(p, 1 - 1e-16), 1e-300))]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
 
   # Drop untested cells so no point is drawn for (ATC, GWAS) pairs the
   # method never scored — previously they rendered as grey via
   # na.value, indistinguishable from a near-zero score.
-  tested <- slice[!is.na(minus_log10_fdr)]
+  tested <- slice[!is.na(enrich_z)]
   if (nrow(tested) == 0) return(NULL)
 
   # Data-driven fill range so the ramp matches the observed values.
-  max_val <- suppressWarnings(max(tested$minus_log10_fdr, na.rm = TRUE))
+  max_val <- suppressWarnings(max(tested$enrich_z, na.rm = TRUE))
   if (!is.finite(max_val) || max_val <= 0) max_val <- 1
   fill_lim <- c(0, max_val)
 
   base_layer <- ggplot2::geom_point(
-    ggplot2::aes(fill = minus_log10_fdr), shape = 21, stroke = 0,
+    ggplot2::aes(fill = enrich_z), shape = 21, stroke = 0,
     size = point_size)
 
   gg <- ggplot2::ggplot(tested, ggplot2::aes(x = gwas, y = entity_label)) +
     base_layer +
-    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
-                                   name = "-log10(FDR)",
+    ggplot2::scale_fill_gradient(low = "#FFFFFF", high = "#00CC66",
+                                   name = "Enrichment\nZ-score",
                                    na.value = "transparent",
                                    limits = fill_lim)
 
@@ -1665,7 +1708,8 @@ atc_compare_ui <- function(ns) {
 
 .atc_gsea_frame <- function(long, gwas_vec, only_recurrent, k_min,
                               panel_pick = "__best__",
-                              sig_basis = "fdr", sig_threshold = 0.05) {
+                              sig_basis = "fdr", sig_threshold = 0.05,
+                              gwas_labels_map = NULL) {
   slice <- long[method == "TWAS-GSEA-ATC" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
@@ -1703,24 +1747,23 @@ atc_compare_ui <- function(ns) {
 
   filled[, entity_label := factor(entity_label,
     levels = rev(label_map$entity_label[match(rec$entity_id, label_map$entity_id)]))]
-  filled[, gwas := factor(gwas, levels = gwas_vec)]
+  filled[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
   filled[, fdr_sig := !is.na(fdr) & fdr < 0.05]
-  # Signed -log10(FDR): positive when the class matches the disease
-  # signature, negative when it opposes it. Untested cells and cells with
-  # NA direction get NA and are handled by na.value / a hatch overlay.
-  neg_log_fdr <- pmin(-log10(filled$fdr), 12)
-  filled[, signed_score := ifelse(
-    is.na(direction) | !tested, NA_real_,
-    ifelse(direction == "Matches disease",  neg_log_fdr,
-    ifelse(direction == "Opposes disease", -neg_log_fdr, NA_real_)))]
+  # Match Z-score: -Reversal_Z so positive = matches, negative = opposes.
+  # Same signed-score convention as the single-GWAS TWAS-GSEA heatmap
+  # (build_tx_drug_gtable / build_tx_atc_gtable). Untested cells and
+  # cells with NA reversal_z stay NA and drop out via na.value.
+  filled[, match_z := ifelse(!tested, NA_real_, -reversal_z)]
   filled
 }
 
 .atc_gsea_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                 panel_pick, sig_basis, sig_threshold,
-                                font_size = 11, point_size = 4) {
+                                font_size = 14, point_size = 5,
+                                gwas_labels_map = NULL) {
   filled <- .atc_gsea_frame(long, gwas_vec, only_recurrent, k_min,
-                             panel_pick, sig_basis, sig_threshold)
+                             panel_pick, sig_basis, sig_threshold,
+                             gwas_labels_map = gwas_labels_map)
   if (is.null(filled)) return(NULL)
   filled[, nom_sig := !is.na(p)   & p   < 0.05]
   filled[, fdr_sig := !is.na(fdr) & fdr < 0.05]
@@ -1728,13 +1771,13 @@ atc_compare_ui <- function(ns) {
   tested_dat <- filled[filled$tested, ]
 
   # Data-driven symmetric limits so the colour ramp matches the observed
-  # range (fixed c(-12, 12) previously washed out small signed scores).
-  max_abs <- suppressWarnings(max(abs(tested_dat$signed_score), na.rm = TRUE))
+  # range.
+  max_abs <- suppressWarnings(max(abs(tested_dat$match_z), na.rm = TRUE))
   if (!is.finite(max_abs) || max_abs <= 0) max_abs <- 1
   fill_lim <- c(-max_abs, max_abs)
 
   base_layer <- ggplot2::geom_point(
-    ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
+    ggplot2::aes(fill = match_z), shape = 21, stroke = 0,
     size = point_size)
 
   gg <- ggplot2::ggplot(tested_dat, ggplot2::aes(x = gwas, y = entity_label)) +
@@ -1742,7 +1785,7 @@ atc_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
       limits = fill_lim, na.value = "transparent",
-      name = "signed -log10(FDR)  (− opposes / + matches)"
+      name = "TWAS-GSEA\nMatch Z  (+ matches / − opposes)"
     )
 
   gg <- .compare_add_sig_overlays(gg, tested_dat, base_layer,
@@ -1822,8 +1865,9 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
         sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
-        font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
-        point_size     = if (is.null(input$magma_plot_point_size)) 4 else as.numeric(input$magma_plot_point_size)
+        font_size      = if (is.null(input$magma_plot_font_size)) 14 else as.numeric(input$magma_plot_font_size),
+        point_size     = if (is.null(input$magma_plot_point_size)) 5 else as.numeric(input$magma_plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -1833,7 +1877,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(magma_gwas_vec()),
-        font_size = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
+        font_size = if (is.null(input$magma_plot_font_size)) 14 else as.numeric(input$magma_plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
       )
     })
@@ -1866,7 +1910,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- atc_magma_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS   = factor(slice$gwas, levels = magma_gwas_vec()),
+        GWAS   = .gwas_factor(slice$gwas, magma_gwas_vec(), gwas_labels(gwas_data())),
         `ATC Code`  = slice$entity_id,
         Class       = slice$entity_label,
         `N Drugs`  = .fmt_int(slice$n_units),
@@ -1903,6 +1947,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec <- magma_gwas_vec()
         long <- comparison_long()[method == "MAGMA-ATC" & gwas %in% gwas_vec]
         wide <- pivot_matrix(long, "fdr", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         header <- sprintf("# GenoDisc ATC MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
                            "fdr" %||% "fdr",
@@ -1930,8 +1975,9 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         panel_pick     = input$gsea_panel,
         sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
-        font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
-        point_size     = if (is.null(input$gsea_plot_point_size)) 4 else as.numeric(input$gsea_plot_point_size)
+        font_size      = if (is.null(input$gsea_plot_font_size)) 14 else as.numeric(input$gsea_plot_font_size),
+        point_size     = if (is.null(input$gsea_plot_point_size)) 5 else as.numeric(input$gsea_plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -1941,7 +1987,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(gsea_gwas_vec()),
-        font_size = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
+        font_size = if (is.null(input$gsea_plot_font_size)) 14 else as.numeric(input$gsea_plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
       )
     })
@@ -1974,12 +2020,12 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- atc_gsea_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = gsea_gwas_vec()),
+        GWAS       = .gwas_factor(slice$gwas, gsea_gwas_vec(), gwas_labels(gwas_data())),
         `ATC Code` = slice$entity_id,
         Class      = slice$entity_label,
         Panel      = slice$panel,
         Estimate   = .fmt_sig(slice$statistic, 3),
-        Direction  = slice$direction,
+        Direction  = direction_display(slice$direction),
         Reversal_Z = .fmt_sig(slice$reversal_z, 3),
         P          = .fmt_sig(slice$p, 3),
         `P.FDR`    = .fmt_sig(slice$fdr, 3),
@@ -2014,9 +2060,9 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec <- gsea_gwas_vec()
         long <- comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gwas_vec]
         best <- pick_best_per_cell(long, c("gwas", "entity_id"))
-        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
-                                 -(-log10(fdr)), -log10(fdr))]
-        wide <- pivot_matrix(best, "signed", gwas_vec)
+        best[, match_z := -reversal_z]
+        wide <- pivot_matrix(best, "match_z", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc ATC TWAS-GSEA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s panel=%s",
@@ -2027,7 +2073,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                            input$gsea_panel %||% "__best__")
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
-        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        writeLines("# Cells: Match Z = -Reversal_Z: + = matches trait signature, - = opposes. NT = not tested.", con)
         out <- data.frame(`ATC Code` = rownames(display), display,
                           check.names = FALSE, stringsAsFactors = FALSE)
         utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
@@ -2049,8 +2095,9 @@ drug_compare_ui <- function(ns) {
   tabsetPanel(
     tabPanel("MAGMA", br(),
       p("Cross-GWAS MAGMA drug-level enrichment. Each row is one drug; ",
-        "cell colour is -log10(FDR); cells with FDR < 0.05 are outlined ",
-        "with a black square."),
+        "cell colour is the enrichment Z-score (Z = -qnorm(P), matching ",
+        "the single-GWAS view); cells with FDR < 0.05 are outlined with ",
+        "a black square."),
       hr(),
       tags$details(class = "gd-details",
         tags$summary("Filter data"),
@@ -2076,9 +2123,9 @@ drug_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("magma_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1),
+                           min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("magma_plot_point_size"), "Point size:",
-                           min = 2, max = 10, value = 4, step = 1)
+                           min = 2, max = 10, value = 5, step = 1)
             ),
             .dl_and_download_column(ns, "magma", default_h = 12)
           )
@@ -2099,10 +2146,10 @@ drug_compare_ui <- function(ns) {
       )
     ),
     tabPanel("TWAS-GSEA", br(),
-      p("Cross-GWAS TWAS-GSEA drug-level enrichment. Cell colour is signed ",
-        "by direction of effect (blue = matches disease signature, red = ",
-        "opposes disease signature). Intensity is -log10(FDR). Blank cell = ",
-        "drug was not tested in that GWAS."),
+      p("Cross-GWAS TWAS-GSEA drug-level enrichment. Cell colour is the ",
+        "Match Z-score (= -Reversal_Z): blue = positive Z = the drug's ",
+        "TWAS signature matches the trait's; red = negative Z = the drug ",
+        "counteracts it. Blank cell = drug was not tested in that GWAS."),
       hr(),
       tags$details(class = "gd-details",
         tags$summary("Filter data"),
@@ -2131,9 +2178,9 @@ drug_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("gsea_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1),
+                           min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("gsea_plot_point_size"), "Point size:",
-                           min = 2, max = 10, value = 4, step = 1)
+                           min = 2, max = 10, value = 5, step = 1)
             ),
             .dl_and_download_column(ns, "gsea", default_h = 12)
           )
@@ -2147,8 +2194,8 @@ drug_compare_ui <- function(ns) {
         "Ring around a circle"         = "Nominal-significant (P < 0.05).",
         "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
         "Blank cell"                   = "Drug was not tested in that GWAS.",
-        "Blue"                         = "Direction 'Matches disease' — drug's TWAS signature matches the trait's.",
-        "Red"                          = "Direction 'Opposes disease' — drug's TWAS signature counteracts the trait's."
+        "Blue (positive Match Z)"      = "Drug's TWAS signature matches the trait signature.",
+        "Red (negative Match Z)"       = "Drug's TWAS signature counteracts (opposes) the trait signature."
       ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
@@ -2164,8 +2211,9 @@ drug_compare_ui <- function(ns) {
 
 .drug_magma_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                   sig_basis = "fdr", sig_threshold = 0.05,
-                                  row_cap = 50, font_size = 11,
-                                  point_size = 4) {
+                                  row_cap = 50, font_size = 14,
+                                  point_size = 5,
+                                  gwas_labels_map = NULL) {
   slice <- long[method == "MAGMA-drug" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
@@ -2176,27 +2224,29 @@ drug_compare_ui <- function(ns) {
   slice <- slice[entity_id %in% rec$entity_id]
 
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
-  slice[, minus_log10_fdr := -log10(fdr)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
+  # Enrichment Z from nominal P (matches single-GWAS build_tx_drug_gtable
+  # convention). Switched from -log10(FDR) so both views share a scale.
+  slice[, enrich_z := -qnorm(pmax(pmin(p, 1 - 1e-16), 1e-300))]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
 
   # Drop untested cells so no point is drawn.
-  tested <- slice[!is.na(minus_log10_fdr)]
+  tested <- slice[!is.na(enrich_z)]
   if (nrow(tested) == 0) return(NULL)
 
-  max_val <- suppressWarnings(max(tested$minus_log10_fdr, na.rm = TRUE))
+  max_val <- suppressWarnings(max(tested$enrich_z, na.rm = TRUE))
   if (!is.finite(max_val) || max_val <= 0) max_val <- 1
   fill_lim <- c(0, max_val)
 
   base_layer <- ggplot2::geom_point(
-    ggplot2::aes(fill = minus_log10_fdr), shape = 21, stroke = 0,
+    ggplot2::aes(fill = enrich_z), shape = 21, stroke = 0,
     size = point_size)
 
   gg <- ggplot2::ggplot(tested, ggplot2::aes(x = gwas, y = entity_id)) +
     base_layer +
-    ggplot2::scale_fill_gradient(low = "#e6f4f1", high = .gd_teal,
-                                   name = "-log10(FDR)",
+    ggplot2::scale_fill_gradient(low = "#FFFFFF", high = "#00CC66",
+                                   name = "Enrichment\nZ-score",
                                    na.value = "transparent",
                                    limits = fill_lim)
 
@@ -2225,7 +2275,8 @@ drug_compare_ui <- function(ns) {
 .drug_gsea_frame <- function(long, gwas_vec, only_recurrent, k_min,
                                 panel_pick = "__best__",
                                 sig_basis = "fdr", sig_threshold = 0.05,
-                                row_cap = 50) {
+                                row_cap = 50,
+                                gwas_labels_map = NULL) {
   slice <- long[method == "TWAS-GSEA-drug" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
@@ -2246,42 +2297,39 @@ drug_compare_ui <- function(ns) {
 
   # Blank cells for "not tested" — we simply leave them out; the heatmap
   # renders no point where there's no data.
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
-  neg_log_fdr <- pmin(-log10(slice$fdr), 12)
-  slice[, signed_score := ifelse(
-    is.na(direction), NA_real_,
-    ifelse(direction == "Matches disease",  neg_log_fdr,
-    ifelse(direction == "Opposes disease", -neg_log_fdr, NA_real_)))]
+  # Match Z-score: -Reversal_Z so positive = matches trait signature,
+  # negative = opposes. Untested cells (NA reversal_z) drop out below.
+  slice[, match_z := -reversal_z]
   slice
 }
 
 .drug_gsea_ggplot <- function(long, gwas_vec, only_recurrent, k_min,
                                  panel_pick, sig_basis, sig_threshold,
-                                 row_cap = 50, font_size = 11,
-                                 point_size = 4) {
+                                 row_cap = 50, font_size = 14,
+                                 point_size = 5,
+                                 gwas_labels_map = NULL) {
   slice <- .drug_gsea_frame(long, gwas_vec, only_recurrent, k_min,
-                              panel_pick, sig_basis, sig_threshold, row_cap)
+                              panel_pick, sig_basis, sig_threshold, row_cap,
+                              gwas_labels_map = gwas_labels_map)
   if (is.null(slice)) return(NULL)
 
-  # Untested (drug, GWAS) cells → NA signed_score → drop entirely so no
-  # point is drawn. Previously we set na.value on the gradient scale,
-  # which rendered grey circles for untested cells and made "not tested"
-  # indistinguishable from "near-zero score".
-  tested <- slice[!is.na(signed_score)]
+  # Untested (drug, GWAS) cells → NA match_z → drop entirely so no
+  # point is drawn.
+  tested <- slice[!is.na(match_z)]
   if (nrow(tested) == 0) return(NULL)
 
   # Data-driven symmetric limits so the colour ramp matches the observed
-  # range. Fixed c(-12, 12) previously left almost every cell near the
-  # scale's midpoint when actual scores were small.
-  max_abs <- suppressWarnings(max(abs(tested$signed_score), na.rm = TRUE))
+  # range.
+  max_abs <- suppressWarnings(max(abs(tested$match_z), na.rm = TRUE))
   if (!is.finite(max_abs) || max_abs <= 0) max_abs <- 1
   fill_lim <- c(-max_abs, max_abs)
 
   base_layer <- ggplot2::geom_point(
-    ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
+    ggplot2::aes(fill = match_z), shape = 21, stroke = 0,
     size = point_size)
 
   gg <- ggplot2::ggplot(tested, ggplot2::aes(x = gwas, y = entity_id)) +
@@ -2289,7 +2337,7 @@ drug_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
       limits = fill_lim, na.value = "transparent",
-      name = "signed -log10(FDR)  (− opposes / + matches)"
+      name = "TWAS-GSEA\nMatch Z  (+ matches / − opposes)"
     )
 
   gg <- .compare_add_sig_overlays(gg, tested, base_layer,
@@ -2369,8 +2417,9 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$magma_sig_threshold)) 0.05 else as.numeric(input$magma_sig_threshold),
         row_cap        = if (is.null(input$magma_row_cap)) 50L else as.integer(input$magma_row_cap),
-        font_size      = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
-        point_size     = if (is.null(input$magma_plot_point_size)) 4 else as.numeric(input$magma_plot_point_size)
+        font_size      = if (is.null(input$magma_plot_font_size)) 14 else as.numeric(input$magma_plot_font_size),
+        point_size     = if (is.null(input$magma_plot_point_size)) 5 else as.numeric(input$magma_plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -2380,7 +2429,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(magma_gwas_vec()),
-        font_size = if (is.null(input$magma_plot_font_size)) 11 else as.numeric(input$magma_plot_font_size),
+        font_size = if (is.null(input$magma_plot_font_size)) 14 else as.numeric(input$magma_plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
@@ -2413,7 +2462,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- drug_magma_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS   = factor(slice$gwas, levels = magma_gwas_vec()),
+        GWAS   = .gwas_factor(slice$gwas, magma_gwas_vec(), gwas_labels(gwas_data())),
         Drug   = slice$entity_id,
         `N Genes` = .fmt_int(slice$n_units),
         BETA   = .fmt_sig(slice$statistic, 3),
@@ -2451,6 +2500,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec <- magma_gwas_vec()
         long <- comparison_long()[method == "MAGMA-drug" & gwas %in% gwas_vec]
         wide <- pivot_matrix(long, "fdr", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         header <- sprintf("# GenoDisc drug MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
                            format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
                            "fdr" %||% "fdr",
@@ -2479,8 +2529,9 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$gsea_sig_threshold)) 0.05 else as.numeric(input$gsea_sig_threshold),
         row_cap        = if (is.null(input$gsea_row_cap)) 50L else as.integer(input$gsea_row_cap),
-        font_size      = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
-        point_size     = if (is.null(input$gsea_plot_point_size)) 4 else as.numeric(input$gsea_plot_point_size)
+        font_size      = if (is.null(input$gsea_plot_font_size)) 14 else as.numeric(input$gsea_plot_font_size),
+        point_size     = if (is.null(input$gsea_plot_point_size)) 5 else as.numeric(input$gsea_plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -2490,7 +2541,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(gsea_gwas_vec()),
-        font_size = if (is.null(input$gsea_plot_font_size)) 11 else as.numeric(input$gsea_plot_font_size),
+        font_size = if (is.null(input$gsea_plot_font_size)) 14 else as.numeric(input$gsea_plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
@@ -2523,12 +2574,12 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- drug_gsea_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = gsea_gwas_vec()),
+        GWAS       = .gwas_factor(slice$gwas, gsea_gwas_vec(), gwas_labels(gwas_data())),
         Drug       = slice$entity_id,
         Panel      = slice$panel,
         `N Genes`  = .fmt_int(slice$n_units),
         Estimate   = .fmt_sig(slice$statistic, 3),
-        Direction  = slice$direction,
+        Direction  = direction_display(slice$direction),
         Reversal_Z = .fmt_sig(slice$reversal_z, 3),
         P          = .fmt_sig(slice$p, 3),
         `P.FDR`    = .fmt_sig(slice$fdr, 3),
@@ -2563,9 +2614,9 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         gwas_vec <- gsea_gwas_vec()
         long <- comparison_long()[method == "TWAS-GSEA-drug" & gwas %in% gwas_vec]
         best <- pick_best_per_cell(long, c("gwas", "entity_id"))
-        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
-                                 -(-log10(fdr)), -log10(fdr))]
-        wide <- pivot_matrix(best, "signed", gwas_vec)
+        best[, match_z := -reversal_z]
+        wide <- pivot_matrix(best, "match_z", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc drug TWAS-GSEA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s panel=%s",
@@ -2576,7 +2627,7 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
                            input$gsea_panel %||% "__best__")
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
-        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        writeLines("# Cells: Match Z = -Reversal_Z: + = matches trait signature, - = opposes. NT = not tested.", con)
         out <- data.frame(Drug = rownames(display), display,
                           check.names = FALSE, stringsAsFactors = FALSE)
         utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
@@ -2637,7 +2688,7 @@ gencor_compare_ui <- function(ns) {
           ),
           column(3,
             sliderInput(ns("plot_font_size"), "Font size (pt):",
-                         min = 8, max = 20, value = 11, step = 1),
+                         min = 8, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
                          min = 2, max = 14, value = 3, step = 1)
           ),
@@ -2684,10 +2735,11 @@ gencor_compare_ui <- function(ns) {
 #'   horizontal row facet (e.g. "trait_category"). NULL to skip row facets.
 #' @param show_facet_col_strip TRUE to keep the column-facet strip labels.
 #'   FALSE hides them (used when only one GWAS is being plotted).
-.gencor_facet_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 3,
+.gencor_facet_ggplot <- function(long, gwas_vec, font_size = 14, point_size = 3,
                                    trait_order = "category",
                                    row_facet_col = NULL,
-                                   show_facet_col_strip = TRUE) {
+                                   show_facet_col_strip = TRUE,
+                                   gwas_labels_map = NULL) {
   if (nrow(long) == 0) return(NULL)
   slice <- long[gwas %in% gwas_vec & !is.na(rg) & !is.na(rg_se)]
   if (nrow(slice) == 0) return(NULL)
@@ -2726,7 +2778,7 @@ gencor_compare_ui <- function(ns) {
   # First factor level renders at the BOTTOM of the plot, so reverse the
   # order for a top-first read.
   slice[, ref_label := factor(ref_label, levels = rev(ord$ref_label))]
-  slice[, gwas      := factor(gwas, levels = gwas_vec)]
+  slice[, gwas      := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
 
   tier_cols <- c("FDR significant"    = "#d62728",
                  "Nominal (p < 0.05)" = "#ff7f0e",
@@ -2803,7 +2855,8 @@ gencor_compare_ui <- function(ns) {
   gg
 }
 
-.gencor_ggplot <- function(long, gwas_vec, font_size = 11, point_size = 6,
+.gencor_ggplot <- function(long, gwas_vec, font_size = 14, point_size = 6,
+                             gwas_labels_map = NULL,
                              group_by_category = TRUE,
                              row_facet_col = NULL) {
   if (nrow(long) == 0) return(NULL)
@@ -2820,7 +2873,7 @@ gencor_compare_ui <- function(ns) {
     ref_order <- ref_order[order(ref_label)]
   }
 
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
   slice[, ref_label := factor(ref_label, levels = rev(ref_order$ref_label))]
   slice[, nom_sig := !is.na(rg_p)     & rg_p     < 0.05]
   slice[, fdr_sig := !is.na(rg_p_fdr) & rg_p_fdr < 0.05]
@@ -2931,17 +2984,18 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
     # target widget appears on the client is silently dropped, which
     # is what caused the pickers to render as empty selects.
     output$gwas_pick_ui <- renderUI({
-      choices <- selected_gwas_multi()
-      req(length(choices) >= 1)
+      gwas_vec <- selected_gwas_multi()
+      req(length(gwas_vec) >= 1)
       # Hidden entirely for single-GWAS bundles.
-      if (length(choices) < 2L) return(NULL)
+      if (length(gwas_vec) < 2L) return(NULL)
       # Always default to all-selected: this renderUI only fires when the
       # bundle changes, and preserving a stale user selection across bundle
       # loads was masked in the past by an isolate() + intersect() dance
       # that also raced with selectize.js's client-side sync on first paint,
       # leaving the visible pills out of sync with the plot's filter state.
+      choices <- gwas_choices(gwas_data(), gwas_vec)
       selectInput(session$ns("gwas_pick"), "Include GWAS:",
-                   choices = choices, selected = choices, multiple = TRUE)
+                   choices = choices, selected = gwas_vec, multiple = TRUE)
     })
 
     output$ref_pick_ui <- renderUI({
@@ -3008,13 +3062,14 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
         .gencor_facet_ggplot(
           long                 = long,
           gwas_vec             = gwas_vec_r(),
-          font_size            = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+          font_size            = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
           point_size           = if (is.null(input$plot_point_size)) 3 else as.numeric(input$plot_point_size),
           trait_order          = input$trait_order %||% "category",
           row_facet_col        = row_facet,
           # Hide the column strip when only a single GWAS is being plotted
           # (a bare strip labelled with one trait is just noise).
-          show_facet_col_strip = length(gwas_vec_r()) > 1L
+          show_facet_col_strip = length(gwas_vec_r()) > 1L,
+          gwas_labels_map      = gwas_labels(gwas_data())
         )
       } else {
         row_facet <- input$row_facet
@@ -3022,10 +3077,11 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
         .gencor_ggplot(
           long              = long,
           gwas_vec          = gwas_vec_r(),
-          font_size         = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+          font_size         = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
           point_size        = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size),
           group_by_category = identical(input$trait_order %||% "category", "category"),
-          row_facet_col     = row_facet
+          row_facet_col     = row_facet,
+          gwas_labels_map   = gwas_labels(gwas_data())
         )
       }
     })
@@ -3038,7 +3094,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       dims <- .compare_plot_dims(
         n_rows    = length(ref_labels),
         n_cols    = n_cols_dim,
-        font_size = if (is.null(input$plot_font_size)) 11 else as.numeric(input$plot_font_size),
+        font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
         y_labels  = ref_labels,
         min_width = 400, min_height = 300
       )
@@ -3086,7 +3142,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       slice <- gencor_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS          = factor(slice$gwas, levels = gwas_vec_r()),
+        GWAS          = .gwas_factor(slice$gwas, gwas_vec_r(), gwas_labels(gwas_data())),
         `Ref trait`   = slice$ref_label,
         Category      = ifelse(is.na(slice$trait_category), "—",
                                 slice$trait_category),
@@ -3117,7 +3173,7 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       if (nrow(d) == 0) return()
       d <- d[order(match(gwas, gwas_vec_r()))]
       out <- data.frame(
-        GWAS   = factor(d$gwas, levels = gwas_vec_r()),
+        GWAS   = .gwas_factor(d$gwas, gwas_vec_r(), gwas_labels(gwas_data())),
         rG     = signif(d$rg, 3),
         SE     = signif(d$rg_se, 3),
         P      = signif(d$rg_p, 3),
@@ -3188,9 +3244,10 @@ cmap_compare_ui <- function(ns) {
       p("Cross-GWAS CMap perturbation compare. Rows are compound / shRNA ",
         "perturbations (cmap_name). Best-per-cell reduction picks the ",
         "smallest p across (panel, cell line, treatment time, dose). Cell ",
-        "colour is signed by Direction (blue = matches disease, red = ",
-        "opposes disease). Ring = nominal-sig (P<0.05); black square = ",
-        "FDR-sig; blank = not tested in that GWAS."),
+        "colour is the Match Z-score (= -Reversal_Z): blue = positive Z ",
+        "= perturbation matches the trait signature; red = negative Z = ",
+        "opposes it. Ring = nominal-sig (P<0.05); black square = FDR-sig; ",
+        "blank = not tested in that GWAS."),
       hr(),
       tags$details(class = "gd-details",
         tags$summary("Filter data"),
@@ -3216,9 +3273,9 @@ cmap_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("pert_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1),
+                           min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("pert_plot_point_size"), "Point size:",
-                           min = 2, max = 10, value = 4, step = 1)
+                           min = 2, max = 10, value = 5, step = 1)
             ),
             .dl_and_download_column(ns, "pert", default_h = 12)
           )
@@ -3232,8 +3289,8 @@ cmap_compare_ui <- function(ns) {
         "Ring around a circle"         = "Nominal-significant (P < 0.05).",
         "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
         "Blank cell"                   = "Perturbation was not tested in that GWAS.",
-        "Blue"                         = "Direction 'Matches disease' — perturbation shares the trait's TWAS signature.",
-        "Red"                          = "Direction 'Opposes disease' — perturbation counteracts the trait's TWAS signature."
+        "Blue (positive Match Z)"      = "Perturbation shares the trait's TWAS signature (matches trait signature).",
+        "Red (negative Match Z)"       = "Perturbation counteracts the trait's TWAS signature (opposes trait signature)."
       ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
@@ -3271,9 +3328,9 @@ cmap_compare_ui <- function(ns) {
                            choices = .compare_gwas_sort_choices,
                            selected = "as_selected"),
               sliderInput(ns("moa_plot_font_size"), "Font size (pt):",
-                           min = 8, max = 20, value = 11, step = 1),
+                           min = 8, max = 20, value = 14, step = 1),
               sliderInput(ns("moa_plot_point_size"), "Point size:",
-                           min = 2, max = 10, value = 4, step = 1)
+                           min = 2, max = 10, value = 5, step = 1)
             ),
             .dl_and_download_column(ns, "moa", default_h = 12)
           )
@@ -3287,8 +3344,8 @@ cmap_compare_ui <- function(ns) {
         "Ring around a circle"         = "Nominal-significant (P < 0.05).",
         "Black square around a circle" = "FDR-significant (P.FDR < 0.05).",
         "Blank cell"                   = "MOA was not tested in that GWAS.",
-        "Blue"                         = "Direction 'Matches disease' — MOA shares the trait's TWAS signature.",
-        "Red"                          = "Direction 'Opposes disease' — MOA counteracts the trait's TWAS signature."
+        "Blue (positive Match Z)"      = "MOA shares the trait's TWAS signature (matches trait signature).",
+        "Red (negative Match Z)"       = "MOA counteracts the trait's TWAS signature (opposes trait signature)."
       ), heading = "How to read this heatmap"),
       br(),
       tags$div(style = "max-width: 1100px;",
@@ -3304,8 +3361,9 @@ cmap_compare_ui <- function(ns) {
 .cmap_signed_ggplot <- function(long, gwas_vec, method_pick,
                                     only_recurrent, k_min,
                                     sig_basis = "fdr", sig_threshold = 0.05,
-                                    row_cap = 50, font_size = 11,
-                                    point_size = 4) {
+                                    row_cap = 50, font_size = 14,
+                                    point_size = 5,
+                                    gwas_labels_map = NULL) {
   slice <- long[method == method_pick & entity_type == "cmap" &
                     gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
@@ -3319,26 +3377,23 @@ cmap_compare_ui <- function(ns) {
   slice <- slice[entity_id %in% rec$entity_id]
 
   slice[, entity_id := factor(entity_id, levels = rev(rec$entity_id))]
-  slice[, gwas := factor(gwas, levels = gwas_vec)]
+  slice[, gwas := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
   slice[, nom_sig := !is.na(p)   & p   < 0.05]
   slice[, fdr_sig := !is.na(fdr) & fdr < 0.05]
-  neg_log_fdr <- -log10(slice$fdr)
-  slice[, signed_score := ifelse(
-    is.na(direction), NA_real_,
-    ifelse(direction == "Matches disease",  neg_log_fdr,
-    ifelse(direction == "Opposes disease", -neg_log_fdr, NA_real_)))]
+  # Match Z-score: -Reversal_Z (positive = matches trait signature).
+  slice[, match_z := -reversal_z]
   # Drop rows with no signed score so blanks are truly blank (matches the
   # caption "Blank: not tested in that GWAS.").
-  slice <- slice[!is.na(signed_score)]
+  slice <- slice[!is.na(match_z)]
   if (nrow(slice) == 0) return(NULL)
 
   # Data-driven symmetric limits so the ramp matches the observed range.
-  max_abs <- suppressWarnings(max(abs(slice$signed_score), na.rm = TRUE))
+  max_abs <- suppressWarnings(max(abs(slice$match_z), na.rm = TRUE))
   if (!is.finite(max_abs) || max_abs <= 0) max_abs <- 1
   fill_lim <- c(-max_abs, max_abs)
 
   base_layer <- ggplot2::geom_point(
-    ggplot2::aes(fill = signed_score), shape = 21, stroke = 0,
+    ggplot2::aes(fill = match_z), shape = 21, stroke = 0,
     size = point_size)
 
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = entity_id)) +
@@ -3346,7 +3401,7 @@ cmap_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
       limits = fill_lim, na.value = "transparent",
-      name = "signed -log10(FDR)  (− opposes / + matches)"
+      name = "TWAS-GSEA\nMatch Z  (+ matches / − opposes)"
     )
 
   gg <- .compare_add_sig_overlays(gg, slice, base_layer,
@@ -3418,8 +3473,9 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$pert_sig_threshold)) 0.05 else as.numeric(input$pert_sig_threshold),
         row_cap        = if (is.null(input$pert_row_cap)) 50L else as.integer(input$pert_row_cap),
-        font_size      = if (is.null(input$pert_plot_font_size)) 11 else as.numeric(input$pert_plot_font_size),
-        point_size     = if (is.null(input$pert_plot_point_size)) 4 else as.numeric(input$pert_plot_point_size)
+        font_size      = if (is.null(input$pert_plot_font_size)) 14 else as.numeric(input$pert_plot_font_size),
+        point_size     = if (is.null(input$pert_plot_point_size)) 5 else as.numeric(input$pert_plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -3429,7 +3485,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(pert_gwas_vec()),
-        font_size = if (is.null(input$pert_plot_font_size)) 11 else as.numeric(input$pert_plot_font_size),
+        font_size = if (is.null(input$pert_plot_font_size)) 14 else as.numeric(input$pert_plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
@@ -3460,12 +3516,12 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- pert_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = pert_gwas_vec()),
+        GWAS       = .gwas_factor(slice$gwas, pert_gwas_vec(), gwas_labels(gwas_data())),
         Perturbation = slice$entity_id,
         Panel      = slice$panel,
         Estimate   = .fmt_sig(slice$statistic, 3),
         SE         = .fmt_sig(slice$se, 3),
-        Direction  = slice$direction,
+        Direction  = direction_display(slice$direction),
         Reversal_Z = .fmt_sig(slice$reversal_z, 3),
         P          = .fmt_sig(slice$p, 3),
         `P.FDR`    = .fmt_sig(slice$fdr, 3),
@@ -3483,7 +3539,8 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- pert_tbl_slice()
       if (nrow(slice) < sel) return()
       .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "cmap", comparison_long(), pert_gwas_vec())
+                            "cmap", comparison_long(), pert_gwas_vec(),
+                            gwas_labels_map = gwas_labels(gwas_data()))
     }, ignoreInit = TRUE)
 
     output$pert_download_plot <- downloadHandler(
@@ -3511,9 +3568,9 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     entity_type == "cmap" &
                                     gwas %in% gwas_vec]
         best <- pick_best_per_cell(long, c("gwas", "entity_id"))
-        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
-                                 -(-log10(fdr)), -log10(fdr))]
-        wide <- pivot_matrix(best, "signed", gwas_vec)
+        best[, match_z := -reversal_z]
+        wide <- pivot_matrix(best, "match_z", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc CMap perturbation compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
@@ -3523,7 +3580,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
                            input$pert_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
-        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        writeLines("# Cells: Match Z = -Reversal_Z: + = matches trait signature, - = opposes. NT = not tested.", con)
         out <- data.frame(Perturbation = rownames(display), display,
                           check.names = FALSE, stringsAsFactors = FALSE)
         utils::write.csv(out, con, row.names = FALSE, quote = FALSE)
@@ -3542,8 +3599,9 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         sig_basis      = "fdr",
         sig_threshold  = if (is.null(input$moa_sig_threshold)) 0.05 else as.numeric(input$moa_sig_threshold),
         row_cap        = if (is.null(input$moa_row_cap)) 50L else as.integer(input$moa_row_cap),
-        font_size      = if (is.null(input$moa_plot_font_size)) 11 else as.numeric(input$moa_plot_font_size),
-        point_size     = if (is.null(input$moa_plot_point_size)) 4 else as.numeric(input$moa_plot_point_size)
+        font_size      = if (is.null(input$moa_plot_font_size)) 14 else as.numeric(input$moa_plot_font_size),
+        point_size     = if (is.null(input$moa_plot_point_size)) 5 else as.numeric(input$moa_plot_point_size),
+        gwas_labels_map = gwas_labels(gwas_data())
       )
     })
 
@@ -3553,7 +3611,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
       .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = length(moa_gwas_vec()),
-        font_size = if (is.null(input$moa_plot_font_size)) 11 else as.numeric(input$moa_plot_font_size),
+        font_size = if (is.null(input$moa_plot_font_size)) 14 else as.numeric(input$moa_plot_font_size),
         y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       )
     })
@@ -3584,12 +3642,12 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- moa_tbl_slice()
       if (nrow(slice) == 0) return(NULL)
       out <- data.frame(
-        GWAS       = factor(slice$gwas, levels = moa_gwas_vec()),
+        GWAS       = .gwas_factor(slice$gwas, moa_gwas_vec(), gwas_labels(gwas_data())),
         MOA        = slice$entity_id,
         Panel      = slice$panel,
         `N Drugs`  = .fmt_int(slice$n_units),
         Estimate   = .fmt_sig(slice$statistic, 3),
-        Direction  = slice$direction,
+        Direction  = direction_display(slice$direction),
         Reversal_Z = .fmt_sig(slice$reversal_z, 3),
         P          = .fmt_sig(slice$p, 3),
         `P.FDR`    = .fmt_sig(slice$fdr, 3),
@@ -3607,7 +3665,8 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
       slice <- moa_tbl_slice()
       if (nrow(slice) < sel) return()
       .show_entity_detail(as.character(slice$entity_id[sel]),
-                            "cmap", comparison_long(), moa_gwas_vec())
+                            "cmap", comparison_long(), moa_gwas_vec(),
+                            gwas_labels_map = gwas_labels(gwas_data()))
     }, ignoreInit = TRUE)
 
     output$moa_download_plot <- downloadHandler(
@@ -3635,9 +3694,9 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                     entity_type == "cmap" &
                                     gwas %in% gwas_vec]
         best <- pick_best_per_cell(long, c("gwas", "entity_id"))
-        best[, signed := ifelse(!is.na(direction) & direction == "Opposes disease",
-                                 -(-log10(fdr)), -log10(fdr))]
-        wide <- pivot_matrix(best, "signed", gwas_vec)
+        best[, match_z := -reversal_z]
+        wide <- pivot_matrix(best, "match_z", gwas_vec)
+        colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         display <- ifelse(is.na(wide), "NT", sprintf("%+.2f", wide))
         display <- matrix(display, nrow = nrow(wide), dimnames = dimnames(wide))
         header <- sprintf("# GenoDisc CMap MOA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
@@ -3647,7 +3706,7 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
                            input$moa_k_min %||% 2L)
         con <- file(file, "w"); on.exit(close(con))
         writeLines(header, con)
-        writeLines("# Cells: signed -log10(FDR): + = matches, - = opposes. NT = not tested.", con)
+        writeLines("# Cells: Match Z = -Reversal_Z: + = matches trait signature, - = opposes. NT = not tested.", con)
         out <- data.frame(MOA = rownames(display), display,
                           check.names = FALSE, stringsAsFactors = FALSE)
         utils::write.csv(out, con, row.names = FALSE, quote = FALSE)

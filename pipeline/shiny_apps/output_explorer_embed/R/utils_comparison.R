@@ -810,7 +810,7 @@ build_gencor_within_long <- function(gd, gwas_vec) {
 #' @param title character, optional plot title
 #' @param theme_fn ggplot theme function (e.g. ggplot2::theme_bw)
 build_gencor_within_heatmap <- function(long,
-                                        font_size = 12,
+                                        font_size = 14,
                                         cell_font_size = 9,
                                         show_cell_text = TRUE,
                                         title = "",
@@ -839,6 +839,28 @@ build_gencor_within_heatmap <- function(long,
   # band into |rg| < ~0.02, so cells at |rg| = 0.05 already carry
   # visible directional colour, while the mid- and high-magnitude
   # colours still span the full [-1, 1] range as before.
+  #
+  # Fill limits: symmetric around 0, floored at ±1. If any rg value falls
+  # outside [-1, 1] (bivariate LDSC estimates can), the ramp expands
+  # symmetrically so the extreme cells still take colour rather than
+  # being clipped to grey `na.value`.
+  abs_mx <- suppressWarnings(max(abs(long$rg), na.rm = TRUE))
+  if (!is.finite(abs_mx) || abs_mx < 1) abs_mx <- 1
+  fill_limits <- c(-abs_mx, abs_mx)
+  fill_breaks <- if (abs_mx > 1) c(-abs_mx, -0.5, 0, 0.5, abs_mx)
+                 else c(-1, -0.5, 0, 0.5, 1)
+  # Palette anchors must span the full fill range or scale_fill_gradientn
+  # returns na.value (grey) for values outside the anchor range. When the
+  # data's |rg| exceeds 1, repeat the palette endpoints at ±abs_mx so the
+  # extreme cells still take the deepest blue / red colour.
+  anchor_vals <- c(-1, -0.5, -0.15, -0.02, 0, 0.02, 0.15, 0.5, 1)
+  anchor_cols <- c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0",
+                    "#FFFFFF",
+                    "#FDDBC7", "#F4A582", "#D6604D", "#B2182B")
+  if (abs_mx > 1) {
+    anchor_vals <- c(-abs_mx, anchor_vals, abs_mx)
+    anchor_cols <- c(anchor_cols[1L], anchor_cols, anchor_cols[length(anchor_cols)])
+  }
   gg <- ggplot2::ggplot(long, ggplot2::aes(x = label_col, y = label_row, fill = rg)) +
     ggplot2::geom_tile(colour = "white", linewidth = 0.4)
   if (isTRUE(show_cell_text)) {
@@ -847,14 +869,10 @@ build_gencor_within_heatmap <- function(long,
   }
   gg +
     ggplot2::scale_fill_gradientn(
-      colours = c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0",
-                   "#FFFFFF",
-                   "#FDDBC7", "#F4A582", "#D6604D", "#B2182B"),
-      values  = scales::rescale(c(-1, -0.5, -0.15, -0.02,
-                                    0,
-                                    0.02, 0.15, 0.5, 1)),
-      limits  = c(-1, 1),
-      breaks  = c(-1, -0.5, 0, 0.5, 1),
+      colours = anchor_cols,
+      values  = scales::rescale(anchor_vals, to = c(0, 1), from = fill_limits),
+      limits  = fill_limits,
+      breaks  = fill_breaks,
       name    = "rG"
     ) +
     ggplot2::scale_x_discrete(position = "top") +

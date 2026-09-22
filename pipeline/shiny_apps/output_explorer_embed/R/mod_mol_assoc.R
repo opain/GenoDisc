@@ -436,13 +436,17 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # residual margin.
     if (!is.null(selected_gwas_multi)) {
       output$mol_single_gwas_ui <- renderUI({
-        choices <- selected_gwas_multi()
-        req(length(choices) >= 1)
+        gwas_vec <- selected_gwas_multi()
+        req(length(gwas_vec) >= 1)
         cur <- isolate(input$mol_single_gwas)
-        keep <- if (!is.null(cur) && cur %in% choices) cur else choices[1L]
-        div(style = "max-width: 260px; margin-bottom: 10px;",
+        keep <- if (!is.null(cur) && cur %in% gwas_vec) cur else gwas_vec[1L]
+        choices <- gwas_choices(gwas_data(), gwas_vec)
+        widest <- max(nchar(names(choices)), 12L, na.rm = TRUE)
+        w_px   <- max(320L, as.integer(round(widest * 8.5)) + 60L)
+        div(style = sprintf("width: %dpx; margin-bottom: 10px;", w_px),
           selectInput(session$ns("mol_single_gwas"), "GWAS:",
-                       choices = choices, selected = keep, multiple = FALSE))
+                       choices = choices, selected = keep,
+                       multiple = FALSE, width = "100%"))
       })
     }
 
