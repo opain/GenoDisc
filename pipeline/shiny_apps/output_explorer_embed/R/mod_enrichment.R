@@ -236,7 +236,7 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
   if (nrow(dir_data) > 0 && is.finite(dir_max)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = dir_data, ggplot2::aes(fill = Match_Z), shape = 21, stroke = 0, size = point_size) +
-      ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
+      ggplot2::scale_fill_gradientn(colours = c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
                                     na.value = "transparent", name = "TWAS-GSEA\nMatch Z-score",
                                     limits = c(-dir_max, dir_max))
   }
@@ -366,7 +366,7 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   if (nrow(dir_data_atc) > 0 && is.finite(dir_max_atc)) {
     heatmap <- heatmap +
       ggplot2::geom_point(data = dir_data_atc, ggplot2::aes(fill = Match_Z), shape = 21, stroke = 0, size = point_size) +
-      ggplot2::scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
+      ggplot2::scale_fill_gradientn(colours = c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
                                     na.value = "transparent", name = "TWAS-GSEA\nMatch Z-score",
                                     limits = c(-dir_max_atc, dir_max_atc))
   }
@@ -2560,7 +2560,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       p <- ggplot(d, aes(x = Panel, y = Name)) +
         theme_bw() +
         geom_point(aes(fill = Match_Z), shape = 21, stroke = 0, size = 5) +
-        scale_fill_gradientn(colours = c("#0066FF","#0099FF","#FFFFFF","#FF6666","#FF0000"),
+        scale_fill_gradientn(colours = c("#FF0000","#FF6666","#FFFFFF","#0099FF","#0066FF"),
                              na.value = NA, name = "CMAP\nMatch Z-score",
                              limits = c(-z_max, z_max)) +
         geom_point(data = d[d$Nom_Sig %in% TRUE, ], colour = 'black', fill = NA, size = 6) +
