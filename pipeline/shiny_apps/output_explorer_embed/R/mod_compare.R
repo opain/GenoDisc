@@ -58,8 +58,24 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
 # Plot dimensions for a compare heatmap given its row and column counts. Mimics
 # the sizing used by calc_plot_dims() for the single-GWAS heatmaps but does not
 # require a facet column. Returns pixel dimensions suitable for plotOutput().
+# Horizontal projection of the topmost x-axis label at 45°
+# (position = "top", hjust = 0, vjust = 0 in the compare heatmaps —
+# labels rise up-and-right from each tick, so the rightmost label
+# extends past the right edge of the panel). Mirrors the left_pad_pt
+# logic in utils_heatmap.R:calc_plot_dims() but on the right side.
+# Returns pt; used for both the plot device's `width` (so the label
+# has room) and the ggplot `plot.margin(r = …)` (so it isn't clipped).
+.compare_right_pad_pt <- function(labels, font_size) {
+  if (is.null(labels) || length(labels) == 0) return(20)
+  slot <- suppressWarnings(max(strwidth_pt(as.character(labels),
+                                             ps = font_size),
+                                 na.rm = TRUE)) * cos(pi / 4)
+  if (!is.finite(slot)) return(20)
+  max(20, round(slot) + 10)
+}
+
 .compare_plot_dims <- function(n_rows, n_cols, font_size = 14,
-                                 y_labels = NULL,
+                                 y_labels = NULL, x_top_labels = NULL,
                                  min_height = 300, min_width = 500,
                                  min_panel_h_pt = 120) {
   # fs_ratio anchored at 14pt so this matches calc_plot_dims() in
@@ -79,9 +95,10 @@ if (!exists("%||%", mode = "function", envir = baseenv(), inherits = FALSE)) {
   x_label_h <- 6 * font_size + 30
   legend_h  <- 60   # bottom colour-bar legend
   height <- max(min_height, x_label_h + panel_h + legend_h + 40)
-  # Right margin is small now that the legend sits underneath the panel.
-  width  <- max(min_width, y_label_px + panel_w + 60)
-  list(height = round(height), width = round(width))
+  right_pad_pt <- .compare_right_pad_pt(x_top_labels, font_size)
+  width  <- max(min_width, y_label_px + panel_w + 60 + right_pad_pt)
+  list(height = round(height), width = round(width),
+       right_pad_pt = right_pad_pt)
 }
 
 # Placeholder shown in a compare view's plot slot when the filter combination
@@ -445,7 +462,10 @@ tissue_compare_ui <- function(ns) {
     rev(as.character(packed$rec$entity_id))
   }
   slice[, Label := factor(as.character(entity_id), levels = tissue_levels)]
-  slice[, gwas  := .gwas_factor(gwas, gwas_vec, gwas_labels_map)]
+  # `slice$gwas` is already the label-factored column from
+  # .tissue_compare_frame — re-factoring here against gwas_vec (raw
+  # names) would collapse every row to NA and produce a single
+  # "NA"-labelled facet.
 
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = negLog10P, y = Label)) +
     ggplot2::geom_segment(ggplot2::aes(x = 0, xend = negLog10P, yend = Label),
@@ -492,6 +512,9 @@ tissue_compare_ui <- function(ns) {
                                     font_size = 14,
                                     point_size = 5,
                                     gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   packed <- .tissue_compare_frame(long, gwas_vec, only_recurrent, k_min,
                                     sig_basis, sig_threshold,
                                     gwas_labels_map = gwas_labels_map)
@@ -551,7 +574,7 @@ tissue_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -662,11 +685,14 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       y_lab  <- if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       is_facet <- identical(input$plot_type %||% "facet", "facet")
       n_cols_dim <- if (is_facet) max(2L, length(gwas_vec_r())) else length(gwas_vec_r())
+      # x_top_labels only matters in heatmap mode (facet mode uses a
+      # bottom lollipop axis with -log10(P)), so pass NULL when facet.
       dims <- .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = n_cols_dim,
         font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
-        y_labels  = y_lab
+        y_labels  = y_lab,
+        x_top_labels = if (is_facet) NULL else gwas_label_of(gwas_data(), gwas_vec_r())
       )
       # Facet mode needs extra width per facet (each panel is a full mini-plot,
       # not a single-cell heatmap column). Height is locked to the single-GWAS
@@ -871,6 +897,9 @@ locus_compare_ui <- function(ns) {
                                      row_cap = 50, font_size = 14,
                                      point_size = 5,
                                      gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   slice <- long[method == method_pick & gwas %in% gwas_vec &
                     entity_type == "locus"]
   if (nrow(slice) == 0) return(NULL)
@@ -925,7 +954,7 @@ locus_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -989,7 +1018,8 @@ locus_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(gwas_vec_r()),
         font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id)),
+        x_top_labels = gwas_label_of(gwas_data(), gwas_vec_r())
       )
     })
 
@@ -1223,6 +1253,9 @@ gene_compare_ui <- function(ns) {
                                     row_cap = 50, font_size = 14,
                                     point_size = 5,
                                     gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   slice <- long[method == method_pick & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
 
@@ -1296,7 +1329,7 @@ gene_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1376,7 +1409,8 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(gwas_vec_r()),
         font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id)),
+        x_top_labels = gwas_label_of(gwas_data(), gwas_vec_r())
       )
     })
 
@@ -1640,6 +1674,9 @@ atc_compare_ui <- function(ns) {
                                  sig_basis = "fdr", sig_threshold = 0.05,
                                  font_size = 14, point_size = 5,
                                  gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   slice <- long[method == "MAGMA-ATC" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
@@ -1702,7 +1739,7 @@ atc_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1761,6 +1798,9 @@ atc_compare_ui <- function(ns) {
                                 panel_pick, sig_basis, sig_threshold,
                                 font_size = 14, point_size = 5,
                                 gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   filled <- .atc_gsea_frame(long, gwas_vec, only_recurrent, k_min,
                              panel_pick, sig_basis, sig_threshold,
                              gwas_labels_map = gwas_labels_map)
@@ -1806,7 +1846,7 @@ atc_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -1878,7 +1918,8 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(magma_gwas_vec()),
         font_size = if (is.null(input$magma_plot_font_size)) 14 else as.numeric(input$magma_plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label)),
+        x_top_labels = gwas_label_of(gwas_data(), magma_gwas_vec())
       )
     })
 
@@ -1988,7 +2029,8 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(gsea_gwas_vec()),
         font_size = if (is.null(input$gsea_plot_font_size)) 14 else as.numeric(input$gsea_plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_label)),
+        x_top_labels = gwas_label_of(gwas_data(), gsea_gwas_vec())
       )
     })
 
@@ -2214,6 +2256,9 @@ drug_compare_ui <- function(ns) {
                                   row_cap = 50, font_size = 14,
                                   point_size = 5,
                                   gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   slice <- long[method == "MAGMA-drug" & gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
   rec <- .atc_row_order(slice, sig_basis, sig_threshold)
@@ -2268,7 +2313,7 @@ drug_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -2312,6 +2357,9 @@ drug_compare_ui <- function(ns) {
                                  row_cap = 50, font_size = 14,
                                  point_size = 5,
                                  gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   slice <- .drug_gsea_frame(long, gwas_vec, only_recurrent, k_min,
                               panel_pick, sig_basis, sig_threshold, row_cap,
                               gwas_labels_map = gwas_labels_map)
@@ -2358,7 +2406,7 @@ drug_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -2430,7 +2478,8 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(magma_gwas_vec()),
         font_size = if (is.null(input$magma_plot_font_size)) 14 else as.numeric(input$magma_plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id)),
+        x_top_labels = gwas_label_of(gwas_data(), magma_gwas_vec())
       )
     })
 
@@ -2542,7 +2591,8 @@ drug_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(gsea_gwas_vec()),
         font_size = if (is.null(input$gsea_plot_font_size)) 14 else as.numeric(input$gsea_plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id)),
+        x_top_labels = gwas_label_of(gwas_data(), gsea_gwas_vec())
       )
     })
 
@@ -2697,7 +2747,10 @@ gencor_compare_ui <- function(ns) {
       )
     ),
     br(),
-    tags$div(style = "max-width: 1100px; overflow-x: auto;",
+    # No max-width cap: facet-mode strip titles carry the full GWAS
+    # label, which can exceed 1100px total. overflow-x: auto still gives
+    # a scrollbar if the plot outruns the viewport.
+    tags$div(style = "overflow-x: auto;",
       uiOutput(ns("gencor_plot_ui"))
     ),
     gd_legend(list(
@@ -2859,6 +2912,9 @@ gencor_compare_ui <- function(ns) {
                              gwas_labels_map = NULL,
                              group_by_category = TRUE,
                              row_facet_col = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   if (nrow(long) == 0) return(NULL)
   slice <- long[gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
@@ -2949,7 +3005,7 @@ gencor_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 
   if (use_row_facet) {
@@ -3091,16 +3147,33 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
       ref_labels <- unique(long[gwas %in% gwas_vec_r(), ref_label])
       is_facet <- identical(input$plot_type %||% "facet", "facet")
       n_cols_dim <- if (is_facet) max(2L, length(gwas_vec_r())) else length(gwas_vec_r())
+      fs <- if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size)
+      # Heatmap mode is the only branch that uses the top 45° x-axis; in
+      # facet mode the strip labels get their own sizing below.
       dims <- .compare_plot_dims(
         n_rows    = length(ref_labels),
         n_cols    = n_cols_dim,
-        font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
+        font_size = fs,
         y_labels  = ref_labels,
+        x_top_labels = if (is_facet) NULL else gwas_label_of(gwas_data(), gwas_vec_r()),
         min_width = 400, min_height = 300
       )
-      # Facet mode needs extra width per facet (each panel is a mini forest
-      # plot with its own x-axis, not a single-cell heatmap column).
-      if (is_facet) dims$width <- dims$width * 1.6
+      # Facet mode: each panel is a mini forest plot with its own x-axis
+      # AND a facet strip labelled with the GWAS label. If the label is
+      # wider than the panel, ggplot clips it — so size the per-facet
+      # panel from the longest GWAS label.
+      if (is_facet) {
+        gwas_lbls <- gwas_label_of(gwas_data(), gwas_vec_r())
+        lbl_w     <- suppressWarnings(max(strwidth_pt(gwas_lbls, ps = fs),
+                                          na.rm = TRUE)) + 24
+        if (!is.finite(lbl_w)) lbl_w <- 0
+        per_facet <- max(lbl_w, 200)
+        y_lab_w   <- suppressWarnings(max(strwidth_pt(as.character(ref_labels),
+                                                       ps = fs), na.rm = TRUE))
+        if (!is.finite(y_lab_w)) y_lab_w <- 0
+        y_lab_w <- y_lab_w + 30
+        dims$width <- y_lab_w + per_facet * length(gwas_vec_r()) + 200
+      }
       dims
     })
 
@@ -3364,6 +3437,9 @@ cmap_compare_ui <- function(ns) {
                                     row_cap = 50, font_size = 14,
                                     point_size = 5,
                                     gwas_labels_map = NULL) {
+  right_pad_pt <- .compare_right_pad_pt(
+    if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
+    font_size)
   slice <- long[method == method_pick & entity_type == "cmap" &
                     gwas %in% gwas_vec]
   if (nrow(slice) == 0) return(NULL)
@@ -3422,7 +3498,7 @@ cmap_compare_ui <- function(ns) {
       panel.grid.minor = ggplot2::element_blank(),
       legend.position = "bottom",
       legend.box = "horizontal",
-      plot.margin = ggplot2::margin(t = 60, r = 20, b = 10, l = 10, unit = "pt")
+      plot.margin = ggplot2::margin(t = 60, r = right_pad_pt, b = 10, l = 10, unit = "pt")
     )
 }
 
@@ -3486,7 +3562,8 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(pert_gwas_vec()),
         font_size = if (is.null(input$pert_plot_font_size)) 14 else as.numeric(input$pert_plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id)),
+        x_top_labels = gwas_label_of(gwas_data(), pert_gwas_vec())
       )
     })
 
@@ -3612,7 +3689,8 @@ cmap_compare_server <- function(id, gwas_data, selected_gwas_multi,
         n_rows    = n_rows,
         n_cols    = length(moa_gwas_vec()),
         font_size = if (is.null(input$moa_plot_font_size)) 14 else as.numeric(input$moa_plot_font_size),
-        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
+        y_labels  = if (is.null(p)) NULL else as.character(unique(p$data$entity_id)),
+        x_top_labels = gwas_label_of(gwas_data(), moa_gwas_vec())
       )
     })
 
