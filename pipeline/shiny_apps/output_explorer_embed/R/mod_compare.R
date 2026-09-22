@@ -339,7 +339,10 @@ tissue_compare_ui <- function(ns) {
       )
     ),
     br(),
-    tags$div(style = "max-width: 1100px; overflow-x: auto;",
+    # No max-width cap: facet-mode strip titles carry the full GWAS
+    # label, which can exceed 1100px total. overflow-x: auto still
+    # gives a scrollbar if the plot outruns the viewport.
+    tags$div(style = "overflow-x: auto;",
       uiOutput(ns("tissue_compare_plot_ui"))
     ),
     gd_legend(list(
@@ -685,21 +688,36 @@ tissue_compare_server <- function(id, gwas_data, selected_gwas_multi,
       y_lab  <- if (is.null(p)) NULL else as.character(unique(p$data$entity_id))
       is_facet <- identical(input$plot_type %||% "facet", "facet")
       n_cols_dim <- if (is_facet) max(2L, length(gwas_vec_r())) else length(gwas_vec_r())
+      fs <- if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size)
       # x_top_labels only matters in heatmap mode (facet mode uses a
       # bottom lollipop axis with -log10(P)), so pass NULL when facet.
       dims <- .compare_plot_dims(
         n_rows    = n_rows,
         n_cols    = n_cols_dim,
-        font_size = if (is.null(input$plot_font_size)) 14 else as.numeric(input$plot_font_size),
+        font_size = fs,
         y_labels  = y_lab,
         x_top_labels = if (is_facet) NULL else gwas_label_of(gwas_data(), gwas_vec_r())
       )
-      # Facet mode needs extra width per facet (each panel is a full mini-plot,
-      # not a single-cell heatmap column). Height is locked to the single-GWAS
-      # tissue plot's 900px so the two views feel visually consistent — the
-      # multi-GWAS facet reuses the same y-axis so row spacing should match.
+      # Facet mode: each panel is a mini lollipop plot with its own
+      # x-axis AND a facet strip labelled with the GWAS label. Size the
+      # per-facet width from the longest label so ggplot doesn't clip
+      # the strip text (matches the gencor compare view). Height is
+      # locked to the single-GWAS tissue plot's 900px so the two views
+      # feel visually consistent — the multi-GWAS facet reuses the same
+      # y-axis so row spacing should match.
       if (is_facet) {
-        dims$width  <- dims$width * 1.4
+        gwas_lbls <- gwas_label_of(gwas_data(), gwas_vec_r())
+        lbl_w     <- suppressWarnings(max(strwidth_pt(gwas_lbls, ps = fs),
+                                          na.rm = TRUE)) + 24
+        if (!is.finite(lbl_w)) lbl_w <- 0
+        per_facet <- max(lbl_w, 200)
+        y_lab_w   <- if (is.null(y_lab)) 0 else {
+          suppressWarnings(max(strwidth_pt(as.character(y_lab), ps = fs),
+                                na.rm = TRUE))
+        }
+        if (!is.finite(y_lab_w)) y_lab_w <- 0
+        y_lab_w <- y_lab_w + 30
+        dims$width  <- y_lab_w + per_facet * length(gwas_vec_r()) + 200
         dims$height <- 900
       }
       dims
