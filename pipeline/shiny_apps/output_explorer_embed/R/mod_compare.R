@@ -2758,7 +2758,12 @@ gencor_compare_ui <- function(ns) {
             sliderInput(ns("plot_font_size"), "Font size (pt):",
                          min = 8, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
-                         min = 2, max = 14, value = 3, step = 1)
+                         min = 2, max = 14, value = 3, step = 1),
+            radioButtons(ns("plot_flip_colours"),
+                          "Heatmap colour scale:",
+                          choices = c("Red = positive rG"  = "FALSE",
+                                      "Blue = positive rG" = "TRUE"),
+                          selected = "FALSE", inline = TRUE)
           ),
           .dl_and_download_column(ns, "gencor", default_w = 12, default_h = 10)
         )
@@ -2929,7 +2934,8 @@ gencor_compare_ui <- function(ns) {
 .gencor_ggplot <- function(long, gwas_vec, font_size = 14, point_size = 6,
                              gwas_labels_map = NULL,
                              group_by_category = TRUE,
-                             row_facet_col = NULL) {
+                             row_facet_col = NULL,
+                             flip_colours = FALSE) {
   right_pad_pt <- .compare_right_pad_pt(
     if (!is.null(gwas_labels_map)) unname(gwas_labels_map[gwas_vec]) else gwas_vec,
     font_size)
@@ -2982,13 +2988,16 @@ gencor_compare_ui <- function(ns) {
   # than being reached only near ±0.3, so the near-white band is
   # compressed to |rg| < ~0.02 and small-magnitude significant cells
   # carry a visible directional colour while the full [-1, 1] range is
-  # preserved.
+  # preserved. `flip_colours = TRUE` reverses the endpoints so blue lands
+  # on positive rG.
+  anchor_cols_rg <- c(.gd_blue, "#4f7fef", "#92aaf5", "#c9d4fa",
+                       "#FFFFFF",
+                       "#f6c9c9", "#ed9292", "#e35151", .gd_red)
+  if (isTRUE(flip_colours)) anchor_cols_rg <- rev(anchor_cols_rg)
   gg <- ggplot2::ggplot(slice, ggplot2::aes(x = gwas, y = ref_label)) +
     base_layer +
     ggplot2::scale_fill_gradientn(
-      colours = c(.gd_blue, "#4f7fef", "#92aaf5", "#c9d4fa",
-                   "#FFFFFF",
-                   "#f6c9c9", "#ed9292", "#e35151", .gd_red),
+      colours = anchor_cols_rg,
       values  = scales::rescale(c(-1, -0.5, -0.15, -0.02,
                                     0,
                                     0.02, 0.15, 0.5, 1)),
@@ -3155,7 +3164,8 @@ gencor_compare_server <- function(id, gwas_data, selected_gwas_multi) {
           point_size        = if (is.null(input$plot_point_size)) 6 else as.numeric(input$plot_point_size),
           group_by_category = identical(input$trait_order %||% "category", "category"),
           row_facet_col     = row_facet,
-          gwas_labels_map   = gwas_labels(gwas_data())
+          gwas_labels_map   = gwas_labels(gwas_data()),
+          flip_colours      = isTRUE(as.logical(input$plot_flip_colours %||% "FALSE"))
         )
       }
     })

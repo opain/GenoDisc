@@ -614,7 +614,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
                 radioButtons(ns("gencor_within_show_labels"),
                               "Show rG numbers on cells:",
                               choices = c("Yes" = "TRUE", "No" = "FALSE"),
-                              selected = "TRUE", inline = TRUE)
+                              selected = "TRUE", inline = TRUE),
+                radioButtons(ns("gencor_within_flip_colours"),
+                              "Colour scale:",
+                              choices = c("Red = positive rG"  = "FALSE",
+                                          "Blue = positive rG" = "TRUE"),
+                              selected = "FALSE", inline = TRUE)
               ),
               column(4,
                 sliderInput(ns("gencor_within_axis_font_size"),
@@ -721,6 +726,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         font_size      = input$gencor_within_axis_font_size %||% 14,
         cell_font_size = input$gencor_within_cell_font_size %||% 9,
         show_cell_text = isTRUE(as.logical(input$gencor_within_show_labels %||% "TRUE")),
+        flip_colours   = isTRUE(as.logical(input$gencor_within_flip_colours %||% "FALSE")),
         title          = input$gencor_within_title %||% "",
         theme_fn       = mol_theme_fn(input$gencor_within_theme)
       )
@@ -770,6 +776,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
           font_size      = input$gencor_within_axis_font_size %||% 14,
           cell_font_size = input$gencor_within_cell_font_size %||% 9,
           show_cell_text = isTRUE(as.logical(input$gencor_within_show_labels %||% "TRUE")),
+          flip_colours   = isTRUE(as.logical(input$gencor_within_flip_colours %||% "FALSE")),
           title          = input$gencor_within_title %||% "",
           theme_fn       = mol_theme_fn(input$gencor_within_theme)
         )

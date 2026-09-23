@@ -813,6 +813,7 @@ build_gencor_within_heatmap <- function(long,
                                         font_size = 14,
                                         cell_font_size = 9,
                                         show_cell_text = TRUE,
+                                        flip_colours = FALSE,
                                         title = "",
                                         theme_fn = ggplot2::theme_bw) {
   if (is.null(long) || nrow(long) == 0) return(NULL)
@@ -857,6 +858,9 @@ build_gencor_within_heatmap <- function(long,
   anchor_cols <- c("#2166AC", "#4393C3", "#92C5DE", "#D1E5F0",
                     "#FFFFFF",
                     "#FDDBC7", "#F4A582", "#D6604D", "#B2182B")
+  # Optional user flip: swap the endpoints so blue ends up on positive rG
+  # (default is red = positive rG, matching the ColorBrewer RdBu default).
+  if (isTRUE(flip_colours)) anchor_cols <- rev(anchor_cols)
   if (abs_mx > 1) {
     anchor_vals <- c(-abs_mx, anchor_vals, abs_mx)
     anchor_cols <- c(anchor_cols[1L], anchor_cols, anchor_cols[length(anchor_cols)])
