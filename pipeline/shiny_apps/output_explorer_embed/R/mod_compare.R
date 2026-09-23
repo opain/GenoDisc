@@ -1843,7 +1843,7 @@ atc_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
       limits = fill_lim, na.value = "transparent",
-      name = "TWAS-GSEA\nMatch Z  (+ matches / − opposes)"
+      name = "TWAS-GSEA\nMatch Z-score"
     )
 
   gg <- .compare_add_sig_overlays(gg, tested_dat, base_layer,
@@ -2403,7 +2403,7 @@ drug_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
       limits = fill_lim, na.value = "transparent",
-      name = "TWAS-GSEA\nMatch Z  (+ matches / − opposes)"
+      name = "TWAS-GSEA\nMatch Z-score"
     )
 
   gg <- .compare_add_sig_overlays(gg, tested, base_layer,
@@ -3495,7 +3495,7 @@ cmap_compare_ui <- function(ns) {
     ggplot2::scale_fill_gradient2(
       low = .gd_red, mid = "white", high = .gd_blue, midpoint = 0,
       limits = fill_lim, na.value = "transparent",
-      name = "TWAS-GSEA\nMatch Z  (+ matches / − opposes)"
+      name = "TWAS-GSEA\nMatch Z-score"
     )
 
   gg <- .compare_add_sig_overlays(gg, slice, base_layer,
