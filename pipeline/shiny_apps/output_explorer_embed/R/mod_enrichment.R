@@ -592,11 +592,30 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           "Name" = "Drug class (ATC code: description).",
           "N Drugs" = "Number of drugs in the class that were tested.",
           "P" = lg_p, "P.FDR" = lg_pfdr),
-        atc_twas = list(
+        atc_twas_dir = list(
           "Name" = "Drug class (ATC code: description).",
           "Panel" = lg_panel,
           "N Drugs" = "Number of drugs in the class.",
-          "Estimate" = lg_est,
+          "Estimate" = paste0(
+            "Enrichment effect size (Wilcoxon-Hodges-Lehmann estimate on ",
+            "ranked drug-level T-statistics). Positive Estimate = the class's ",
+            "drugs have lower T on average = the class is enriched for the ",
+            "opposes-trait direction; negative Estimate = matches trait. The ",
+            "Direction column already normalises this — read that instead of ",
+            "the raw Estimate sign."),
+          "Direction" = lg_dir,
+          "P" = lg_p, "P.FDR" = lg_pfdr),
+        atc_twas_nondir = list(
+          "Name" = "Drug class (ATC code: description).",
+          "Panel" = lg_panel,
+          "N Drugs" = "Number of drugs in the class.",
+          "Estimate" = paste0(
+            "Enrichment effect size (Wilcoxon-Hodges-Lehmann estimate on ",
+            "ranked drug-level T-statistics). Positive Estimate = the class's ",
+            "drugs have larger T on average = the class is enriched. No ",
+            "direction-of-effect interpretation is claimed here (the sign of ",
+            "the drug-level T is not interpretable as matches / opposes in ",
+            "non-directional mode)."),
           "Direction" = lg_dir,
           "P" = lg_p, "P.FDR" = lg_pfdr),
         cmap_drug = list(
@@ -859,13 +878,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (cf$twas_gsea_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA", br(),
           p("This tab shows TWAS-GSEA ATC enrichment results."), hr(), br(),
-          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_table")))), enr_legend("atc_twas"), br()
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_table")))), enr_legend("atc_twas_dir"), br()
         )))
       }
       if (cf$twas_gsea_drugtargetor_nondirectional) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
           p("This tab shows TWAS-GSEA ATC enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA)."), hr(), br(),
-          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), enr_legend("atc_twas"), br()
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), enr_legend("atc_twas_nondir"), br()
         )))
       }
 
