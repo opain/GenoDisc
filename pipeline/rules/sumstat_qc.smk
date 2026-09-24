@@ -18,6 +18,24 @@ gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 # than at parse time.
 gencor_gwas_list_path = config.get("gencor_gwas_list", "NA")
 
+
+def ldsc_gencor_runtime(wildcards, attempt):
+    """Adaptive SLURM walltime (minutes) for ldsc_gencor: the rule runs one
+    ldsc.py --rg per reference GWAS in the gencor list, so its time scales with
+    the number of references selected - and the reference catalogue grows over
+    time, so a fixed limit would eventually be too small. Budget ~30s/reference
+    (x1.5 margin) on top of a ~3 min munge/setup base, floored at 15 min, and
+    attempt-scaled so a rare overrun retries with more time (see restart-times).
+    Falls back to a large reference count if the list can't be read."""
+    try:
+        with open(gencor_gwas_list_path) as fh:
+            n_ref = max(0, sum(1 for line in fh if line.strip()) - 1)
+    except OSError:
+        n_ref = 100
+    minutes = 3 + (45 * n_ref + 59) // 60   # 3-min base + ceil(1.5 * 30s * n_ref / 60)
+    return max(15, minutes) * attempt
+
+
 rule sumstat_prep_i:
   resources:
     mem_mb=lambda wildcards, input: max(
@@ -123,6 +141,8 @@ rule ldsc:
 ###
 
 rule ldsc_gencor:
+  resources:
+    runtime=ldsc_gencor_runtime
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.mergealleles.sumstats.gz",
     f"{resdir}/software/ldsc/",

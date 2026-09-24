@@ -65,6 +65,7 @@ default-resources:
 set-resources:
   - clump:runtime=10    # n=687, max=39s
   - cojo:runtime=216    # n=176, max=8604s
+  - combine_twas_res:runtime=10    # checkpoint; n=38, max=31s
   - convert_pathway_gmt:runtime=10    # n=10, max=43s
   - finemap:runtime=11    # n=220, max=422s
   - format_eqtlgen_smr:runtime=10    # n=6, max=3s
@@ -77,8 +78,10 @@ set-resources:
   - format_twas_gsea_drugtargetor_results:runtime=10    # n=363, max=88s
   - format_twas_gsea_pathway_results:runtime=10    # n=446, max=13s
   - ldsc:runtime=10    # n=40, max=197s
-  - ldsc_gencor:runtime=10    # n=26, max=46s
-  - ldsc_gencor_within:runtime=10    # n=16, max=32s
+  # ldsc_gencor is intentionally NOT set here: its runtime scales with the number
+  # of reference GWAS and is set adaptively in the rule (ldsc_gencor_runtime in
+  # rules/sumstat_qc.smk). A set-resources value here would override that.
+  - ldsc_gencor_within:runtime=15    # whole-rule (loops over pairs); bounded by the 5-GWAS submission cap; max=78s
   - locus_plots:runtime=10    # n=28, max=214s
   - magma_drug_targetor:runtime=10    # n=26, max=32s
   - magma_gene_level:runtime=441    # n=30, max=17625s
