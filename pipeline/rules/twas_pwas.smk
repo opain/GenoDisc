@@ -240,7 +240,7 @@ rule banner_pwas_all_chr:
 # Run TWAS-GSEA-fast.R against the precomputed cor matrix.
 rule run_twas_gsea_drug_targetor:
   wildcard_constraints:
-    weight="(?!nondir_).+"
+    weight="(?!nondir_)(?!atc_).+"
   resources:
     mem_mb=50000,
     cpus=5
@@ -368,6 +368,147 @@ rule format_twas_gsea_drugtargetor_nondirectional_results_all_panel:
       lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_res.csv", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done")
+
+#######
+# ATC-class-level gene-level enrichment ("option C"): each ATC class is one gene
+# set fed to TWAS-GSEA-fast.R directly, so drugs are not treated as independent
+# observations within a class (removes the two-stage pseudo-replication).
+# Runs alongside the per-drug + Wilcoxon rules above; gated by
+# config['drug_targetor_atc_genelevel'] in report.smk.
+#######
+
+# Directional ATC-class run (signed .prop, per ATC level l2/l3/l4)
+rule run_twas_gsea_drug_targetor_atc:
+  wildcard_constraints:
+    weight="(?!nondir_).+",
+    level="l[234]"
+  resources:
+    mem_mb=50000,
+    cpus=5
+  input:
+    rules.install_twas_gsea.output,
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_{weight}_GW_clean.txt.gz",
+    rules.format_drug_targetor_atc_for_twas_gsea.output,
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
+  output:
+    touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_{weight}.done")
+  benchmark:
+    "{outdir}/benchmarks/run_twas_gsea_drug_targetor_atc_{gwas}_{level}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    "{outdir}/logs/run_twas_gsea_drug_targetor_atc-{gwas}-{level}-{weight}.log"
+  shell:
+    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+      --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
+      --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+      --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
+      --prop_file {params.resdir}/data/drug_targetor/wholedatabase_for_targetor_atc_{wildcards.level}.prop \
+      --n_cores 5 \
+      --covar GeneLength,NSNP \
+      --use_alt_id ID \
+      --min_Ngenes 2 \
+      --directional T \
+      --output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{wildcards.level}_{wildcards.weight} > {log} 2>&1"
+
+rule format_twas_gsea_drug_targetor_atc_results:
+  wildcard_constraints:
+    weight="(?!nondir_).+",
+    level="l[234]"
+  input:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_{weight}.done",
+    rules.download_atc.output
+  output:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_{weight}_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_drug_targetor_atc_results_{gwas}_{level}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/format_twas_gsea_drug_targetor_atc_results-{gwas}-{level}-{weight}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_drug_targetor_atc_results.R --pipeline_dir {workflow.basedir} \
+    --twas {wildcards.gwas} \
+    --panel {wildcards.weight} \
+    --level {wildcards.level} \
+    --config_file {params.config_file} > {log} 2>&1"
+
+rule format_twas_gsea_drug_targetor_atc_results_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_{weight}_res.csv", gwas=w.gwas, level=["l2","l3","l4"], weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_atc_results_all_panel.done")
+
+# Non-directional ATC-class run (unsigned .gmt)
+rule run_twas_gsea_drug_targetor_atc_nondirectional:
+  wildcard_constraints:
+    weight="(?!nondir_).+",
+    level="l[234]"
+  resources:
+    mem_mb=50000,
+    cpus=5
+  input:
+    rules.install_twas_gsea.output,
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_{weight}_GW_clean.txt.gz",
+    rules.format_drug_targetor_atc_for_twas_gsea.output,
+    f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
+  output:
+    touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_nondir_{weight}.done")
+  benchmark:
+    "{outdir}/benchmarks/run_twas_gsea_drug_targetor_atc_nondirectional_{gwas}_{level}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    "{outdir}/logs/run_twas_gsea_drug_targetor_atc_nondirectional-{gwas}-{level}-{weight}.log"
+  shell:
+    "Rscript --vanilla {params.resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R \
+      --twas_results {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_{wildcards.weight}_GW_clean.txt.gz \
+      --pos {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
+      --input_CorMat {params.resdir}/data/predicted_expression/{wildcards.weight}/Reference_Expression/{wildcards.weight}.CorMat.RDS \
+      --gmt_file {params.resdir}/data/drug_targetor/wholedatabase_for_targetor_atc_{wildcards.level}.gmt \
+      --n_cores 5 \
+      --covar GeneLength,NSNP \
+      --use_alt_id ID \
+      --min_Ngenes 2 \
+      --directional F \
+      --output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{wildcards.level}_nondir_{wildcards.weight} > {log} 2>&1"
+
+rule format_twas_gsea_drug_targetor_atc_nondirectional_results:
+  wildcard_constraints:
+    weight="(?!nondir_).+",
+    level="l[234]"
+  input:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_nondir_{weight}.done",
+    rules.download_atc.output
+  output:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_nondir_{weight}_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_drug_targetor_atc_nondirectional_results_{gwas}_{level}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/format_twas_gsea_drug_targetor_atc_nondirectional_results-{gwas}-{level}-{weight}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_drug_targetor_atc_results.R --pipeline_dir {workflow.basedir} \
+    --twas {wildcards.gwas} \
+    --panel {wildcards.weight} \
+    --level {wildcards.level} \
+    --mode nondirectional \
+    --config_file {params.config_file} > {log} 2>&1"
+
+rule format_twas_gsea_drug_targetor_atc_nondirectional_results_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_atc_{level}_nondir_{weight}_res.csv", gwas=w.gwas, level=["l2","l3","l4"], weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_atc_nondirectional_results_all_panel.done")
 
 # -------------------------------------------------------------------------
 # Pathway (MSigDB-style .gmt) TWAS-GSEA — non-directional. Mirrors

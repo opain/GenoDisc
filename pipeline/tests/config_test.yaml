@@ -61,6 +61,9 @@ twas_gsea_drugtargetor: T
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: T
 
+# Experimental: gene-level ATC-class enrichment ("option C"); each ATC class is one gene set fed to TWAS-GSEA
+drug_targetor_atc_genelevel: T
+
 # TWAS-GSEA against reprocessed CMAP level5 drug signatures
 twas_gsea_cmap: T
 cmap_level5_prop: /users/k1806347/oliverpainfel/Data/CMAP/reprocessed/CMAP_level5/lvl5Allcompounds_population_TWAS-GSEA_prop.A375_24h_10uM.rds

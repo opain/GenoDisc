@@ -980,6 +980,26 @@ rule format_drug_targetor_for_twas_gsea:
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor_for_twas_gsea.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
 
+# Build ATC-class-level gene sets (signed .prop + unsigned .gmt, per ATC level)
+# for the gene-level ATC enrichment ("option C"). Emits L2/L3/L4.
+rule format_drug_targetor_atc_for_twas_gsea:
+  input:
+    rules.download_drug_targetor.output,
+    rules.download_magma_gene_loc.output
+  output:
+    expand(f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_atc_{{level}}.prop", level=["l2","l3","l4"]),
+    expand(f"{resdir}/data/drug_targetor/wholedatabase_for_targetor_atc_{{level}}.gmt", level=["l2","l3","l4"])
+  benchmark:
+    f"{resdir}/benchmarks/format_drug_targetor_atc_for_twas_gsea.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/format_drug_targetor_atc_for_twas_gsea.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_drug_targetor_atc_for_twas_gsea.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} --agg mean --levels l2,l3,l4 > {log} 2>&1"
+
 ####
 # Download SMR
 ####
