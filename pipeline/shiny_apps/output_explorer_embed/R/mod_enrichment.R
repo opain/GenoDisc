@@ -678,6 +678,23 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       req(config_flags())
       cf <- config_flags()
 
+      # Number of GWAS in the currently-loaded bundle. This renderUI re-runs
+      # whenever the bundle changes (config_flags depends on gwas_data), so the
+      # tab structure is always rebuilt fresh for the new data.
+      n_gwas <- tryCatch(length(gd_gwas(gwas_data())), error = function(e) 1L)
+
+      # Build the Single/Multi-GWAS inner tabset only for multi-GWAS bundles.
+      # A single-GWAS bundle shows the single-GWAS content directly — no
+      # meaningless Multi-GWAS tab, and no stale-tab race when switching bundles
+      # (previously the Multi tab was hidden post-hoc via hideTab, which was
+      # dropped when the rebuilt tabset had not yet bound on the client).
+      .gwas_view <- function(view_id, single_ui, multi_ui) {
+        if (n_gwas < 2L) return(single_ui)
+        tabsetPanel(id = ns(view_id),
+          tabPanel(title = "Single GWAS", value = "single", single_ui),
+          tabPanel(title = "Multi-GWAS",  value = "multi",  multi_ui))
+      }
+
       drug_targetor_available <- any(cf$magma_drugtargetor, cf$gcsc,
                                      cf$twas_gsea_drugtargetor,
                                      cf$twas_gsea_drugtargetor_nondirectional)
@@ -984,15 +1001,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         cmap_tab <- tabPanel(
           title = "CMAP", br(),
           p("Drug repurposing using TWAS-GSEA against reprocessed CMAP level5 drug signatures. Each compound was assayed in multiple cell lines, durations and doses, so per-signature results live under the 'Drug' subtab; per-mechanism aggregation (computed separately per cell line) lives under 'MOA'."),
-          tabsetPanel(id = ns("cmap_view_tabs"),
-            tabPanel(title = "Single GWAS", value = "single",
-              uiOutput(ns("cmap_single_gwas_ui")),
-              do.call(tabsetPanel, cmap_inner)
-            ),
-            tabPanel(title = "Multi-GWAS", value = "multi",
-              cmap_compare_ui(NS(ns("cmap_compare")))
-            )
-          )
+          .gwas_view("cmap_view_tabs",
+            tagList(uiOutput(ns("cmap_single_gwas_ui")), do.call(tabsetPanel, cmap_inner)),
+            cmap_compare_ui(NS(ns("cmap_compare"))))
         )
       }
 
@@ -1111,15 +1122,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         # so both views are always accessible without a mode toggle.
         drug_targetor_inner <- list(
           tabPanel(title = "Drug", br(),
-            tabsetPanel(id = ns("drug_view_tabs"),
-              tabPanel(title = "Single GWAS", value = "single",
-                uiOutput(ns("drug_single_gwas_ui")),
-                do.call(tabsetPanel, drug_tabs)
-              ),
-              tabPanel(title = "Multi-GWAS", value = "multi",
-                drug_compare_ui(NS(ns("drug_compare")))
-              )
-            )
+            .gwas_view("drug_view_tabs",
+              tagList(uiOutput(ns("drug_single_gwas_ui")), do.call(tabsetPanel, drug_tabs)),
+              drug_compare_ui(NS(ns("drug_compare"))))
           ),
           tabPanel(title = "ATC", br(),
             # Shared ATC control bar: the test (gene-level vs legacy per-drug) and
@@ -1142,15 +1147,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                 "correlation between drugs that share targets). MAGMA / GCSC columns and ",
                 "the legacy Wilcoxon test are available at level L3 only.")
             ),
-            tabsetPanel(id = ns("atc_view_tabs"),
-              tabPanel(title = "Single GWAS", value = "single",
-                uiOutput(ns("atc_single_gwas_ui")),
-                do.call(tabsetPanel, atc_tabs)
-              ),
-              tabPanel(title = "Multi-GWAS", value = "multi",
-                atc_compare_ui(NS(ns("atc_compare")))
-              )
-            )
+            .gwas_view("atc_view_tabs",
+              tagList(uiOutput(ns("atc_single_gwas_ui")), do.call(tabsetPanel, atc_tabs)),
+              atc_compare_ui(NS(ns("atc_compare"))))
           )
         )
         outer_tabs <- c(outer_tabs, list(
@@ -1367,15 +1366,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           ))
         }
 
-        pathway_tab_body <- tabsetPanel(id = ns("pathway_view_tabs"),
-          tabPanel(title = "Single GWAS", value = "single",
-            uiOutput(ns("pathway_single_gwas_ui")),
-            do.call(tabsetPanel, pathway_inner_single)
-          ),
-          tabPanel(title = "Multi-GWAS", value = "multi",
-            do.call(tabsetPanel, pathway_multi_inner)
-          )
-        )
+        pathway_tab_body <- .gwas_view("pathway_view_tabs",
+          tagList(uiOutput(ns("pathway_single_gwas_ui")), do.call(tabsetPanel, pathway_inner_single)),
+          do.call(tabsetPanel, pathway_multi_inner))
         outer_tabs <- c(outer_tabs, list(
           tabPanel(title = "Pathway", br(), pathway_tab_body)
         ))
