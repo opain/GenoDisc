@@ -1927,7 +1927,14 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     # Shared DT builder for the drug/ATC TWAS-GSEA tables: single-row selection
     # (drives the inline evidence panel) + scientific-notation P / P.FDR.
-    .tx_gsea_datatable <- function(df){
+    # Row selection is only enabled when per-gene evidence is available in the
+    # bundle (older packages predate it); otherwise clicking a row must do nothing.
+    evidence_available <- reactive({
+      req(gwas_data(), selected_gwas())
+      !is.null(get_evidence_block(gwas_data(), selected_gwas()))
+    })
+
+    .tx_gsea_datatable <- function(df, selectable = FALSE){
       if (is.null(df) || nrow(df) == 0) return(NULL)
       pidx <- which(names(df) == "P") - 1L
       fidx <- which(names(df) == "P.FDR") - 1L
@@ -1936,7 +1943,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
               if (length(fidx)) sprintf("  $('td:eq(%d)', row).html(Number(data[%d]).toExponential(2));", fidx, fidx),
               "}")
       DT::datatable(df, rownames = FALSE,
-        selection = list(mode = 'single', target = 'row'),
+        selection = if (isTRUE(selectable)) list(mode = 'single', target = 'row') else 'none',
         options = list(rowCallback = JS(js),
           columnDefs = list(list(className = 'dt-center', targets = '_all'))),
         escape = FALSE)
@@ -1960,7 +1967,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     drug_tbl_dir    <- reactive(drug_twas_tbl('twas_gsea'))
     drug_tbl_nondir <- reactive(drug_twas_tbl('twas_gsea_nondir'))
 
-    output$tx_drug_twas_gsea_table<-DT::renderDataTable({ .tx_gsea_datatable(drug_tbl_dir()) })
+    output$tx_drug_twas_gsea_table<-DT::renderDataTable({ .tx_gsea_datatable(drug_tbl_dir(), selectable = isTRUE(evidence_available())) })
     output$tx_drug_twas_gsea_nondir_table<-DT::renderDataTable({ .tx_gsea_datatable(drug_tbl_nondir()) })
 
     #######
@@ -2292,7 +2299,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (is.null(df)) return(NULL)
       df[, setdiff(names(df), c("ATC Code","Level")), drop = FALSE]
     }
-    output$tx_atc_twas_gsea_table<-DT::renderDataTable({ .tx_gsea_datatable(.atc_tbl_display(atc_tbl_dir())) })
+    output$tx_atc_twas_gsea_table<-DT::renderDataTable({ .tx_gsea_datatable(.atc_tbl_display(atc_tbl_dir()), selectable = isTRUE(evidence_available())) })
     output$tx_atc_twas_gsea_nondir_table<-DT::renderDataTable({ .tx_gsea_datatable(.atc_tbl_display(atc_tbl_nondir())) })
 
     #######
@@ -2884,6 +2891,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$tx_atc_evidence_plot <- renderPlot({ r <- atc_evidence_sel(); if (is.null(r)) return(NULL); .evidence_plot(r$rows) })
     output$tx_atc_evidence_dt   <- DT::renderDataTable({ r <- atc_evidence_sel(); if (is.null(r)) return(NULL); .evidence_dt(r$rows) })
     output$tx_atc_twas_gsea_evidence <- renderUI({
+      if (!isTRUE(evidence_available())) return(NULL)   # older bundle: no evidence, no section
       r <- atc_evidence_sel()
       if (is.null(r)) return(tags$p(tags$em("Select an ATC class row above to see the genes driving it.")))
       ev <- get_evidence_block(gwas_data(), selected_gwas()); cov <- NULL
@@ -2911,6 +2919,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$tx_drug_evidence_plot <- renderPlot({ r <- drug_evidence_sel(); if (is.null(r)) return(NULL); .evidence_plot(r$rows) })
     output$tx_drug_evidence_dt   <- DT::renderDataTable({ r <- drug_evidence_sel(); if (is.null(r)) return(NULL); .evidence_dt(r$rows) })
     output$tx_drug_twas_gsea_evidence <- renderUI({
+      if (!isTRUE(evidence_available())) return(NULL)   # older bundle: no evidence, no section
       r <- drug_evidence_sel()
       if (is.null(r)) return(tags$p(tags$em("Select a drug row above to see the genes driving it.")))
       ev <- get_evidence_block(gwas_data(), selected_gwas()); cov <- NULL
