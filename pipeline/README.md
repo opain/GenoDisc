@@ -18,7 +18,7 @@ Part 3: Drug finding analyses
 
   * Identify enriched bipartite drug-gene sets
   * Identify drugs that reverse diseases gene expression
-  * Identify enriched ATC classifications
+  * Identify enriched ATC classifications (gene-level TWAS-GSEA test by default, with per-gene evidence for drill-down; legacy per-drug Wilcoxon retained as a cross-check)
 
 The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoDiscy/example_report.html).
 

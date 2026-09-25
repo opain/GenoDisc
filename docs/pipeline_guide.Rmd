@@ -193,6 +193,7 @@ params <- list(
   list(Parameter = '`magma_drugtargetor`', Description = 'MAGMA gene set enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_drugtargetor`', Description = 'TWAS-GSEA enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment', Part = 'Part 3'),
+  list(Parameter = '`drug_targetor_atc_genelevel`', Description = 'Gene-level ATC-class enrichment (each ATC class as one signed gene set), replacing the legacy per-drug Wilcoxon aggregation; also emits per-gene evidence. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
   list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
   list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
@@ -645,10 +646,18 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
       twas_gsea_nondir          # non-directional; NULL unless
                                 # twas_gsea_drugtargetor_nondirectional: T
     atc/                        # ATC-class aggregations of the same four
-      magma                     # sources (same gating flags as tx$drug)
-      gcsc
-      twas_gsea
+      magma                     # sources (same gating flags as tx$drug).
+      gcsc                      # twas_gsea here = LEGACY per-drug Wilcoxon
+      twas_gsea                 # aggregation (secondary cross-check).
       twas_gsea_nondir
+    atc_genelevel/              # NULL unless drug_targetor_atc_genelevel: T.
+      twas_gsea                 # Gene-level ATC enrichment (default/primary);
+      twas_gsea_nondir          # one row per (panel x Level L2/L3/L4 x class).
+    evidence                    # NULL unless drug_targetor_atc_genelevel: T.
+                                # Per-gene evidence for drug & ATC drill-down:
+                                # $drug, $class (membership, TWAS Z, contribution,
+                                # source/activity provenance), $drug_summary,
+                                # $class_summary (modelled-vs-total coverage).
     cmap/                       # NULL unless twas_gsea_cmap: T
       drug                      # per-signature x panel results
       moa                       # per-MOA enrichment

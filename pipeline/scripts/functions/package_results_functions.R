@@ -628,10 +628,13 @@ read_twas_gsea_drug<-function(config, gwas, mode = 'directional'){
 
     dat<-NULL
     for(i in weights){
-      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',i,'.competitive.clean.csv'))
+      f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',i,'.competitive.clean.csv')
+      if(!file.exists(f)) next
+      res<-fread(f)
       res$Panel<-i
       dat<-rbind(dat, res)
     }
+    if(is.null(dat)) return(NULL)
 
     dat$P.FDR<-p.adjust(dat$P, method='fdr')
 
@@ -696,10 +699,13 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
 
     dat<-NULL
     for(i in weights){
-      res<-fread(paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea',suffix,'_',i,'_res_atc_res.csv'))
+      f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea',suffix,'_',i,'_res_atc_res.csv')
+      if(!file.exists(f)) next
+      res<-fread(f)
       res$Panel<-i
       dat<-rbind(dat, res)
     }
+    if(is.null(dat)) return(NULL)
 
     dat$P.FDR_all<-p.adjust(dat$P, method = 'fdr')
 
@@ -737,6 +743,73 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
   }
 
   return(dat)
+}
+
+# Gene-level ATC-class enrichment ("option C"): each ATC class is one gene set fed
+# to TWAS-GSEA directly (no per-drug Wilcoxon). Reads the per-level (L2/L3/L4)
+# per-panel result CSVs. Returns NULL if the analysis was not run (backward-compat:
+# older packages simply won't have this block, and the app falls back to tx/atc).
+read_twas_gsea_atc_genelevel<-function(config, gwas, mode = 'directional'){
+
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+
+  if(read_param(config = config, param = 'drug_targetor_atc_genelevel', return_obj = F) != "T") return(NULL)
+  if(mode == 'nondirectional' &&
+     read_param(config = config, param = 'twas_gsea_drugtargetor_nondirectional', return_obj = F) != "T") return(NULL)
+
+  suffix <- if(mode == 'nondirectional') '_nondir' else ''
+  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+  weights<-weights[!grepl('SPLIC',weights)]
+
+  dat<-NULL
+  for(w in weights){
+    for(lv in c('l2','l3','l4')){
+      f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_atc_',lv,suffix,'_',w,'_res.csv')
+      if(!file.exists(f)) next
+      res<-fread(f)
+      res$Panel<-w
+      res$Level<-toupper(lv)
+      dat<-rbind(dat, res, fill=TRUE)
+    }
+  }
+  if(is.null(dat) || nrow(dat) == 0) return(NULL)
+
+  # Cross-panel FDR within each ATC level (parallel to read_twas_gsea_atc's P.FDR_all).
+  dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]
+  dat$Panel<-tidy_panel_names(dat$Panel)
+
+  keep<-intersect(c('Panel','Level','Code','Name','N_Mem_Avail','Estimate','SE','P','P.FDR','Direction','Reversal_Z'), names(dat))
+  dat<-dat[, ..keep]
+  setnames(dat, old=c('Code','Name','N_Mem_Avail'),
+                new=c('ATC Code','ATC Description','N Genes'), skip_absent=TRUE)
+  dat<-dat[order(dat$P),]
+  return(dat)
+}
+
+# Per-gene evidence behind the drug/ATC associations (membership, TWAS Z,
+# contribution, source/activity provenance) for the Shiny drill-down. One .rds per
+# panel produced by drug_targetor_gene_evidence.R; combined across panels here.
+read_drug_targetor_evidence<-function(config, gwas){
+
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  if(read_param(config = config, param = 'drug_targetor_atc_genelevel', return_obj = F) != "T") return(NULL)
+
+  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+  weights<-weights[!grepl('SPLIC',weights)]
+
+  drug<-NULL; cls<-NULL; dsum<-NULL; csum<-NULL
+  for(w in weights){
+    f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_evidence_',w,'.rds')
+    if(!file.exists(f)) next
+    ev<-readRDS(f)
+    pn<-tidy_panel_names(w)
+    if(!is.null(ev$drug_evidence)  && nrow(ev$drug_evidence)){  ev$drug_evidence$Panel<-pn;  drug<-rbind(drug, ev$drug_evidence, fill=TRUE) }
+    if(!is.null(ev$class_evidence) && nrow(ev$class_evidence)){ e<-ev$class_evidence; e$Panel<-pn; if('level' %in% names(e)){setnames(e,'level','Level'); e$Level<-toupper(e$Level)}; cls<-rbind(cls, e, fill=TRUE) }
+    if(!is.null(ev$drug_summary)   && nrow(ev$drug_summary)){   ev$drug_summary$Panel<-pn;   dsum<-rbind(dsum, ev$drug_summary, fill=TRUE) }
+    if(!is.null(ev$class_summary)  && nrow(ev$class_summary)){  s<-ev$class_summary; s$Panel<-pn; if('level' %in% names(s)){setnames(s,'level','Level'); s$Level<-toupper(s$Level)}; csum<-rbind(csum, s, fill=TRUE) }
+  }
+  if(is.null(drug) && is.null(cls)) return(NULL)
+  list(drug=drug, class=cls, drug_summary=dsum, class_summary=csum)
 }
 
 read_twas_gsea_cmap_drug<-function(config, gwas){

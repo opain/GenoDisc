@@ -510,6 +510,41 @@ rule format_twas_gsea_drug_targetor_atc_nondirectional_results_all_panel:
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_atc_nondirectional_results_all_panel.done")
 
+# Per-gene evidence behind the drug/ATC enrichments (membership x TWAS Z x provenance),
+# for the Shiny drill-down. Gated (via report.smk) by drug_targetor_atc_genelevel.
+rule run_drug_targetor_gene_evidence:
+  wildcard_constraints:
+    weight="(?!nondir_)(?!atc_).+"
+  resources:
+    mem_mb=8000,
+    cpus=1
+  input:
+    "{outdir}/results/{gwas}/twas/{gwas}_twas_{weight}_GW_clean.txt.gz",
+    rules.download_drug_targetor.output,
+    rules.download_magma_gene_loc.output
+  output:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_evidence_{weight}.rds"
+  benchmark:
+    "{outdir}/benchmarks/run_drug_targetor_gene_evidence_{gwas}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    "{outdir}/logs/run_drug_targetor_gene_evidence-{gwas}-{weight}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/drug_targetor_gene_evidence.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --panel {wildcards.weight} \
+      --resdir {params.resdir} \
+      --outdir {outdir} > {log} 2>&1"
+
+rule drug_targetor_gene_evidence_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_evidence_{weight}.rds", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/drug_targetor_gene_evidence_all_panel.done")
+
 # -------------------------------------------------------------------------
 # Pathway (MSigDB-style .gmt) TWAS-GSEA — non-directional. Mirrors
 # run_twas_gsea_drug_targetor_nondirectional above, iterated over every

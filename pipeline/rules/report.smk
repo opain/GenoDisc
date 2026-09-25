@@ -81,9 +81,10 @@ if config["twas_gsea_drugtargetor"] == "T":
 if config["twas_gsea_drugtargetor_nondirectional"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
-# Experimental gene-level ATC-class enrichment ("option C"); opt-in, default off.
+# Gene-level ATC-class enrichment ("option C") + its per-gene evidence for the Shiny drill-down.
 if config.get("drug_targetor_atc_genelevel", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_atc_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/drug_targetor_gene_evidence_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
     if config["twas_gsea_drugtargetor_nondirectional"] == "T":
         myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_atc_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

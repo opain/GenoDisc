@@ -256,6 +256,43 @@ Both directional and non-directional enrichment tests are available:
 
 Results are aggregated across TWAS panels and stored alongside other enrichment results.
 
+### ATC-class enrichment: gene-level (default) vs. legacy per-drug aggregation
+
+ATC (Anatomical Therapeutic Chemical) drug *classes* are scored two ways, and both are packaged
+for comparison:
+
+- **Gene-level (default; `drug_targetor_atc_genelevel`)**: each ATC class is assembled into a single
+  signed gene set (a gene is a member if any drug in the class targets it; the signed membership is
+  the consensus mean of the per-drug directions across the class's drugs, with multi-code drugs
+  contributing to every ATC class they belong to). That one gene set is tested directly with
+  TWAS-GSEA's gene-level GLS/REML model, which already accounts for gene–gene correlation. Because
+  genes — not drugs — are the observations, this **removes the within-class pseudo-replication** that
+  arises when drugs in a class share target genes. It is the recommended primary readout.
+- **Legacy per-drug (`twas_gsea_drugtargetor`)**: each drug is scored individually, then a competitive
+  Wilcoxon rank-sum is run on the per-drug statistics within each ATC class. Because a class's drugs
+  share target genes their statistics are correlated (often identical), so this two-stage test is
+  anti-conservative; it is retained only as a secondary cross-check.
+
+The gene-level test is computed at ATC levels L2 (1st–3rd chars), L3 (1st–4th) and L4 (1st–5th).
+
+### Interpreting direction, and the per-gene evidence view
+
+Direction (`Matches` vs `Opposes disease`) reflects the sign of the class's aggregate statistic, but
+its therapeutic meaning depends on **what the drug–gene set encoding captures** and **which target
+genes are TWAS-modelled** in the panel. DrugTargetor signs are largely drug perturbation signatures
+(source `DSIGDB`) — the drug's *observed* effect on each gene's expression — which can include
+compensatory or off-target effects that point opposite to the therapeutic mechanism. For example a
+lipid-lowering class can read as `Matches` a CAD signature because the modelled driver is a
+compensatory up-regulation of `PCSK9`, while the actual drug target (`NPC1L1`) is not TWAS-modelled.
+
+To make this legible, when `drug_targetor_atc_genelevel` is on the pipeline also emits a per-gene
+**evidence** table (`twas_gsea_drugtargetor_evidence_{panel}.rds`, script
+`drug_targetor_gene_evidence.R`): for every drug and every ATC class it lists the member genes with
+their signed membership, TWAS Z, contribution (membership × TWAS Z), evidence provenance (source
+database and `activity_type`), and the modelled-vs-total coverage. The Shiny output explorer exposes
+this as a drill-down so users can see exactly which genes drive an association and where the evidence
+came from.
+
 ***
 
 ## Pathway enrichment (MAGMA + TWAS-GSEA)

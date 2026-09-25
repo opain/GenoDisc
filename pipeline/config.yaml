@@ -80,6 +80,13 @@ twas_gsea_drugtargetor: F
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: F
 
+# ATC-class drug enrichment computed directly at the gene level (each ATC class is one signed gene
+# set fed to TWAS-GSEA), instead of the legacy two-stage per-drug competitive Wilcoxon. Removes the
+# within-class drug pseudo-replication; retains direction. Requires twas_gsea_drugtargetor. When on,
+# also emits per-gene evidence (membership, TWAS Z, contribution, source/activity provenance) for the
+# Shiny drill-down. See docs/pipeline_technical.Rmd.
+drug_targetor_atc_genelevel: F
+
 # Pathway enrichment against user-supplied MSigDB-style .gmt files (Entrez gene IDs).
 # pathway_gmt_dir must be a directory whose *.gmt files the pipeline picks up
 # at parse time. TWAS-GSEA needs symbols; the pipeline auto-converts each gmt

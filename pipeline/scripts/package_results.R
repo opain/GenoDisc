@@ -274,6 +274,13 @@ for(gwas_i in gwas_list$name){
   tx$atc$twas_gsea<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i, mode='directional')
   tx$atc$twas_gsea_nondir<-read_twas_gsea_atc(config=opt$config, gwas=gwas_i, mode='nondirectional')
 
+  # Gene-level ATC enrichment ("option C") + per-gene evidence (drill-down).
+  # NULL when the analysis wasn't run -> block absent -> app falls back to tx/atc.
+  tx$atc_genelevel<-list()
+  tx$atc_genelevel$twas_gsea<-read_twas_gsea_atc_genelevel(config=opt$config, gwas=gwas_i, mode='directional')
+  tx$atc_genelevel$twas_gsea_nondir<-read_twas_gsea_atc_genelevel(config=opt$config, gwas=gwas_i, mode='nondirectional')
+  tx$evidence<-read_drug_targetor_evidence(config=opt$config, gwas=gwas_i)
+
   ######
   # CMAP TWAS-GSEA (per-signature drug + per-MOA enrichment)
   ######

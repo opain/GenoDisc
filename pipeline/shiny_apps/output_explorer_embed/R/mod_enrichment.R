@@ -595,15 +595,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         atc_twas_dir = list(
           "Name" = "Drug class (ATC code: description).",
           "Panel" = lg_panel,
-          "N Drugs" = "Number of drugs in the class.",
+          "N Drugs" = "Number of drugs in the class (legacy per-drug test only).",
           "Estimate" = paste0(
-            "Enrichment effect size (Wilcoxon-Hodges-Lehmann estimate on ",
-            "ranked drug-level T-statistics). Positive Estimate = the class's ",
-            "drugs have lower T on average = the class is enriched for the ",
-            "opposes-trait direction; negative Estimate = matches trait. The ",
-            "Direction column already normalises this — read that instead of ",
-            "the raw Estimate sign."),
-          "Direction" = lg_dir,
+            "Enrichment effect size. Gene-level (default): each ATC class is one ",
+            "signed gene set tested by TWAS-GSEA's gene-level model, so drugs are ",
+            "not treated as independent (no within-class pseudo-replication). ",
+            "Legacy per-drug: a Wilcoxon-Hodges-Lehmann estimate on ranked ",
+            "drug-level T-statistics, retained only as a cross-check. Read the ",
+            "Direction column rather than the raw Estimate sign."),
+          "Direction" = paste0(lg_dir,
+            " NOTE: the direction reflects the drug-gene set encoding and which ",
+            "target genes are modelled in the panel, not necessarily the clinical ",
+            "effect — e.g. a lipid-lowering class can 'match' a CAD signature ",
+            "because a compensatory PCSK9 up-regulation is the modelled driver. ",
+            "Use the Evidence tab to see the per-gene contributions and sources."),
           "P" = lg_p, "P.FDR" = lg_pfdr),
         atc_twas_nondir = list(
           "Name" = "Drug class (ATC code: description).",
@@ -688,6 +693,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       atc_data <- if (drug_targetor_available) bundle_atc_data() else NULL
       atc_methods <- unique(atc_data$Method)
       atc_expr_panels <- unique(atc_data$Panel[grepl('^TWAS-GSEA', atc_data$Method)])
+
+      # Gene-level ("option C") ATC availability drives the method-source toggle
+      # and the ATC-level selector. Absent for packages that predate option C.
+      atc_gl_available <- isTRUE(drug_targetor_available) &&
+        has_atc_genelevel(gwas_data(), parent_selected_gwas())
+      atc_levels_avail <- if (atc_gl_available)
+        atc_genelevel_levels(gwas_data(), parent_selected_gwas()) else character(0)
 
       # Build Drug sub-tabs
       drug_tabs <- list(
@@ -801,6 +813,24 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                 "Choose which ATC-class enrichment results appear in the heatmap, ",
                 "restrict the view to specific ATC codes, and choose how to sort ",
                 "the rows."),
+              if (atc_gl_available) fluidRow(
+                column(6,
+                  radioButtons(ns("atc_source"),
+                    "ATC-class test:",
+                    choices = c("Gene-level (recommended)" = "genelevel",
+                                "Legacy per-drug (Wilcoxon)" = "legacy"),
+                    selected = "genelevel", inline = TRUE),
+                  tags$p(class = "gd-details-intro",
+                    "Gene-level scores each ATC class as one signed gene set, ",
+                    "avoiding the correlation between drugs that share targets. ",
+                    "MAGMA / GCSC columns are shown only at level L3.")
+                ),
+                column(6,
+                  selectInput(ns("atc_level"), "ATC level:",
+                    choices = atc_levels_avail,
+                    selected = if ("L3" %in% atc_levels_avail) "L3" else atc_levels_avail[1])
+                )
+              ),
               fluidRow(
                 column(4,
                   selectInput(ns("selected_methods_atc"), "Include results from these methods:", choices=atc_methods, selected=atc_methods, multiple=T),
@@ -1118,6 +1148,36 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
             )
           )
         )
+        if (atc_gl_available) {
+          drug_targetor_inner <- c(drug_targetor_inner, list(
+            tabPanel(title = "Evidence", br(),
+              p("For a selected ATC class or drug, this shows which member genes drive the ",
+                "association: signed membership, the gene's TWAS Z, the contribution ",
+                "(membership × TWAS Z), and where the drug–gene evidence came from ",
+                "(source database and reported activity). Genes not modelled in the panel ",
+                "cannot contribute; the coverage line reports how many of the target genes ",
+                "were modelled. This is how a class can 'match' a trait for a non-obvious ",
+                "reason — e.g. a compensatory up-regulation of a driver gene."),
+              hr(),
+              fluidRow(
+                column(3, radioButtons(ns("ev_what"), "Evidence for:",
+                          choices = c("ATC class" = "class", "Drug" = "drug"),
+                          selected = "class", inline = TRUE)),
+                column(3, selectInput(ns("ev_panel"), "Panel:", choices = NULL)),
+                column(2, conditionalPanel(
+                          condition = sprintf("input['%s'] == 'class'", ns("ev_what")),
+                          selectInput(ns("ev_level"), "ATC level:", choices = atc_levels_avail,
+                                      selected = if ("L3" %in% atc_levels_avail) "L3" else atc_levels_avail[1]))),
+                column(4, selectizeInput(ns("ev_id"), "Class / drug:", choices = NULL,
+                          options = list(placeholder = "type to search…")))
+              ),
+              uiOutput(ns("tx_evidence_header")),
+              fluidRow(column(12, plotOutput(ns("tx_evidence_plot"), height = "360px"))),
+              br(),
+              fluidRow(column(12, dataTableOutput(ns("tx_evidence_table"))))
+            )
+          ))
+        }
         outer_tabs <- c(outer_tabs, list(
           do.call(tabPanel, c(list(title="Drug Targetor", br()), list(do.call(tabsetPanel, drug_targetor_inner))))
         ))
@@ -2278,7 +2338,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     tx_atc_summary_data <- reactive({
       req(gwas_data(), selected_gwas())
-      build_atc_summary_data(gwas_data(), selected_gwas())
+      build_atc_summary_data(gwas_data(), selected_gwas(),
+                             level = input$atc_level %||% "L3",
+                             atc_source = input$atc_source %||% "genelevel")
     })
 
     tx_atc_summary_data_filtered<-reactive({
@@ -2797,6 +2859,103 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         ),
         escape = FALSE
       )
+    })
+
+    ## ---- Evidence drill-down (gene-level ATC / drug provenance) ----------
+    evidence_block <- reactive({
+      req(gwas_data(), selected_gwas())
+      get_evidence_block(gwas_data(), selected_gwas())
+    })
+
+    # Panel selector, from whatever panels the evidence covers.
+    observeEvent(list(evidence_block(), input$ev_what), {
+      ev <- evidence_block(); if (is.null(ev)) return()
+      d <- if ((input$ev_what %||% "class") == "drug") ev$drug else ev$class
+      if (is.null(d) || nrow(d) == 0) return()
+      panels <- sort(unique(d$Panel))
+      updateSelectInput(session, "ev_panel", choices = panels,
+                        selected = isolate(input$ev_panel) %||% panels[1])
+    }, ignoreInit = FALSE)
+
+    # Class/drug id selector (server-side; these lists are large).
+    observeEvent(list(evidence_block(), input$ev_what, input$ev_panel, input$ev_level), {
+      ev <- evidence_block(); if (is.null(ev)) return()
+      what <- input$ev_what %||% "class"
+      if (what == "drug") {
+        d <- ev$drug; if (is.null(d)) return()
+        if (!is.null(input$ev_panel)) d <- d[d$Panel == input$ev_panel, ]
+        ids <- sort(unique(d$drug_name))
+      } else {
+        d <- ev$class; if (is.null(d)) return()
+        if (!is.null(input$ev_panel)) d <- d[d$Panel == input$ev_panel, ]
+        if (!is.null(input$ev_level)) d <- d[d$Level == input$ev_level, ]
+        ids <- sort(unique(d$code))
+      }
+      updateSelectizeInput(session, "ev_id", choices = ids,
+                           selected = if (length(ids)) ids[1] else NULL, server = TRUE)
+    }, ignoreInit = FALSE)
+
+    evidence_rows <- reactive({
+      req(input$ev_id, input$ev_panel)
+      get_evidence_rows(gwas_data(), selected_gwas(),
+                        what = input$ev_what %||% "class",
+                        id = input$ev_id, panel = input$ev_panel,
+                        level = if ((input$ev_what %||% "class") == "class") input$ev_level else NULL)
+    })
+
+    output$tx_evidence_header <- renderUI({
+      d <- evidence_rows()
+      if (is.null(d) || nrow(d) == 0) return(tags$p(tags$em("No modelled member genes for this selection.")))
+      what <- input$ev_what %||% "class"
+      ev <- evidence_block()
+      cov <- NULL
+      if (what == "class" && !is.null(ev$class_summary)) {
+        s <- ev$class_summary
+        s <- s[s$Panel == input$ev_panel & s$Level == input$ev_level & s$code == input$ev_id, ]
+        if (nrow(s)) cov <- sprintf("%d of %d target genes modelled in this panel.", s$n_modelled[1], s$n_target[1])
+      } else if (what == "drug" && !is.null(ev$drug_summary)) {
+        s <- ev$drug_summary
+        s <- s[s$Panel == input$ev_panel & s$drug_name == input$ev_id, ]
+        if (nrow(s)) cov <- sprintf("%d of %d target genes modelled in this panel.", s$n_modelled[1], s$n_target[1])
+      }
+      net <- sum(d$contribution, na.rm = TRUE)
+      dir <- if (net > 0) "matches" else if (net < 0) "opposes" else "neutral to"
+      tags$p(
+        tags$b(sprintf("%s %s (%s):", if (what == "class") "ATC class" else "Drug", input$ev_id, input$ev_panel)),
+        sprintf(" net modelled-gene contribution %+.2f (%s the trait signature).", net, dir),
+        if (!is.null(cov)) tagList(tags$br(), cov)
+      )
+    })
+
+    output$tx_evidence_plot <- renderPlot({
+      d <- evidence_rows()
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      d <- head(d[order(abs(d$contribution), decreasing = TRUE), ], 25)
+      d$gene <- factor(d$gene, levels = rev(d$gene))
+      d$Membership <- ifelse(d$membership > 0, "Up (+)", ifelse(d$membership < 0, "Down (-)", "Mixed"))
+      ggplot2::ggplot(d, ggplot2::aes(x = contribution, y = gene, fill = Membership)) +
+        ggplot2::geom_col() +
+        ggplot2::geom_vline(xintercept = 0, colour = "grey40") +
+        ggplot2::scale_fill_manual(values = c("Up (+)" = "#0066FF", "Down (-)" = "#FF0000", "Mixed" = "grey60")) +
+        ggplot2::labs(x = "Contribution (membership x TWAS Z)", y = NULL,
+                      title = "Top member-gene contributions") +
+        ggplot2::theme_bw()
+    })
+
+    output$tx_evidence_table <- renderDataTable({
+      d <- evidence_rows()
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      cols <- intersect(c("gene","membership","TWAS.Z","TWAS.P","contribution","n_drugs","activity","source"), names(d))
+      tmp <- d[, cols, drop = FALSE]
+      ren <- c(gene="Gene", membership="Membership", contribution="Contribution",
+               n_drugs="N Drugs", activity="Activity", source="Source")
+      for (nm in names(ren)) names(tmp)[names(tmp) == nm] <- ren[[nm]]
+      datatable(tmp, rownames = FALSE,
+                options = list(pageLength = 15,
+                               columnDefs = list(list(className = 'dt-center', targets = '_all'))),
+                escape = FALSE)
     })
 
   })

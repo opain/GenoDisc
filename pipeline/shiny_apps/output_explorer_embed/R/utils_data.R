@@ -339,10 +339,17 @@ build_drug_summary_data <- function(gd, gwas) {
 #' @param gd A gd_result
 #' @param gwas GWAS name
 #' @return data.frame with columns: Name, Z, FDR_Sig, Nom_Sig, Method, Panel
-build_atc_summary_data <- function(gd, gwas) {
-  atc <- gd_read(gd, gwas, "tx/atc")
+build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "genelevel") {
+  atc <- gd_read(gd, gwas, "tx/atc")             # legacy per-drug Wilcoxon (secondary)
+  atc_gl <- gd_read(gd, gwas, "tx/atc_genelevel")# gene-level "option C" (primary)
 
-  magma_gs_atc <- safe_access(atc, "magma")
+  # Which source feeds the TWAS-GSEA rows. Gene-level is the default; fall back to
+  # the legacy block for older packages that predate option C.
+  use_gl <- identical(atc_source, "genelevel") && !is.null(atc_gl)
+  # MAGMA / GCSC ATC results exist only at L3; only overlay them on an L3 view.
+  show_drugset <- identical(level, "L3")
+
+  magma_gs_atc <- if (show_drugset) safe_access(atc, "magma") else NULL
   if (!is.null(magma_gs_atc)) {
     magma_gs_atc$Z <- -qnorm(magma_gs_atc$P)
     magma_gs_atc$Z[!is.finite(magma_gs_atc$Z)] <- NA_real_
@@ -354,7 +361,7 @@ build_atc_summary_data <- function(gd, gwas) {
     magma_gs_atc <- magma_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
   }
 
-  gcsc_gs_atc <- safe_access(atc, "gcsc")
+  gcsc_gs_atc <- if (show_drugset) safe_access(atc, "gcsc") else NULL
   if (!is.null(gcsc_gs_atc)) {
     gcsc_gs_atc$Z <- -qnorm(gcsc_gs_atc$P)
     gcsc_gs_atc$Z[!is.finite(gcsc_gs_atc$Z)] <- NA_real_
@@ -367,8 +374,15 @@ build_atc_summary_data <- function(gd, gwas) {
   }
 
   build_gsea_atc <- function(slot, method_label) {
-    g <- safe_access(atc, slot)
-    if (is.null(g)) return(NULL)
+    # Gene-level (option C) when available: pull the slot from the genelevel block
+    # and restrict to the requested ATC level; else the legacy per-drug block.
+    if (use_gl) {
+      g <- safe_access(atc_gl, slot)
+      if (!is.null(g) && "Level" %in% names(g)) g <- g[g$Level == level, ]
+    } else {
+      g <- safe_access(atc, slot)
+    }
+    if (is.null(g) || nrow(g) == 0) return(NULL)
     # P.FDR is already computed in the RDS (per-panel by the read function);
     # Reversal_Z is positive when the class opposes the trait's TWAS signature.
     g$Z <- g$Reversal_Z
@@ -398,6 +412,45 @@ build_atc_summary_data <- function(gd, gwas) {
   gsea_gs_atc_nondir <- build_gsea_atc("twas_gsea_nondir", "TWAS-GSEA (non-dir)")
 
   do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc, gsea_gs_atc_nondir)))
+}
+
+#' Is the gene-level ("option C") ATC block present in this bundle?
+has_atc_genelevel <- function(gd, gwas) {
+  gl <- gd_read(gd, gwas, "tx/atc_genelevel")
+  !is.null(safe_access(gl, "twas_gsea")) || !is.null(safe_access(gl, "twas_gsea_nondir"))
+}
+
+#' ATC levels available in the gene-level block (e.g. c("L2","L3","L4")).
+atc_genelevel_levels <- function(gd, gwas) {
+  gl <- gd_read(gd, gwas, "tx/atc_genelevel")
+  g <- safe_access(gl, "twas_gsea")
+  if (is.null(g)) g <- safe_access(gl, "twas_gsea_nondir")
+  if (is.null(g) || !("Level" %in% names(g))) return(character(0))
+  intersect(c("L2","L3","L4"), unique(g$Level))
+}
+
+#' Per-gene evidence tables (membership x TWAS Z x provenance) for the drill-down.
+#' Return NULL when the bundle predates option C.
+get_evidence_block <- function(gd, gwas) gd_read(gd, gwas, "tx/evidence")
+
+#' Member-gene evidence for one ATC class (code, level, panel) or one drug (name,
+#' panel), ordered by |contribution|. `what` is "class" or "drug".
+get_evidence_rows <- function(gd, gwas, what = c("class","drug"),
+                              id = NULL, panel = NULL, level = NULL) {
+  what <- match.arg(what)
+  ev <- get_evidence_block(gd, gwas)
+  d <- safe_access(ev, what)
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- data.table::as.data.table(d)
+  if (!is.null(panel)) d <- d[d$Panel == panel, ]
+  if (what == "class") {
+    if (!is.null(level)) d <- d[d$Level == level, ]
+    if (!is.null(id))    d <- d[d$code == id, ]
+  } else {
+    if (!is.null(id))    d <- d[d$drug_name == id, ]
+  }
+  if (nrow(d) == 0) return(NULL)
+  d[order(-abs(d$contribution)), ]
 }
 
 #' Build CMAP per-signature drug summary data

@@ -32,6 +32,8 @@
   "mol_assoc/finemap",
   "tx/drug",
   "tx/atc",
+  "tx/atc_genelevel",
+  "tx/evidence",
   "tx/cmap",
   "tx/pathway",
   "tissue"
