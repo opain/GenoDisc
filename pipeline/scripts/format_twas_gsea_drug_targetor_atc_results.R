@@ -32,7 +32,10 @@ resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 base <- paste0(outdir, '/results/', opt$twas, '/twas/drugtargetor/twas_gsea_drugtargetor_atc_', opt$level, suffix, '_', opt$panel)
 res <- fread(paste0(base, '.competitive.txt'), sep = ' ')
 
-res$Code <- sub('^ATC_', '', res$GeneSet)
+# Strip the "ATC_" prefix to recover the bare class code. The non-directional
+# .gmt path comes back from TWAS-GSEA with the separator munged to a dot
+# ("ATC.C03C"), so accept either separator or the label merge fails (Name = NA).
+res$Code <- sub('^ATC[._]', '', res$GeneSet)
 
 # Direction-of-effect columns, same convention as the per-drug clean file.
 # Directional: TWAS-GSEA emits a one-sided P; recompute two-sided (both mimics
