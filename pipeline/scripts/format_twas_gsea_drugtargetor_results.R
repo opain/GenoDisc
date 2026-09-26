@@ -66,8 +66,26 @@ config<-readLines(opt$config_file)
 outdir<-gsub('outdir: ','', config[grepl('outdir: ',config)])
 resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 
-# Read in TWAS-GSEA results
-res<-fread(paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',opt$panel,'.competitive.txt'), sep = ' ')
+# Read in TWAS-GSEA results.
+# The engine writes a space-delimited table; the drug GeneSet names contain
+# spaces (e.g. "...NAME:LIOTHYRONINE SODIUM|...") and are not always quoted, so
+# a plain space-delimited read mis-splits those rows. Read robustly: if the
+# parsed column count doesn't match the header, peel the fixed number of
+# trailing numeric columns off each line and treat the remainder as GeneSet.
+res_file <- paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea_drugtargetor',suffix,'_',opt$panel,'.competitive.txt')
+res_hdr  <- strsplit(trimws(readLines(res_file, n = 1L)), '\\s+')[[1]]
+res<-fread(res_file, sep = ' ', quote = '"', fill = TRUE)
+if(ncol(res) != length(res_hdr)){
+  res_raw <- readLines(res_file)[-1]
+  res_raw <- res_raw[nzchar(res_raw)]
+  res_k   <- length(res_hdr) - 1L
+  res_pat <- paste0('^(.*?)\\s+((?:\\S+\\s+){', res_k - 1L, '}\\S+)\\s*$')
+  res_gs  <- sub(res_pat, '\\1', res_raw)
+  res_num <- do.call(rbind, strsplit(trimws(sub(res_pat, '\\2', res_raw)), '\\s+'))
+  res     <- as.data.table(matrix(as.numeric(res_num), nrow = nrow(res_num)))
+  res     <- cbind(GeneSet = res_gs, res)
+  setnames(res, res_hdr)
+}
 
 if(opt$mode == 'directional'){
   # Both signs of T are interpretable (drug mimics vs reverses disease signature),
