@@ -250,7 +250,12 @@ rule run_twas_gsea_drug_targetor:
     rules.format_drug_targetor_for_twas_gsea.output,
     f"{resdir}/data/predicted_expression/{{weight}}/Reference_Expression/{{weight}}.CorMat.RDS"
   output:
-    touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done")
+    touch("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done"),
+    # Drug-drug correlation of the per-drug statistics (cov2cor(Z_wh'Z_wh)), a
+    # byproduct of this run (no extra TWAS pass), consumed by the drug-level GLS
+    # (format_twas_gsea_drug_targetor_gls_results). Requires the engine's
+    # --drug_corr_out flag (install_twas_gsea pin must include it).
+    corr="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.drugcorr.rds"
   benchmark:
     "{outdir}/benchmarks/run_twas_gsea_drug_targetor_{gwas}_{weight}.tsv"
   conda:
@@ -270,6 +275,7 @@ rule run_twas_gsea_drug_targetor:
       --use_alt_id ID \
       --min_Ngenes 2 \
       --directional T \
+      --drug_corr_out {output.corr} \
       --output {outdir}/results/{wildcards.gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{wildcards.weight} > {log} 2>&1"
 
 # Format the output
@@ -544,6 +550,41 @@ rule drug_targetor_gene_evidence_all_panel:
       lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_evidence_{weight}.rds", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/drug_targetor_gene_evidence_all_panel.done")
+
+# Drug-level GLS ATC enrichment (DRUGSETS-style): a valid, directional, drug-level
+# test (same question as the legacy Wilcoxon). Uses the per-drug T + the drug-drug
+# correlation dumped by run_twas_gsea_drug_targetor (.drugcorr.rds; no extra TWAS
+# pass). Gated (via report.smk) by drug_targetor_atc_gls. One run emits all levels.
+rule format_twas_gsea_drug_targetor_gls_results:
+  wildcard_constraints:
+    weight="(?!nondir_)(?!atc_).+"
+  input:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.drugcorr.rds",
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv",
+    rules.download_atc.output
+  output:
+    l2="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_gls_l2_{weight}_res.csv",
+    l3="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_gls_l3_{weight}_res.csv",
+    l4="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_gls_l4_{weight}_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_drug_targetor_gls_results_{gwas}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/format_twas_gsea_drug_targetor_gls_results-{gwas}-{weight}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_drugtargetor_gls_results.R --pipeline_dir {workflow.basedir} \
+    --twas {wildcards.gwas} \
+    --panel {wildcards.weight} \
+    --config_file {params.config_file} > {log} 2>&1"
+
+rule format_twas_gsea_drug_targetor_gls_results_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_gls_{level}_{weight}_res.csv", gwas=w.gwas, level=["l2","l3","l4"], weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_gls_results_all_panel.done")
 
 # -------------------------------------------------------------------------
 # Pathway (MSigDB-style .gmt) TWAS-GSEA — non-directional. Mirrors

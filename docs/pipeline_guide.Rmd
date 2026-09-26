@@ -194,6 +194,7 @@ params <- list(
   list(Parameter = '`twas_gsea_drugtargetor`', Description = 'TWAS-GSEA enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment', Part = 'Part 3'),
   list(Parameter = '`drug_targetor_atc_genelevel`', Description = 'Gene-level ATC-class enrichment (each ATC class as one signed gene set), replacing the legacy per-drug Wilcoxon aggregation; also emits per-gene evidence. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
+  list(Parameter = '`drug_targetor_atc_gls`', Description = 'Drug-level GLS ATC-class enrichment (DRUGSETS-style): the valid, directional drug-level test (same question as the legacy Wilcoxon); reports coefficient + 95% CI. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
   list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
   list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
@@ -653,6 +654,9 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
     atc_genelevel/              # NULL unless drug_targetor_atc_genelevel: T.
       twas_gsea                 # Gene-level ATC enrichment (default/primary);
       twas_gsea_nondir          # one row per (panel x Level L2/L3/L4 x class).
+    atc_gls                     # NULL unless drug_targetor_atc_gls: T. Drug-level
+                                # GLS (DRUGSETS-style): coefficient + 95% CI per
+                                # (panel x Level x class); directional only.
     evidence                    # NULL unless drug_targetor_atc_genelevel: T.
                                 # Per-gene evidence for drug & ATC drill-down:
                                 # $drug, $class (membership, TWAS Z, contribution,

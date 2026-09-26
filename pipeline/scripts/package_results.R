@@ -279,6 +279,7 @@ for(gwas_i in gwas_list$name){
   tx$atc_genelevel<-list()
   tx$atc_genelevel$twas_gsea<-read_twas_gsea_atc_genelevel(config=opt$config, gwas=gwas_i, mode='directional')
   tx$atc_genelevel$twas_gsea_nondir<-read_twas_gsea_atc_genelevel(config=opt$config, gwas=gwas_i, mode='nondirectional')
+  tx$atc_gls<-read_twas_gsea_atc_gls(config=opt$config, gwas=gwas_i)
   tx$evidence<-read_drug_targetor_evidence(config=opt$config, gwas=gwas_i)
 
   ######

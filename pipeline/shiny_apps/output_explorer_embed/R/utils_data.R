@@ -342,10 +342,12 @@ build_drug_summary_data <- function(gd, gwas) {
 build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "genelevel") {
   atc <- gd_read(gd, gwas, "tx/atc")             # legacy per-drug Wilcoxon (secondary)
   atc_gl <- gd_read(gd, gwas, "tx/atc_genelevel")# gene-level "option C" (primary)
+  atc_gls <- gd_read(gd, gwas, "tx/atc_gls")     # drug-level GLS (DRUGSETS-style)
 
-  # Which source feeds the TWAS-GSEA rows. Gene-level is the default; fall back to
-  # the legacy block for older packages that predate option C.
-  use_gl <- identical(atc_source, "genelevel") && !is.null(atc_gl)
+  # Which source feeds the TWAS-GSEA rows: gene-level (default), drug-level GLS, or
+  # the legacy Wilcoxon (fallback for older packages / the 'legacy' choice).
+  use_gls <- identical(atc_source, "gls")       && !is.null(atc_gls)
+  use_gl  <- identical(atc_source, "genelevel") && !is.null(atc_gl)
   # MAGMA / GCSC ATC results exist only at L3; only overlay them on an L3 view.
   show_drugset <- identical(level, "L3")
 
@@ -374,9 +376,13 @@ build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "genelev
   }
 
   build_gsea_atc <- function(slot, method_label) {
-    # Gene-level (option C) when available: pull the slot from the genelevel block
-    # and restrict to the requested ATC level; else the legacy per-drug block.
-    if (use_gl) {
+    # Drug-level GLS (directional only, no nondir slot); else gene-level (option C,
+    # by level); else the legacy per-drug Wilcoxon block.
+    if (use_gls) {
+      if (slot != "twas_gsea") return(NULL)          # GLS has no non-directional variant
+      g <- atc_gls
+      if (!is.null(g) && "Level" %in% names(g)) g <- g[g$Level == level, ]
+    } else if (use_gl) {
       g <- safe_access(atc_gl, slot)
       if (!is.null(g) && "Level" %in% names(g)) g <- g[g$Level == level, ]
     } else {
@@ -425,6 +431,18 @@ atc_genelevel_levels <- function(gd, gwas) {
   gl <- gd_read(gd, gwas, "tx/atc_genelevel")
   g <- safe_access(gl, "twas_gsea")
   if (is.null(g)) g <- safe_access(gl, "twas_gsea_nondir")
+  if (is.null(g) || !("Level" %in% names(g))) return(character(0))
+  intersect(c("L2","L3","L4"), unique(g$Level))
+}
+
+#' Is the drug-level GLS (DRUGSETS-style) ATC block present in this bundle?
+has_atc_gls <- function(gd, gwas) {
+  !is.null(gd_read(gd, gwas, "tx/atc_gls"))
+}
+
+#' ATC levels available in the drug-level GLS block (e.g. c("L2","L3","L4")).
+atc_gls_levels <- function(gd, gwas) {
+  g <- gd_read(gd, gwas, "tx/atc_gls")
   if (is.null(g) || !("Level" %in% names(g))) return(character(0))
   intersect(c("L2","L3","L4"), unique(g$Level))
 }

@@ -87,6 +87,15 @@ twas_gsea_drugtargetor_nondirectional: F
 # Shiny drill-down. See docs/pipeline_technical.Rmd.
 drug_targetor_atc_genelevel: F
 
+# ATC-class drug enrichment via a drug-level GLS (DRUGSETS-style; Bell et al. 2022): regress the
+# per-drug signed TWAS-GSEA T on ATC-class membership (+ gene-set-size covariates), weighted by the
+# drug-drug correlation, so it asks the same question as the legacy Wilcoxon (are in-class drugs'
+# associations elevated vs other drugs?) but validly accounts for drugs sharing target genes. The
+# drug-drug correlation is the exact one TWAS-GSEA computes internally (dumped via --drug_corr_out on
+# the directional per-drug run). Directional; reports a coefficient + 95% CI. Requires
+# twas_gsea_drugtargetor. See docs/pipeline_technical.Rmd.
+drug_targetor_atc_gls: F
+
 # Pathway enrichment against user-supplied MSigDB-style .gmt files (Entrez gene IDs).
 # pathway_gmt_dir must be a directory whose *.gmt files the pipeline picks up
 # at parse time. TWAS-GSEA needs symbols; the pipeline auto-converts each gmt

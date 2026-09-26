@@ -33,6 +33,7 @@
   "tx/drug",
   "tx/atc",
   "tx/atc_genelevel",
+  "tx/atc_gls",
   "tx/evidence",
   "tx/cmap",
   "tx/pathway",

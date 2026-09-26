@@ -258,7 +258,7 @@ Results are aggregated across TWAS panels and stored alongside other enrichment 
 
 ### ATC-class enrichment: gene-level (default) vs. legacy per-drug aggregation
 
-ATC (Anatomical Therapeutic Chemical) drug *classes* are scored two ways, and both are packaged
+ATC (Anatomical Therapeutic Chemical) drug *classes* are scored three ways, all packaged
 for comparison:
 
 - **Gene-level (default; `drug_targetor_atc_genelevel`)**: each ATC class is assembled into a single
@@ -268,12 +268,22 @@ for comparison:
   TWAS-GSEA's gene-level GLS/REML model, which already accounts for gene–gene correlation. Because
   genes — not drugs — are the observations, this **removes the within-class pseudo-replication** that
   arises when drugs in a class share target genes. It is the recommended primary readout.
+- **Drug-level GLS (`drug_targetor_atc_gls`)**: a DRUGSETS-style test (Bell et al. 2022) that keeps
+  the *drug* as the unit — the same question as the Wilcoxon (are the drugs in a class more associated
+  than other drugs?) but valid. It regresses the per-drug signed TWAS-GSEA `T` on an ATC-class
+  indicator (plus gene-set-size covariates) by generalised least squares, weighted by the drug–drug
+  correlation of the per-drug statistics. That correlation is the exact one TWAS-GSEA computes
+  internally, `cov2cor(Z_whᵀZ_wh)` on the whitened, residualised membership, dumped from the same
+  per-drug run via `--drug_corr_out` (no extra TWAS pass). It is directional and reports a
+  **coefficient with a 95% CI** (read the CI, not the sign, near the null). This is the drug-level
+  complement to the gene-level test.
 - **Legacy per-drug (`twas_gsea_drugtargetor`)**: each drug is scored individually, then a competitive
   Wilcoxon rank-sum is run on the per-drug statistics within each ATC class. Because a class's drugs
   share target genes their statistics are correlated (often identical), so this two-stage test is
   anti-conservative; it is retained only as a secondary cross-check.
 
-The gene-level test is computed at ATC levels L2 (1st–3rd chars), L3 (1st–4th) and L4 (1st–5th).
+The gene-level and drug-level-GLS tests are computed at ATC levels L2 (1st–3rd chars), L3 (1st–4th)
+and L4 (1st–5th); the legacy Wilcoxon is L3 only.
 
 ### Interpreting direction, and the per-gene evidence view
 

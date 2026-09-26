@@ -88,6 +88,10 @@ if config.get("drug_targetor_atc_genelevel", "F") == "T":
     if config["twas_gsea_drugtargetor_nondirectional"] == "T":
         myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_atc_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
+# Drug-level GLS ATC-class enrichment (DRUGSETS-style).
+if config.get("drug_targetor_atc_gls", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_gls_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+
 if config["twas_gsea_cmap"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_cmap_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
