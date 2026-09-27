@@ -2882,12 +2882,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       d$stat <- if ("T" %in% names(d)) d$T else d$Estimate
       d <- head(d[order(abs(d$stat), decreasing = TRUE), ], 25)
       d$Name <- factor(d$Name, levels = rev(d$Name))
-      d$Dir <- if ("Direction" %in% names(d)) d$Direction else NA_character_
-      ggplot2::ggplot(d, ggplot2::aes(x = stat, y = Name, fill = Dir)) +
-        ggplot2::geom_col() +
+      # Colour by Direction only when it's a directional (TWAS-GSEA) result; MAGMA is
+      # non-directional (no Direction) -> single colour, no legend (avoids a grey "NA").
+      directional <- "Direction" %in% names(d) && any(!is.na(d$Direction))
+      g <- if (directional) {
+        ggplot2::ggplot(d, ggplot2::aes(x = stat, y = Name, fill = Direction)) +
+          ggplot2::geom_col() +
+          ggplot2::scale_fill_manual(values = c("Opposes disease" = "#0066FF", "Matches disease" = "#FF0000"),
+                                     na.value = "grey60", name = "Direction")
+      } else {
+        ggplot2::ggplot(d, ggplot2::aes(x = stat, y = Name)) +
+          ggplot2::geom_col(fill = "#00CC66")
+      }
+      g +
         ggplot2::geom_vline(xintercept = 0, colour = "grey40") +
-        ggplot2::scale_fill_manual(values = c("Opposes disease" = "#0066FF", "Matches disease" = "#FF0000"),
-                                   na.value = "grey60", name = "Direction") +
         ggplot2::labs(x = "Per-drug enrichment T", y = NULL, title = "Drugs in this ATC class") +
         ggplot2::theme_bw()
     }
