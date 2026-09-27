@@ -745,43 +745,32 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
   return(dat)
 }
 
-# Gene-level ATC-class enrichment ("option C"): each ATC class is one gene set fed
-# to TWAS-GSEA directly (no per-drug Wilcoxon). Reads the per-level (L2/L3/L4)
-# per-panel result CSVs. Returns NULL if the analysis was not run (backward-compat:
-# older packages simply won't have this block, and the app falls back to tx/atc).
-read_twas_gsea_atc_genelevel<-function(config, gwas, mode = 'directional'){
+# Drug-level GLS ATC-class enrichment for MAGMA (DRUGSETS-style; Bell et al. 2022).
+# NON-directional (competitive magnitude) and genome-wide (single MAGMA "panel"),
+# so there is no CI and Direction is Enriched/Depleted. Reads the per-level result
+# CSVs. Returns NULL if the analysis wasn't run (backward-compat: block absent).
+read_magma_atc_gls<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
-
-  if(read_param(config = config, param = 'drug_targetor_atc_genelevel', return_obj = F) != "T") return(NULL)
-  if(mode == 'nondirectional' &&
-     read_param(config = config, param = 'twas_gsea_drugtargetor_nondirectional', return_obj = F) != "T") return(NULL)
-
-  suffix <- if(mode == 'nondirectional') '_nondir' else ''
-  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
-  weights<-weights[!grepl('SPLIC',weights)]
+  if(read_param(config = config, param = 'magma_drugtargetor_gls', return_obj = F) != "T") return(NULL)
 
   dat<-NULL
-  for(w in weights){
-    for(lv in c('l2','l3','l4')){
-      f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_atc_',lv,suffix,'_',w,'_res.csv')
-      if(!file.exists(f)) next
-      res<-fread(f)
-      res$Panel<-w
-      res$Level<-toupper(lv)
-      dat<-rbind(dat, res, fill=TRUE)
-    }
+  for(lv in c('l2','l3','l4')){
+    f<-paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_gls_',lv,'_res.csv')
+    if(!file.exists(f)) next
+    res<-fread(f); res$Level<-toupper(lv)
+    dat<-rbind(dat, res, fill=TRUE)
   }
   if(is.null(dat) || nrow(dat) == 0) return(NULL)
 
-  # Cross-panel FDR within each ATC level (parallel to read_twas_gsea_atc's P.FDR_all).
-  dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]
-  dat$Panel<-tidy_panel_names(dat$Panel)
+  dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]   # FDR within level
+  dat$Panel<-'MAGMA'
+  dat$Reversal_Z<-dat$T                                       # magnitude Z for the heatmap (non-directional)
 
-  keep<-intersect(c('Panel','Level','Code','Name','N_Mem_Avail','Estimate','SE','P','P.FDR','Direction','Reversal_Z'), names(dat))
+  keep<-intersect(c('Panel','Level','Code','Name','N_Drugs','Estimate','SE','T','P','P.FDR','Direction','Reversal_Z'), names(dat))
   dat<-dat[, ..keep]
-  setnames(dat, old=c('Code','Name','N_Mem_Avail'),
-                new=c('ATC Code','ATC Description','N Genes'), skip_absent=TRUE)
+  setnames(dat, old=c('Code','Name','N_Drugs'),
+                new=c('ATC Code','ATC Description','N Drugs'), skip_absent=TRUE)
   dat<-dat[order(dat$P),]
   return(dat)
 }
@@ -825,7 +814,7 @@ read_twas_gsea_atc_gls<-function(config, gwas){
 read_drug_targetor_evidence<-function(config, gwas){
 
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
-  if(read_param(config = config, param = 'drug_targetor_atc_genelevel', return_obj = F) != "T") return(NULL)
+  if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) != "T") return(NULL)
 
   weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
   weights<-weights[!grepl('SPLIC',weights)]

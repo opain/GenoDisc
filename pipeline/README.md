@@ -18,7 +18,7 @@ Part 3: Drug finding analyses
 
   * Identify enriched bipartite drug-gene sets
   * Identify drugs that reverse diseases gene expression
-  * Identify enriched ATC classifications (gene-level TWAS-GSEA test by default, with per-gene evidence for drill-down; a valid drug-level GLS test (DRUGSETS-style, with confidence intervals); and the legacy per-drug Wilcoxon retained as a cross-check)
+  * Identify enriched ATC classifications (recommended: a drug-level GLS test, DRUGSETS-style [Bell et al. 2022], for both MAGMA and TWAS-GSEA, with the legacy per-drug Wilcoxon retained as a cross-check and a per-gene evidence drill-down; the TWAS-GSEA DrugTargetor analysis is experimental)
 
 The results of all analyses are summarised in an [.html report](https://opain.github.io/GenoDiscy/example_report.html).
 

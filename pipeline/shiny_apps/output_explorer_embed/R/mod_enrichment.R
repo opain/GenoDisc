@@ -596,16 +596,16 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           "Name" = "Drug class (ATC code: description).",
           "Panel" = lg_panel,
           "N Drugs" = "Number of drugs in the class (drug-level GLS / legacy tests).",
-          "95% CI" = "95% confidence interval for the drug-level GLS coefficient. If it spans 0 the class effect is not distinguishable from zero — read the CI, not the Direction, near the null.",
+          "95% CI" = "95% confidence interval for the drug-level GLS coefficient (TWAS-GSEA GLS only). If it spans 0 the class effect is not distinguishable from zero — read the CI, not the Direction, near the null.",
           "Estimate" = paste0(
-            "Enrichment effect size. Gene-level (default): each ATC class is one ",
-            "signed gene set tested by TWAS-GSEA's gene-level model, so drugs are ",
-            "not treated as independent. Drug-level GLS (DRUGSETS-style): regresses ",
-            "the per-drug T on class membership weighted by the drug-drug correlation ",
-            "— same question as the legacy Wilcoxon (in-class vs other drugs) but ",
-            "valid; reports a coefficient with a 95% CI. Legacy per-drug: a ",
-            "Wilcoxon-Hodges-Lehmann estimate on ranked drug T, retained as a ",
-            "cross-check. Read the Direction (and, for GLS, the CI) not the raw sign."),
+            "Enrichment effect size. Recommended: the drug-level GLS (DRUGSETS-style; ",
+            "Bell et al. 2022), which regresses the per-drug statistic on ATC-class ",
+            "membership weighted by the drug-drug correlation — asking whether in-class ",
+            "drugs are more associated than other drugs while validly accounting for ",
+            "drugs sharing targets. TWAS-GSEA GLS (EXPERIMENTAL) is directional and per ",
+            "eQTL panel with a 95% CI; MAGMA GLS is non-directional and genome-wide. ",
+            "The legacy per-drug Wilcoxon is retained only as a cross-check. Read the ",
+            "Direction (and, for the TWAS-GSEA GLS, the CI) not the raw sign."),
           "Direction" = paste0(lg_dir,
             " NOTE: the direction reflects the drug-gene set encoding and which ",
             "target genes are modelled in the panel, not necessarily the clinical ",
@@ -714,22 +714,17 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       atc_methods <- unique(atc_data$Method)
       atc_expr_panels <- unique(atc_data$Panel[grepl('^TWAS-GSEA', atc_data$Method)])
 
-      # Gene-level ("option C") ATC availability drives the method-source toggle
-      # and the ATC-level selector. Absent for packages that predate option C.
-      atc_gl_available <- isTRUE(drug_targetor_available) &&
-        has_atc_genelevel(gwas_data(), parent_selected_gwas())
+      # Drug-level GLS (DRUGSETS-style) is the recommended ATC readout; its presence
+      # drives the method-source toggle and the ATC-level selector.
       atc_gls_available <- isTRUE(drug_targetor_available) &&
-        has_atc_gls(gwas_data(), parent_selected_gwas())
-      # Control bar shows if either level-based method (gene-level / drug-GLS) exists.
-      atc_controls_available <- atc_gl_available || atc_gls_available
-      atc_levels_avail <- if (atc_gl_available)
-        atc_genelevel_levels(gwas_data(), parent_selected_gwas())
-      else if (atc_gls_available)
+        (has_atc_gls(gwas_data(), parent_selected_gwas()) ||
+         has_atc_gls_magma(gwas_data(), parent_selected_gwas()))
+      atc_controls_available <- atc_gls_available
+      atc_levels_avail <- if (atc_gls_available)
         atc_gls_levels(gwas_data(), parent_selected_gwas()) else character(0)
-      # Method-source choices offered in the toggle (only those present in the bundle).
-      atc_src_choices <- c(if (atc_gl_available) c("Gene-level (recommended)" = "genelevel"),
-                           if (atc_gls_available) c("Drug-level GLS" = "gls"),
-                           c("Legacy per-drug (Wilcoxon)" = "legacy"))
+      # Method-source choices: GLS (recommended) vs the legacy Wilcoxon tests.
+      atc_src_choices <- c(if (atc_gls_available) c("GLS (recommended)" = "gls"),
+                           c("Legacy (Wilcoxon)" = "legacy"))
 
       # Build Drug sub-tabs
       drug_tabs <- list(
@@ -819,15 +814,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         )))
       }
       if (cf$twas_gsea_drugtargetor) {
-        drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA", br(),
-          p("This tab shows TWAS-GSEA drug enrichment results. Select a row to see the per-gene evidence behind that drug below the table."), hr(), br(),
+        drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA (experimental)", br(),
+          p(HTML("<b>Experimental.</b> TWAS-GSEA drug enrichment results. Select a row to see the per-gene evidence behind that drug below the table.")), hr(), br(),
           fluidRow(column(width=9, DT::dataTableOutput(ns("tx_drug_twas_gsea_table")))), enr_legend("drug_twas"), br(),
           uiOutput(ns("tx_drug_twas_gsea_evidence"))
         )))
       }
       if (cf$twas_gsea_drugtargetor_nondirectional) {
         drug_tabs <- c(drug_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
-          p("This tab shows TWAS-GSEA drug enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA)."), hr(), br(),
+          p(HTML("<b>Experimental.</b> TWAS-GSEA drug enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA).")), hr(), br(),
           fluidRow(column(width=9, dataTableOutput(ns("tx_drug_twas_gsea_nondir_table")))), enr_legend("drug_twas"), br()
         )))
       }
@@ -909,8 +904,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
       if (cf$magma_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
-          p("This tab shows MAGMA ATC enrichment results."), hr(), br(),
-          fluidRow(column(width=6, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br()
+          p("MAGMA ATC-class enrichment. With the 'ATC-class test' selector above set to GLS (recommended) this shows the drug-level GLS (DRUGSETS-style; non-directional, genome-wide); under 'Legacy' it shows the per-drug competitive Wilcoxon."), hr(), br(),
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br()
         )))
       }
       if (cf$gcsc) {
@@ -920,15 +915,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         )))
       }
       if (cf$twas_gsea_drugtargetor) {
-        atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA", br(),
-          p("This tab shows TWAS-GSEA ATC-class enrichment results at the ATC level chosen above. Select a row to see the per-gene evidence behind that class below the table."), hr(), br(),
+        atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (experimental)", br(),
+          p(HTML("<b>Experimental.</b> TWAS-GSEA ATC-class enrichment at the ATC level chosen above. With the selector set to GLS (recommended) this is the drug-level GLS (directional, per eQTL panel, with 95% CI); under 'Legacy' it is the per-drug Wilcoxon. Select a row to see the per-gene evidence behind that class below the table.")), hr(), br(),
           fluidRow(column(width=8, DT::dataTableOutput(ns("tx_atc_twas_gsea_table")))), enr_legend("atc_twas_dir"), br(),
           uiOutput(ns("tx_atc_twas_gsea_evidence"))
         )))
       }
       if (cf$twas_gsea_drugtargetor_nondirectional) {
-        atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
-          p("This tab shows TWAS-GSEA ATC-class enrichment results using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA), at the ATC level chosen above."), hr(), br(),
+        atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (non-directional, legacy)", br(),
+          p(HTML("<b>Experimental (legacy).</b> TWAS-GSEA ATC-class enrichment using the full DrugTargetor gene-set file (no direction of effect; comparable to MAGMA), a per-drug Wilcoxon at ATC level L3.")), hr(), br(),
           fluidRow(column(width=8, DT::dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), enr_legend("atc_twas_nondir"), br()
         )))
       }
@@ -1140,27 +1135,26 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
               drug_compare_ui(NS(ns("drug_compare"))))
           ),
           tabPanel(title = "ATC", br(),
-            # Shared ATC control bar: the test (gene-level / drug-level GLS / legacy
-            # per-drug) and the ATC level are chosen once and drive the Summary
-            # heatmap, the TWAS-GSEA table, and the per-class evidence. The level
-            # selector applies to the level-based tests (gene-level, GLS); the legacy
-            # Wilcoxon exists at L3 only, so the selector is hidden for it.
+            # Shared ATC control bar: the test (drug-level GLS / legacy Wilcoxon) and
+            # the ATC level are chosen once and drive the Summary heatmap, the tables,
+            # and the per-class evidence. The level selector applies to the GLS test;
+            # the legacy Wilcoxon (and MAGMA/GCSC) exist at L3 only, so it is hidden there.
             if (atc_controls_available) tags$div(class = "gd-details-body", style = "margin-bottom:8px;",
               fluidRow(
                 column(6, radioButtons(ns("atc_source"), "ATC-class test:",
                           choices = atc_src_choices,
                           selected = atc_src_choices[[1]], inline = TRUE)),
                 column(6, conditionalPanel(
-                          condition = sprintf("input['%s'] == 'genelevel' || input['%s'] == 'gls'",
-                                              ns("atc_source"), ns("atc_source")),
+                          condition = sprintf("input['%s'] == 'gls'", ns("atc_source")),
                           selectInput(ns("atc_level"), "ATC level:", choices = atc_levels_avail,
                                       selected = if ("L3" %in% atc_levels_avail) "L3" else atc_levels_avail[1])))
               ),
               tags$p(class = "gd-details-intro",
-                "Gene-level scores each ATC class as one signed gene set. Drug-level GLS asks the ",
-                "same question as the legacy Wilcoxon (in-class vs other drugs) but validly accounts ",
-                "for drugs sharing targets, and reports a coefficient + 95% CI. MAGMA / GCSC columns ",
-                "and the legacy Wilcoxon are available at level L3 only.")
+                "Drug-level GLS (recommended; DRUGSETS-style, Bell et al. 2022) asks whether in-class ",
+                "drugs are more associated than other drugs, validly accounting for drugs sharing ",
+                "targets. It is reported two ways: MAGMA (non-directional, genome-wide) and ",
+                HTML("<b>TWAS-GSEA (directional, per eQTL panel, with 95% CI &mdash; experimental)</b>. "),
+                "The legacy per-drug Wilcoxon tests (MAGMA / GCSC / TWAS-GSEA) are available at L3 only.")
             ),
             .gwas_view("atc_view_tabs",
               tagList(uiOutput(ns("atc_single_gwas_ui")), do.call(tabsetPanel, atc_tabs)),
@@ -2214,32 +2208,26 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     output$tx_atc_magma_table<-renderDataTable({
       req(gwas_data(), selected_gwas())
-      js <- c(
-        "function(row, data, displayNum, index){",
-        "  var x = data[2];",
-        "  $('td:eq(2)', row).html(x.toExponential(2));",
-        "  var y = data[3];",
-        "  $('td:eq(3)', row).html(y.toExponential(2));",
-        "}"
-      )
-
+      src <- input$atc_source %||% "gls"
+      if (src == "gls") {
+        # Recommended: MAGMA drug-level GLS (DRUGSETS-style; non-directional, genome-wide).
+        lvl <- input$atc_level %||% "L3"
+        tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc_gls_magma")
+        if (is.null(tmp)) return(NULL)
+        if ("Level" %in% names(tmp)) tmp <- tmp[tmp$Level == lvl, ]
+        if (nrow(tmp) == 0) return(NULL)
+        tmp <- as.data.frame(tmp)
+        tmp$Name <- paste0(tmp$`ATC Code`, ': ', tmp$`ATC Description`)
+        tmp$Estimate <- round(tmp$Estimate, 3)
+        keep <- intersect(c('Name','N Drugs','Estimate','Direction','P','P.FDR'), names(tmp))
+        return(.tx_gsea_datatable(tmp[, keep, drop = FALSE]))
+      }
+      # Legacy: MAGMA per-drug competitive Wilcoxon.
       tmp<-gd_read(gwas_data(), selected_gwas(), "tx/atc")$magma
       if(is.null(tmp)) return(NULL)
       tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
-      tmp<-tmp[,c('Name','N Drugs','P','P.FDR'), with=F]
-
-      datatable(
-        tmp,
-        rownames = F,
-        options = list(# Apply javascript for P value column
-          rowCallback = JS(js),
-          # Centre column contents and fix width of Pvalue column
-          columnDefs = list(
-            list(className = 'dt-center', targets = 0:3),
-            list(width = '60px', targets = 2:3)
-          )),
-        escape = FALSE
-      )
+      tmp<-as.data.frame(tmp)[,c('Name','N Drugs','P','P.FDR')]
+      .tx_gsea_datatable(tmp)
     })
 
     output$tx_atc_gcsc_table<-renderDataTable({
@@ -2278,21 +2266,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # per-gene evidence. Shared by the render and the inline evidence panel.
     atc_twas_tbl <- function(slot){
       req(gwas_data(), selected_gwas())
-      src <- input$atc_source %||% "genelevel"
+      src <- input$atc_source %||% "gls"
       lvl <- input$atc_level  %||% "L3"
-      if (src == "gls") {
-        if (slot != "twas_gsea") return(NULL)   # GLS is directional-only
+      if (slot == "twas_gsea" && src == "gls") {
+        # Recommended: TWAS-GSEA drug-level GLS (directional, per panel, with CI).
         tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc_gls")
         if (!is.null(tmp) && "Level" %in% names(tmp)) tmp <- tmp[tmp$Level == lvl, ]
       } else {
-        gl  <- gd_read(gwas_data(), selected_gwas(), "tx/atc_genelevel")
-        use_gl <- src == "genelevel" && !is.null(safe_access(gl, slot))
-        if (use_gl) {
-          tmp <- safe_access(gl, slot)
-          if (!is.null(tmp) && "Level" %in% names(tmp)) tmp <- tmp[tmp$Level == lvl, ]
-        } else {
-          tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc")[[slot]]
-        }
+        # Legacy per-drug Wilcoxon (directional slot under 'legacy'; nondir always Wilcoxon).
+        tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc")[[slot]]
       }
       if (is.null(tmp) || nrow(tmp) == 0) return(NULL)
       tmp <- as.data.frame(tmp)
@@ -2326,7 +2308,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       req(gwas_data(), selected_gwas())
       build_atc_summary_data(gwas_data(), selected_gwas(),
                              level = input$atc_level %||% "L3",
-                             atc_source = input$atc_source %||% "genelevel")
+                             atc_source = input$atc_source %||% "gls")
     })
 
     tx_atc_summary_data_filtered<-reactive({

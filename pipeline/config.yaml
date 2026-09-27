@@ -84,13 +84,6 @@ twas_gsea_drugtargetor: F
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: F
 
-# ATC-class drug enrichment computed directly at the gene level (each ATC class is one signed gene
-# set fed to TWAS-GSEA), instead of the legacy two-stage per-drug competitive Wilcoxon. Removes the
-# within-class drug pseudo-replication; retains direction. Requires twas_gsea_drugtargetor. When on,
-# also emits per-gene evidence (membership, TWAS Z, contribution, source/activity provenance) for the
-# Shiny drill-down. See docs/pipeline_technical.Rmd.
-drug_targetor_atc_genelevel: F
-
 # ATC-class drug enrichment via a drug-level GLS (DRUGSETS-style; Bell et al. 2022): regress the
 # per-drug signed TWAS-GSEA T on ATC-class membership (+ gene-set-size covariates), weighted by the
 # drug-drug correlation, so it asks the same question as the legacy Wilcoxon (are in-class drugs'

@@ -339,116 +339,85 @@ build_drug_summary_data <- function(gd, gwas) {
 #' @param gd A gd_result
 #' @param gwas GWAS name
 #' @return data.frame with columns: Name, Z, FDR_Sig, Nom_Sig, Method, Panel
-build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "genelevel") {
-  atc <- gd_read(gd, gwas, "tx/atc")             # legacy per-drug Wilcoxon (secondary)
-  atc_gl <- gd_read(gd, gwas, "tx/atc_genelevel")# gene-level "option C" (primary)
-  atc_gls <- gd_read(gd, gwas, "tx/atc_gls")     # drug-level GLS (DRUGSETS-style)
+build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
+  atc       <- gd_read(gd, gwas, "tx/atc")            # legacy Wilcoxon (+ magma/gcsc slots)
+  atc_gls   <- gd_read(gd, gwas, "tx/atc_gls")        # TWAS-GSEA GLS (directional, per panel)
+  atc_gls_m <- gd_read(gd, gwas, "tx/atc_gls_magma")  # MAGMA GLS (non-directional, genome-wide)
 
-  # Which source feeds the TWAS-GSEA rows: gene-level (default), drug-level GLS, or
-  # the legacy Wilcoxon (fallback for older packages / the 'legacy' choice).
-  use_gls <- identical(atc_source, "gls")       && !is.null(atc_gls)
-  use_gl  <- identical(atc_source, "genelevel") && !is.null(atc_gl)
-  # MAGMA / GCSC ATC results exist only at L3; only overlay them on an L3 view.
+  use_gls <- identical(atc_source, "gls")
+  # MAGMA (Wilcoxon) / GCSC ATC results exist only at L3; only overlay them on an L3 view.
   show_drugset <- identical(level, "L3")
 
-  magma_gs_atc <- if (show_drugset) safe_access(atc, "magma") else NULL
-  if (!is.null(magma_gs_atc)) {
-    magma_gs_atc$Z <- -qnorm(magma_gs_atc$P)
-    magma_gs_atc$Z[!is.finite(magma_gs_atc$Z)] <- NA_real_
-    magma_gs_atc$FDR_Sig <- magma_gs_atc$P.FDR < 0.05
-    magma_gs_atc$Nom_Sig <- magma_gs_atc$P < 0.05
-    magma_gs_atc$Name <- paste0(magma_gs_atc$`ATC Code`, ': ', magma_gs_atc$`ATC Description`)
-    magma_gs_atc$Method <- 'MAGMA'
-    magma_gs_atc$Panel <- 'MAGMA'
-    magma_gs_atc <- magma_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
-  }
-
-  gcsc_gs_atc <- if (show_drugset) safe_access(atc, "gcsc") else NULL
-  if (!is.null(gcsc_gs_atc)) {
-    gcsc_gs_atc$Z <- -qnorm(gcsc_gs_atc$P)
-    gcsc_gs_atc$Z[!is.finite(gcsc_gs_atc$Z)] <- NA_real_
-    gcsc_gs_atc$FDR_Sig <- gcsc_gs_atc$P.FDR < 0.05
-    gcsc_gs_atc$Nom_Sig <- gcsc_gs_atc$P < 0.05
-    gcsc_gs_atc$Name <- paste0(gcsc_gs_atc$`ATC Code`, ': ', gcsc_gs_atc$`ATC Description`)
-    gcsc_gs_atc$Method <- 'GCSC'
-    gcsc_gs_atc$Panel <- 'GCSC'
-    gcsc_gs_atc <- gcsc_gs_atc[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
-  }
-
-  build_gsea_atc <- function(slot, method_label) {
-    # Drug-level GLS (directional only, no nondir slot); else gene-level (option C,
-    # by level); else the legacy per-drug Wilcoxon block.
-    if (use_gls) {
-      if (slot != "twas_gsea") return(NULL)          # GLS has no non-directional variant
-      g <- atc_gls
-      if (!is.null(g) && "Level" %in% names(g)) g <- g[g$Level == level, ]
-    } else if (use_gl) {
-      g <- safe_access(atc_gl, slot)
-      if (!is.null(g) && "Level" %in% names(g)) g <- g[g$Level == level, ]
-    } else {
-      g <- safe_access(atc, slot)
-    }
+  # Standardise any ATC block to the summary columns (Name, Z, FDR_Sig, Nom_Sig, Method, Panel).
+  # by_level filters to the selected ATC level for blocks that carry a Level column (the GLS blocks);
+  # Z uses Reversal_Z when present (signed/magnitude), else -qnorm(P).
+  std_atc <- function(g, method_label, panel_label = NULL, by_level = TRUE) {
     if (is.null(g) || nrow(g) == 0) return(NULL)
-    # P.FDR is already computed in the RDS (per-panel by the read function);
-    # Reversal_Z is positive when the class opposes the trait's TWAS signature.
-    g$Z <- g$Reversal_Z
+    g <- data.table::as.data.table(g)
+    if (by_level && "Level" %in% names(g)) g <- g[g$Level == level, ]
+    if (nrow(g) == 0) return(NULL)
+    g$Z <- if ("Reversal_Z" %in% names(g)) g$Reversal_Z else -qnorm(g$P)
     g$Z[!is.finite(g$Z)] <- NA_real_
     g$FDR_Sig <- g$P.FDR < 0.05
     g$Nom_Sig <- g$P < 0.05
     g$Name <- paste0(g$`ATC Code`, ': ', g$`ATC Description`)
     g$Method <- method_label
-    g <- g[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
+    if (!is.null(panel_label)) g$Panel <- panel_label
+    g[, c("Name", "Z", "FDR_Sig", "Nom_Sig", "Method", "Panel"), with = F]
+  }
 
+  # Pad missing class x panel cells so the heatmap grid is complete.
+  pad_panels <- function(g) {
+    if (is.null(g) || nrow(g) == 0) return(g)
     g_all <- g
-    for (i in unique(g_all$Panel)) {
-      g_i <- g[g$Panel == i, ]
-      g_other <- g[g$Panel != i, ]
-      missing_atc_names <- unique(g_other$Name[!(g_other$Name %in% g_i$Name)])
-      if (length(missing_atc_names) > 0) {
-        g_rest <- data.frame(
-          Name = missing_atc_names,
-          Z = NA, FDR_Sig = NA, Nom_Sig = NA, Method = method_label, Panel = i)
-        g_all <- rbind(g_all, g_rest)
-      }
+    for (i in unique(g$Panel)) {
+      g_i <- g[g$Panel == i, ]; g_other <- g[g$Panel != i, ]
+      miss <- unique(g_other$Name[!(g_other$Name %in% g_i$Name)])
+      if (length(miss) > 0)
+        g_all <- rbind(g_all, data.frame(Name = miss, Z = NA, FDR_Sig = NA, Nom_Sig = NA,
+                                         Method = g$Method[1], Panel = i))
     }
     g_all
   }
 
-  gsea_gs_atc <- build_gsea_atc("twas_gsea", "TWAS-GSEA")
-  gsea_gs_atc_nondir <- build_gsea_atc("twas_gsea_nondir", "TWAS-GSEA (non-dir)")
-
-  do.call(rbind, Filter(Negate(is.null), list(magma_gs_atc, gcsc_gs_atc, gsea_gs_atc, gsea_gs_atc_nondir)))
+  if (use_gls) {
+    # Recommended: drug-level GLS. TWAS-GSEA (directional, per eQTL panel) + MAGMA (non-directional).
+    tw  <- pad_panels(std_atc(atc_gls, "TWAS-GSEA (GLS)"))
+    mag <- std_atc(atc_gls_m, "MAGMA (GLS)", panel_label = "MAGMA")
+    out <- do.call(rbind, Filter(Negate(is.null), list(tw, mag)))
+  } else {
+    # Legacy: the per-drug Wilcoxon tests (TWAS-GSEA per panel + MAGMA/GCSC, L3 only).
+    magma <- if (show_drugset) std_atc(safe_access(atc, "magma"), "MAGMA (Wilcoxon)", panel_label = "MAGMA", by_level = FALSE) else NULL
+    gcsc  <- if (show_drugset) std_atc(safe_access(atc, "gcsc"),  "GCSC",             panel_label = "GCSC",  by_level = FALSE) else NULL
+    tw    <- pad_panels(std_atc(safe_access(atc, "twas_gsea"),        "TWAS-GSEA (Wilcoxon)",          by_level = FALSE))
+    twn   <- pad_panels(std_atc(safe_access(atc, "twas_gsea_nondir"), "TWAS-GSEA (Wilcoxon, non-dir)", by_level = FALSE))
+    out <- do.call(rbind, Filter(Negate(is.null), list(magma, gcsc, tw, twn)))
+  }
+  out
 }
 
-#' Is the gene-level ("option C") ATC block present in this bundle?
-has_atc_genelevel <- function(gd, gwas) {
-  gl <- gd_read(gd, gwas, "tx/atc_genelevel")
-  !is.null(safe_access(gl, "twas_gsea")) || !is.null(safe_access(gl, "twas_gsea_nondir"))
-}
-
-#' ATC levels available in the gene-level block (e.g. c("L2","L3","L4")).
-atc_genelevel_levels <- function(gd, gwas) {
-  gl <- gd_read(gd, gwas, "tx/atc_genelevel")
-  g <- safe_access(gl, "twas_gsea")
-  if (is.null(g)) g <- safe_access(gl, "twas_gsea_nondir")
-  if (is.null(g) || !("Level" %in% names(g))) return(character(0))
-  intersect(c("L2","L3","L4"), unique(g$Level))
-}
-
-#' Is the drug-level GLS (DRUGSETS-style) ATC block present in this bundle?
+#' Is the drug-level GLS (DRUGSETS-style) TWAS-GSEA ATC block present in this bundle?
 has_atc_gls <- function(gd, gwas) {
   !is.null(gd_read(gd, gwas, "tx/atc_gls"))
 }
 
-#' ATC levels available in the drug-level GLS block (e.g. c("L2","L3","L4")).
+#' Is the MAGMA drug-level GLS ATC block present in this bundle?
+has_atc_gls_magma <- function(gd, gwas) {
+  !is.null(gd_read(gd, gwas, "tx/atc_gls_magma"))
+}
+
+#' ATC levels available across the drug-level GLS blocks (TWAS-GSEA + MAGMA), e.g. c("L2","L3","L4").
 atc_gls_levels <- function(gd, gwas) {
-  g <- gd_read(gd, gwas, "tx/atc_gls")
-  if (is.null(g) || !("Level" %in% names(g))) return(character(0))
-  intersect(c("L2","L3","L4"), unique(g$Level))
+  lv <- character(0)
+  for (blk in c("tx/atc_gls", "tx/atc_gls_magma")) {
+    g <- gd_read(gd, gwas, blk)
+    if (!is.null(g) && "Level" %in% names(g)) lv <- union(lv, unique(g$Level))
+  }
+  intersect(c("L2","L3","L4"), lv)
 }
 
 #' Per-gene evidence tables (membership x TWAS Z x provenance) for the drill-down.
-#' Return NULL when the bundle predates option C.
+#' Return NULL when the bundle predates the evidence feature.
 get_evidence_block <- function(gd, gwas) gd_read(gd, gwas, "tx/evidence")
 
 #' Member-gene evidence for one ATC class (code, level, panel) or one drug (name,
