@@ -1,0 +1,299 @@
+---
+title: "Drug-targetor ATC enrichment: positive-control validation"
+output:
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = FALSE)
+library(knitr)
+```
+
+***
+
+# Purpose
+
+The pipeline reports enrichment of ATC drug classes among a GWAS's TWAS signal using three
+methods:
+
+* **Gene-level ("option C")** — each ATC class is a single signed gene set fed to TWAS-GSEA
+  (`drug_targetor_atc_genelevel`).
+* **Drug-level GLS** — DRUGSETS-style GLS of per-drug `T` on an ATC-class indicator, weighted by the
+  drug–drug correlation (`drug_targetor_atc_gls`).
+* **Legacy Wilcoxon** — the original per-drug rank-sum test (known to be anti-conservative because
+  drugs in a class share target genes; retained only as a cross-check).
+
+An earlier CAD run (COAD01) produced no clean, directionally-interpretable hit, so before wider use we
+asked a simpler question: **for diseases with an unambiguous treating drug class, does that class come
+out enriched — and in a trustworthy direction?**
+
+This document records the full analysis: preparing the input GWAS, running the pipeline, and
+summarising the results. It is a record of the commands used (chunks are not evaluated at knit time).
+
+# Positive-control design
+
+Six European GWAS were taken from the reference set
+(`pipeline_resources/data/secondary_gwas/`), each paired with its canonical treating ATC class and
+run on disease-relevant GTEx tissue panel(s) plus `Whole_Blood` as a common comparator.
+
+| Disease | GWAS code | Expected class (ATC level) | Tissue panel(s) + Whole_Blood |
+|---|---|---|---|
+| Schizophrenia | SCHI04 | `N05A` antipsychotics (L3) | Brain_Cortex, Brain_Frontal_Cortex_BA9 |
+| Bipolar disorder | BIPO04 | `N05A` (L3); `N03A` mood stabilisers (L3); `N05AN` lithium (L4) | Brain_Cortex |
+| Depression (symptoms) | DEPR02 | `N06A` antidepressants (L3) | Brain_Cortex |
+| ADHD | ADHD06 | `N06B` psychostimulants (L3); `N06BA` (L4) | Brain_Cortex |
+| Type 2 diabetes | DIAB05 | `A10` (L2); `A10B` oral antidiabetics (L3) | Pancreas, Liver |
+| Asthma | ASTH02 | `R03` airway drugs (L2); `R03A` (L3) | Lung |
+
+ATC-level convention in the pipeline: **L2 = 3-char** (`N05`, `A10`), **L3 = 4-char** (`N05A`,
+`A10B`), **L4 = 5-char** (`N05AN`, `N06BA`).
+
+***
+
+# Step 1 — Prepare the input GWAS
+
+The reference GWAS are **LDSC-munged** (`CHR SNP BP A1 A2 Z N`; no `BETA`/`SE`/`P`/`FREQ`). The
+GenoDisc sumstat cleaner can still ingest them: `insert_beta()` derives `BETA`/`SE` from
+`Z + reference MAF + N` (reference MAF is filled during 1KG harmonisation), and the MAF filters skip
+gracefully when `FREQ` is absent. The only required column the munged files lack is `P`, which is
+recovered from `Z`.
+
+```{r}
+# convert_munged.R — add P = 2*pnorm(-|Z|); keep CHR SNP BP A1 A2 Z N P.
+library(data.table)
+
+convert_munged <- function(in_gz, out_gz){
+  d <- fread(in_gz)
+  stopifnot(all(c("SNP","A1","A2","Z","N") %in% names(d)))
+  d$P <- 2 * pnorm(-abs(d$Z))
+  keep <- intersect(c("CHR","SNP","BP","A1","A2","Z","N","P"), names(d))
+  fwrite(d[, ..keep], out_gz, sep = "\t")
+}
+```
+
+```{r}
+# Trait -> label, tissue panels (Whole_Blood appended to every job).
+GD <- "/scratch/prj/neurohackpain/GenoDisc"
+SG <- file.path(GD, "pipeline_resources/data/secondary_gwas")
+
+traits <- list(
+  SCHI04 = list(label = "Schizophrenia",   panels = c("Brain_Cortex","Brain_Frontal_Cortex_BA9","Whole_Blood")),
+  BIPO04 = list(label = "Bipolar disorder", panels = c("Brain_Cortex","Whole_Blood")),
+  DEPR02 = list(label = "Depressive symptoms", panels = c("Brain_Cortex","Whole_Blood")),
+  ADHD06 = list(label = "ADHD",             panels = c("Brain_Cortex","Whole_Blood")),
+  DIAB05 = list(label = "Type 2 diabetes",  panels = c("Pancreas","Liver","Whole_Blood")),
+  ASTH02 = list(label = "Asthma",           panels = c("Lung","Whole_Blood"))
+)
+```
+
+# Step 2 — Build gwas_list and config per trait
+
+Each trait gets its own job directory. The config is minimal — only sumstat QC, FUSION TWAS on the
+chosen panels, and the drug-targetor / ATC analyses are enabled (no LDSC, cmap, pathway, etc.), to
+keep each job lean. Binary/continuous distinction is irrelevant here (no liability-scale h2 step
+runs), so `sampling`/`prevalence`/`mean`/`sd` are `NA`.
+
+```{r}
+library(data.table)
+
+for(code in names(traits)){
+  tr  <- traits[[code]]
+  ts  <- format(Sys.time(), "%Y%m%d_%H%M%S")
+  job <- file.path(GD, "jobs", sprintf("claude_poscontrol_%s_%s", code, ts))
+  dir.create(file.path(job, "input"), recursive = TRUE, showWarnings = FALSE)
+
+  # Convert the munged sumstats into the job's input dir
+  convert_munged(file.path(SG, paste0(code, ".sumstats.gz")),
+                 file.path(job, "input", paste0(code, ".gz")))
+
+  # gwas_list (space-delimited)
+  gl <- data.table(name = code,
+                   path = file.path(job, "input", paste0(code, ".gz")),
+                   population = "EUR", n = NA, sampling = NA, prevalence = NA,
+                   mean = NA, sd = NA, label = tr$label)
+  write.table(gl, file.path(job, "gwas_list.txt"), row.names = FALSE, quote = FALSE)
+
+  # config.yaml
+  panels_yaml <- paste0("['", paste(tr$panels, collapse = "', '"), "']")
+  cfg <- c(
+    paste0("outdir: ", job),
+    paste0("config_file: ", file.path(job, "config.yaml")),
+    paste0("gwas_list: ", file.path(job, "gwas_list.txt")),
+    paste0("resdir: ", file.path(GD, "pipeline_resources")),
+    "twas_panel_fusion: T",
+    paste0("gtex_weights: ", panels_yaml),
+    "twas_gsea_drugtargetor: T",
+    "twas_gsea_drugtargetor_nondirectional: T",
+    "drug_targetor_atc_genelevel: T",
+    "drug_targetor_atc_gls: T"
+  )
+  writeLines(cfg, file.path(job, "config.yaml"))
+}
+```
+
+# Step 3 — Run the pipeline
+
+Each job was submitted exactly as the web service submits jobs — via the launcher, targeting
+`results/bundle.tar.gz`, on the dev pipeline. (Locally the equivalent target is the snakemake
+`run_package_results` rule.)
+
+```{bash}
+GD=/scratch/prj/neurohackpain/GenoDisc
+
+for JOB in $GD/jobs/claude_poscontrol_*; do
+  JOBID=$(basename "$JOB")
+  CODE=$(echo "$JOBID" | sed -E 's/claude_poscontrol_([A-Z0-9]+)_.*/\1/')
+  export GENODISC_PARTITIONS='neurohack_cpu,cpu,interruptible_cpu'
+  sbatch --partition=neurohack_cpu,cpu,interruptible_cpu --requeue \
+         --cpus-per-task=1 --time=24:00:00 --mem=4G \
+         --chdir="$JOB" --job-name="GD-$CODE" \
+         --output="$JOB/orchestrator_%j.log" \
+         $GD/bin/run_genodisc.sh "$JOB" dev
+done
+
+# Equivalent local invocation (per job):
+#   source $GD/bin/activate_genodisc.sh
+#   cd $GD/repo/current/pipeline
+#   snakemake --configfile $GD/repo/current/pipeline/config.yaml <JOB>/config.yaml \
+#             --profile profiles/slurm --use-conda \
+#             --conda-prefix $GD/conda-envs <JOB>/results/bundle.tar.gz
+```
+
+Each job produced `results/bundle.tar.gz` (and an unpacked `results/package/`) containing the ATC
+blocks `tx/atc` (legacy), `tx/atc_genelevel` (option C), `tx/atc_gls` (GLS).
+
+# Step 4 — Score the results
+
+For each (trait, method, panel) we locate the expected class at its ATC level, then record its pooled
+`FDR`, direction, and its **rank** by p-value among all classes at that level in that panel. The
+tissue-matched panel is the primary read; `Whole_Blood` is a comparator. A "pass" is
+`FDR < 0.05` in **any** direction (direction is reported separately as an interpretability check).
+
+```{r}
+library(data.table)
+
+# Expected classes per trait, and the matched-tissue keyword.
+EXP <- list(
+  SCHI04 = list(tissue="Cortex",   classes=list(c("N05A","L3"))),
+  BIPO04 = list(tissue="Cortex",   classes=list(c("N05A","L3"),c("N03A","L3"),c("N05AN","L4"))),
+  DEPR02 = list(tissue="Cortex",   classes=list(c("N06A","L3"))),
+  ADHD06 = list(tissue="Cortex",   classes=list(c("N06BA","L4"),c("N06B","L3"))),
+  DIAB05 = list(tissue="Pancreas", classes=list(c("A10","L2"),c("A10B","L3"))),
+  ASTH02 = list(tissue="Lung",     classes=list(c("R03","L2"),c("R03A","L3")))
+)
+
+read_block <- function(path, slot=NULL){
+  if(!file.exists(path)) return(NULL)
+  x <- readRDS(path)
+  if(!is.null(slot) && is.list(x) && slot %in% names(x)) x <- x[[slot]]
+  dt <- as.data.table(x)
+  if("ATC Code" %in% names(dt)) setnames(dt, "ATC Code", "code")
+  dt
+}
+
+# Rank the expected class by P within (panel, level) of a method table.
+score_one <- function(dt, code, level, panel_kw, has_level=TRUE){
+  if(is.null(dt) || !nrow(dt)) return(NULL)
+  d <- dt[grepl(panel_kw, Panel, ignore.case=TRUE)]
+  if(has_level && "Level" %in% names(d)) d <- d[Level == level]
+  if(!nrow(d)) return(NULL)
+  d <- d[order(P)][, rnk := seq_len(.N)]
+  idx <- which(d$code == code)                 # explicit column vs arg (avoid data.table scoping)
+  if(length(idx) == 0) return(data.table(found=FALSE))
+  row <- d[idx[1]]
+  data.table(found=TRUE, panel=row$Panel,
+             FDR=if("P.FDR" %in% names(row)) signif(row$`P.FDR`,3) else NA_real_,
+             Direction=row$Direction, rank=row$rnk, n_at_level=nrow(d),
+             percentile=round(row$rnk/nrow(d),3))
+}
+
+jobdirs <- list.files(file.path(GD, "jobs"), pattern="^claude_poscontrol_", full.names=TRUE)
+out <- list()
+for(job in jobdirs){
+  code <- sub(".*claude_poscontrol_([A-Z0-9]+)_.*", "\\1", basename(job))
+  if(!code %in% names(EXP)) next
+  tx  <- file.path(job, "results", "package", "gwas", code, "tx")
+  gl  <- read_block(file.path(tx, "atc_genelevel.rds"), "twas_gsea")
+  gls <- read_block(file.path(tx, "atc_gls.rds"))
+  lg  <- read_block(file.path(tx, "atc.rds"), "twas_gsea")
+  for(cl in EXP[[code]]$classes){
+    for(pt in c("matched","blood")){
+      kw <- if(pt=="matched") EXP[[code]]$tissue else "Blood"
+      for(m in c("genelevel","gls","legacy")){
+        tbl <- switch(m, genelevel=gl, gls=gls, legacy=lg)
+        r <- score_one(tbl, cl[1], cl[2], kw, has_level = (m != "legacy"))
+        if(is.null(r) || isFALSE(r$found)) next
+        r[, `:=`(trait=code, expected=cl[1], level=cl[2], method=m, panel_type=pt)]
+        out[[length(out)+1]] <- r
+      }
+    }
+  }
+}
+scorecard <- rbindlist(out, fill=TRUE)
+```
+
+***
+
+# Results
+
+Canonical treating class per trait, **tissue-matched panel**. Each cell is `FDR` · rank of the
+expected class among all classes at its level · direction.
+
+| Disease | Expected | Gene-level (option C) | Drug-level GLS | Legacy Wilcoxon |
+|---|---|---|---|---|
+| Schizophrenia | `N05A` | 0.97 · 229/338 · Matches | 0.53 · 37/191 · Matches | **0.0011 · 1/145 · Opposes** |
+| Bipolar | `N05A` | 0.97 · top 75% · Opposes | 0.74 · top 52% · Opposes | 0.65 · top 23% · Opposes |
+| Depression | `N06A` | 0.92 · top 31% · Opposes | 0.95 · top 60% · Opposes | 0.87 · top 60% · Matches |
+| ADHD | `N06B` | 0.97 · top 40% · Opposes | 0.77 · top 48% · Matches | 0.82 · top 58% · Opposes |
+| Type 2 diabetes | `A10B` | 0.85 · top 32% · Opposes | 0.45 · top 13% · Opposes | 0.42 · top 23% · Opposes |
+| Asthma | `R03`* | 0.76 · top 15% · Matches | 0.47 · top 19% · Matches | 0.99 · top 98% · Matches |
+
+\* Legacy has no ATC-level column, so asthma's legacy cell is scored at `R03A`.
+
+**Headline counts (of 6 controls, tissue-matched panel):**
+
+| Method | FDR < 0.05 | top 10% by p | direction = "Opposes" |
+|---|---|---|---|
+| Legacy Wilcoxon | 1 (schizophrenia) | 1 | 4 |
+| Drug-level GLS | 0 | 1 (T2D `A10` L2) | 3 |
+| Gene-level (option C) | 0 | 0 | 3 |
+
+# Interpretation
+
+* **Only one of six positive controls is significant** — schizophrenia → antipsychotics — and only
+  under the **legacy Wilcoxon** (FDR 0.001, rank 1, correct "Opposes" direction). That test is the
+  statistically invalid one; its low p-value is partly the pseudo-replication we set out to remove.
+* **Both valid methods recover zero of six** at FDR < 0.05. Removing the drug-correlation inflation
+  removes most of the apparent signal. The closest they come is type-2-diabetes → oral antidiabetics
+  (GLS, top ~13%, correct direction) — suggestive, not significant.
+* **Direction is not trustworthy.** For the same class the "Opposes / Matches disease" label flips
+  between blood and the matched tissue and across methods (e.g. schizophrenia → antipsychotics reads
+  "Matches" under the valid methods but "Opposes" under legacy). This confirms the earlier COAD01
+  diagnosis that direction is largely a gene-coverage artifact.
+* Schizophrenia is by far the best-powered GWAS here, and the one case where signal survives — i.e.
+  the valid methods may be **correctly calibrated but underpowered** at realistic GWAS sizes rather
+  than fundamentally wrong.
+
+# Recommendation
+
+* Do not present ATC enrichment as a validated drug-repurposing signal, and do not surface the
+  directional "reverses disease" claim — it is not supported by these controls.
+* If retained, frame it as **exploratory and direction-agnostic** ("this class's target genes are
+  enriched among your disease-associated genes"), with a power caveat.
+* Re-test the valid methods on the very largest available GWAS before shipping; keep the legacy
+  Wilcoxon out of any headline claim.
+
+# Caveats
+
+* The reference GWAS are HapMap3-only (LDSC-munged), which modestly reduces TWAS gene coverage
+  relative to full summary statistics.
+* Drug-level methods have few drugs per class (e.g. `R03A` ≈ 2, `A10B` ≈ 12 in the matched panel),
+  so are inherently low-powered.
+* A "miss" can reflect GWAS power, tissue coverage, or drug-annotation gaps rather than a broken
+  method; absence of signal is not proof of no effect.
+
+***
