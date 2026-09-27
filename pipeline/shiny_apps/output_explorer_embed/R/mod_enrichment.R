@@ -310,7 +310,12 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
 
   # Methods are whatever the current ATC source produced (e.g. "TWAS-GSEA (GLS)",
   # "MAGMA (GLS)" for the GLS view; the Wilcoxon variants for the legacy view).
+  # Facet order: MAGMA first, then GCSC, then TWAS-GSEA.
   methods <- unique(all_gs_atc_all$Method)
+  rank_m <- function(m) ifelse(grepl("^MAGMA", m), 1L,
+                        ifelse(grepl("^GCSC", m), 2L,
+                        ifelse(grepl("TWAS-GSEA", m), 3L, 4L)))
+  methods <- methods[order(rank_m(methods), methods)]
   all_gs_atc_all$Method <- factor(all_gs_atc_all$Method, levels = methods)
   # A method is directional (red/blue palette) if it is a TWAS-GSEA test other than
   # the non-directional Wilcoxon; everything else (MAGMA, GCSC) is positive-only.
@@ -2336,15 +2341,15 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       all_gs_atc<-rbind(na_rows, all_gs_atc)
 
-      # Filter results table if user specifies high confidence genes only
+      # Filter results table if user specifies high confidence genes only.
+      # Method-agnostic (labels vary by source, e.g. 'TWAS-GSEA (GLS)',
+      # 'MAGMA (Wilcoxon)'): keep a class that is FDR-significant in any method —
+      # for the directional TWAS-GSEA tests either direction counts; for the
+      # non-directional / positive-only methods require an enriched (Z > 0) hit.
       if(input$conf_only_atc){
+        dir_m <- grepl('TWAS-GSEA', all_gs_atc$Method) & !grepl('non-dir', all_gs_atc$Method)
         hc_atc<-all_gs_atc$Name[
-          which(
-            (all_gs_atc$Method == 'TWAS-GSEA' & all_gs_atc$FDR_Sig) |
-              (all_gs_atc$Method == 'TWAS-GSEA (non-dir)' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
-              (all_gs_atc$Method == 'MAGMA' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0) |
-              (all_gs_atc$Method == 'GCSC' & all_gs_atc$FDR_Sig & all_gs_atc$Z > 0)
-          )]
+          which(all_gs_atc$FDR_Sig & (dir_m | all_gs_atc$Z > 0))]
 
         all_gs_atc<-all_gs_atc[all_gs_atc$Name %in% c(hc_atc,'Placeholder'),]
       }
@@ -2899,7 +2904,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       d <- as.data.frame(d)
       if ("T" %in% names(d)) d$T <- round(d$T, 2)
       if ("Estimate" %in% names(d)) d$Estimate <- round(d$Estimate, 3)
-      cols <- intersect(c("Name","Estimate","T","P","P.FDR","Direction","ChEMBL"), names(d))
+      cols <- intersect(c("Name","N Genes","Estimate","T","P","P.FDR","Direction","ChEMBL"), names(d))
       .tx_gsea_datatable(d[, cols, drop = FALSE])
     }
 
