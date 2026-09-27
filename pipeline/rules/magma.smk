@@ -90,6 +90,51 @@ rule format_magma_results:
       --config_file {params.config_file} > {log} 2>&1"
 
 # -------------------------------------------------------------------------
+# DRUGSETS-style drug-level GLS ATC enrichment on the MAGMA per-drug results.
+# Sigma (drug-drug correlation) is reconstructed from the MAGMA gene-gene
+# correlations in .genes.raw (compute_magma_drugcorr.R); the GLS regresses the
+# per-drug BETA/SE on an ATC-class indicator + size covariates weighted by
+# Sigma^-1 (format_magma_drugtargetor_gls_results.R). MAGMA is tissue-
+# independent, so there is one result per GWAS (no panel wildcard).
+# -------------------------------------------------------------------------
+
+rule compute_magma_drugcorr:
+  input:
+    raw="{outdir}/results/{gwas}/magma/magma_gene_level.genes.raw",
+    gsa="{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out",
+    gmt=f"{resdir}/data/drug_targetor/wholedatabase_for_targetor.gmt"
+  output:
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor.drugcorr.rds"
+  benchmark:
+    "{outdir}/benchmarks/compute_magma_drugcorr_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  log:
+    "{outdir}/logs/compute_magma_drugcorr-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/compute_magma_drugcorr.R \
+      {input.raw} {input.gmt} {input.gsa} {output} > {log} 2>&1"
+
+rule format_magma_drug_targetor_gls_results:
+  input:
+    gsa="{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out",
+    corr="{outdir}/results/{gwas}/magma/magma_drug_targetor.drugcorr.rds",
+    atc=rules.download_atc.output
+  output:
+    l2="{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_l2_res.csv",
+    l3="{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_l3_res.csv",
+    l4="{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_l4_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_magma_drug_targetor_gls_results_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  log:
+    "{outdir}/logs/format_magma_drug_targetor_gls_results-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_magma_drugtargetor_gls_results.R \
+      {input.gsa} {input.corr} {input.atc} {outdir}/results/{wildcards.gwas}/magma > {log} 2>&1"
+
+# -------------------------------------------------------------------------
 # Pathway (MSigDB-style .gmt) enrichment — same MAGMA gene-set analysis as
 # magma_drug_targetor above, but iterated over every *.gmt in
 # pathway_gmt_dir. Enabled with config[magma_pathway] == 'T'; the wildcard

@@ -17,7 +17,7 @@ library(knitr)
 
 # Purpose
 
-The pipeline reports enrichment of ATC drug classes using four methods. Three are TWAS-based
+The pipeline reports enrichment of ATC drug classes using five methods. Three are TWAS-based
 (directional, per eQTL panel):
 
 * **Gene-level ("option C")** — each ATC class is a single signed gene set fed to TWAS-GSEA
@@ -27,14 +27,30 @@ The pipeline reports enrichment of ATC drug classes using four methods. Three ar
 * **Legacy Wilcoxon** — the original per-drug rank-sum test (known to be anti-conservative because
   drugs in a class share target genes; retained only as a cross-check).
 
-The fourth is MAGMA-based and structurally different:
+Two are MAGMA-based (tissue-independent, non-directional — one result per GWAS):
 
-* **MAGMA Wilcoxon** — MAGMA gene-level association (GWAS + 1000G reference) → per-drug gene-set
-  enrichment → a one-sided Wilcoxon of in-class vs out-of-class drug p-values per ATC L3 class
-  (`magma_drugtargetor`; the Gaspar & Breen 2017 drug-set approach). It is **tissue-independent** (one
-  result per GWAS, no eQTL panel) and **non-directional** (magnitude enrichment only — no
-  Opposes/Matches). Only this Wilcoxon variant is implemented for MAGMA; option-C-style and
-  DRUGSETS/GLS-style MAGMA equivalents are future work.
+* **MAGMA Wilcoxon** — MAGMA gene-level association (GWAS + 1000G reference) → per-drug competitive
+  gene-set enrichment → a one-sided Wilcoxon of in-class vs out-of-class drug p-values per ATC L3 class
+  (`magma_drugtargetor`; the Gaspar & Breen 2017 drug-set approach).
+* **MAGMA GLS (DRUGSETS)** — the same MAGMA per-drug enrichment aggregated with the DRUGSETS GLS (Bell,
+  de Leeuw, Posthuma): regress the per-drug `BETA/SE` on an ATC-class indicator + size covariates,
+  weighted by a drug–drug correlation Σ reconstructed from the MAGMA gene-gene correlations in
+  `.genes.raw` (`magma_drugtargetor_gls`). This is the correlation-aware analogue of the MAGMA
+  Wilcoxon — the honest test of the same question.
+
+## Consistency of the MAGMA per-drug step with DRUGSETS
+
+GenoDisc's `magma_drug_targetor` runs `magma --gene-results …genes.raw --set-annot …_targetor.gmt`
+with no `--model` — i.e. MAGMA's **default competitive, one-sided** gene-set test. This matches
+DRUGSETS' per-drug step, with two differences: (1) DRUGSETS adds `--model condition=druggable` (each
+drug's enrichment is measured against the druggable-gene background); GenoDisc does not. (2) The
+existing MAGMA aggregation is a Wilcoxon on `rank(P)`, whereas DRUGSETS aggregates the per-drug
+`BETA/SE` with a GLS. The MAGMA GLS added here reuses the existing (un-conditioned) per-drug betas
+(`stat = BETA/SE`) and reconstructs Σ from `.genes.raw` **without** the druggable term, to stay
+coherent with the un-conditioned per-drug run — a documented deviation from DRUGSETS (the fully-faithful
+`condition=druggable` variant is future work and could recover some signal). (Aside: the existing MAGMA
+Wilcoxon script labels the 4-char level "atc_res" and 5-char "level4", offset by one vs the L2=3/L3=4/
+L4=5 convention used elsewhere; cosmetic — the scored MAGMA block is 4-char = L3.)
 
 An earlier CAD run (COAD01) produced no clean, directionally-interpretable hit, so before wider use we
 asked a simpler question: **for diseases with an unambiguous treating drug class, does that class come
@@ -139,7 +155,8 @@ for(code in names(traits)){
     "twas_gsea_drugtargetor_nondirectional: T",
     "drug_targetor_atc_genelevel: T",
     "drug_targetor_atc_gls: T",
-    "magma_drugtargetor: T"          # MAGMA drug-set ATC Wilcoxon (tissue-independent)
+    "magma_drugtargetor: T",         # MAGMA drug-set ATC Wilcoxon (tissue-independent)
+    "magma_drugtargetor_gls: T"      # MAGMA DRUGSETS-style drug-level GLS ATC enrichment
   )
   writeLines(cfg, file.path(job, "config.yaml"))
 }
@@ -174,7 +191,17 @@ done
 ```
 
 Each job produced `results/bundle.tar.gz` (and an unpacked `results/package/`) containing the ATC
-blocks `tx/atc` (legacy), `tx/atc_genelevel` (option C), `tx/atc_gls` (GLS).
+blocks `tx/atc` (legacy Wilcoxon + MAGMA Wilcoxon under `tx/atc$magma`), `tx/atc_genelevel` (option C),
+`tx/atc_gls` (TWAS-GSEA GLS).
+
+The **MAGMA GLS** result is produced by two new pipeline scripts (gated by `magma_drugtargetor_gls`,
+tissue-independent so one result per GWAS; eval-only — written as CSVs, not yet packaged into a bundle
+block): `scripts/compute_magma_drugcorr.R` reconstructs the drug–drug Σ from
+`magma_gene_level.genes.raw` (per-chromosome gene-gene-correlation eigen-whitening, eigenvalue prune
+0.1, membership residualised on gene covariates → `Σ = cov2cor(VᵀV)`), and
+`scripts/format_magma_drugtargetor_gls_results.R` runs the DRUGSETS GLS (`y = BETA/SE`, `X =
+[1, class, size, log(size)]`, one-sided upper-tail t) at L2/L3/L4, writing
+`results/<GWAS>/magma/magma_drug_targetor_gls_<lv>_res.csv`.
 
 # Step 4 — Score the results
 
@@ -246,7 +273,7 @@ for(job in jobdirs){
       }
     }
   }
-  # MAGMA: single genome-wide, non-directional table (tx/atc$magma), L3 classes only.
+  # MAGMA Wilcoxon: single genome-wide, non-directional table (tx/atc$magma), L3 classes only.
   mg <- read_block(file.path(tx, "atc.rds"), "magma")
   ec <- MAGMA_CLS[[code]]
   if(!is.null(mg) && !is.null(ec)){
@@ -258,6 +285,20 @@ for(job in jobdirs){
         FDR=signif(row$`P.FDR`,3), Direction=NA_character_, rank=row$rnk,
         n_at_level=nrow(mg), percentile=round(row$rnk/nrow(mg),3),
         trait=code, expected=ec, level="L3", method="magma", panel_type="matched")
+    }
+  }
+  # MAGMA GLS (DRUGSETS): read the L3 CSV from the job dir (eval-only, not packaged).
+  gf <- file.path(job, "results", code, "magma", "magma_drug_targetor_gls_l3_res.csv")
+  if(file.exists(gf) && !is.null(ec)){
+    mgls <- fread(gf); setnames(mgls, "Code", "code")
+    mgls <- mgls[order(P)][, rnk := seq_len(.N)]
+    idx <- which(mgls$code == ec)
+    if(length(idx)){
+      row <- mgls[idx[1]]
+      out[[length(out)+1]] <- data.table(found=TRUE, panel="(genome-wide)",
+        FDR=signif(row$FDR,3), Direction=NA_character_, rank=row$rnk,
+        n_at_level=nrow(mgls), percentile=round(row$rnk/nrow(mgls),3),
+        trait=code, expected=ec, level="L3", method="magma_gls", panel_type="matched")
     }
   }
 }
@@ -272,58 +313,69 @@ Canonical treating class per trait, **tissue-matched panel** (MAGMA is genome-wi
 `FDR` · rank of the expected class among all classes at its level · direction (— = MAGMA is
 non-directional). Significant cells (`FDR < 0.05`) in **bold**.
 
-| Disease | Expected | Gene-level (option C) | Drug-level GLS | Legacy Wilcoxon | MAGMA Wilcoxon |
-|---|---|---|---|---|---|
-| Schizophrenia | `N05A` | 0.97 · 229/338 · Matches | 0.53 · 37/191 · Matches | **0.0011 · 1/145 · Opposes** | **5.6e-8 · 1/111 · —** |
-| Type 2 diabetes | `A10B` | 0.85 · top 32% · Opposes | 0.45 · top 13% · Opposes | 0.42 · top 23% · Opposes | **0.0047 · 3/111 · —** |
-| ADHD | `N06B` | 0.97 · top 40% · Opposes | 0.77 · top 48% · Matches | 0.82 · top 58% · Opposes | **0.036 · 6/111 · —** |
-| Depression | `N06A` | 0.92 · top 31% · Opposes | 0.95 · top 60% · Opposes | 0.87 · top 60% · Matches | 0.80 · 30/111 · — |
-| Bipolar | `N05A` | 0.97 · top 75% · Opposes | 0.74 · top 52% · Opposes | 0.65 · top 23% · Opposes | 0.85 · 55/111 · — |
-| Asthma | `R03`* | 0.76 · top 15% · Matches | 0.47 · top 19% · Matches | 0.99 · top 98% · Matches | 0.99 · 62/111 · — |
+| Disease | Expected | Gene-level (C) | Drug GLS | Legacy Wilcox | MAGMA Wilcox | MAGMA GLS |
+|---|---|---|---|---|---|---|
+| Schizophrenia | `N05A` | 0.97 · 229/338 | 0.53 · 37/191 | **0.0011 · 1/145** | **5.6e-8 · 1/111** | 0.70 · 23/126 |
+| Type 2 diabetes | `A10B` | 0.85 · top 32% | 0.45 · top 13% | 0.42 · top 23% | **0.0047 · 3/111** | 0.70 · 3/126 |
+| ADHD | `N06B` | 0.97 · top 40% | 0.77 · top 48% | 0.82 · top 58% | **0.036 · 6/111** | 0.20 · **1/126** |
+| Depression | `N06A` | 0.92 · top 31% | 0.95 · top 60% | 0.87 · top 60% | 0.80 · 30/111 | 1.0 · 101/126 |
+| Bipolar | `N05A` | 0.97 · top 75% | 0.74 · top 52% | 0.65 · top 23% | 0.85 · 55/111 | 0.81 · 25/126 |
+| Asthma | `R03`* | 0.76 · top 15% | 0.47 · top 19% | 0.99 · top 98% | 0.99 · 62/111 | 0.84 · 63/126 |
 
-\* Legacy has no ATC-level column, so asthma's legacy cell is scored at `R03A`; MAGMA (L3 only) is also
-scored at `R03A`. Rows are ordered by MAGMA significance.
+Each cell is `FDR` · rank of the expected class among all classes at its level; `FDR < 0.05` in
+**bold**. Directional labels (TWAS-GSEA methods) are omitted here for width — they are inconsistent
+across methods/tissues (see interpretation); the MAGMA methods are non-directional. \* Legacy and both
+MAGMA methods are scored at `R03A` (L3). Rows ordered by MAGMA-Wilcoxon significance.
 
 **Headline counts (of 6 controls):**
 
-| Method | FDR < 0.05 | top 10% by p | direction = "Opposes" |
+| Method | FDR < 0.05 | top 10% by p | direction usable? |
 |---|---|---|---|
-| **MAGMA Wilcoxon** | **3** (schizophrenia, T2D, ADHD) | **3** | n/a (non-directional) |
-| Legacy Wilcoxon | 1 (schizophrenia) | 1 | 4 |
-| Drug-level GLS | 0 | 1 (T2D `A10` L2) | 3 |
-| Gene-level (option C) | 0 | 0 | 3 |
+| **MAGMA Wilcoxon** | **3** (SCZ, T2D, ADHD) | **3** | no (non-directional) |
+| MAGMA GLS (DRUGSETS) | 0 | 2 (ADHD rank 1, T2D rank 3) | no (non-directional) |
+| Legacy Wilcoxon | 1 (SCZ) | 1 | direction not trustworthy |
+| Drug-level GLS | 0 | 1 (T2D) | direction not trustworthy |
+| Gene-level (option C) | 0 | 0 | direction not trustworthy |
 
 # Interpretation
 
-* **MAGMA is clearly the strongest positive-control performer** — 3 of 6 controls at FDR < 0.05, all
-  in the top ~5 % of classes: schizophrenia → antipsychotics (FDR 5.6e-8, rank 1 of 111),
-  type-2-diabetes → oral antidiabetics (FDR 0.005, rank 3), ADHD → psychostimulants (FDR 0.036, rank
-  6). It misses the lower-powered / more diffuse controls (depression, bipolar, asthma). This is the
-  established Gaspar & Breen drug-set approach: it uses genome-wide gene-level association (not
-  TWAS-panel-limited genes), so it is better powered and coverage-robust.
-* **The TWAS-GSEA methods are much weaker.** The two statistically valid ones (gene-level option C,
-  drug-level GLS) recover **zero** of six at FDR < 0.05; the legacy Wilcoxon recovers one
-  (schizophrenia) and only because its p-value is inflated by the pseudo-replication we set out to
-  remove. Where MAGMA succeeds strongly (T2D, ADHD) the TWAS-GSEA methods show at most a suggestive
-  ranking.
-* **Direction (TWAS-GSEA only) is not trustworthy.** For the same class the "Opposes / Matches
-  disease" label flips between blood and matched tissue and across methods, confirming the earlier
-  COAD01 diagnosis that direction is largely a gene-coverage artifact. MAGMA sidesteps this — it asks
-  a purely non-directional magnitude question.
-* Net: the useful, validated ATC readout here is the **non-directional MAGMA drug-set enrichment**, not
-  the directional TWAS-GSEA variants — at least at present GWAS power.
+* **The MAGMA Wilcoxon's headline results are largely pseudo-replication.** Its three FDR hits look
+  impressive, but the Wilcoxon treats the drugs in a class as independent. The correlation-aware
+  **MAGMA GLS (DRUGSETS)** — the honest version of the same question — drops all three below FDR 0.05.
+  The clearest case is schizophrenia → antipsychotics: `N05A` collapses from rank 1 / FDR 5.6e-8 to
+  rank 23 / P 0.13, because its 48 antipsychotics share targets (mean pairwise Σ ≈ 0.19, ~5 effective
+  independent drugs). An OLS check reproduces the Wilcoxon (T ≈ 6.5); the Σ-weighted GLS shrinks it to
+  T ≈ 1.1 — the correction is doing exactly what it should.
+* **But the MAGMA GLS still ranks the right class at the top for the well-behaved controls** — ADHD →
+  psychostimulants is rank **1 of 126** (P 0.0016) and T2D → oral antidiabetics rank **3** (P 0.021),
+  both nominally significant and top-decile, just not surviving FDR at n = 6. These classes have fewer,
+  less-redundant drugs, so they hold up under correction while the antipsychotic cluster does not.
+* **All the statistically valid methods now agree.** TWAS option-C, TWAS GLS and MAGMA GLS each recover
+  **0/6** at FDR < 0.05: once drug–drug correlation is accounted for, drug-class enrichment from these
+  GWAS is at best nominal. The strong signals came only from the two uncorrected Wilcoxon tests.
+* **Direction (TWAS-GSEA only) remains untrustworthy** — the "Opposes/Matches" label flips across
+  methods and tissues (COAD01 diagnosis). The MAGMA methods sidestep this (non-directional magnitude).
+* **Consistency caveat / next step:** the MAGMA GLS here reuses the un-conditioned per-drug betas and a
+  Σ without the druggable term (see the consistency section). The fully-faithful DRUGSETS variant
+  (`--model condition=druggable`) removes the common druggable-gene component and could lift some
+  classes back toward significance — worth testing before drawing a final line under the drug-level
+  approach.
 
 # Recommendation
 
-* **Lead with MAGMA drug-set enrichment** as the ATC readout — it recovers known drug classes and is
-  the established, coverage-robust method. Present it as it is: a non-directional test of whether a
-  class's target genes are enriched for disease association.
-* **Do not present the TWAS-GSEA ATC methods as a validated repurposing signal**, and do not surface
-  their directional "reverses disease" claim — the positive controls do not support it. Treat them as
-  experimental / a directional add-on, ideally only on very well-powered GWAS.
-* Given MAGMA's strength, the planned next step (option-C-style and DRUGSETS/GLS-style **MAGMA**
-  variants) is worth pursuing — a directional, drug-correlation-aware test built on MAGMA's better-powered
-  gene-level signal could combine MAGMA's power with the interpretability the TWAS-GSEA methods aimed for.
+* **Use the MAGMA GLS (DRUGSETS), not the MAGMA Wilcoxon, as the drug-level ATC readout.** The
+  Wilcoxon's strong hits are inflated by drug–drug correlation; the GLS is the correlation-aware, honest
+  version of the same test. Report it as a non-directional competitive enrichment (with the coefficient
+  and one-sided p), and read the nominal ranking, not FDR-significance, as the signal.
+* **Be candid that, once correlation is accounted for, no drug class survives FDR across these six
+  controls** — every valid method (TWAS option-C, TWAS GLS, MAGMA GLS) agrees. The honest message is
+  "top-ranked, nominally-enriched" (e.g. ADHD → psychostimulants, T2D → antidiabetics), not "validated".
+* **Do not present the TWAS-GSEA ATC methods as a validated repurposing signal** and do not surface the
+  directional "reverses disease" claim — the controls don't support it.
+* **Before finalising, test the fully-faithful DRUGSETS variant** (`--model condition=druggable` per-drug
+  run + druggable term in Σ). If it lifts the well-behaved controls (ADHD, T2D) to FDR-significance, it
+  becomes the recommended default; if not, the drug-level approach is confirmed underpowered at these
+  GWAS sizes.
 
 # Caveats
 

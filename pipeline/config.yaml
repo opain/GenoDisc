@@ -55,6 +55,10 @@ magma_gene: F
 # MAGMA gene set enrichment analysis using DrugTargetor sets
 magma_drugtargetor: F
 
+# DRUGSETS-style drug-level GLS ATC enrichment on the MAGMA per-drug results
+# (correlation-aware alternative to the MAGMA Wilcoxon). Requires magma_drugtargetor: T.
+magma_drugtargetor_gls: F
+
 # TWAS using FUSION and PsychENCODE panel
 twas_panel_psychencode: F
 
