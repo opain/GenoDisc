@@ -440,6 +440,26 @@ get_evidence_rows <- function(gd, gwas, what = c("class","drug"),
   d[order(-abs(d$contribution)), ]
 }
 
+#' Per-drug results for the drugs in one ATC class — the drug-level observations
+#' behind a drug-level GLS ATC coefficient. Reads tx/drug (the per-drug DrugTargetor
+#' results for the given engine + panel) and keeps drugs whose ATC code falls under
+#' the clicked class, ordered by |per-drug T|. The tx/drug ATC code is ATC level 3
+#' (4-char); L4 classes are matched at their level-3 parent.
+get_atc_class_drugs <- function(gd, gwas, code, level = "L3", panel = NULL,
+                                engine = c("twas_gsea","magma")) {
+  engine <- match.arg(engine)
+  d <- safe_access(gd_read(gd, gwas, "tx/drug"), engine)
+  if (is.null(d) || nrow(d) == 0 || !("ATC Code" %in% names(d))) return(NULL)
+  d <- data.table::as.data.table(d)
+  if (!is.null(panel) && "Panel" %in% names(d)) d <- d[d$Panel == panel, ]
+  k <- if (identical(level, "L2")) 3L else 4L            # tx/drug ATC code is L3 (4-char)
+  d <- d[substr(d$`ATC Code`, 1, k) == substr(code, 1, k), ]
+  if (nrow(d) == 0) return(NULL)
+  if (all(c("Estimate","SE") %in% names(d))) d$T <- d$Estimate / d$SE
+  ord <- if ("T" %in% names(d)) order(-abs(d$T)) else if ("P" %in% names(d)) order(d$P) else seq_len(nrow(d))
+  d[ord, ]
+}
+
 #' Build CMAP per-signature drug summary data
 #'
 #' One row per (cmap_name x cell_iname x pert_itime x pert_idose x weight panel).

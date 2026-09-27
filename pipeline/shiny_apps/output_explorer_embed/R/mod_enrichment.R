@@ -308,9 +308,13 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   # See build_tx_drug_gtable: bail before facet_wrap errors on an empty factor.
   if (nrow(all_gs_atc_all) == 0) return(NULL)
 
-  methods <- c('MAGMA','GCSC','TWAS-GSEA','TWAS-GSEA (non-dir)')
-  methods <- methods[methods %in% all_gs_atc_all$Method]
+  # Methods are whatever the current ATC source produced (e.g. "TWAS-GSEA (GLS)",
+  # "MAGMA (GLS)" for the GLS view; the Wilcoxon variants for the legacy view).
+  methods <- unique(all_gs_atc_all$Method)
   all_gs_atc_all$Method <- factor(all_gs_atc_all$Method, levels = methods)
+  # A method is directional (red/blue palette) if it is a TWAS-GSEA test other than
+  # the non-directional Wilcoxon; everything else (MAGMA, GCSC) is positive-only.
+  is_dir <- function(m) grepl("TWAS-GSEA", m) & !grepl("non-dir", m)
 
   # Shorten long ATC descriptions
   for (i in unique(all_gs_atc_all$Name)) {
@@ -325,14 +329,13 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
     all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[rev(order(all_gs_atc_all$Name))]))
   } else if (sort_choice == 'All - Z') {
     all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[order(all_gs_atc_all$Z, na.last = FALSE)]))))
-  } else if (sort_choice == 'TWAS-GSEA - Z') {
-    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA'], na.last = FALSE)]))))
-  } else if (sort_choice == 'TWAS-GSEA (non-dir) - Z') {
-    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = rev(unique(rev(all_gs_atc_all$Name[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'TWAS-GSEA (non-dir)'], na.last = FALSE)]))))
-  } else if (sort_choice == 'MAGMA - Z') {
-    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'MAGMA'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'MAGMA'], na.last = FALSE)]))
-  } else if (sort_choice == 'GCSC - Z') {
-    all_gs_atc_all$Name <- factor(all_gs_atc_all$Name, levels = unique(all_gs_atc_all$Name[all_gs_atc_all$Method == 'GCSC'][order(all_gs_atc_all$Z[all_gs_atc_all$Method == 'GCSC'], na.last = FALSE)]))
+  } else if (grepl(' - Z$', sort_choice)) {
+    # Sort by Z within one method, e.g. "TWAS-GSEA (GLS) - Z" / "MAGMA (GLS) - Z".
+    m <- sub(' - Z$', '', sort_choice)
+    sel <- all_gs_atc_all$Method == m
+    if (any(sel))
+      all_gs_atc_all$Name <- factor(all_gs_atc_all$Name,
+        levels = rev(unique(rev(all_gs_atc_all$Name[sel][order(all_gs_atc_all$Z[sel], na.last = FALSE)]))))
   }
 
   group_siz <- do.call(rbind, lapply(methods, function(m)
@@ -345,8 +348,8 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   # Drop untested (ATC, panel, method) rows so no point is drawn for
   # them — previously na.value = NA left a faint grey outline for
   # shape 21 in some ggplot versions.
-  dir_data_atc <- all_gs_atc_all[Method == 'TWAS-GSEA' & !is.na(Z)]
-  pos_data_atc <- all_gs_atc_all[Method != 'TWAS-GSEA' & !is.na(Z)]
+  dir_data_atc <- all_gs_atc_all[is_dir(as.character(Method)) & !is.na(Z)]
+  pos_data_atc <- all_gs_atc_all[!is_dir(as.character(Method)) & !is.na(Z)]
   # Match_Z = -Reversal_Z so positive value = matches trait signature; the
   # palette then puts blue on positive (matches) and red on negative
   # (opposes), matching the multi-GWAS ATC compare view.
@@ -2375,22 +2378,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                      min_height = 350, min_panel_h_pt = 200)
     })
 
+    # When the ATC source (GLS / legacy) or level changes, the set of methods in
+    # the summary data changes too — refresh the "Include results from these
+    # methods" choices so the Wilcoxon methods are selectable under the legacy
+    # source (and only the GLS methods under GLS).
+    observeEvent(tx_atc_summary_data(), {
+      ms <- unique(tx_atc_summary_data()$Method)
+      updateSelectInput(session, "selected_methods_atc", choices = ms, selected = ms)
+    }, ignoreNULL = FALSE)
+
     observeEvent(tx_atc_summary_data_filtered(), {
       tmp<-tx_atc_summary_data_filtered()
-      choices<-'All - Z'
-      if(any(tmp$Method == 'MAGMA')){
-        choices<-c(choices, 'MAGMA - Z')
-      }
-      if(any(tmp$Method == 'GCSC')){
-        choices<-c(choices, 'GCSC - Z')
-      }
-      if(any(tmp$Method == 'TWAS-GSEA')){
-        choices<-c(choices, 'TWAS-GSEA - Z')
-      }
-      if(any(tmp$Method == 'TWAS-GSEA (non-dir)')){
-        choices<-c(choices, 'TWAS-GSEA (non-dir) - Z')
-      }
-      if(length(unique(tmp$Method)) == 1){
+      ms <- unique(tmp$Method)
+      choices <- c('All - Z', paste0(ms, ' - Z'))
+      if(length(ms) == 1){
         choices<-choices[choices != 'All - Z']
       }
       choices<-c(choices, 'Alphabetical')
@@ -2875,6 +2876,33 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       "ChEMBL / DGIdb target annotations). Only genes modelled in this panel contribute ",
       "— see the coverage count above.")
 
+    # Drug-level evidence for an ATC class: the drugs in the class are the
+    # observations the drug-level GLS aggregates, so the drill-down shows the
+    # per-drug enrichment statistics, not per-gene contributions.
+    .atc_drug_plot <- function(d){
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      d$stat <- if ("T" %in% names(d)) d$T else d$Estimate
+      d <- head(d[order(abs(d$stat), decreasing = TRUE), ], 25)
+      d$Name <- factor(d$Name, levels = rev(d$Name))
+      d$Dir <- if ("Direction" %in% names(d)) d$Direction else NA_character_
+      ggplot2::ggplot(d, ggplot2::aes(x = stat, y = Name, fill = Dir)) +
+        ggplot2::geom_col() +
+        ggplot2::geom_vline(xintercept = 0, colour = "grey40") +
+        ggplot2::scale_fill_manual(values = c("Opposes disease" = "#0066FF", "Matches disease" = "#FF0000"),
+                                   na.value = "grey60", name = "Direction") +
+        ggplot2::labs(x = "Per-drug enrichment T", y = NULL, title = "Drugs in this ATC class") +
+        ggplot2::theme_bw()
+    }
+    .atc_drug_dt <- function(d){
+      if (is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      if ("T" %in% names(d)) d$T <- round(d$T, 2)
+      if ("Estimate" %in% names(d)) d$Estimate <- round(d$Estimate, 3)
+      cols <- intersect(c("Name","Estimate","T","P","P.FDR","Direction","ChEMBL"), names(d))
+      .tx_gsea_datatable(d[, cols, drop = FALSE])
+    }
+
     # ATC-class evidence (directional TWAS-GSEA tab; keyed by the selected row).
     atc_evidence_sel <- reactive({
       sel <- input$tx_atc_twas_gsea_table_rows_selected
@@ -2882,26 +2910,27 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       df <- atc_tbl_dir(); if (is.null(df) || sel > nrow(df)) return(NULL)
       row <- df[sel, ]
       lvl <- if ("Level" %in% names(row)) row$Level else "L3"
-      list(rows = get_evidence_rows(gwas_data(), selected_gwas(), what = "class",
-                                    id = row$`ATC Code`, panel = row$Panel, level = lvl),
+      list(drugs = get_atc_class_drugs(gwas_data(), selected_gwas(), code = row$`ATC Code`,
+                                       level = lvl, panel = row$Panel, engine = "twas_gsea"),
            name = row$Name, panel = row$Panel, level = lvl, code = row$`ATC Code`)
     })
-    output$tx_atc_evidence_plot <- renderPlot({ r <- atc_evidence_sel(); if (is.null(r)) return(NULL); .evidence_plot(r$rows) })
-    output$tx_atc_evidence_dt   <- DT::renderDataTable({ r <- atc_evidence_sel(); if (is.null(r)) return(NULL); .evidence_dt(r$rows) })
+    output$tx_atc_evidence_plot <- renderPlot({ r <- atc_evidence_sel(); if (is.null(r)) return(NULL); .atc_drug_plot(r$drugs) })
+    output$tx_atc_evidence_dt   <- DT::renderDataTable({ r <- atc_evidence_sel(); if (is.null(r)) return(NULL); .atc_drug_dt(r$drugs) })
     output$tx_atc_twas_gsea_evidence <- renderUI({
-      if (!isTRUE(evidence_available())) return(NULL)   # older bundle: no evidence, no section
       r <- atc_evidence_sel()
-      if (is.null(r)) return(tags$p(tags$em("Select an ATC class row above to see the genes driving it.")))
-      ev <- get_evidence_block(gwas_data(), selected_gwas()); cov <- NULL
-      if (!is.null(ev) && !is.null(ev$class_summary)) {
-        s <- ev$class_summary; s <- s[s$Panel == r$panel & s$Level == r$level & s$code == r$code, ]
-        if (nrow(s)) cov <- sprintf("%d of %d target genes modelled in this panel.", s$n_modelled[1], s$n_target[1])
-      }
+      if (is.null(r)) return(tags$p(tags$em("Select an ATC class row above to see the drugs driving it.")))
+      n <- if (is.null(r$drugs)) 0 else nrow(r$drugs)
+      note <- if (identical(r$level, "L4")) " (matched at their ATC level-3 parent)" else ""
       tagList(hr(),
-        .evidence_header(r$rows, sprintf("ATC class %s (%s, %s)", r$name, r$level, r$panel), cov),
+        tags$p(tags$b(sprintf("ATC class %s (%s, %s):", r$name, r$level, r$panel)),
+               sprintf(" %d drug%s in this class%s — the drug-level observations the GLS aggregates.",
+                       n, if (n == 1) "" else "s", note)),
         tags$div(style = "max-width:760px;", plotOutput(ns("tx_atc_evidence_plot"), height = "360px")),
         br(), tags$div(style = "max-width:900px;", DT::dataTableOutput(ns("tx_atc_evidence_dt"))),
-        .evidence_legend)
+        tags$p(class = "gd-details-intro",
+          "Bars show each drug's per-drug enrichment statistic (T = Estimate/SE) within this ATC class ",
+          "for the selected eQTL panel (red = matches, blue = opposes the trait signature). These per-drug ",
+          "results are the observations the drug-level GLS coefficient aggregates."))
     })
 
     # Drug evidence (directional TWAS-GSEA tab; keyed by the selected row).
