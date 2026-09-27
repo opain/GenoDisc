@@ -17,8 +17,8 @@ library(knitr)
 
 # Purpose
 
-The pipeline reports enrichment of ATC drug classes among a GWAS's TWAS signal using three
-methods:
+The pipeline reports enrichment of ATC drug classes using four methods. Three are TWAS-based
+(directional, per eQTL panel):
 
 * **Gene-level ("option C")** — each ATC class is a single signed gene set fed to TWAS-GSEA
   (`drug_targetor_atc_genelevel`).
@@ -26,6 +26,15 @@ methods:
   drug–drug correlation (`drug_targetor_atc_gls`).
 * **Legacy Wilcoxon** — the original per-drug rank-sum test (known to be anti-conservative because
   drugs in a class share target genes; retained only as a cross-check).
+
+The fourth is MAGMA-based and structurally different:
+
+* **MAGMA Wilcoxon** — MAGMA gene-level association (GWAS + 1000G reference) → per-drug gene-set
+  enrichment → a one-sided Wilcoxon of in-class vs out-of-class drug p-values per ATC L3 class
+  (`magma_drugtargetor`; the Gaspar & Breen 2017 drug-set approach). It is **tissue-independent** (one
+  result per GWAS, no eQTL panel) and **non-directional** (magnitude enrichment only — no
+  Opposes/Matches). Only this Wilcoxon variant is implemented for MAGMA; option-C-style and
+  DRUGSETS/GLS-style MAGMA equivalents are future work.
 
 An earlier CAD run (COAD01) produced no clean, directionally-interpretable hit, so before wider use we
 asked a simpler question: **for diseases with an unambiguous treating drug class, does that class come
@@ -129,7 +138,8 @@ for(code in names(traits)){
     "twas_gsea_drugtargetor: T",
     "twas_gsea_drugtargetor_nondirectional: T",
     "drug_targetor_atc_genelevel: T",
-    "drug_targetor_atc_gls: T"
+    "drug_targetor_atc_gls: T",
+    "magma_drugtargetor: T"          # MAGMA drug-set ATC Wilcoxon (tissue-independent)
   )
   writeLines(cfg, file.path(job, "config.yaml"))
 }
@@ -211,6 +221,10 @@ score_one <- function(dt, code, level, panel_kw, has_level=TRUE){
              percentile=round(row$rnk/nrow(d),3))
 }
 
+# MAGMA is tissue-independent + non-directional: score its canonical L3 class per trait.
+MAGMA_CLS <- list(SCHI04="N05A", BIPO04="N05A", DEPR02="N06A",
+                  ADHD06="N06B", DIAB05="A10B", ASTH02="R03A")
+
 jobdirs <- list.files(file.path(GD, "jobs"), pattern="^claude_poscontrol_", full.names=TRUE)
 out <- list()
 for(job in jobdirs){
@@ -232,6 +246,20 @@ for(job in jobdirs){
       }
     }
   }
+  # MAGMA: single genome-wide, non-directional table (tx/atc$magma), L3 classes only.
+  mg <- read_block(file.path(tx, "atc.rds"), "magma")
+  ec <- MAGMA_CLS[[code]]
+  if(!is.null(mg) && !is.null(ec)){
+    mg <- mg[order(P)][, rnk := seq_len(.N)]
+    idx <- which(mg$code == ec)
+    if(length(idx)){
+      row <- mg[idx[1]]
+      out[[length(out)+1]] <- data.table(found=TRUE, panel="(genome-wide)",
+        FDR=signif(row$`P.FDR`,3), Direction=NA_character_, rank=row$rnk,
+        n_at_level=nrow(mg), percentile=round(row$rnk/nrow(mg),3),
+        trait=code, expected=ec, level="L3", method="magma", panel_type="matched")
+    }
+  }
 }
 scorecard <- rbindlist(out, fill=TRUE)
 ```
@@ -240,59 +268,71 @@ scorecard <- rbindlist(out, fill=TRUE)
 
 # Results
 
-Canonical treating class per trait, **tissue-matched panel**. Each cell is `FDR` · rank of the
-expected class among all classes at its level · direction.
+Canonical treating class per trait, **tissue-matched panel** (MAGMA is genome-wide). Each cell is
+`FDR` · rank of the expected class among all classes at its level · direction (— = MAGMA is
+non-directional). Significant cells (`FDR < 0.05`) in **bold**.
 
-| Disease | Expected | Gene-level (option C) | Drug-level GLS | Legacy Wilcoxon |
-|---|---|---|---|---|
-| Schizophrenia | `N05A` | 0.97 · 229/338 · Matches | 0.53 · 37/191 · Matches | **0.0011 · 1/145 · Opposes** |
-| Bipolar | `N05A` | 0.97 · top 75% · Opposes | 0.74 · top 52% · Opposes | 0.65 · top 23% · Opposes |
-| Depression | `N06A` | 0.92 · top 31% · Opposes | 0.95 · top 60% · Opposes | 0.87 · top 60% · Matches |
-| ADHD | `N06B` | 0.97 · top 40% · Opposes | 0.77 · top 48% · Matches | 0.82 · top 58% · Opposes |
-| Type 2 diabetes | `A10B` | 0.85 · top 32% · Opposes | 0.45 · top 13% · Opposes | 0.42 · top 23% · Opposes |
-| Asthma | `R03`* | 0.76 · top 15% · Matches | 0.47 · top 19% · Matches | 0.99 · top 98% · Matches |
+| Disease | Expected | Gene-level (option C) | Drug-level GLS | Legacy Wilcoxon | MAGMA Wilcoxon |
+|---|---|---|---|---|---|
+| Schizophrenia | `N05A` | 0.97 · 229/338 · Matches | 0.53 · 37/191 · Matches | **0.0011 · 1/145 · Opposes** | **5.6e-8 · 1/111 · —** |
+| Type 2 diabetes | `A10B` | 0.85 · top 32% · Opposes | 0.45 · top 13% · Opposes | 0.42 · top 23% · Opposes | **0.0047 · 3/111 · —** |
+| ADHD | `N06B` | 0.97 · top 40% · Opposes | 0.77 · top 48% · Matches | 0.82 · top 58% · Opposes | **0.036 · 6/111 · —** |
+| Depression | `N06A` | 0.92 · top 31% · Opposes | 0.95 · top 60% · Opposes | 0.87 · top 60% · Matches | 0.80 · 30/111 · — |
+| Bipolar | `N05A` | 0.97 · top 75% · Opposes | 0.74 · top 52% · Opposes | 0.65 · top 23% · Opposes | 0.85 · 55/111 · — |
+| Asthma | `R03`* | 0.76 · top 15% · Matches | 0.47 · top 19% · Matches | 0.99 · top 98% · Matches | 0.99 · 62/111 · — |
 
-\* Legacy has no ATC-level column, so asthma's legacy cell is scored at `R03A`.
+\* Legacy has no ATC-level column, so asthma's legacy cell is scored at `R03A`; MAGMA (L3 only) is also
+scored at `R03A`. Rows are ordered by MAGMA significance.
 
-**Headline counts (of 6 controls, tissue-matched panel):**
+**Headline counts (of 6 controls):**
 
 | Method | FDR < 0.05 | top 10% by p | direction = "Opposes" |
 |---|---|---|---|
+| **MAGMA Wilcoxon** | **3** (schizophrenia, T2D, ADHD) | **3** | n/a (non-directional) |
 | Legacy Wilcoxon | 1 (schizophrenia) | 1 | 4 |
 | Drug-level GLS | 0 | 1 (T2D `A10` L2) | 3 |
 | Gene-level (option C) | 0 | 0 | 3 |
 
 # Interpretation
 
-* **Only one of six positive controls is significant** — schizophrenia → antipsychotics — and only
-  under the **legacy Wilcoxon** (FDR 0.001, rank 1, correct "Opposes" direction). That test is the
-  statistically invalid one; its low p-value is partly the pseudo-replication we set out to remove.
-* **Both valid methods recover zero of six** at FDR < 0.05. Removing the drug-correlation inflation
-  removes most of the apparent signal. The closest they come is type-2-diabetes → oral antidiabetics
-  (GLS, top ~13%, correct direction) — suggestive, not significant.
-* **Direction is not trustworthy.** For the same class the "Opposes / Matches disease" label flips
-  between blood and the matched tissue and across methods (e.g. schizophrenia → antipsychotics reads
-  "Matches" under the valid methods but "Opposes" under legacy). This confirms the earlier COAD01
-  diagnosis that direction is largely a gene-coverage artifact.
-* Schizophrenia is by far the best-powered GWAS here, and the one case where signal survives — i.e.
-  the valid methods may be **correctly calibrated but underpowered** at realistic GWAS sizes rather
-  than fundamentally wrong.
+* **MAGMA is clearly the strongest positive-control performer** — 3 of 6 controls at FDR < 0.05, all
+  in the top ~5 % of classes: schizophrenia → antipsychotics (FDR 5.6e-8, rank 1 of 111),
+  type-2-diabetes → oral antidiabetics (FDR 0.005, rank 3), ADHD → psychostimulants (FDR 0.036, rank
+  6). It misses the lower-powered / more diffuse controls (depression, bipolar, asthma). This is the
+  established Gaspar & Breen drug-set approach: it uses genome-wide gene-level association (not
+  TWAS-panel-limited genes), so it is better powered and coverage-robust.
+* **The TWAS-GSEA methods are much weaker.** The two statistically valid ones (gene-level option C,
+  drug-level GLS) recover **zero** of six at FDR < 0.05; the legacy Wilcoxon recovers one
+  (schizophrenia) and only because its p-value is inflated by the pseudo-replication we set out to
+  remove. Where MAGMA succeeds strongly (T2D, ADHD) the TWAS-GSEA methods show at most a suggestive
+  ranking.
+* **Direction (TWAS-GSEA only) is not trustworthy.** For the same class the "Opposes / Matches
+  disease" label flips between blood and matched tissue and across methods, confirming the earlier
+  COAD01 diagnosis that direction is largely a gene-coverage artifact. MAGMA sidesteps this — it asks
+  a purely non-directional magnitude question.
+* Net: the useful, validated ATC readout here is the **non-directional MAGMA drug-set enrichment**, not
+  the directional TWAS-GSEA variants — at least at present GWAS power.
 
 # Recommendation
 
-* Do not present ATC enrichment as a validated drug-repurposing signal, and do not surface the
-  directional "reverses disease" claim — it is not supported by these controls.
-* If retained, frame it as **exploratory and direction-agnostic** ("this class's target genes are
-  enriched among your disease-associated genes"), with a power caveat.
-* Re-test the valid methods on the very largest available GWAS before shipping; keep the legacy
-  Wilcoxon out of any headline claim.
+* **Lead with MAGMA drug-set enrichment** as the ATC readout — it recovers known drug classes and is
+  the established, coverage-robust method. Present it as it is: a non-directional test of whether a
+  class's target genes are enriched for disease association.
+* **Do not present the TWAS-GSEA ATC methods as a validated repurposing signal**, and do not surface
+  their directional "reverses disease" claim — the positive controls do not support it. Treat them as
+  experimental / a directional add-on, ideally only on very well-powered GWAS.
+* Given MAGMA's strength, the planned next step (option-C-style and DRUGSETS/GLS-style **MAGMA**
+  variants) is worth pursuing — a directional, drug-correlation-aware test built on MAGMA's better-powered
+  gene-level signal could combine MAGMA's power with the interpretability the TWAS-GSEA methods aimed for.
 
 # Caveats
 
 * The reference GWAS are HapMap3-only (LDSC-munged), which modestly reduces TWAS gene coverage
-  relative to full summary statistics.
+  relative to full summary statistics (this hurts the TWAS-GSEA methods more than MAGMA).
 * Drug-level methods have few drugs per class (e.g. `R03A` ≈ 2, `A10B` ≈ 12 in the matched panel),
   so are inherently low-powered.
+* MAGMA is scored at ATC L3 only (the packaged level) and is non-directional, so it is a comparator,
+  not a like-for-like replacement for the directional TWAS-GSEA rows.
 * A "miss" can reflect GWAS power, tissue coverage, or drug-annotation gaps rather than a broken
   method; absence of signal is not proof of no effect.
 
