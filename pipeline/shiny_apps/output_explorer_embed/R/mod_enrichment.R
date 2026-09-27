@@ -811,8 +811,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
       if (cf$magma_drugtargetor) {
         drug_tabs <- c(drug_tabs, list(tabPanel(title="MAGMA", br(),
-          p("This tab shows MAGMA drug enrichment results."), hr(), br(),
-          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_magma_table")))), enr_legend("drug_magma"), br()
+          p("This tab shows MAGMA drug enrichment results. Select a row to see the drug's target genes and their MAGMA gene-level association below the table."), hr(), br(),
+          fluidRow(column(width=9, dataTableOutput(ns("tx_drug_magma_table")))), enr_legend("drug_magma"), br(),
+          uiOutput(ns("tx_drug_magma_evidence"))
         )))
       }
       if (cf$gcsc) {
@@ -912,8 +913,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
       if (cf$magma_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
-          p("MAGMA ATC-class enrichment. With the 'ATC-class test' selector above set to GLS (recommended) this shows the drug-level GLS (DRUGSETS-style; non-directional, genome-wide); under 'Legacy' it shows the per-drug competitive Wilcoxon."), hr(), br(),
-          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br()
+          p("MAGMA ATC-class enrichment. With the 'ATC-class test' selector above set to GLS (recommended) this shows the drug-level GLS (DRUGSETS-style; non-directional, genome-wide); under 'Legacy' it shows the per-drug competitive Wilcoxon. Select a row to see the drugs in that class below the table."), hr(), br(),
+          fluidRow(column(width=8, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br(),
+          uiOutput(ns("tx_atc_magma_evidence"))
         )))
       }
       if (cf$gcsc) {
@@ -1868,37 +1870,21 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Prepare data for drug-specific association tables
     #######
 
-    output$tx_drug_magma_table<-renderDataTable({
+    # MAGMA per-drug table (row-selectable when the MAGMA per-gene evidence block
+    # is present, so a click opens the drug's member-gene drill-down below).
+    drug_magma_tbl <- reactive({
       req(gwas_data(), selected_gwas())
-      js <- c(
-        "function(row, data, displayNum, index){",
-        "  var x = data[4];",
-        "  $('td:eq(4)', row).html(x.toExponential(2));",
-        "  var y = data[5];",
-        "  $('td:eq(5)', row).html(y.toExponential(2));",
-        "}"
-      )
-
       tmp<-gd_read(gwas_data(), selected_gwas(), "tx/drug")$magma
       if(is.null(tmp)) return(NULL)
-      tmp$BETA<-round(tmp$BETA,3)
-      tmp$SE<-round(tmp$SE,3)
-      if ("ChEMBL" %in% names(tmp) && "Name" %in% names(tmp)) {
-        tmp$ChEMBL <- .chembl_search_link(tmp$Name)
-      }
-
-      datatable(
-        tmp,
-        rownames = F,
-        options = list(# Apply javascript for P value column
-          rowCallback = JS(js),
-          # Centre column contents and fix width of Pvalue column
-          columnDefs = list(
-            list(className = 'dt-center', targets = '_all'),
-            list(width = '60px', targets = 4:5)
-          )),
-        escape = FALSE
-      )
+      tmp<-as.data.frame(tmp)
+      tmp$BETA<-round(tmp$BETA,3); tmp$SE<-round(tmp$SE,3)
+      if ("ChEMBL" %in% names(tmp) && "Name" %in% names(tmp)) tmp$ChEMBL <- .chembl_search_link(tmp$Name)
+      cols<-intersect(c("Name","ATC Description","N Genes","BETA","SE","P","P.FDR","ChEMBL"), names(tmp))
+      tmp[, cols, drop = FALSE]
+    })
+    output$tx_drug_magma_table<-DT::renderDataTable({
+      .tx_gsea_datatable(drug_magma_tbl(),
+                         selectable = isTRUE(has_magma_evidence(gwas_data(), selected_gwas())))
     })
 
     output$tx_drug_gcsc_table<-renderDataTable({
@@ -2214,11 +2200,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Prepare data for atc-specific association tables
     #######
 
-    output$tx_atc_magma_table<-renderDataTable({
+    # MAGMA ATC table data (retains ATC Code + Level for the row-click drill-down;
+    # source-aware: GLS under 'gls', competitive Wilcoxon under 'legacy').
+    atc_magma_tbl <- reactive({
       req(gwas_data(), selected_gwas())
       src <- input$atc_source %||% "gls"
       if (src == "gls") {
-        # Recommended: MAGMA drug-level GLS (DRUGSETS-style; non-directional, genome-wide).
         lvl <- input$atc_level %||% "L3"
         tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc_gls_magma")
         if (is.null(tmp)) return(NULL)
@@ -2227,15 +2214,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         tmp <- as.data.frame(tmp)
         tmp$Name <- paste0(tmp$`ATC Code`, ': ', tmp$`ATC Description`)
         tmp$Estimate <- round(tmp$Estimate, 3)
-        keep <- intersect(c('Name','N Drugs','Estimate','Direction','P','P.FDR'), names(tmp))
-        return(.tx_gsea_datatable(tmp[, keep, drop = FALSE]))
+        keep <- intersect(c('Name','ATC Code','Level','N Drugs','Estimate','Direction','P','P.FDR'), names(tmp))
+        return(tmp[, keep, drop = FALSE])
       }
-      # Legacy: MAGMA per-drug competitive Wilcoxon.
-      tmp<-gd_read(gwas_data(), selected_gwas(), "tx/atc")$magma
-      if(is.null(tmp)) return(NULL)
-      tmp$Name<-paste0(tmp$`ATC Code`,': ',tmp$`ATC Description`)
-      tmp<-as.data.frame(tmp)[,c('Name','N Drugs','P','P.FDR')]
-      .tx_gsea_datatable(tmp)
+      tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc")$magma
+      if (is.null(tmp)) return(NULL)
+      tmp <- as.data.frame(tmp)
+      tmp$Name <- paste0(tmp$`ATC Code`, ': ', tmp$`ATC Description`)
+      tmp$Level <- "L3"
+      keep <- intersect(c('Name','ATC Code','Level','N Drugs','P','P.FDR'), names(tmp))
+      tmp[, keep, drop = FALSE]
+    })
+    output$tx_atc_magma_table<-DT::renderDataTable({
+      drugs_ok <- !is.null(safe_access(gd_read(gwas_data(), selected_gwas(), "tx/drug"), "magma"))
+      .tx_gsea_datatable(.atc_tbl_display(atc_magma_tbl()), selectable = isTRUE(drugs_ok))
     })
 
     output$tx_atc_gcsc_table<-renderDataTable({
@@ -2904,8 +2896,32 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       d <- as.data.frame(d)
       if ("T" %in% names(d)) d$T <- round(d$T, 2)
       if ("Estimate" %in% names(d)) d$Estimate <- round(d$Estimate, 3)
-      cols <- intersect(c("Name","N Genes","Estimate","T","P","P.FDR","Direction","ChEMBL"), names(d))
+      if ("BETA" %in% names(d)) d$BETA <- round(d$BETA, 3)
+      cols <- intersect(c("Name","N Genes","Estimate","BETA","T","P","P.FDR","Direction","ChEMBL"), names(d))
       .tx_gsea_datatable(d[, cols, drop = FALSE])
+    }
+
+    # MAGMA per-gene evidence (a drug's target genes with their MAGMA gene-level
+    # ZSTAT). Non-directional (magnitude), so a single-colour bar + a provenance table.
+    .magma_gene_plot <- function(rows){
+      if (is.null(rows) || nrow(rows) == 0) return(NULL)
+      d <- head(as.data.frame(rows)[order(-rows$MAGMA.Z), ], 25)
+      d$gene <- factor(d$gene, levels = rev(d$gene))
+      ggplot2::ggplot(d, ggplot2::aes(x = MAGMA.Z, y = gene)) +
+        ggplot2::geom_col(fill = "#00CC66") +
+        ggplot2::labs(x = "MAGMA gene Z (association)", y = NULL,
+                      title = "Top member-gene associations") +
+        ggplot2::theme_bw()
+    }
+    .magma_gene_dt <- function(rows){
+      if (is.null(rows) || nrow(rows) == 0) return(NULL)
+      d <- as.data.frame(rows)
+      d$MAGMA.Z <- round(d$MAGMA.Z, 2)
+      ren <- c(gene = "Gene", activity = "Activity", source = "Source",
+               MAGMA.Z = "MAGMA Z", MAGMA.P = "P")     # rename to "P" so .tx_gsea_datatable formats it
+      cols <- intersect(names(ren), names(d)); d <- d[, cols, drop = FALSE]
+      for (nm in names(ren)) names(d)[names(d) == nm] <- ren[[nm]]
+      .tx_gsea_datatable(d)
     }
 
     # ATC-class evidence (directional TWAS-GSEA tab; keyed by the selected row).
@@ -2964,6 +2980,64 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         tags$div(style = "max-width:760px;", plotOutput(ns("tx_drug_evidence_plot"), height = "360px")),
         br(), tags$div(style = "max-width:900px;", DT::dataTableOutput(ns("tx_drug_evidence_dt"))),
         .evidence_legend)
+    })
+
+    # MAGMA drug -> member genes (with MAGMA gene-level association) drill-down.
+    drug_magma_evidence_sel <- reactive({
+      sel <- input$tx_drug_magma_table_rows_selected
+      if (is.null(sel) || !length(sel)) return(NULL)
+      df <- drug_magma_tbl(); if (is.null(df) || sel > nrow(df)) return(NULL)
+      row <- df[sel, ]
+      list(rows = get_magma_evidence_rows(gwas_data(), selected_gwas(), drug_name = row$Name),
+           name = row$Name)
+    })
+    output$tx_drug_magma_evidence_plot <- renderPlot({ r <- drug_magma_evidence_sel(); if (is.null(r)) return(NULL); .magma_gene_plot(r$rows) })
+    output$tx_drug_magma_evidence_dt   <- DT::renderDataTable({ r <- drug_magma_evidence_sel(); if (is.null(r)) return(NULL); .magma_gene_dt(r$rows) })
+    output$tx_drug_magma_evidence <- renderUI({
+      if (!isTRUE(has_magma_evidence(gwas_data(), selected_gwas()))) return(NULL)   # older bundle: no block
+      r <- drug_magma_evidence_sel()
+      if (is.null(r)) return(tags$p(tags$em("Select a drug row above to see its target genes.")))
+      ev <- gd_read(gwas_data(), selected_gwas(), "tx/evidence_magma"); cov <- NULL
+      s <- safe_access(ev, "drug_summary")
+      if (!is.null(s)) { s <- as.data.frame(s); s <- s[toupper(s$drug_name) == toupper(r$name), ]
+        if (nrow(s)) cov <- sprintf("%d of %d target genes scored by MAGMA.", s$n_modelled[1], s$n_target[1]) }
+      tagList(hr(),
+        tags$p(tags$b(sprintf("Drug %s (MAGMA):", r$name)), if (!is.null(cov)) cov),
+        tags$div(style = "max-width:760px;", plotOutput(ns("tx_drug_magma_evidence_plot"), height = "360px")),
+        br(), tags$div(style = "max-width:900px;", DT::dataTableOutput(ns("tx_drug_magma_evidence_dt"))),
+        tags$p(class = "gd-details-intro",
+          "Bars rank the drug's target genes by their MAGMA gene-level association (ZSTAT) with the trait ",
+          "(non-directional). Activity / source give the drug-gene link provenance (DSIGDB perturbation ",
+          "signatures vs ChEMBL / DGIdb / Pharos target annotations)."))
+    })
+
+    # MAGMA ATC class -> the drugs in that class (per-drug MAGMA enrichment) drill-down.
+    atc_magma_evidence_sel <- reactive({
+      sel <- input$tx_atc_magma_table_rows_selected
+      if (is.null(sel) || !length(sel)) return(NULL)
+      df <- atc_magma_tbl(); if (is.null(df) || sel > nrow(df)) return(NULL)
+      row <- df[sel, ]
+      lvl <- if ("Level" %in% names(row)) row$Level else "L3"
+      list(drugs = get_atc_class_drugs(gwas_data(), selected_gwas(), code = row$`ATC Code`,
+                                       level = lvl, panel = NULL, engine = "magma"),
+           name = row$Name, level = lvl, code = row$`ATC Code`)
+    })
+    output$tx_atc_magma_evidence_plot <- renderPlot({ r <- atc_magma_evidence_sel(); if (is.null(r)) return(NULL); .atc_drug_plot(r$drugs) })
+    output$tx_atc_magma_evidence_dt   <- DT::renderDataTable({ r <- atc_magma_evidence_sel(); if (is.null(r)) return(NULL); .atc_drug_dt(r$drugs) })
+    output$tx_atc_magma_evidence <- renderUI({
+      r <- atc_magma_evidence_sel()
+      if (is.null(r)) return(tags$p(tags$em("Select an ATC class row above to see the drugs in it.")))
+      n <- if (is.null(r$drugs)) 0 else nrow(r$drugs)
+      note <- if (identical(r$level, "L4")) " (matched at their ATC level-3 parent)" else ""
+      tagList(hr(),
+        tags$p(tags$b(sprintf("ATC class %s (%s, MAGMA):", r$name, r$level)),
+               sprintf(" %d drug%s in this class%s — the drug-level observations the ATC test aggregates.",
+                       n, if (n == 1) "" else "s", note)),
+        tags$div(style = "max-width:760px;", plotOutput(ns("tx_atc_magma_evidence_plot"), height = "360px")),
+        br(), tags$div(style = "max-width:900px;", DT::dataTableOutput(ns("tx_atc_magma_evidence_dt"))),
+        tags$p(class = "gd-details-intro",
+          "Bars show each drug's per-drug MAGMA enrichment statistic (T = BETA/SE) within this ATC class ",
+          "(non-directional, genome-wide)."))
     })
 
   })

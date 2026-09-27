@@ -420,6 +420,20 @@ atc_gls_levels <- function(gd, gwas) {
 #' Return NULL when the bundle predates the evidence feature.
 get_evidence_block <- function(gd, gwas) gd_read(gd, gwas, "tx/evidence")
 
+#' Is the MAGMA per-gene evidence block present in this bundle?
+has_magma_evidence <- function(gd, gwas) !is.null(gd_read(gd, gwas, "tx/evidence_magma"))
+
+#' Member-gene MAGMA evidence for one drug (by drug_name): the drug's target genes
+#' with their MAGMA gene-level association (ZSTAT/P) + provenance, ordered by ZSTAT.
+get_magma_evidence_rows <- function(gd, gwas, drug_name) {
+  d <- safe_access(gd_read(gd, gwas, "tx/evidence_magma"), "drug")
+  if (is.null(d) || nrow(d) == 0) return(NULL)
+  d <- as.data.frame(d)                       # base subset: avoid data.table arg/column scoping
+  if (!is.null(drug_name)) d <- d[toupper(d$drug_name) == toupper(drug_name), , drop = FALSE]
+  if (nrow(d) == 0) return(NULL)
+  d[order(-d$MAGMA.Z), , drop = FALSE]
+}
+
 #' Member-gene evidence for one ATC class (code, level, panel) or one drug (name,
 #' panel), ordered by |contribution|. `what` is "class" or "drug".
 get_evidence_rows <- function(gd, gwas, what = c("class","drug"),
@@ -455,7 +469,9 @@ get_atc_class_drugs <- function(gd, gwas, code, level = "L3", panel = NULL,
   k <- if (identical(level, "L2")) 3L else 4L            # tx/drug ATC code is L3 (4-char)
   d <- d[substr(d$`ATC Code`, 1, k) == substr(code, 1, k), ]
   if (nrow(d) == 0) return(NULL)
-  if (all(c("Estimate","SE") %in% names(d))) d$T <- d$Estimate / d$SE
+  # Per-drug T from the enrichment coefficient/SE (TWAS uses Estimate; MAGMA uses BETA).
+  if (all(c("Estimate","SE") %in% names(d)))   d$T <- d$Estimate / d$SE
+  else if (all(c("BETA","SE") %in% names(d)))  d$T <- d$BETA / d$SE
   ord <- if ("T" %in% names(d)) order(-abs(d$T)) else if ("P" %in% names(d)) order(d$P) else seq_len(nrow(d))
   d[ord, ]
 }

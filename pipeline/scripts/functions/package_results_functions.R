@@ -834,6 +834,57 @@ read_drug_targetor_evidence<-function(config, gwas){
   list(drug=drug, class=cls, drug_summary=dsum, class_summary=csum)
 }
 
+# Per-gene evidence behind the MAGMA DrugTargetor drug enrichment: for each drug,
+# its target genes with the gene's MAGMA gene-level association (ZSTAT/P), for the
+# Shiny drill-down. Computed here at packaging time (no separate rule) from the
+# MAGMA gene-level output + the raw drug DB + the gene-location map. Membership is
+# binary (target vs not); MAGMA is non-directional, so there is no signed
+# contribution (contribution = ZSTAT). Genome-wide (Panel = "MAGMA"). Returns NULL
+# if the MAGMA DrugTargetor analysis wasn't run.
+read_magma_drug_targetor_evidence<-function(config, gwas){
+
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
+  if(read_param(config = config, param = 'magma_drugtargetor', return_obj = F) != "T") return(NULL)
+
+  gf <- paste0(outdir,'/results/',gwas,'/magma/magma_gene_level.genes.out')
+  db_f <- paste0(resdir,'/data/drug_targetor/wholedatabase_for_targetor')
+  loc_f <- paste0(resdir,'/data/magma/NCBI37.3.gene.loc')
+  if(!file.exists(gf) || !file.exists(db_f) || !file.exists(loc_f)) return(NULL)
+
+  # MAGMA per-gene ZSTAT/P (GENE = Entrez) -> attach gene symbol via the gene-loc map.
+  loc <- fread(loc_f, header = FALSE)
+  loc <- unique(loc[, .(GENE = as.character(V1), gene = V6)])
+  mg <- fread(gf)
+  mg[, GENE := as.character(GENE)]
+  mg <- merge(mg[, .(GENE, MAGMA.Z = ZSTAT, MAGMA.P = P)], loc, by = 'GENE')
+  mg <- unique(mg[is.finite(MAGMA.Z)], by = 'gene')
+
+  # Raw drug->gene targets (symbol), restricted to the gene universe; keep provenance.
+  db <- fread(db_f, sep = '\t', header = TRUE)
+  db <- db[gene %in% loc$gene]
+  db[, drug_name := sub('.*NAME:([^|]+)\\|.*', '\\1', atc)]
+  dg <- db[, .(activity = paste(sort(unique(activity_type)), collapse = '; '),
+               source   = paste(sort(unique(source)),        collapse = '; ')),
+           by = .(drug_name, gene)]
+
+  drug_summary <- dg[, .(n_target = .N), by = drug_name]
+  dge <- merge(dg, mg, by = 'gene')                 # MAGMA-scored members only
+  if(nrow(dge) == 0) return(NULL)
+  dge[, `:=`(membership = 1L, contribution = MAGMA.Z)]
+  drug_summary <- merge(drug_summary, dge[, .(n_modelled = .N), by = drug_name],
+                        by = 'drug_name', all.x = TRUE)
+  drug_summary[is.na(n_modelled), n_modelled := 0L]
+  drug_summary[, Panel := 'MAGMA']
+
+  drug <- dge[order(-MAGMA.Z)][, head(.SD, 50L), by = drug_name][
+    , .(drug_name, gene, membership, activity, source,
+        MAGMA.Z = round(MAGMA.Z, 3), MAGMA.P, contribution = round(contribution, 3))]
+  drug[, Panel := 'MAGMA']
+
+  list(drug = drug, drug_summary = drug_summary)
+}
+
 read_twas_gsea_cmap_drug<-function(config, gwas){
   # Per-signature CMAP TWAS-GSEA results, one row per
   # (cmap_name x cell_iname x pert_itime x pert_idose x weight panel).

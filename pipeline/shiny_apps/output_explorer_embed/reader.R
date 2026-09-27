@@ -35,6 +35,7 @@
   "tx/atc_gls",
   "tx/atc_gls_magma",
   "tx/evidence",
+  "tx/evidence_magma",
   "tx/cmap",
   "tx/pathway",
   "tissue"
