@@ -278,6 +278,9 @@ for(gwas_i in gwas_list$name){
   # (drill-down). NULL when the analysis wasn't run -> block absent -> app falls back to tx/atc.
   tx$atc_gls<-read_twas_gsea_atc_gls(config=opt$config, gwas=gwas_i)     # TWAS-GSEA GLS (directional, per panel)
   tx$atc_gls_magma<-read_magma_atc_gls(config=opt$config, gwas=gwas_i)   # MAGMA GLS (non-directional, genome-wide)
+  # Drug-level VIF-OLS ATC enrichment (CAMERA-style; recommended). Rides the same flags as the GLS.
+  tx$atc_vif<-read_twas_gsea_atc_vif(config=opt$config, gwas=gwas_i)     # TWAS-GSEA VIF-OLS (directional, per panel)
+  tx$atc_vif_magma<-read_magma_atc_vif(config=opt$config, gwas=gwas_i)   # MAGMA VIF-OLS (non-directional, genome-wide)
   tx$evidence<-read_drug_targetor_evidence(config=opt$config, gwas=gwas_i)               # TWAS-GSEA per-gene evidence
   tx$evidence_magma<-read_magma_drug_targetor_evidence(config=opt$config, gwas=gwas_i)   # MAGMA per-gene evidence (drug drill-down)
 

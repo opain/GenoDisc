@@ -808,6 +808,64 @@ read_twas_gsea_atc_gls<-function(config, gwas){
   return(dat)
 }
 
+# Drug-level VIF-OLS ATC-class enrichment (CAMERA-style): the recommended drug-level
+# test. Rides the same config flags as the GLS. Same column vocabulary as the GLS readers.
+read_magma_atc_vif<-function(config, gwas){
+
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  if(read_param(config = config, param = 'magma_drugtargetor_gls', return_obj = F) != "T") return(NULL)
+
+  dat<-NULL
+  for(lv in c('l2','l3','l4')){
+    f<-paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_vif_',lv,'_res.csv')
+    if(!file.exists(f)) next
+    res<-fread(f); res$Level<-toupper(lv)
+    dat<-rbind(dat, res, fill=TRUE)
+  }
+  if(is.null(dat) || nrow(dat) == 0) return(NULL)
+
+  dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]   # FDR within level
+  dat$Panel<-'MAGMA'
+  dat$Reversal_Z<-dat$T                                       # magnitude Z for the heatmap (non-directional)
+
+  keep<-intersect(c('Panel','Level','Code','Name','N_Drugs','Estimate','SE','T','P','P.FDR','Direction','Reversal_Z'), names(dat))
+  dat<-dat[, ..keep]
+  setnames(dat, old=c('Code','Name','N_Drugs'),
+                new=c('ATC Code','ATC Description','N Drugs'), skip_absent=TRUE)
+  dat<-dat[order(dat$P),]
+  return(dat)
+}
+
+read_twas_gsea_atc_vif<-function(config, gwas){
+
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  if(read_param(config = config, param = 'drug_targetor_atc_gls', return_obj = F) != "T") return(NULL)
+
+  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+  weights<-weights[!grepl('SPLIC',weights)]
+
+  dat<-NULL
+  for(w in weights){
+    for(lv in c('l2','l3','l4')){
+      f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea_drugtargetor_vif_',lv,'_',w,'_res.csv')
+      if(!file.exists(f)) next
+      res<-fread(f); res$Panel<-w; res$Level<-toupper(lv)
+      dat<-rbind(dat, res, fill=TRUE)
+    }
+  }
+  if(is.null(dat) || nrow(dat) == 0) return(NULL)
+
+  dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]   # cross-panel FDR within level
+  dat$Panel<-tidy_panel_names(dat$Panel)
+
+  keep<-intersect(c('Panel','Level','Code','Name','N_Drugs','Estimate','SE','CI_lo','CI_hi','P','P.FDR','Direction','Reversal_Z'), names(dat))
+  dat<-dat[, ..keep]
+  setnames(dat, old=c('Code','Name','N_Drugs'),
+                new=c('ATC Code','ATC Description','N Drugs'), skip_absent=TRUE)
+  dat<-dat[order(dat$P),]
+  return(dat)
+}
+
 # Per-gene evidence behind the drug/ATC associations (membership, TWAS Z,
 # contribution, source/activity provenance) for the Shiny drill-down. One .rds per
 # panel produced by drug_targetor_gene_evidence.R; combined across panels here.

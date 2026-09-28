@@ -1,0 +1,355 @@
+---
+title: "Validating the ATC drug-class enrichment estimator: correlation diagnostics, calibration, and a positive-control benchmark"
+author: "GenoDisc pipeline"
+date: "2026-09-28"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    code_folding: hide
+    df_print: paged
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+suppressMessages(library(data.table))
+kab <- function(x, ...) knitr::kable(x, ...)
+```
+
+> **Scope.** This is an *analysis/validation* report. It does not itself change the
+> pipeline. All work was done in a scratch directory against existing job outputs;
+> the scripts and job directories are listed in the [Reproducibility](#reproducibility)
+> appendix. Data throughout use **unconditioned** per-drug statistics and an
+> **unconditioned** drug–drug correlation matrix (statistics and the correlation
+> matrix always matched in conditioning).
+
+# Summary {-}
+
+The drug-level GLS ATC test (DRUGSETS-style, eigenvalue-floor pseudo-inverse) gave
+pathological rankings on schizophrenia: small, internally-mixed classes floated to
+the top (MAGMA `C03C` high-ceiling diuretics; TWAS-GSEA `S01E` antiglaucoma) while a
+large, coherent, strongly-associated class (`N05A` antipsychotics) was buried. This
+report diagnoses why and compares estimators.
+
+Findings:
+
+1. **The GLS's anti-conservatism was a residual-degrees-of-freedom bug**, not a
+   modelling subtlety. A rank-\(m\) pseudo-inverse projects the residual into an
+   \(m\)-dimensional subspace, so the residual variance must be divided by \(m-K\),
+   not \(N-K\). Fixed, the correct-model type-I error is nominal for every estimator.
+2. **The df fix corrects p-values but not the ranking.** The ordering pathology is
+   intrinsic to the correlation-whitening pseudo-inverse: it **inflates small mixed
+   classes via out-of-class leakage and dilutes large coherent ones**. We demonstrate
+   this explicitly for `C03C` (111% of its coefficient comes from *non-member* drugs).
+3. **Recommendation: use CAMERA-style variance-inflated OLS (VIF-OLS)** as the ATC
+   enrichment estimator for both engines, keeping the legacy Wilcoxon as a secondary
+   cross-check. The justification is the **estimand** and the **demonstrated GLS
+   leakage**, *not* a sign-agreement scorecard (see caveats).
+4. **The strong control validates the engine choice, not the drug-targetor TWAS.**
+   Lipid-lowering (`C10A`) on coronary artery disease is recovered on **MAGMA** at
+   rank 2, FDR 0.008 under VIF-OLS, but is **null on TWAS** for both estimators.
+
+# 1. Motivation
+
+The per-ATC drug-level test asks: *are the drugs in an ATC class more associated
+(MAGMA) / more directionally concordant (TWAS-GSEA) with the trait than other drugs?*
+Because drugs that share target genes have correlated per-drug statistics, a naive
+test (the legacy competitive Wilcoxon) is anti-conservative. The DRUGSETS approach
+(Bell et al. 2022, medRxiv 2022.09.06.22279660) addresses this with a GLS that
+whitens by the drug–drug correlation \(\Sigma\), inverted keeping eigenvalues
+\(\ge 0.1\).
+
+On SCZ this produced rankings that did not survive scrutiny: `C03C` (6 loop
+diuretics, internally mixed) ranked 2nd on MAGMA while `N05A` (48 antipsychotics)
+was 23rd. We set out to determine whether \(\Sigma\) is mis-specified, whether the
+estimator is miscalibrated, and which estimator recovers positive controls sensibly.
+
+# 2. Data and scope
+
+* **Engines / statistics.**
+  MAGMA: per-drug competitive `BETA/SE` (non-directional magnitude), `size = NGENES`.
+  TWAS-GSEA: per-drug signed `T` (directional), `size = N_Mem_Avail`.
+* **Correlation matrix \(\Sigma\).** For each engine, the exact null correlation of
+  the per-drug statistics (`cov2cor(Z_wh' Z_wh)` for TWAS; the analogous whitened
+  membership correlation for MAGMA), aligned to the same drug set as the statistics.
+* **Classes.** Every ATC L3 (4-char) class with \(\ge 5\) member drugs; multi-code
+  drugs exploded into all their classes.
+* **Calibration + benchmark GWAS.** SCZ (SCHI04) for the deep dive; a 6-trait
+  benchmark — SCZ, bipolar (BIPO04), depression (DEPR02), ADHD (ADHD06), T2D
+  (DIAB05), asthma (ASTH02) — on tissue-matched GTEx panels + whole blood; and CAD
+  (COAD01) for the lipid strong control.
+
+# 3. Estimators and the directional sign convention
+
+Three estimators, all fitting `y ~ [1, class_indicator, size, log(size)]`:
+
+* **VIF-OLS (CAMERA-style).** OLS coefficient on the class indicator with the
+  standard error inflated for within-class correlation,
+  \(\mathrm{se} = \mathrm{se}_{\mathrm{OLS}}\sqrt{1+(n_1-1)\bar\rho}\), where
+  \(\bar\rho\) is the mean in-class entry of \(\Sigma\). It uses **only** the
+  in-class-vs-rest contrast.
+* **GLS, floor 0.1 (current default).** \(\Sigma^{-1}\) is a rank-\(m\)
+  pseudo-inverse dropping eigenvalues \(<0.1\).
+* **GLS, ridge.** \((\Sigma + \tau^2 I)^{-1}\), \(\tau^2\) by profile REML under the
+  null. (Dropped after calibration; see §6.)
+
+Tail conventions match production: **MAGMA one-sided** (enrichment), **TWAS
+two-sided**.
+
+## 3.1 The TWAS directional sign, traced end-to-end
+
+To state what a negative coefficient means, we traced the sign through the code:
+
+```{r sign-trace, eval=FALSE}
+# (1) per-gene drug direction, format_drug_targetor_for_twas_gsea.R:28
+#     -1 if the drug DECREASES the gene (DECREASED_EXPRESSION / NEGATIVE_RESPONSE /
+#         OPPOSITE_RESPONSE); +1 if it INCREASES it (INCREASED/POSITIVE_RESPONSE); else 0
+# (2) outcome, TWAS-GSEA-fast.R:176-177  (invoked with --directional T)
+#     TWAS$ZSCORE <- TWAS$TWAS.Z          # SIGNED gene TWAS z (not the |z| default)
+# (3) statistic, TWAS-GSEA-fast.R:427-431
+#     both the +/-1 prop and signed z are whitened by the gene-gene correlation and
+#     residualised on [1, GeneLength, NSNP]; T = cov(whitened +/-1, whitened z) / sd
+```
+
+So the **per-drug \(T \propto \mathrm{cov}(\text{drug's } \pm1 \text{ direction},\
+\text{signed gene TWAS } z)\)**, and the class coefficient \(B\) is that contrast for
+in-class vs out-of-class drugs. Therefore:
+
+* **\(B>0\) (positive coefficient):** in-class drugs move gene expression
+  **concordantly** with the disease TWAS signature (code label: "Matches disease").
+* **\(B<0\) (negative coefficient):** in-class drugs move expression **discordantly**
+  with (opposite to) the disease signature (code label: "Opposes disease";
+  `Reversal_Z = -T`).
+
+> **Terminology.** We deliberately report **"positive/negative coefficient"
+> (concordant/discordant)** and *not* "therapeutic/reversal". Reading a discordant
+> signature as therapeutic benefit is an additional, unvalidated assumption (correct
+> orientation of the disease \(z\), completeness of the drug-action annotations, and
+> that signature reversal is beneficial). MAGMA is non-directional: \(B>0\) =
+> "Enriched", \(B<0\) = "Depleted".
+
+# 4. The correlation matrix \(\Sigma\)
+
+```{r R-diag}
+Rdiag <- data.table(
+  Engine        = c("MAGMA (SCZ)", "TWAS-GSEA BA9 (SCZ)"),
+  n_drugs       = c(1446L, 678L),
+  `m = #lambda>=0.1` = c(1033L, 438L),
+  `min(lambda)` = c("-2.5e-15", "-1.2e-14"),
+  `drugs w/ an exact duplicate target set` = c("112 (34 clusters)", "64 (19 clusters)"),
+  `#|lambda|<1e-8` = c(147L, 151L)
+)
+kab(Rdiag, caption = "Sigma is singular. Exact-duplicate target sets (perfectly correlated drugs) account for roughly half the rank deficiency; the rest is near-collinearity.")
+```
+
+An eigenvalue **whitening diagnostic** — the variance of
+\(u_k = v_k^\top r / \sqrt{\lambda_k}\) across eigen-directions, which should be flat
+at 1 if \(\Sigma\) is well specified — showed \(\mathrm{var}(u_k)\approx 1\) for
+\(\lambda \gtrsim 0.05\) but **rising sharply in the small-\(\lambda\) tail** (up to
+~25× on MAGMA, ~2–3× on TWAS). So \(\Sigma\) understates the true variance in its
+small-eigenvalue directions, exactly where a naive \(1/\lambda\) pseudo-inverse
+over-weights. This motivated both the floor and the calibration below.
+
+# 5. The residual-degrees-of-freedom bug
+
+The production `gls_group` estimates the residual variance as
+\(\hat\sigma^2 = r^\top \Sigma^{+} r / (N-K)\) and tests with \(N-K\) degrees of
+freedom. But \(\Sigma^{+}\) is a **rank-\(m\)** pseudo-inverse (\(m=\#\{\lambda\ge0.1\}\)),
+so it projects the residual into an \(m\)-dimensional subspace:
+\[
+r^\top \Sigma^{+} r \;\sim\; \sigma^2 \,\chi^2_{\,m-K}.
+\]
+Dividing by \(N-K\) (with \(N\gg m\)) under-estimates \(\sigma^2\), inflating the
+t-statistic. The fix is to use \(m-K\) in both the variance and the reference
+distribution:
+
+```{r df-fix, eval=FALSE}
+sigma2 <- as.numeric(t(resid) %*% Sinv %*% resid) / (m - K)   # was (N - K)
+tval   <- B[2] / sqrt(sigma2 * W[2, 2]); df <- m - K          # was N - K
+```
+
+# 6. Null calibration
+
+Type-I error was estimated by MVN simulation (1000 reps; ~126k tests MAGMA, ~68k
+TWAS). Two requirements were enforced: (i) each estimator is first checked under a
+simulation drawn from **its own** assumed covariance (the "correct-model gate"), and
+(ii) the estimator and the simulation use the **same** matrix (the ridge is only
+well-defined once \(\tau^2\) is floored so \(\Sigma+\tau^2 I\) is positive definite).
+
+```{r calib}
+cal <- data.table(
+  Scenario = c("Correct-model gate","Correct-model gate","Correct-model gate","Correct-model gate",
+               "Empirical tail","Empirical tail","Empirical tail","Empirical tail"),
+  Engine   = c("MAGMA","MAGMA","TWAS BA9","TWAS BA9","MAGMA","MAGMA","TWAS BA9","TWAS BA9"),
+  Metric   = rep(c("VIF-OLS","GLS floor-0.1 (df-fixed)"), 4),
+  `type-I @0.05` = c(0.038, 0.050, 0.042, 0.050, 0.038, 0.053, 0.042, 0.048)
+)
+kab(cal, caption = "After the df fix, the correct-model type-I is nominal for VIF-OLS and the GLS. Ridge also passed its correct-model gate (0.051 / 0.050) but was badly conservative under the realistic empirical-tail on the singular TWAS matrix (0.0038) and was dropped.")
+```
+
+* **VIF-OLS:** robust, mildly conservative everywhere.
+* **GLS floor-0.1 (df-fixed):** now well-calibrated even under the realistic
+  empirical tail — it discards the mis-specified small-\(\lambda\) directions.
+* **Ridge:** fragile where \(\Sigma\) is singular and REML wants \(\tau^2\to0\)
+  (TWAS); dropped.
+
+**Key consequence:** the df fix rescales p-values by a per-engine constant, so it
+does **not** change the class *ranking*. The ordering pathology (§8) is a property
+of the point estimate, and is only settled by the benchmark.
+
+# 7. Positive-control benchmark
+
+Pre-specified controls (expected: MAGMA Enriched, TWAS concordant/discordant per the
+drug mechanism), scored on P, FDR (BH within trait×engine), sign, and rank.
+
+```{r bench-controls}
+ctrl <- data.table(
+  Trait = c("SCZ","SCZ","BIP","BIP","DEP","ADHD","ADHD","T2D","T2D","ASTH","ASTH"),
+  Class = c("N05A","N05A","N03A","N05A","N06A","N06B","N06B","A10B","A10B","R03B","R03B"),
+  Engine= c("MAGMA","TWAS BA9","MAGMA","TWAS cortex","MAGMA","MAGMA","TWAS cortex","MAGMA","TWAS pancreas","MAGMA","TWAS lung"),
+  `VIF rank` = c(5,10,2,66,48,8,39,1,16,24,8),
+  `GLS rank` = c(23,24,54,72,101,1,22,3,6,107,37)
+)
+kab(ctrl, caption = "Representative pre-specified controls (rank among all L3 classes; lower is better). Head-to-head across all controls is genuinely MIXED (VIF better on 11, GLS on 13).")
+```
+
+```{r bench-nsig}
+nsig <- data.table(
+  Estimator = c("VIF-OLS","GLS floor-0.1 (df-fixed)"),
+  `FDR<0.05 classes across all 18 runs` = c("4  (SCZ-MAGMA: C08C, N03A;  DEP-cortex: C05A;  ASTH-blood: R03D)", "0")
+)
+kab(nsig, caption = "FDR-significant classes. GLS found none in any run.")
+```
+
+> **Reporting the metrics honestly.** The head-to-head control rank is **mixed**
+> (11 VIF / 13 GLS), and GLS is better on whole-blood panels (the wrong tissue). We
+> **do not** headline the directional sign-agreement comparison: with only 8
+> tissue-matched TWAS controls, all non-significant, it is underpowered. The case for
+> switching rests on the estimand and the mechanism below, not on this scorecard.
+
+# 8. Why the GLS misranks: out-of-class leakage
+
+Decomposing the GLS coefficient as \(B = \sum_i w_i y_i\) (effective weight × per-drug
+statistic) exposes the mechanism. For the flagged `C03C`:
+
+```{r c03c}
+c03c <- data.table(
+  drug = c("BUMETANIDE","TORASEMIDE","CHLORTALIDONE","QUINETHAZONE","METHYCLOTHIAZIDE","PIRETANIDE","BENDROFLUMETHIAZIDE"),
+  in_class = c("IN","IN","out","out","out","IN","out"),
+  y = c(1.91,-1.96,-2.05,-1.55,-2.11,-0.55,-2.07),
+  contribution = c(0.434,-0.374,0.234,0.195,0.134,-0.116,0.110)
+)
+kab(c03c, caption = "SCZ MAGMA C03C (GLS rank 2, VIF rank 55). Top contributors to the GLS coefficient.")
+```
+
+The class coefficient is \(B_{\mathrm{GLS}} = 0.766\), of which the **in-class share
+is \(-0.083\)** and the **out-of-class share is \(+0.849\)** — i.e. **111% of the
+"enrichment" comes from non-member drugs**. The six loop diuretics roughly cancel;
+correlated out-of-class thiazides (`C03A`/`C03B`), which are *depleted* (\(y<0\)),
+receive negative pseudo-inverse weights and contribute positively. `C03C` looks
+enriched only because its correlated non-members are depleted.
+
+By contrast the true control **`N05A`** is *diluted*: \(B_{\mathrm{GLS}}=0.13\)
+(rank 23) vs \(B_{\mathrm{VIF}}=0.90\) (rank 5) — 48 coherent drugs each receive
+tiny weights while a 6-drug class gets weights up to 0.23. This small-class-inflation
+/ large-class-dilution is **systematic**: 79 class×run cases where GLS ranks a class
+top-10 while VIF ranks it >30, overwhelmingly small classes. VIF-OLS, using only the
+in-class-vs-rest contrast, is immune.
+
+# 9. VIF's FDR-significant classes, with leave-one-gene-out
+
+For each of VIF's four FDR-significant classes we identified the top contributing
+drugs and genes, and asked whether a single gene dominates (an attribution-level
+leave-one-gene-out on the gene-contribution decomposition: signed membership × gene
+association — the same quantity shown in the Shiny evidence panel).
+
+```{r vif-fdr}
+vf <- data.table(
+  Class = c("C08C","N03A","C05A","R03D"),
+  Engine = c("SCZ / MAGMA","SCZ / MAGMA","DEP / TWAS cortex","ASTH / TWAS blood"),
+  N = c(15,37,13,9),
+  B = c(1.68,1.16,-1.10,2.11),
+  FDR = c(0.027,0.027,0.025,0.012),
+  `top genes` = c("CACNA1C, CACNB2, CACNA1S", "CACNA1I, SCN9A, SCN1A (over 7718 genes)",
+                  "FLOT1, DFNA5, AK2 (diffuse)", "ADORA1, MDH1, IL6R"),
+  `single-gene dominance` = c("no (top 9%, top-3 44%)","no (top 1%)","no (top 3%)","no (top 3%, top-3 22%)")
+)
+kab(vf, caption = "No single gene dominates any class. C08C is a coherent calcium-channel target/risk-gene overlap (CACN* family); R03D reflects the xanthine adenosine-receptor targets; N03A and C05A are diffuse. C05A (a non-psychiatric class) is most consistent with a chance FDR hit.")
+```
+
+# 10. Strong control: lipid-lowering on CAD
+
+`C10A` (statins, fibrates, ezetimibe) on coronary artery disease is the canonical
+strong control. MAGMA drug-targetor was regenerated for the CAD job to test it on
+both engines.
+
+```{r c10a}
+c10a <- data.table(
+  Engine = c("MAGMA","MAGMA","TWAS Artery_Aorta","TWAS Whole_Blood"),
+  Estimator = c("VIF-OLS","GLS floor-0.1","VIF-OLS","VIF-OLS"),
+  B = c(1.44, 0.68, -0.47, 0.02),
+  P = c("1.3e-4","1.4e-3","0.22","0.96"),
+  FDR = c("0.008","0.085","n.s.","n.s."),
+  rank = c("2 / 126","2 / 126","25 / 90","94 / 96")
+)
+kab(c10a, caption = "C10A on CAD. Recovered on MAGMA (VIF rank 2, FDR 0.008; drivers HMGCR/LDLR/APOB/LPL, no single-gene dominance). GLS dilutes it below FDR. Null on TWAS for both estimators.")
+```
+
+The full CAD/MAGMA VIF top-3 is cardiovascular-coherent: `C01D` (nitrates, rank 1),
+`C10A` (rank 2), `C02K` (antihypertensives, rank 3). This shows the drug-targetor
+signal **can** appear cleanly — on MAGMA. The TWAS drug-targetor is the weak engine,
+independent of estimator.
+
+# 11. Two alignment bugs to fix alongside the switch
+
+1. **`drugcorr.rds` vs `competitive.clean.csv` drug-set mismatch.** For SCZ, both have
+   707 rows but only 678 CIDs intersect (29 dropped each way). The correlation matrix
+   and the statistics must be built on an identical, verified drug set.
+2. **Primary-ATC-only keying.** The production TWAS GLS keys \(\Sigma\) by `res$ATC`
+   (a single 7-char code, matched 1:1), which silently drops multi-ATC drugs and never
+   explodes a drug into all its classes. Alignment should be by CID / full string with
+   multi-code explosion (as done throughout this analysis).
+
+# 12. Conclusion and recommendation
+
+* **Switch the ATC drug-class enrichment estimator to VIF-OLS for both engines**,
+  keeping the legacy Wilcoxon as a secondary cross-check. Justification: the estimand
+  (in-class vs rest, correctly variance-inflated) and the demonstrated GLS
+  out-of-class leakage — **not** the sign scorecard.
+* **Apply the residual-df handling** if any pseudo-inverse GLS is retained anywhere
+  (it corrects calibration, not ranking).
+* **Fix the two alignment bugs** as part of the switch.
+* **Frame results honestly.** Power is modest: apart from the CAD/MAGMA lipid control,
+  most controls do not reach FDR significance under either estimator. Report enrichment
+  as exploratory, describe direction as a **positive/negative coefficient**
+  (concordant/discordant with the disease signature), and avoid a "reverses disease →
+  therapeutic" claim until it is separately validated. **MAGMA is the stronger engine**
+  for drug-targetor; the TWAS drug-targetor should remain labelled experimental.
+
+# Reproducibility {#reproducibility}
+
+Analysis scripts (run with system `/usr/bin/Rscript`; base R + `data.table`):
+
+```{r repro, eval=FALSE}
+# scratchpad/atc_gls_diag/
+#   diagnose.R     - Step 1: eigenvalue whitening diagnostic
+#   step23b.R      - residual-df fix, matched sim/estimator, correct-model gate,
+#                    empirical-tail calibration  (-> step3b_type1.csv)
+#   step4.R        - 6-trait x 2-engine positive-control benchmark
+#                    (-> step4_controls.csv, step4_nsig.csv, step4_allclasses.csv)
+#   item1.R        - VIF FDR-sig classes: contributing drugs/genes + leave-one-gene-out
+#   item3.R        - C10A on CAD, TWAS panels
+#   item3_magma.R  - C10A on CAD, MAGMA (-> coad01_magma_allclasses.csv)
+#   preflight.R    - TWAS drug-count chain + duplicate-target-set counts
+#
+# Job directories (unconditioned stats + unconditioned Sigma):
+#   jobs/claude_poscontrol_{SCHI04,BIPO04,DEPR02,ADHD06,DIAB05,ASTH02}_2026092*
+#   jobs/claude_gls_coad01_gw_20260926_152549   (CAD; MAGMA drugtargetor regenerated)
+#
+# Production references (unchanged by this analysis):
+#   scripts/format_{magma,twas_gsea}_drugtargetor_gls_results.R
+#   scripts/format_drug_targetor_for_twas_gsea.R   (the +/-1 sign construction)
+#   {resdir}/software/TWAS-GSEA/TWAS-GSEA-fast.R    (--directional; the per-drug T)
+```

@@ -343,8 +343,9 @@ build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
   atc       <- gd_read(gd, gwas, "tx/atc")            # legacy Wilcoxon (+ magma/gcsc slots)
   atc_gls   <- gd_read(gd, gwas, "tx/atc_gls")        # TWAS-GSEA GLS (directional, per panel)
   atc_gls_m <- gd_read(gd, gwas, "tx/atc_gls_magma")  # MAGMA GLS (non-directional, genome-wide)
+  atc_vif   <- gd_read(gd, gwas, "tx/atc_vif")        # TWAS-GSEA VIF-OLS (directional, per panel)
+  atc_vif_m <- gd_read(gd, gwas, "tx/atc_vif_magma")  # MAGMA VIF-OLS (non-directional, genome-wide)
 
-  use_gls <- identical(atc_source, "gls")
   # MAGMA (Wilcoxon) / GCSC ATC results exist only at L3; only overlay them on an L3 view.
   show_drugset <- identical(level, "L3")
 
@@ -380,8 +381,13 @@ build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
     g_all
   }
 
-  if (use_gls) {
-    # Recommended: drug-level GLS. TWAS-GSEA (directional, per eQTL panel) + MAGMA (non-directional).
+  if (identical(atc_source, "vif")) {
+    # Recommended: drug-level VIF-OLS. TWAS-GSEA (directional, per eQTL panel) + MAGMA (non-directional).
+    tw  <- pad_panels(std_atc(atc_vif, "TWAS-GSEA (VIF-OLS)"))
+    mag <- std_atc(atc_vif_m, "MAGMA (VIF-OLS)", panel_label = "MAGMA")
+    out <- do.call(rbind, Filter(Negate(is.null), list(tw, mag)))
+  } else if (identical(atc_source, "gls")) {
+    # Drug-level GLS (DRUGSETS-style). TWAS-GSEA (directional, per eQTL panel) + MAGMA (non-directional).
     tw  <- pad_panels(std_atc(atc_gls, "TWAS-GSEA (GLS)"))
     mag <- std_atc(atc_gls_m, "MAGMA (GLS)", panel_label = "MAGMA")
     out <- do.call(rbind, Filter(Negate(is.null), list(tw, mag)))
@@ -406,10 +412,20 @@ has_atc_gls_magma <- function(gd, gwas) {
   !is.null(gd_read(gd, gwas, "tx/atc_gls_magma"))
 }
 
-#' ATC levels available across the drug-level GLS blocks (TWAS-GSEA + MAGMA), e.g. c("L2","L3","L4").
+#' Is the drug-level VIF-OLS (CAMERA-style) TWAS-GSEA ATC block present in this bundle?
+has_atc_vif <- function(gd, gwas) {
+  !is.null(gd_read(gd, gwas, "tx/atc_vif"))
+}
+
+#' Is the MAGMA drug-level VIF-OLS ATC block present in this bundle?
+has_atc_vif_magma <- function(gd, gwas) {
+  !is.null(gd_read(gd, gwas, "tx/atc_vif_magma"))
+}
+
+#' ATC levels available across the model-based drug-level blocks (VIF-OLS + GLS, both engines).
 atc_gls_levels <- function(gd, gwas) {
   lv <- character(0)
-  for (blk in c("tx/atc_gls", "tx/atc_gls_magma")) {
+  for (blk in c("tx/atc_vif", "tx/atc_vif_magma", "tx/atc_gls", "tx/atc_gls_magma")) {
     g <- gd_read(gd, gwas, blk)
     if (!is.null(g) && "Level" %in% names(g)) lv <- union(lv, unique(g$Level))
   }

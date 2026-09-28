@@ -445,6 +445,39 @@ rule format_twas_gsea_drug_targetor_gls_results_all_panel:
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_gls_results_all_panel.done")
 
+# VIF-OLS ATC enrichment (CAMERA-style; the recommended drug-level test). Same inputs as
+# the GLS above (drugcorr.rds + per-drug clean stats), gated by the same drug_targetor_atc_gls flag.
+rule format_twas_gsea_drug_targetor_vif_results:
+  wildcard_constraints:
+    weight="(?!nondir_)(?!atc_).+"
+  input:
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.drugcorr.rds",
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv",
+    rules.download_atc.output
+  output:
+    l2="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_vif_l2_{weight}_res.csv",
+    l3="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_vif_l3_{weight}_res.csv",
+    l4="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_vif_l4_{weight}_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_twas_gsea_drug_targetor_vif_results_{gwas}_{weight}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/format_twas_gsea_drug_targetor_vif_results-{gwas}-{weight}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_twas_gsea_drugtargetor_vif_results.R --pipeline_dir {workflow.basedir} \
+    --twas {wildcards.gwas} \
+    --panel {wildcards.weight} \
+    --config_file {params.config_file} > {log} 2>&1"
+
+rule format_twas_gsea_drug_targetor_vif_results_all_panel:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_vif_{level}_{weight}_res.csv", gwas=w.gwas, level=["l2","l3","l4"], weight=weights_nosplice, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_vif_results_all_panel.done")
+
 # -------------------------------------------------------------------------
 # Pathway (MSigDB-style .gmt) TWAS-GSEA — non-directional. Mirrors
 # run_twas_gsea_drug_targetor_nondirectional above, iterated over every

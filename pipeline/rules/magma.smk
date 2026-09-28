@@ -134,6 +134,27 @@ rule format_magma_drug_targetor_gls_results:
     "Rscript --vanilla {workflow.basedir}/scripts/format_magma_drugtargetor_gls_results.R \
       {input.gsa} {input.corr} {input.atc} {outdir}/results/{wildcards.gwas}/magma > {log} 2>&1"
 
+# VIF-OLS ATC enrichment (CAMERA-style; the recommended drug-level test). Same inputs as
+# the GLS above (gsa.out + drugcorr.rds), gated by the same magma_drugtargetor_gls flag.
+rule format_magma_drug_targetor_vif_results:
+  input:
+    gsa="{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out",
+    corr="{outdir}/results/{gwas}/magma/magma_drug_targetor.drugcorr.rds",
+    atc=rules.download_atc.output
+  output:
+    l2="{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_l2_res.csv",
+    l3="{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_l3_res.csv",
+    l4="{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_l4_res.csv"
+  benchmark:
+    "{outdir}/benchmarks/format_magma_drug_targetor_vif_results_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  log:
+    "{outdir}/logs/format_magma_drug_targetor_vif_results-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/format_magma_drugtargetor_vif_results.R \
+      {input.gsa} {input.corr} {input.atc} {outdir}/results/{wildcards.gwas}/magma > {log} 2>&1"
+
 # -------------------------------------------------------------------------
 # Pathway (MSigDB-style .gmt) enrichment — same MAGMA gene-set analysis as
 # magma_drug_targetor above, but iterated over every *.gmt in

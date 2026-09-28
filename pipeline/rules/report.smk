@@ -41,6 +41,8 @@ if config["magma_drugtargetor"] == "T":
 
 if config.get("magma_drugtargetor_gls", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_{level}_res.csv", gwas=gwas_list_df_eur['name'], level=["l2","l3","l4"], outdir={outdir}))
+    # VIF-OLS (recommended drug-level test) rides the same flag as the MAGMA GLS.
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_{level}_res.csv", gwas=gwas_list_df_eur['name'], level=["l2","l3","l4"], outdir={outdir}))
 
 if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
@@ -89,6 +91,8 @@ if config["twas_gsea_drugtargetor_nondirectional"] == "T":
 # Drug-level GLS ATC-class enrichment (DRUGSETS-style).
 if config.get("drug_targetor_atc_gls", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_gls_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    # VIF-OLS (recommended drug-level test) rides the same flag as the TWAS GLS.
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_vif_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
 if config["twas_gsea_cmap"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_cmap_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))

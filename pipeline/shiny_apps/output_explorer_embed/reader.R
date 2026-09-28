@@ -34,6 +34,8 @@
   "tx/atc",
   "tx/atc_gls",
   "tx/atc_gls_magma",
+  "tx/atc_vif",
+  "tx/atc_vif_magma",
   "tx/evidence",
   "tx/evidence_magma",
   "tx/cmap",
