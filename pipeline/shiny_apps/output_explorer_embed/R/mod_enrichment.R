@@ -208,6 +208,10 @@ build_tx_drug_gtable <- function(all_gs, sort_choice = "Alphabetical",
   group_siz$Size[group_siz$Size < 2] <- 2
   group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
   group_siz$Width <- 4 * group_siz$Prop
+  # Floor at 1 (the equal-facet share) so a single-panel facet -- e.g. the
+  # genome-wide MAGMA facet against many TWAS eQTL panels -- is not squished to
+  # an unreadable sliver.
+  group_siz$Width <- pmax(group_siz$Width, 1)
 
   all_gs_all <- data.table::data.table(all_gs_all)
   # Drop rows for (drug, panel, method) combinations that weren't tested
@@ -348,6 +352,10 @@ build_tx_atc_gtable <- function(all_gs_atc, sort_choice = "Alphabetical",
   group_siz$Size[group_siz$Size < 2] <- 2
   group_siz$Prop <- group_siz$Size / sum(group_siz$Size)
   group_siz$Width <- 4 * group_siz$Prop
+  # Floor at 1 (the equal-facet share) so a single-panel facet -- e.g. the
+  # genome-wide MAGMA facet against many TWAS eQTL panels -- is not squished to
+  # an unreadable sliver.
+  group_siz$Width <- pmax(group_siz$Width, 1)
 
   all_gs_atc_all <- data.table::data.table(all_gs_atc_all)
   # Drop untested (ATC, panel, method) rows so no point is drawn for
