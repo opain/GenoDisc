@@ -422,6 +422,13 @@ has_atc_vif_magma <- function(gd, gwas) {
   !is.null(gd_read(gd, gwas, "tx/atc_vif_magma"))
 }
 
+#' Is any legacy (Wilcoxon) ATC block present? (tx/atc with >=1 non-null slot).
+#' Older bundles carry only this block (no model-based VIF/GLS blocks).
+has_atc_legacy <- function(gd, gwas) {
+  a <- gd_read(gd, gwas, "tx/atc")
+  !is.null(a) && length(Filter(Negate(is.null), a)) > 0
+}
+
 #' ATC levels available across the model-based drug-level blocks (VIF-OLS + GLS, both engines).
 atc_gls_levels <- function(gd, gwas) {
   lv <- character(0)

@@ -732,8 +732,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       atc_gls_available <- isTRUE(drug_targetor_available) &&
         (has_atc_gls(gwas_data(), parent_selected_gwas()) ||
          has_atc_gls_magma(gwas_data(), parent_selected_gwas()))
-      atc_controls_available <- atc_vif_available || atc_gls_available
-      atc_levels_avail <- if (atc_controls_available)
+      # Older bundles carry only the legacy Wilcoxon ATC block; still show the control bar
+      # (with just the Legacy option) so those results render.
+      atc_legacy_available <- isTRUE(drug_targetor_available) &&
+        has_atc_legacy(gwas_data(), parent_selected_gwas())
+      atc_controls_available <- atc_vif_available || atc_gls_available || atc_legacy_available
+      atc_levels_avail <- if (atc_vif_available || atc_gls_available)
         atc_gls_levels(gwas_data(), parent_selected_gwas()) else character(0)
       # Method-source choices: VIF-OLS (recommended), GLS (DRUGSETS), legacy Wilcoxon.
       atc_src_choices <- c(if (atc_vif_available) c("VIF-OLS (recommended)" = "vif"),
@@ -2208,11 +2212,20 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Prepare data for atc-specific association tables
     #######
 
+    # Fallback ATC source before the radio initialises (and for legacy-only bundles that
+    # have no VIF/GLS blocks): the first method actually present, so results still render.
+    atc_default_src <- reactive({
+      req(gwas_data(), selected_gwas())
+      if (has_atc_vif(gwas_data(), selected_gwas()) || has_atc_vif_magma(gwas_data(), selected_gwas())) "vif"
+      else if (has_atc_gls(gwas_data(), selected_gwas()) || has_atc_gls_magma(gwas_data(), selected_gwas())) "gls"
+      else "legacy"
+    })
+
     # MAGMA ATC table data (retains ATC Code + Level for the row-click drill-down;
-    # source-aware: GLS under 'gls', competitive Wilcoxon under 'legacy').
+    # source-aware: VIF/GLS under 'vif'/'gls', competitive Wilcoxon under 'legacy').
     atc_magma_tbl <- reactive({
       req(gwas_data(), selected_gwas())
-      src <- input$atc_source %||% "vif"
+      src <- input$atc_source %||% atc_default_src()
       if (src %in% c("vif", "gls")) {
         lvl <- input$atc_level %||% "L3"
         blk <- if (src == "vif") "tx/atc_vif_magma" else "tx/atc_gls_magma"
@@ -2275,7 +2288,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # per-gene evidence. Shared by the render and the inline evidence panel.
     atc_twas_tbl <- function(slot){
       req(gwas_data(), selected_gwas())
-      src <- input$atc_source %||% "vif"
+      src <- input$atc_source %||% atc_default_src()
       lvl <- input$atc_level  %||% "L3"
       if (slot == "twas_gsea" && src %in% c("vif", "gls")) {
         # Recommended: TWAS-GSEA drug-level VIF-OLS / GLS (directional, per panel).
@@ -2318,7 +2331,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       req(gwas_data(), selected_gwas())
       build_atc_summary_data(gwas_data(), selected_gwas(),
                              level = input$atc_level %||% "L3",
-                             atc_source = input$atc_source %||% "vif")
+                             atc_source = input$atc_source %||% atc_default_src())
     })
 
     tx_atc_summary_data_filtered<-reactive({
