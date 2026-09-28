@@ -683,7 +683,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     bundle_atc_data <- reactive({
       req(gwas_data())
       g <- parent_selected_gwas(); req(g)
-      build_atc_summary_data(gwas_data(), g)
+      build_atc_summary_data(gwas_data(), g, atc_source = default_atc_source(gwas_data(), g))
     })
 
     output$enrichment_tabs <- renderUI({
@@ -2216,9 +2216,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
     # have no VIF/GLS blocks): the first method actually present, so results still render.
     atc_default_src <- reactive({
       req(gwas_data(), selected_gwas())
-      if (has_atc_vif(gwas_data(), selected_gwas()) || has_atc_vif_magma(gwas_data(), selected_gwas())) "vif"
-      else if (has_atc_gls(gwas_data(), selected_gwas()) || has_atc_gls_magma(gwas_data(), selected_gwas())) "gls"
-      else "legacy"
+      default_atc_source(gwas_data(), selected_gwas())
     })
 
     # MAGMA ATC table data (retains ATC Code + Level for the row-click drill-down;

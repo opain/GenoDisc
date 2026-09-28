@@ -429,6 +429,15 @@ has_atc_legacy <- function(gd, gwas) {
   !is.null(a) && length(Filter(Negate(is.null), a)) > 0
 }
 
+#' The default ATC method source for a bundle: the first method actually present
+#' (VIF-OLS recommended -> GLS -> legacy Wilcoxon). Used to seed the filter choices
+#' and the summary/table reactives so legacy-only bundles still render.
+default_atc_source <- function(gd, gwas) {
+  if (has_atc_vif(gd, gwas) || has_atc_vif_magma(gd, gwas)) "vif"
+  else if (has_atc_gls(gd, gwas) || has_atc_gls_magma(gd, gwas)) "gls"
+  else "legacy"
+}
+
 #' ATC levels available across the model-based drug-level blocks (VIF-OLS + GLS, both engines).
 atc_gls_levels <- function(gd, gwas) {
   lv <- character(0)
