@@ -28,13 +28,16 @@ reg_inv <- function(S, floor) {
   list(inv = e$vectors[, k, drop = FALSE] %*% (t(e$vectors[, k, drop = FALSE]) / e$values[k]), rank = sum(k))
 }
 # GLS of y on [1, s, size, log(size)]; one-sided upper-tail test on the class coef.
-gls_group <- function(y, s, size, Sinv) {
-  X <- cbind(1, s, size, log(size)); N <- length(y); K <- ncol(X)
+# df-corrected: Sinv is a rank-m pseudo-inverse, so the residual quadratic form
+# r'Sinv r ~ sigma^2 * chi^2(m - K). Divide by (m - K) and use df = m - K (NOT N - K),
+# else sigma^2 is under-estimated and the test is anti-conservative.
+gls_group <- function(y, s, size, Sinv, m) {
+  X <- cbind(1, s, size, log(size)); K <- ncol(X); df <- m - K
   W <- solve(t(X) %*% Sinv %*% X)
   B <- W %*% t(X) %*% Sinv %*% y
   resid <- y - X %*% B
-  sigma <- as.numeric((t(resid) %*% Sinv %*% resid) / (N - K))
-  se <- sqrt(sigma * W[2, 2]); tval <- B[2] / se; df <- N - K
+  sigma <- as.numeric((t(resid) %*% Sinv %*% resid) / df)
+  se <- sqrt(sigma * W[2, 2]); tval <- B[2] / se
   list(B = B[2], SE = se, T = tval, P = pt(tval, df, lower.tail = FALSE))  # one-sided (enrichment)
 }
 
@@ -48,7 +51,7 @@ Sig <- readRDS(corr.file)
 common <- intersect(g$FULL_NAME, rownames(Sig))
 g <- g[match(common, FULL_NAME)]
 Sig <- Sig[common, common]
-Sinv <- reg_inv(Sig, floor)$inv
+ri <- reg_inv(Sig, floor); Sinv <- ri$inv; m_rank <- ri$rank   # m = retained-eigenvalue rank (df = m - K)
 y <- g$stat; size <- as.numeric(g$NGENES)
 
 ## --- drug -> ATC 7-char codes (multi-code exploded) --------------------------
@@ -69,7 +72,7 @@ for (lv in names(level_width)) {
     s <- as.numeric(vapply(drug_cls, function(x) cl %in% x, logical(1)))
     n1 <- sum(s == 1)
     if (n1 < nsize) next
-    r <- gls_group(y, s, size, Sinv)
+    r <- gls_group(y, s, size, Sinv, m_rank)
     rows[[length(rows) + 1]] <- data.table(Code = cl, N_Drugs = n1, Estimate = r$B,
                                             SE = r$SE, T = r$T, P = r$P)
   }

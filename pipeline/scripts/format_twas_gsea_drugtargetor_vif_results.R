@@ -65,19 +65,18 @@ common <- intersect(res$cid, rcid)
 res <- res[match(common, cid)]; ri <- match(common, rcid); DC <- DC[ri, ri, drop = FALSE]
 
 y <- res$T; size <- as.numeric(res$N_Mem_Avail); N <- length(y)
-codes_full <- rownames(DC)                              # full ATC composite, for multi-code explosion
 
 atc <- fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep = '!')
 names(atc) <- c('Code', 'Name'); atc$Name <- tolower(atc$Name)
 
 for (lv in levels) {
   k <- level_width[[lv]]
-  drug_cls <- lapply(strsplit(sub("^ATC:([^|]+)\\|.*", "\\1", codes_full), ","),
-                     function(cc) unique(substr(cc, 1, k)))
+  # Canonical membership: drug's own ATC codes (clean.csv 'ATC', dot-joined), exploded, unique per drug.
+  drug_cls <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, k)))
   classes <- sort(unique(unlist(drug_cls))); classes <- classes[nchar(classes) == k]
   out <- rbindlist(lapply(classes, function(cl) {
     s <- as.numeric(vapply(drug_cls, function(x) cl %in% x, logical(1))); n1 <- sum(s)
-    if (n1 < 2) return(NULL)
+    if (n1 < 5) return(NULL)
     ins <- s == 1; Rin <- DC[ins, ins, drop = FALSE]; rho_bar <- max(0, mean(Rin[upper.tri(Rin)]))
     g <- vif_group(y, s, size, rho_bar, N)
     data.table(Code = cl, N_Drugs = n1,

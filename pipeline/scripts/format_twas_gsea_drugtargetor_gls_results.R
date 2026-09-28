@@ -42,13 +42,15 @@ reg_inv <- function(S, floor) {
   list(inv = e$vectors[, keep, drop=FALSE] %*% (t(e$vectors[, keep, drop=FALSE]) / e$values[keep]),
        rank = sum(keep))
 }
-gls_group <- function(y, s, size, Sinv) {
-  X <- cbind(1, s, size, log(size)); N <- length(y); K <- ncol(X)
+# df-corrected: Sinv is a rank-m pseudo-inverse, so the residual quadratic form
+# r'Sinv r ~ sigma^2 * chi^2(m - K). Use (m - K) for both sigma^2 and the t reference (NOT N - K).
+gls_group <- function(y, s, size, Sinv, m) {
+  X <- cbind(1, s, size, log(size)); K <- ncol(X); df <- m - K
   Xt <- t(X); W <- solve(Xt %*% Sinv %*% X)
   B <- W %*% Xt %*% Sinv %*% y
   resid <- y - X %*% B
-  sigma <- as.numeric(t(resid) %*% Sinv %*% resid) / (N - K)
-  se <- sqrt(sigma * W[2, 2]); tval <- B[2] / se; df <- N - K; tc <- qt(0.975, df)
+  sigma <- as.numeric(t(resid) %*% Sinv %*% resid) / df
+  se <- sqrt(sigma * W[2, 2]); tval <- B[2] / se; tc <- qt(0.975, df)
   list(B = B[2], SE = se, T = tval, P = 2 * pt(-abs(tval), df),
        CI_lo = B[2] - tc * se, CI_hi = B[2] + tc * se)
 }
@@ -56,14 +58,18 @@ gls_group <- function(y, s, size, Sinv) {
 ## --- inputs -----------------------------------------------------------------
 res <- fread(paste0(ddir, '/twas_gsea_drugtargetor_', opt$panel, '.competitive.clean.csv'))
 res <- res[!is.na(T) & N_Mem_Avail >= 2]
-res$Code7 <- res$ATC
 
-DC  <- readRDS(paste0(ddir, '/twas_gsea_drugtargetor_', opt$panel, '.drugcorr.rds'))
-dc7 <- sub("^ATC:([^|]+)\\|.*", "\\1", rownames(DC))
-mi  <- match(res$Code7, dc7)
+# Align to Sigma by normalised CID (digits-only tokens): clean.csv punctuation-normalises the GeneSet
+# ("CID.111.222") while the correlation rownames keep original punctuation ("CID:111,222"), so a raw
+# compare drops multi-CID drugs. Normalising recovers the full aligned drug set (alignment bug #1).
+DC   <- readRDS(paste0(ddir, '/twas_gsea_drugtargetor_', opt$panel, '.drugcorr.rds'))
+norm_cid <- function(x) gsub("[^0-9]+", "_", x)
+res$cid <- norm_cid(sub(".*CID\\.", "", res$GeneSet))
+rcid    <- norm_cid(sub(".*CID:", "", rownames(DC)))
+mi  <- match(res$cid, rcid)
 res <- res[!is.na(mi)]; mi <- mi[!is.na(mi)]
 Sigma <- DC[mi, mi, drop = FALSE]
-ri <- reg_inv(Sigma, opt$floor); Sinv <- ri$inv
+ri <- reg_inv(Sigma, opt$floor); Sinv <- ri$inv; m_rank <- ri$rank
 
 atc <- fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep = '!')
 names(atc) <- c('Code', 'Name'); atc$Name <- tolower(atc$Name)
@@ -72,12 +78,14 @@ y <- res$T; size <- res$N_Mem_Avail
 
 for (lv in levels) {
   k <- level_width[[lv]]
-  res[[paste0('cls', lv)]] <- substr(res$Code7, 1, k)
-  classes <- sort(unique(res[[paste0('cls', lv)]]))
+  # Canonical membership: each drug's own ATC codes (clean.csv 'ATC', dot-joined), exploded to every
+  # class, unique per drug; count unique drugs. Shared idiom across all ATC methods and both engines.
+  drug_cls <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, k)))
+  classes  <- sort(unique(unlist(drug_cls))); classes <- classes[nchar(classes) == k]
   out <- rbindlist(lapply(classes, function(cl) {
-    s <- as.numeric(res[[paste0('cls', lv)]] == cl); n1 <- sum(s)
-    if (n1 < 2) return(NULL)
-    g <- gls_group(y, s, size, Sinv)
+    s <- as.numeric(vapply(drug_cls, function(x) cl %in% x, logical(1))); n1 <- sum(s)
+    if (n1 < 5) return(NULL)
+    g <- gls_group(y, s, size, Sinv, m_rank)
     data.table(Code = cl, N_Drugs = n1,
                Estimate = g$B, SE = g$SE, CI_lo = g$CI_lo, CI_hi = g$CI_hi,
                T = g$T, P = g$P,

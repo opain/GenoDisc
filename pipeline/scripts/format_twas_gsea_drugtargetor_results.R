@@ -133,8 +133,9 @@ atc<-fread(paste0(resdir, '/data/atc/atc_20220201.txt'), sep='!')
 names(atc)<-c('Code','Name')
 atc$Name<-tolower(atc$Name)
 
-res_atc<-merge(res, atc, by.x='NAME', by.y='Name')
-res_atc$atc_cat<-substr(res_atc$Code, 1, 4)
+# Canonical membership: each drug's own ATC codes (clean.csv 'ATC', dot-joined), exploded to every
+# class, unique per drug. The rank-sum below runs over UNIQUE drugs (no drug*code pseudo-replication).
+res$pcode <- substr(vapply(strsplit(res$ATC, '.', fixed = TRUE), `[`, character(1), 1L), 1, 7)  # primary 7-char (VIF M lookup)
 
 # --- VIF prerequisites (only when --vif_adjust T) ----------------------------
 # Estimate the mean pairwise correlation of the drugs in a class from the cosine
@@ -152,7 +153,7 @@ if(vif_on){
                       select = 'external_gene_name')
   avail      <- unique(twas_genes$external_gene_name)
   mem_av     <- membership[membership$ID %in% avail]           # rows = modelled genes
-  keep_col   <- col_atc %in% res_atc$Code & !duplicated(col_atc)
+  keep_col   <- col_atc %in% res$pcode & !duplicated(col_atc)
   M          <- as.matrix(mem_av[, drug_cols[keep_col], with = FALSE])
   storage.mode(M) <- 'double'
   colnames(M) <- col_atc[keep_col]
@@ -172,39 +173,40 @@ if(vif_on){
   # Per-class VIF metrics + adjusted P, aligned to a set of in-class rows.
   vif_metrics <- function(class_bin){
     n1  <- sum(class_bin == 1)
-    rho <- rho_bar(res_atc$Code[class_bin == 1])
+    rho <- rho_bar(res$pcode[class_bin == 1])
     vif <- 1 + (n1 - 1) * rho
-    z   <- rankSumCorr(res_atc$T, class_bin == 1, correlation = rho)
+    z   <- rankSumCorr(res$T, class_bin == 1, correlation = rho)
     p   <- if(opt$mode == 'directional') 2*pnorm(-abs(z)) else pnorm(z, lower.tail = FALSE)
     data.frame(Rho_Bar = rho, VIF = vif, Eff_N = n1 / vif, P_VIF = p)
   }
 }
 
-# Test for enrichment for each ATC catagory
+# Test for enrichment for each ATC L3 class, over UNIQUE drugs (canonical membership; threshold >= 5).
+drug_cls3 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 4)))
+cls3      <- sort(unique(unlist(drug_cls3))); cls3 <- cls3[nchar(cls3) == 4]
 atc_enrich<-NULL
 vif_l3<-NULL
-for(cat in unique(res_atc$atc_cat)){
-  class_bin<-rep(0, nrow(res_atc))
-  class_bin[res_atc$atc_cat == cat]<-1
+for(cat in cls3){
+  class_bin <- as.numeric(vapply(drug_cls3, function(x) cat %in% x, logical(1)))
 
-  if(sum(class_bin == 1) > 5){
+  if(sum(class_bin == 1) >= 5){
 
     # Use wilcoxon test
     if(opt$mode == 'directional'){
       # Preserve historical Estimate sign convention (group1 = out-class, group2 = in-class).
-      wil_cox_res<-wilcox.test(rank(res_atc$T) ~ class_bin, conf.int =T)
+      wil_cox_res<-wilcox.test(rank(res$T) ~ class_bin, conf.int =T)
     } else {
       # Two-sample form so the alternative direction is unambiguous: x = in-class,
       # y = out-of-class, so alternative='greater' tests in-class T > out-of-class T.
-      in_T <- rank(res_atc$T)[class_bin == 1]
-      out_T <- rank(res_atc$T)[class_bin == 0]
+      in_T <- rank(res$T)[class_bin == 1]
+      out_T <- rank(res$T)[class_bin == 0]
       wil_cox_res<-wilcox.test(in_T, out_T, conf.int =T, alternative = 'greater')
     }
 
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
-                                             Class_Median=median(res_atc$Estimate[class_bin == 1]),
-                                             Non_Class_Median=median(res_atc$Estimate[class_bin == 0]),
+                                             Class_Median=median(res$Estimate[class_bin == 1]),
+                                             Non_Class_Median=median(res$Estimate[class_bin == 0]),
                                              P=wil_cox_res$p.value,
                                              N=sum(class_bin)))
 
@@ -246,32 +248,32 @@ if(vif_on){
 
 write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res.csv'), row.names=F)
 
-# Test for enrichment for each level 4 ATC category
-res_atc$atc_cat_2<-substr(res_atc$Code, 1, 5)
+# Test for enrichment for each level 4 ATC class, over UNIQUE drugs (canonical membership; threshold >= 5).
+drug_cls4 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 5)))
+cls4      <- sort(unique(unlist(drug_cls4))); cls4 <- cls4[nchar(cls4) == 5]
 atc_enrich_2<-NULL
 vif_l4<-NULL
-for(cat in unique(res_atc$atc_cat_2)){
-  class_bin<-rep(0, nrow(res_atc))
-  class_bin[res_atc$atc_cat_2 == cat]<-1
+for(cat in cls4){
+  class_bin <- as.numeric(vapply(drug_cls4, function(x) cat %in% x, logical(1)))
 
-  if(sum(class_bin == 1) > 2){
+  if(sum(class_bin == 1) >= 5){
 
     # Use wilcoxon test
     if(opt$mode == 'directional'){
       # Preserve historical Estimate sign convention (group1 = out-class, group2 = in-class).
-      wil_cox_res<-wilcox.test(rank(res_atc$T) ~ class_bin, conf.int =T)
+      wil_cox_res<-wilcox.test(rank(res$T) ~ class_bin, conf.int =T)
     } else {
       # Two-sample form so the alternative direction is unambiguous: x = in-class,
       # y = out-of-class, so alternative='greater' tests in-class T > out-of-class T.
-      in_T <- rank(res_atc$T)[class_bin == 1]
-      out_T <- rank(res_atc$T)[class_bin == 0]
+      in_T <- rank(res$T)[class_bin == 1]
+      out_T <- rank(res$T)[class_bin == 0]
       wil_cox_res<-wilcox.test(in_T, out_T, conf.int =T, alternative = 'greater')
     }
 
     atc_enrich_2<-rbind(atc_enrich_2, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
-                                             Class_Median=median(res_atc$Estimate[class_bin == 1]),
-                                             Non_Class_Median=median(res_atc$Estimate[class_bin == 0]),
+                                             Class_Median=median(res$Estimate[class_bin == 1]),
+                                             Non_Class_Median=median(res$Estimate[class_bin == 0]),
                                              P=wil_cox_res$p.value,
                                              N=sum(class_bin)))
 

@@ -41,29 +41,23 @@ res_gs<-res_gs[,c('NAME','NGENES','BETA','SE','P','ATC'), with=F]
 
 write.csv(res_gs, paste0(outdir,'/results/',opt$gwas,'/magma/magma_drug_targetor.clean.csv'), row.names=F, quote=T)
 
-# Perform enrichment analysis of ATC codes
-res_gs_enrich<-NULL
-for(i in 1:nrow(res_gs)){
-  res_gs_enrich<-rbind(res_gs_enrich, data.frame( ATC=unlist(strsplit(res_gs$ATC[i],',')),
-                                                  P=res_gs$P[i]))
-}
-
-res_gs_enrich$atc_cat<-substr(res_gs_enrich$ATC, 1, 4)
-
-# Test for enrichment for each ATC category
+# Canonical membership: each drug's own ATC codes (comma-joined in res_gs$ATC), exploded to every
+# class, unique per drug; the rank-sum runs over UNIQUE drugs (no drug*code pseudo-replication).
+# Test for enrichment for each ATC L3 class (threshold >= 5).
+drug_cls3 <- lapply(strsplit(res_gs$ATC, ',', fixed = TRUE), function(x) unique(substr(x, 1, 4)))
+cls3      <- sort(unique(unlist(drug_cls3))); cls3 <- cls3[nchar(cls3) == 4]
 atc_enrich<-NULL
-for(cat in unique(res_gs_enrich$atc_cat)){
-  class_bin<-rep(0, nrow(res_gs_enrich))
-  class_bin[res_gs_enrich$atc_cat == cat]<-1
+for(cat in cls3){
+  class_bin <- as.numeric(vapply(drug_cls3, function(x) cat %in% x, logical(1)))
 
-  if(sum(class_bin == 1) > 5){
+  if(sum(class_bin == 1) >= 5){
 
-    wil_cox_res<-wilcox.test(rank(res_gs_enrich$P) ~ class_bin, conf.int =T, alternative='greater')
+    wil_cox_res<-wilcox.test(rank(res_gs$P) ~ class_bin, conf.int =T, alternative='greater')
 
     atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
-                                             Class_Median=median(res_gs_enrich$P[class_bin == 1]),
-                                             Non_Class_Median=median(res_gs_enrich$P[class_bin == 0]),
+                                             Class_Median=median(res_gs$P[class_bin == 1]),
+                                             Non_Class_Median=median(res_gs$P[class_bin == 0]),
                                              P=wil_cox_res$p.value,
                                              N=sum(class_bin)))
   }
@@ -79,21 +73,21 @@ atc_enrich<-atc_enrich[order(atc_enrich$P),]
 
 write.csv(atc_enrich, paste0(outdir,'/results/',opt$gwas,'/magma/magma_drug_targetor_atc_res.csv'), row.names=F)
 
-# Test for enrichment for each level 4 ATC category
-res_gs_enrich$atc_cat_2<-substr(res_gs_enrich$ATC, 1, 5)
+# Test for enrichment for each level 4 ATC class, over UNIQUE drugs (threshold >= 5).
+drug_cls4 <- lapply(strsplit(res_gs$ATC, ',', fixed = TRUE), function(x) unique(substr(x, 1, 5)))
+cls4      <- sort(unique(unlist(drug_cls4))); cls4 <- cls4[nchar(cls4) == 5]
 atc_enrich_2<-NULL
-for(cat in unique(res_gs_enrich$atc_cat_2)){
-  class_bin<-rep(0, nrow(res_gs_enrich))
-  class_bin[res_gs_enrich$atc_cat_2 == cat]<-1
+for(cat in cls4){
+  class_bin <- as.numeric(vapply(drug_cls4, function(x) cat %in% x, logical(1)))
 
-  if(sum(class_bin == 1) > 1){
+  if(sum(class_bin == 1) >= 5){
 
-    wil_cox_res<-wilcox.test(rank(res_gs_enrich$P) ~ class_bin, conf.int =T, alternative='greater')
+    wil_cox_res<-wilcox.test(rank(res_gs$P) ~ class_bin, conf.int =T, alternative='greater')
 
     atc_enrich_2<-rbind(atc_enrich_2, data.frame(ATC=cat,
                                              Estimate=as.numeric(wil_cox_res$estimate),
-                                             Class_Median=median(res_gs_enrich$P[class_bin == 1]),
-                                             Non_Class_Median=median(res_gs_enrich$P[class_bin == 0]),
+                                             Class_Median=median(res_gs$P[class_bin == 1]),
+                                             Non_Class_Median=median(res_gs$P[class_bin == 0]),
                                              P=wil_cox_res$p.value,
                                              N=sum(class_bin)))
   }
