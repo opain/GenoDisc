@@ -52,10 +52,15 @@ vif_group <- function(y, s, size, rho_bar, N) {
 ## --- inputs -----------------------------------------------------------------
 res <- fread(paste0(ddir, '/twas_gsea_drugtargetor_', opt$panel, '.competitive.clean.csv'))
 res <- res[!is.na(T) & N_Mem_Avail >= 2]
-res[, cid := sub(".*CID\\.", "", GeneSet)]              # clean.csv GeneSet is punctuation-normalised
+# Align by CID. clean.csv punctuation-normalises the whole GeneSet (multi-CID drugs become
+# "CID.111.222") while the correlation rownames keep original punctuation ("CID:111,222"),
+# so normalise BOTH to digits-only tokens; otherwise multi-CID drugs (e.g. flupentixol,
+# CID 5281881,5281878) are silently dropped -- this recovers the full drug set (alignment bug #1).
+norm_cid <- function(x) gsub("[^0-9]+", "_", x)
+res[, cid := norm_cid(sub(".*CID\\.", "", GeneSet))]
 
 DC   <- readRDS(paste0(ddir, '/twas_gsea_drugtargetor_', opt$panel, '.drugcorr.rds'))
-rcid <- sub(".*CID:", "", rownames(DC))                 # align by CID (fixes multi-ATC drop / mis-key)
+rcid <- norm_cid(sub(".*CID:", "", rownames(DC)))
 common <- intersect(res$cid, rcid)
 res <- res[match(common, cid)]; ri <- match(common, rcid); DC <- DC[ri, ri, drop = FALSE]
 
