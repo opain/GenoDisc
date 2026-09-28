@@ -482,8 +482,14 @@ get_atc_class_drugs <- function(gd, gwas, code, level = "L3", panel = NULL,
   if (is.null(d) || nrow(d) == 0 || !("ATC Code" %in% names(d))) return(NULL)
   d <- data.table::as.data.table(d)
   if (!is.null(panel) && "Panel" %in% names(d)) d <- d[d$Panel == panel, ]
-  k <- if (identical(level, "L2")) 3L else 4L            # tx/drug ATC code is L3 (4-char)
-  d <- d[substr(d$`ATC Code`, 1, k) == substr(code, 1, k), ]
+  # tx/drug 'ATC Code' is a ';'-joined list of a drug's L3 codes (multi-ATC drugs carry
+  # several). Match if ANY code falls under the clicked class, so multi-code drugs appear
+  # in every class they belong to (consistent with the VIF/GLS multi-ATC class explosion).
+  k <- if (identical(level, "L2")) 3L else 4L
+  tgt <- substr(code, 1, k)
+  has_code <- vapply(strsplit(d$`ATC Code`, ";", fixed = TRUE),
+                     function(cs) any(substr(cs, 1, k) == tgt), logical(1))
+  d <- d[has_code, ]
   if (nrow(d) == 0) return(NULL)
   # Per-drug T from the enrichment coefficient/SE (TWAS uses Estimate; MAGMA uses BETA).
   if (all(c("Estimate","SE") %in% names(d)))   d$T <- d$Estimate / d$SE
