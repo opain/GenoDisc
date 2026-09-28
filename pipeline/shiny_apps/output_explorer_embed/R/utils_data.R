@@ -386,22 +386,26 @@ build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
     g_all
   }
 
+  # Method labels drop the ATC-test name (VIF-OLS / GLS / Wilcoxon) -- the test is chosen once by the
+  # ATC-class-test selector, so repeating it per facet/method is redundant. Keep the engine (MAGMA /
+  # TWAS-GSEA / GCSC) and the directional-vs-non-directional distinction (which the selector does NOT
+  # control -- both appear together in the legacy view).
   if (identical(atc_source, "vif")) {
     # Recommended: drug-level VIF-OLS. TWAS-GSEA (directional, per eQTL panel) + MAGMA (non-directional).
-    tw  <- pad_panels(std_atc(atc_vif, "TWAS-GSEA (VIF-OLS)"))
-    mag <- std_atc(atc_vif_m, "MAGMA (VIF-OLS)", panel_label = "MAGMA")
+    tw  <- pad_panels(std_atc(atc_vif, "TWAS-GSEA"))
+    mag <- std_atc(atc_vif_m, "MAGMA", panel_label = "MAGMA")
     out <- do.call(rbind, Filter(Negate(is.null), list(tw, mag)))
   } else if (identical(atc_source, "gls")) {
     # Drug-level GLS (DRUGSETS-style). TWAS-GSEA (directional, per eQTL panel) + MAGMA (non-directional).
-    tw  <- pad_panels(std_atc(atc_gls, "TWAS-GSEA (GLS)"))
-    mag <- std_atc(atc_gls_m, "MAGMA (GLS)", panel_label = "MAGMA")
+    tw  <- pad_panels(std_atc(atc_gls, "TWAS-GSEA"))
+    mag <- std_atc(atc_gls_m, "MAGMA", panel_label = "MAGMA")
     out <- do.call(rbind, Filter(Negate(is.null), list(tw, mag)))
   } else {
     # Legacy: the per-drug Wilcoxon tests (TWAS-GSEA per panel + MAGMA/GCSC, L3 only).
-    magma <- if (show_drugset) std_atc(safe_access(atc, "magma"), "MAGMA (Wilcoxon)", panel_label = "MAGMA", by_level = FALSE) else NULL
-    gcsc  <- if (show_drugset) std_atc(safe_access(atc, "gcsc"),  "GCSC",             panel_label = "GCSC",  by_level = FALSE) else NULL
-    tw    <- pad_panels(std_atc(safe_access(atc, "twas_gsea"),        "TWAS-GSEA (Wilcoxon)",          by_level = FALSE))
-    twn   <- pad_panels(std_atc(safe_access(atc, "twas_gsea_nondir"), "TWAS-GSEA (Wilcoxon, non-dir)", by_level = FALSE))
+    magma <- if (show_drugset) std_atc(safe_access(atc, "magma"), "MAGMA", panel_label = "MAGMA", by_level = FALSE) else NULL
+    gcsc  <- if (show_drugset) std_atc(safe_access(atc, "gcsc"),  "GCSC",  panel_label = "GCSC",  by_level = FALSE) else NULL
+    tw    <- pad_panels(std_atc(safe_access(atc, "twas_gsea"),        "TWAS-GSEA",                    by_level = FALSE))
+    twn   <- pad_panels(std_atc(safe_access(atc, "twas_gsea_nondir"), "TWAS-GSEA (non-directional)", by_level = FALSE))
     out <- do.call(rbind, Filter(Negate(is.null), list(magma, gcsc, tw, twn)))
   }
   out
