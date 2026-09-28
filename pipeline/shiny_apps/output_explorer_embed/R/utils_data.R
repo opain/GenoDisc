@@ -340,6 +340,11 @@ build_drug_summary_data <- function(gd, gwas) {
 #' @param gwas GWAS name
 #' @return data.frame with columns: Name, Z, FDR_Sig, Nom_Sig, Method, Panel
 build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
+  # Legacy-only bundles have no level selector, so the caller may pass an empty
+  # level (`input$atc_level` is "" then, which `%||%` does not treat as missing).
+  # Treat empty/absent as L3, otherwise the L3-only MAGMA/GCSC Wilcoxon rows are
+  # dropped and MAGMA vanishes from the summary + method filter.
+  if (is.null(level) || !nzchar(level)) level <- "L3"
   atc       <- gd_read(gd, gwas, "tx/atc")            # legacy Wilcoxon (+ magma/gcsc slots)
   atc_gls   <- gd_read(gd, gwas, "tx/atc_gls")        # TWAS-GSEA GLS (directional, per panel)
   atc_gls_m <- gd_read(gd, gwas, "tx/atc_gls_magma")  # MAGMA GLS (non-directional, genome-wide)
