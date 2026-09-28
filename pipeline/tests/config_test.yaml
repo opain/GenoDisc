@@ -61,7 +61,8 @@ twas_gsea_drugtargetor: T
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: T
 
-# Drug-level GLS ATC-class enrichment (DRUGSETS-style; recommended), TWAS-GSEA + MAGMA
+# Drug-level model-based ATC-class enrichment, TWAS-GSEA + MAGMA. These flags drive BOTH the
+# recommended VIF-OLS (CAMERA-style) and the GLS (DRUGSETS-style) tests.
 drug_targetor_atc_gls: T
 magma_drugtargetor_gls: T
 

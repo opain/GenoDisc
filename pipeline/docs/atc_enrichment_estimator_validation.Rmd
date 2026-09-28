@@ -85,9 +85,9 @@ estimator is miscalibrated, and which estimator recovers positive controls sensi
 
 Three estimators, all fitting `y ~ [1, class_indicator, size, log(size)]`:
 
-* **VIF-OLS (CAMERA-style).** OLS coefficient on the class indicator with the
-  standard error inflated for within-class correlation,
-  \(\mathrm{se} = \mathrm{se}_{\mathrm{OLS}}\sqrt{1+(n_1-1)\bar\rho}\), where
+* **VIF-OLS (CAMERA-style; Wu & Smyth 2012, *Nucleic Acids Res* 40(17):e133).** OLS
+  coefficient on the class indicator with the standard error inflated for within-class
+  correlation, \(\mathrm{se} = \mathrm{se}_{\mathrm{OLS}}\sqrt{1+(n_1-1)\bar\rho}\), where
   \(\bar\rho\) is the mean in-class entry of \(\Sigma\). It uses **only** the
   in-class-vs-rest contrast.
 * **GLS, floor 0.1 (current default).** \(\Sigma^{-1}\) is a rank-\(m\)

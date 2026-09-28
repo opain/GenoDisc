@@ -603,17 +603,18 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         atc_twas_dir = list(
           "Name" = "Drug class (ATC code: description).",
           "Panel" = lg_panel,
-          "N Drugs" = "Number of drugs in the class (drug-level GLS / legacy tests).",
-          "95% CI" = "95% confidence interval for the drug-level GLS coefficient (TWAS-GSEA GLS only). If it spans 0 the class effect is not distinguishable from zero — read the CI, not the Direction, near the null.",
+          "N Drugs" = "Number of drugs in the class (unique per drug; consistent across the VIF-OLS, GLS and legacy tests).",
+          "95% CI" = "95% confidence interval for the drug-level coefficient (VIF-OLS and GLS; TWAS-GSEA only). If it spans 0 the class effect is not distinguishable from zero — read the CI, not the Direction, near the null.",
           "Estimate" = paste0(
-            "Enrichment effect size. Recommended: the drug-level GLS (DRUGSETS-style; ",
-            "Bell et al. 2022), which regresses the per-drug statistic on ATC-class ",
-            "membership weighted by the drug-drug correlation — asking whether in-class ",
-            "drugs are more associated than other drugs while validly accounting for ",
-            "drugs sharing targets. TWAS-GSEA GLS (EXPERIMENTAL) is directional and per ",
-            "eQTL panel with a 95% CI; MAGMA GLS is non-directional and genome-wide. ",
-            "The legacy per-drug Wilcoxon is retained only as a cross-check. Read the ",
-            "Direction (and, for the TWAS-GSEA GLS, the CI) not the raw sign."),
+            "Enrichment effect size. Recommended: the drug-level VIF-OLS test ",
+            "(CAMERA-style; Wu & Smyth 2012) — an OLS contrast of in-class vs other ",
+            "drugs with the standard error inflated for drugs sharing targets. The ",
+            "drug-level GLS (DRUGSETS-style; Bell et al. 2022) asks the same question ",
+            "by whitening the drug-drug correlation, and is kept for comparison. ",
+            "TWAS-GSEA (EXPERIMENTAL) is directional and per eQTL panel (with a 95% CI ",
+            "for VIF-OLS / GLS); MAGMA is non-directional and genome-wide. The legacy ",
+            "per-drug Wilcoxon is retained as a cross-check. Read the Direction (and, ",
+            "for TWAS-GSEA, the CI) not the raw sign."),
           "Direction" = paste0(lg_dir,
             " NOTE: the direction reflects the drug-gene set encoding and which ",
             "target genes are modelled in the panel, not necessarily the clinical ",
@@ -918,7 +919,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
       if (cf$magma_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
-          p("MAGMA ATC-class enrichment. With the 'ATC-class test' selector above set to GLS (recommended) this shows the drug-level GLS (DRUGSETS-style; non-directional, genome-wide); under 'Legacy' it shows the per-drug competitive Wilcoxon. Select a row to see the drugs in that class below the table."), hr(), br(),
+          p("MAGMA ATC-class enrichment (non-directional, genome-wide). Choose the method with the 'ATC-class test' selector above: VIF-OLS (recommended; CAMERA-style), GLS (DRUGSETS-style), or the legacy per-drug Wilcoxon — kept for comparison. Select a row to see the drugs in that class below the table."), hr(), br(),
           fluidRow(column(width=8, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br(),
           uiOutput(ns("tx_atc_magma_evidence"))
         )))
@@ -931,7 +932,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       }
       if (cf$twas_gsea_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (experimental)", br(),
-          p(HTML("<b>Experimental.</b> TWAS-GSEA ATC-class enrichment at the ATC level chosen above. With the selector set to GLS (recommended) this is the drug-level GLS (directional, per eQTL panel, with 95% CI); under 'Legacy' it is the per-drug Wilcoxon. Select a row to see the per-gene evidence behind that class below the table.")), hr(), br(),
+          p(HTML("<b>Experimental.</b> TWAS-GSEA ATC-class enrichment (directional, per eQTL panel) at the ATC level chosen above. Choose the method with the 'ATC-class test' selector: VIF-OLS (recommended; CAMERA-style, with 95% CI), GLS (DRUGSETS-style, with 95% CI), or the legacy per-drug Wilcoxon — kept for comparison. Select a row to see the per-gene evidence behind that class below the table.")), hr(), br(),
           fluidRow(column(width=8, DT::dataTableOutput(ns("tx_atc_twas_gsea_table")))), enr_legend("atc_twas_dir"), br(),
           uiOutput(ns("tx_atc_twas_gsea_evidence"))
         )))
@@ -1150,10 +1151,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
               drug_compare_ui(NS(ns("drug_compare"))))
           ),
           tabPanel(title = "ATC", br(),
-            # Shared ATC control bar: the test (drug-level GLS / legacy Wilcoxon) and
-            # the ATC level are chosen once and drive the Summary heatmap, the tables,
-            # and the per-class evidence. The level selector applies to the GLS test;
-            # the legacy Wilcoxon (and MAGMA/GCSC) exist at L3 only, so it is hidden there.
+            # Shared ATC control bar: the test (VIF-OLS recommended / GLS / legacy Wilcoxon)
+            # and the ATC level are chosen once and drive the Summary heatmap, the tables,
+            # and the per-class evidence. The level selector applies to the model-based tests
+            # (VIF-OLS / GLS); the legacy Wilcoxon (and MAGMA/GCSC) exist at L3 only, so it is hidden there.
             if (atc_controls_available) tags$div(class = "gd-details-body", style = "margin-bottom:8px;",
               fluidRow(
                 column(6, radioButtons(ns("atc_source"), "ATC-class test:",
@@ -2268,8 +2269,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
-    # ATC TWAS-GSEA table DATA, honouring the shared ATC control bar: gene-level
-    # (option C) filtered to the chosen level, or the legacy per-drug Wilcoxon
+    # ATC TWAS-GSEA table DATA, honouring the shared ATC control bar: the model-based
+    # test (VIF-OLS or GLS) filtered to the chosen level, or the legacy per-drug Wilcoxon
     # (L3 only). Keeps ATC Code / Panel / Level so a selected row maps to its
     # per-gene evidence. Shared by the render and the inline evidence panel.
     atc_twas_tbl <- function(slot){

@@ -1,8 +1,9 @@
 #!/usr/bin/Rscript
 
 # Drug-level GLS ATC-class enrichment (DRUGSETS-style; Bell et al. 2022,
-# github.com/nybell/drugsets). Asks the SAME question as the legacy per-drug
-# Wilcoxon -- are the drugs in an ATC class more associated than other drugs? --
+# github.com/nybell/drugsets). Kept for comparison; the recommended drug-level readout is
+# VIF-OLS (format_twas_gsea_drugtargetor_vif_results.R). Asks the SAME question as the legacy
+# per-drug Wilcoxon -- are the drugs in an ATC class more associated than other drugs? --
 # but validly, by modelling the correlation between drugs that share target genes.
 #
 # For each ATC level (L2/L3/L4): GLS regression of the per-drug signed TWAS-GSEA T

@@ -1,7 +1,8 @@
 #!/usr/bin/env Rscript
 # format_magma_drugtargetor_gls_results.R
 #
-# DRUGSETS-style GLS ATC drug-class enrichment on MAGMA per-drug results.
+# DRUGSETS-style GLS ATC drug-class enrichment on MAGMA per-drug results. Kept for
+# comparison; the recommended drug-level readout is VIF-OLS (format_magma_drugtargetor_vif_results.R).
 # Regresses the per-drug competitive statistic (BETA/SE from MAGMA's gene-set
 # analysis) on an ATC-class indicator + size covariates, using the drug-drug
 # correlation Sigma (from compute_magma_drugcorr.R) as the GLS weight. This is

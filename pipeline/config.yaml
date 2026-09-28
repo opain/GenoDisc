@@ -55,8 +55,10 @@ magma_gene: F
 # MAGMA gene set enrichment analysis using DrugTargetor sets
 magma_drugtargetor: F
 
-# DRUGSETS-style drug-level GLS ATC enrichment on the MAGMA per-drug results
-# (correlation-aware alternative to the MAGMA Wilcoxon). Requires magma_drugtargetor: T.
+# Drug-level model-based ATC enrichment on the MAGMA per-drug results. Enables BOTH the
+# recommended VIF-OLS test (CAMERA-style; Wu & Smyth 2012) and the GLS test (DRUGSETS-style;
+# Bell et al. 2022) -- correlation-aware alternatives to the MAGMA Wilcoxon, kept for comparison.
+# Requires magma_drugtargetor: T. See docs/atc_enrichment_estimator_validation.Rmd.
 magma_drugtargetor_gls: F
 
 # TWAS using FUSION and PsychENCODE panel
@@ -84,13 +86,14 @@ twas_gsea_drugtargetor: F
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: F
 
-# ATC-class drug enrichment via a drug-level GLS (DRUGSETS-style; Bell et al. 2022): regress the
-# per-drug signed TWAS-GSEA T on ATC-class membership (+ gene-set-size covariates), weighted by the
-# drug-drug correlation, so it asks the same question as the legacy Wilcoxon (are in-class drugs'
-# associations elevated vs other drugs?) but validly accounts for drugs sharing target genes. The
-# drug-drug correlation is the exact one TWAS-GSEA computes internally (dumped via --drug_corr_out on
-# the directional per-drug run). Directional; reports a coefficient + 95% CI. Requires
-# twas_gsea_drugtargetor. See docs/pipeline_technical.Rmd.
+# Drug-level model-based ATC-class drug enrichment for TWAS-GSEA. Enables BOTH the recommended
+# VIF-OLS test (CAMERA-style; Wu & Smyth 2012) and the GLS test (DRUGSETS-style; Bell et al. 2022):
+# both regress the per-drug signed TWAS-GSEA T on ATC-class membership (+ gene-set-size covariates)
+# and account for drugs sharing target genes (VIF-OLS via a variance-inflated OLS contrast; GLS by
+# whitening the drug-drug correlation TWAS-GSEA dumps via --drug_corr_out). They ask the same
+# question as the legacy Wilcoxon (are in-class drugs' associations elevated vs other drugs?), which
+# is kept for comparison. Directional; report a coefficient (+ 95% CI). Requires
+# twas_gsea_drugtargetor. See docs/atc_enrichment_estimator_validation.Rmd.
 drug_targetor_atc_gls: F
 
 # Pathway enrichment against user-supplied MSigDB-style .gmt files (Entrez gene IDs).

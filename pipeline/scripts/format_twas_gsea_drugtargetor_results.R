@@ -10,9 +10,7 @@ option_list = list(
   make_option("--mode", action="store", default='directional', type='character',
               help="Either 'directional' (default) or 'nondirectional'"),
   make_option("--config_file", action="store", default=NA, type='character',
-              help="Path to config file [required]"),
-  make_option("--vif_adjust", action="store", default='F', type='character',
-              help="If 'T', additionally emit camera-style variance-inflation (VIF) adjusted ATC-level P-values that account for within-class drug correlation. Default 'F' (off; output columns unchanged). Experimental: kept as an opt-in protocol, not yet the default.")
+              help="Path to config file [required]")
 )
 
 option_list <- c(option_list, list(
@@ -28,36 +26,6 @@ suffix <- if(opt$mode == 'nondirectional') '_nondir' else ''
 
 library(data.table)
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
-
-vif_on <- toupper(opt$vif_adjust) %in% c('T','TRUE','YES','1')
-
-# --- Camera-style rank-sum test with within-set correlation (experimental) ---
-# Faithful to limma::rankSumTestWithCorrelation (Wu & Smyth 2012, "camera";
-# Barry, Nobel & Wright 2008): the ATC-level competitive Wilcoxon treats each
-# drug as an independent draw, but drugs in a class share target genes so their
-# T are correlated (often identical), making the naive P anti-conservative. This
-# inflates the rank-sum null variance by the mean within-class correlation.
-# Returns a signed z; the caller turns it into a one- or two-sided P.
-rankSumCorr <- function(statistics, index, correlation = 0) {
-  ok <- !is.na(statistics)
-  statistics <- statistics[ok]; index <- index[ok]
-  n  <- length(statistics)
-  r  <- rank(statistics)                 # average ranks handle tied T
-  n1 <- sum(index); n2 <- n - n1
-  U  <- sum(r[index]) - n1 * (n1 + 1) / 2
-  mu <- n1 * n2 / 2
-  if (correlation <= 0 || n1 < 2) {
-    sigma2 <- n1 * n2 * (n + 1) / 12
-  } else {
-    sigma2 <- n1 * n2 / (2 * pi) * (
-        asin(1) +
-        (n2 - 1)            * asin(0.5) +
-        (n1 - 1) * (n2 - 1) * asin(correlation / 2) +
-        (n1 - 1)            * asin((correlation + 1) / 2)
-    )
-  }
-  (U - mu) / sqrt(sigma2)
-}
 
 # Read in config file
 config<-readLines(opt$config_file)
@@ -135,57 +103,10 @@ atc$Name<-tolower(atc$Name)
 
 # Canonical membership: each drug's own ATC codes (clean.csv 'ATC', dot-joined), exploded to every
 # class, unique per drug. The rank-sum below runs over UNIQUE drugs (no drug*code pseudo-replication).
-res$pcode <- substr(vapply(strsplit(res$ATC, '.', fixed = TRUE), `[`, character(1), 1L), 1, 7)  # primary 7-char (VIF M lookup)
-
-# --- VIF prerequisites (only when --vif_adjust T) ----------------------------
-# Estimate the mean pairwise correlation of the drugs in a class from the cosine
-# similarity of their signed target-membership vectors, restricted to the genes
-# actually modelled in this panel. Under an iid-gene approximation this cosine is
-# the correlation of the drug-level T statistics (identical available targets =>
-# rho 1, matching the identical-T pseudo-replication we see within e.g. N05BA).
-# It ignores gene-gene TWAS correlation among distinct targets, which would only
-# raise rho, so the resulting VIF is a mild lower bound on the needed deflation.
-if(vif_on){
-  membership <- fread(paste0(resdir, '/data/drug_targetor/wholedatabase_for_targetor_directional.prop'))
-  drug_cols  <- names(membership)[-1]
-  col_atc    <- sub('^ATC:([^|]+)\\|.*', '\\1', drug_cols)     # column -> 7-char ATC code
-  twas_genes <- fread(paste0(outdir,'/results/',opt$twas,'/twas/',opt$twas,'_twas_',opt$panel,'_GW_clean.txt.gz'),
-                      select = 'external_gene_name')
-  avail      <- unique(twas_genes$external_gene_name)
-  mem_av     <- membership[membership$ID %in% avail]           # rows = modelled genes
-  keep_col   <- col_atc %in% res$pcode & !duplicated(col_atc)
-  M          <- as.matrix(mem_av[, drug_cols[keep_col], with = FALSE])
-  storage.mode(M) <- 'double'
-  colnames(M) <- col_atc[keep_col]
-
-  # Mean off-diagonal cosine similarity among the drugs (by ATC code) in a class.
-  rho_bar <- function(codes){
-    codes <- intersect(codes, colnames(M))
-    if(length(codes) < 2) return(0)
-    X  <- M[, codes, drop = FALSE]
-    X  <- X[, colSums(abs(X)) > 0, drop = FALSE]               # drop drugs with no modelled targets
-    if(ncol(X) < 2) return(0)
-    nrm <- sqrt(colSums(X^2))
-    C   <- crossprod(X) / outer(nrm, nrm)
-    max(0, mean(C[upper.tri(C)]))                              # floor at 0 (negative mean corr -> no inflation)
-  }
-
-  # Per-class VIF metrics + adjusted P, aligned to a set of in-class rows.
-  vif_metrics <- function(class_bin){
-    n1  <- sum(class_bin == 1)
-    rho <- rho_bar(res$pcode[class_bin == 1])
-    vif <- 1 + (n1 - 1) * rho
-    z   <- rankSumCorr(res$T, class_bin == 1, correlation = rho)
-    p   <- if(opt$mode == 'directional') 2*pnorm(-abs(z)) else pnorm(z, lower.tail = FALSE)
-    data.frame(Rho_Bar = rho, VIF = vif, Eff_N = n1 / vif, P_VIF = p)
-  }
-}
-
 # Test for enrichment for each ATC L3 class, over UNIQUE drugs (canonical membership; threshold >= 5).
 drug_cls3 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 4)))
 cls3      <- sort(unique(unlist(drug_cls3))); cls3 <- cls3[nchar(cls3) == 4]
 atc_enrich<-NULL
-vif_l3<-NULL
 for(cat in cls3){
   class_bin <- as.numeric(vapply(drug_cls3, function(x) cat %in% x, logical(1)))
 
@@ -209,8 +130,6 @@ for(cat in cls3){
                                              Non_Class_Median=median(res$Estimate[class_bin == 0]),
                                              P=wil_cox_res$p.value,
                                              N=sum(class_bin)))
-
-    if(vif_on) vif_l3<-rbind(vif_l3, cbind(data.frame(ATC=cat), vif_metrics(class_bin)))
   }
 }
 
@@ -239,20 +158,12 @@ if(opt$mode == 'directional'){
   atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P)
 }
 
-# Experimental VIF-adjusted columns (opt-in): FDR is over the VIF P within this table.
-if(vif_on){
-  vif_l3$P_VIF_CORR <- p.adjust(vif_l3$P_VIF, method='fdr')
-  atc_enrich <- merge(atc_enrich, vif_l3, by='ATC', all.x=TRUE)
-  atc_enrich <- atc_enrich[order(atc_enrich$P),]
-}
-
 write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res.csv'), row.names=F)
 
 # Test for enrichment for each level 4 ATC class, over UNIQUE drugs (canonical membership; threshold >= 5).
 drug_cls4 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 5)))
 cls4      <- sort(unique(unlist(drug_cls4))); cls4 <- cls4[nchar(cls4) == 5]
 atc_enrich_2<-NULL
-vif_l4<-NULL
 for(cat in cls4){
   class_bin <- as.numeric(vapply(drug_cls4, function(x) cat %in% x, logical(1)))
 
@@ -276,8 +187,6 @@ for(cat in cls4){
                                              Non_Class_Median=median(res$Estimate[class_bin == 0]),
                                              P=wil_cox_res$p.value,
                                              N=sum(class_bin)))
-
-    if(vif_on) vif_l4<-rbind(vif_l4, cbind(data.frame(ATC=cat), vif_metrics(class_bin)))
   }
 }
 
@@ -293,13 +202,6 @@ if(opt$mode == 'directional'){
 } else {
   atc_enrich_2$Direction  <- NA_character_
   atc_enrich_2$Reversal_Z <- qnorm(1 - atc_enrich_2$P)
-}
-
-# Experimental VIF-adjusted columns (opt-in); FDR is over the VIF P within this table.
-if(vif_on){
-  vif_l4$P_VIF_CORR <- p.adjust(vif_l4$P_VIF, method='fdr')
-  atc_enrich_2 <- merge(atc_enrich_2, vif_l4, by='ATC', all.x=TRUE)
-  atc_enrich_2 <- atc_enrich_2[order(atc_enrich_2$P),]
 }
 
 write.csv(atc_enrich_2, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res_level4.csv'), row.names=F)
