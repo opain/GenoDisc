@@ -22,7 +22,7 @@
 .gd_long_cols <- c(
   "gwas", "entity_type", "entity_id", "entity_label",
   "method", "panel", "statistic", "se", "p", "fdr",
-  "evidence", "direction", "reversal_z", "n_units"
+  "evidence", "direction", "reversal_z", "n_units", "atc_test", "level"
 )
 
 .gd_empty_long <- function() {
@@ -40,7 +40,9 @@
     evidence     = logical(0),
     direction    = character(0),
     reversal_z   = numeric(0),
-    n_units      = integer(0)
+    n_units      = integer(0),
+    atc_test     = character(0),
+    level        = character(0)
   )
 }
 
@@ -49,7 +51,8 @@
                         statistic = NA_real_, se = NA_real_,
                         p = NA_real_, fdr = NA_real_,
                         evidence = NA, direction = NA_character_,
-                        reversal_z = NA_real_, n_units = NA_integer_) {
+                        reversal_z = NA_real_, n_units = NA_integer_,
+                        atc_test = NA_character_, level = NA_character_) {
   data.table::data.table(
     gwas         = as.character(gwas),
     entity_type  = as.character(entity_type),
@@ -64,7 +67,9 @@
     evidence     = as.logical(evidence),
     direction    = as.character(direction),
     reversal_z   = as.numeric(reversal_z),
-    n_units      = as.integer(n_units)
+    n_units      = as.integer(n_units),
+    atc_test     = as.character(atc_test),
+    level        = as.character(level)
   )
 }
 
@@ -90,21 +95,41 @@
   )
 }
 
-.gd_long_atc_magma <- function(gd, gwas) {
-  m <- safe_access(gd_read(gd, gwas, "tx/atc"), "magma")
-  if (is.null(m) || nrow(m) == 0) return(NULL)
-  m <- as.data.frame(m)
+# Map one ATC-enrichment block (VIF / GLS / legacy-Wilcoxon; MAGMA or TWAS-GSEA) to long rows,
+# tagged with atc_test (method) and level so the compare view can toggle both. Model-based (VIF/GLS)
+# blocks carry a Level column (L2/L3/L4) — carried through as `level`; legacy Wilcoxon has no Level
+# column and is L3-only, so its rows are tagged level = "L3". The compare view filters downstream.
+.gd_atc_long_from_block <- function(df, gwas, engine, atc_test) {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  df <- as.data.frame(df)
+  is_magma <- engine == "magma"
   .gd_long_row(
     gwas         = gwas,
     entity_type  = "atc",
-    entity_id    = m[["ATC Code"]],
-    method       = "MAGMA-ATC",
-    entity_label = paste0(m[["ATC Code"]], ": ", m[["ATC Description"]]),
-    panel        = NA_character_,
-    p            = suppressWarnings(as.numeric(m$P)),
-    fdr          = suppressWarnings(as.numeric(m$P.FDR)),
-    n_units      = suppressWarnings(as.integer(m[["N Drugs"]]))
+    entity_id    = df[["ATC Code"]],
+    method       = if (is_magma) "MAGMA-ATC" else "TWAS-GSEA-ATC",
+    entity_label = paste0(df[["ATC Code"]], ": ", df[["ATC Description"]]),
+    panel        = if (is_magma) NA_character_ else as.character(df$Panel),
+    statistic    = if (is_magma) NA_real_ else suppressWarnings(as.numeric(df$Estimate)),
+    p            = suppressWarnings(as.numeric(df$P)),
+    fdr          = suppressWarnings(as.numeric(df$P.FDR)),
+    direction    = if (is_magma) NA_character_ else as.character(df$Direction),
+    reversal_z   = if (is_magma) NA_real_ else suppressWarnings(as.numeric(df$Reversal_Z)),
+    n_units      = suppressWarnings(as.integer(df[["N Drugs"]])),
+    atc_test     = atc_test,
+    level        = if ("Level" %in% names(df)) as.character(df$Level) else "L3"
   )
+}
+
+.gd_long_atc_magma <- function(gd, gwas) {
+  parts <- list(
+    .gd_atc_long_from_block(gd_read(gd, gwas, "tx/atc_vif_magma"),             gwas, "magma", "vif"),
+    .gd_atc_long_from_block(gd_read(gd, gwas, "tx/atc_gls_magma"),             gwas, "magma", "gls"),
+    .gd_atc_long_from_block(safe_access(gd_read(gd, gwas, "tx/atc"), "magma"), gwas, "magma", "legacy")
+  )
+  parts <- Filter(Negate(is.null), parts)
+  if (length(parts) == 0) return(NULL)
+  data.table::rbindlist(parts, use.names = TRUE)
 }
 
 # The NearestGene column in snp_assoc$clump / $cojo is a comma-separated list
@@ -365,25 +390,16 @@
   )
 }
 
+# Direction is authoritative for sign; do not derive from Estimate.
 .gd_long_atc_gsea <- function(gd, gwas) {
-  g <- safe_access(gd_read(gd, gwas, "tx/atc"), "twas_gsea")
-  if (is.null(g) || nrow(g) == 0) return(NULL)
-  g <- as.data.frame(g)
-  # Direction is authoritative for sign; do not derive from Estimate.
-  .gd_long_row(
-    gwas         = gwas,
-    entity_type  = "atc",
-    entity_id    = g[["ATC Code"]],
-    method       = "TWAS-GSEA-ATC",
-    entity_label = paste0(g[["ATC Code"]], ": ", g[["ATC Description"]]),
-    panel        = as.character(g$Panel),
-    statistic    = suppressWarnings(as.numeric(g$Estimate)),
-    p            = suppressWarnings(as.numeric(g$P)),
-    fdr          = suppressWarnings(as.numeric(g$P.FDR)),
-    direction    = as.character(g$Direction),
-    reversal_z   = suppressWarnings(as.numeric(g$Reversal_Z)),
-    n_units      = suppressWarnings(as.integer(g[["N Drugs"]]))
+  parts <- list(
+    .gd_atc_long_from_block(gd_read(gd, gwas, "tx/atc_vif"),                       gwas, "gsea", "vif"),
+    .gd_atc_long_from_block(gd_read(gd, gwas, "tx/atc_gls"),                       gwas, "gsea", "gls"),
+    .gd_atc_long_from_block(safe_access(gd_read(gd, gwas, "tx/atc"), "twas_gsea"), gwas, "gsea", "legacy")
   )
+  parts <- Filter(Negate(is.null), parts)
+  if (length(parts) == 0) return(NULL)
+  data.table::rbindlist(parts, use.names = TRUE)
 }
 
 #' Build the cross-GWAS long tibble
@@ -547,8 +563,9 @@ build_overview_yield <- function(long, gd, gwas_vec,
     t_slice <- long[gwas == g & method == "MAGMA-tissue"]
     n_tissues <- if (nrow(t_slice) > 0) sum(is_sig(t_slice$fdr)) else NA_integer_
 
-    # Sig ATC classes: best-per-cell then count sig.
-    a_slice <- long[gwas == g & entity_type == "atc"]
+    # Sig ATC classes: best-per-cell then count sig. Pinned to L3 (the canonical
+    # ATC-class level) so the yield is unaffected by L2/L4 rows now carried in long.
+    a_slice <- long[gwas == g & entity_type == "atc" & (is.na(level) | level == "L3")]
     n_atc <- if (nrow(a_slice) > 0) {
       best <- pick_best_per_cell(a_slice, c("gwas", "method", "entity_id"))
       sum(is_sig(best$fdr))

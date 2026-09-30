@@ -1570,6 +1570,9 @@ gene_compare_server <- function(id, gwas_data, selected_gwas_multi,
 }
 
 atc_compare_ui <- function(ns) {
+  # Method (VIF/GLS/legacy) and level (L2/L3/L4) are driven by the single-GWAS central control
+  # bar above the Single/Multi tabset (mod_enrichment.R), passed into atc_compare_server — so
+  # this view carries no controls of its own.
   tabsetPanel(
     tabPanel("MAGMA", br(),
       p("Cross-GWAS MAGMA drug-class enrichment. Cell colour intensity is ",
@@ -1869,7 +1872,7 @@ atc_compare_ui <- function(ns) {
 }
 
 atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
-                                 comparison_long) {
+                                 comparison_long, atc_source, atc_level) {
   moduleServer(id, function(input, output, session) {
 
     # Update the TWAS-GSEA panel dropdown with the panels actually present.
@@ -1881,6 +1884,17 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                     setNames(panels, panels))
       updateSelectInput(session, "gsea_panel",
                          choices = choices, selected = "__best__")
+    })
+
+    # ATC method (VIF/GLS/legacy) and level (L2/L3/L4) come from the single-GWAS central
+    # control bar (mod_enrichment.R), passed in as reactives. comparison_long carries every
+    # available method (tagged `atc_test`) and level (tagged `level`), so switching either just
+    # re-filters the pre-built table. Legacy Wilcoxon is L3-only, so it is exempt from level
+    # filtering (mirrors the single-GWAS by_level=FALSE handling and the central level control
+    # being hidden for legacy).
+    atc_source_sel <- reactive(atc_source() %||% "vif")
+    atc_level_active <- reactive({
+      if (identical(atc_source_sel(), "legacy")) NA_character_ else (atc_level() %||% "L3")
     })
 
     # Server-side k sliders so max always tracks the current selection.
@@ -1917,7 +1931,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     magma_plot <- reactive({
       req(comparison_long())
       .atc_magma_ggplot(
-        long           = comparison_long(),
+        long           = comparison_long()[atc_test == atc_source_sel() & (is.na(atc_level_active()) | level == atc_level_active())],
         gwas_vec       = magma_gwas_vec(),
         only_recurrent = isTRUE(input$magma_only_recurrent),
         k_min          = if (is.null(input$magma_k_min)) 2L else as.integer(input$magma_k_min),
@@ -1962,7 +1976,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     atc_magma_tbl_slice <- reactive({
       req(comparison_long())
-      comparison_long()[method == "MAGMA-ATC" & gwas %in% magma_gwas_vec()]
+      comparison_long()[method == "MAGMA-ATC" & atc_test == atc_source_sel() & (is.na(atc_level_active()) | level == atc_level_active()) & gwas %in% magma_gwas_vec()]
     })
 
     output$atc_magma_tbl <- DT::renderDT({
@@ -2004,7 +2018,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
         gwas_vec <- magma_gwas_vec()
-        long <- comparison_long()[method == "MAGMA-ATC" & gwas %in% gwas_vec]
+        long <- comparison_long()[method == "MAGMA-ATC" & atc_test == atc_source_sel() & (is.na(atc_level_active()) | level == atc_level_active()) & gwas %in% gwas_vec]
         wide <- pivot_matrix(long, "fdr", gwas_vec)
         colnames(wide) <- gwas_label_of(gwas_data(), colnames(wide))
         header <- sprintf("# GenoDisc ATC MAGMA compare CSV | %s | sig_basis=%s threshold=%g k_min=%s",
@@ -2027,7 +2041,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     gsea_plot <- reactive({
       req(comparison_long())
       .atc_gsea_ggplot(
-        long           = comparison_long(),
+        long           = comparison_long()[atc_test == atc_source_sel() & (is.na(atc_level_active()) | level == atc_level_active())],
         gwas_vec       = gsea_gwas_vec(),
         only_recurrent = isTRUE(input$gsea_only_recurrent),
         k_min          = if (is.null(input$gsea_k_min)) 2L else as.integer(input$gsea_k_min),
@@ -2073,7 +2087,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
 
     atc_gsea_tbl_slice <- reactive({
       req(comparison_long())
-      comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gsea_gwas_vec()]
+      comparison_long()[method == "TWAS-GSEA-ATC" & atc_test == atc_source_sel() & (is.na(atc_level_active()) | level == atc_level_active()) & gwas %in% gsea_gwas_vec()]
     })
 
     output$atc_gsea_tbl <- DT::renderDT({
@@ -2118,7 +2132,7 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
                                      format(Sys.time(), "%Y%m%d_%H%M%S")),
       content = function(file) {
         gwas_vec <- gsea_gwas_vec()
-        long <- comparison_long()[method == "TWAS-GSEA-ATC" & gwas %in% gwas_vec]
+        long <- comparison_long()[method == "TWAS-GSEA-ATC" & atc_test == atc_source_sel() & (is.na(atc_level_active()) | level == atc_level_active()) & gwas %in% gwas_vec]
         best <- pick_best_per_cell(long, c("gwas", "entity_id"))
         best[, match_z := -reversal_z]
         wide <- pivot_matrix(best, "match_z", gwas_vec)

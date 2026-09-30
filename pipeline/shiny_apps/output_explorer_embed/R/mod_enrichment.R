@@ -549,9 +549,14 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       tissue_compare_server("tissue_compare",
                              gwas_data, selected_gwas_multi,
                              comparison_long)
+      # Drive the multi-GWAS ATC compare view from the same central control bar as the
+      # single-GWAS view: pass the ATC method + level inputs through as reactives so there is
+      # one shared set of controls (atc_default_src() is the vif->gls->legacy fallback).
       atc_compare_server("atc_compare",
                           gwas_data, selected_gwas_multi,
-                          comparison_long)
+                          comparison_long,
+                          atc_source = reactive(input$atc_source %||% atc_default_src()),
+                          atc_level  = reactive(input$atc_level  %||% "L3"))
       drug_compare_server("drug_compare",
                            gwas_data, selected_gwas_multi,
                            comparison_long)
