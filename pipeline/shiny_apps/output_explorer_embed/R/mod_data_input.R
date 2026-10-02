@@ -3,6 +3,7 @@ dataInputUI <- function(id) {
   tabPanel(
     title="Data Input",
     br(),
+    uiOutput(ns("loaded_status")),
     p("This is an application for visualising the output of GenoDisc. Upload the 'bundle.tar.gz' file output by the GenoDisc pipeline (a legacy 'results_package.rds' also works). Every GWAS present in the bundle is loaded — per-GWAS content is selected via GWAS pickers inside the individual tabs."),
     hr(),
     h5("Choose a bundle (.tar.gz) or legacy .rds file"),
@@ -23,6 +24,11 @@ dataInputServer <- function(id) {
   moduleServer(id, function(input, output, session) {
 
     rds_path <- reactiveVal('')
+
+    # What produced the currently-loaded bundle, for the "Now viewing" banner
+    # and the Data Input loaded-state panel. list(kind=, text=). Set alongside
+    # rds_path() in each of the three load entry points below.
+    source_label <- reactiveVal(NULL)
 
     # Extract dir of the currently-loaded bundle, so we can unlink it on
     # bundle swap and session end (shinyapps.io 1 GB RAM / small /tmp).
@@ -52,6 +58,7 @@ dataInputServer <- function(id) {
         file.rename(path, new_path)
         path <- new_path
       }
+      source_label(list(kind = "upload", text = orig))
       rds_path(path)
     })
 
@@ -66,9 +73,59 @@ dataInputServer <- function(id) {
       )
       hit <- candidates[file.exists(candidates)][1]
       if (!is.na(hit)) {
+        source_label(list(kind = "example", text = "Example data (ALS)"))
         rds_path(normalizePath(hit, winslash = "/"))
       } else {
         showNotification("Example data file not found (looked for data/als_bundle.tar.gz).", type = "error")
+      }
+    })
+
+    # "Open in viewer" preload: the GenoDisc web app opens this viewer with
+    # ?job=<token>&src=<origin>. The token is a single-use capability minted by
+    # the (owner-scoped) web app; we exchange it via the web app's resolve
+    # endpoint for the bundle path on the shared mount, then load it exactly
+    # like an upload. `src` is checked against an allowlist BEFORE any request,
+    # so the token is never sent anywhere but a trusted GenoDisc origin.
+    observeEvent(session$clientData$url_search, once = TRUE, {
+      q <- parseQueryString(session$clientData$url_search)
+      token <- q[["job"]]; src <- q[["src"]]
+      if (is.null(token) || !nzchar(token) || is.null(src) || !nzchar(src)) return()
+
+      # The web app is behind Portal SSO on its public host, so it hands us an
+      # INTERNAL localhost base to call back on (dev :6000, prod :5000). Only
+      # these co-located origins are trusted.
+      allow <- getOption(
+        "genodisc.resolver_allowlist",
+        c("http://localhost:5000", "http://localhost:6000",
+          "http://127.0.0.1:5000", "http://127.0.0.1:6000")
+      )
+      src <- sub("/+$", "", src)
+      if (!(src %in% allow)) {
+        showNotification("This preview link is from an unrecognised source and was not opened.", type = "error")
+        return()
+      }
+
+      url <- paste0(src, "/api/viewer/resolve/?job=", utils::URLencode(token, reserved = TRUE))
+      res <- tryCatch(jsonlite::fromJSON(url), error = function(e) NULL)
+      path <- if (is.list(res)) res[["path"]] else NULL
+
+      if (!is.null(path) && nzchar(path) && file.exists(path)) {
+        lbl <- if (is.list(res) && !is.null(res[["label"]]) && nzchar(res[["label"]])) {
+          paste0("Job ", res[["label"]])
+        } else {
+          "your GenoDisc dashboard"
+        }
+        source_label(list(kind = "job", text = lbl))
+        showNotification(
+          paste0("Loaded results from ", lbl, " — showing them now."),
+          type = "message", duration = 6
+        )
+        rds_path(path)
+      } else {
+        showNotification(
+          "This preview link has expired. Please reopen it from your GenoDisc dashboard.",
+          type = "error", duration = NULL
+        )
       }
     })
 
@@ -145,6 +202,47 @@ dataInputServer <- function(id) {
     # user-controlled.
     comparison_mode <- reactive({
       length(selected_gwas_multi()) > 1L
+    })
+
+    # Compact description of what's loaded — shared by the Data Input panel
+    # below and the app-level "Now viewing" banner (app.R).
+    view_summary <- reactive({
+      req(gwas_data())
+      gd <- gwas_data()
+      sl <- source_label()
+      pv <- tryCatch(gd_config(gd)$pipeline_version, error = function(e) NULL)
+      if (!is.null(pv) && (length(pv) != 1L || is.na(pv))) pv <- NULL
+      list(
+        kind     = if (is.null(sl)) "upload" else sl$kind,
+        source   = if (is.null(sl)) "a bundle" else sl$text,
+        gwas     = gd_gwas(gd),
+        pipeline = pv
+      )
+    })
+
+    # Loaded-state panel at the top of the Data Input tab, so returning here
+    # after a load (or auto-load) clearly shows what is being viewed, with the
+    # upload controls still available for swapping to a different bundle.
+    output$loaded_status <- renderUI({
+      vs <- view_summary()
+      ng <- length(vs$gwas)
+      gwas_txt <- paste(vs$gwas, collapse = ", ")
+      pipe_txt <- if (!is.null(vs$pipeline)) paste0(", pipeline ", vs$pipeline) else ""
+      div(
+        style = paste(
+          "border: 1px solid var(--gd-border);",
+          "border-left: 4px solid var(--gd-accent);",
+          "background: var(--gd-panel-2);",
+          "color: var(--gd-text);",
+          "border-radius: var(--gd-r-card, 12px);",
+          "padding: 12px 16px; margin-bottom: 14px;"
+        ),
+        tags$span(style = "color: var(--gd-accent); font-weight: 600;", "✓ "),
+        strong("Currently loaded: "), vs$source,
+        tags$div(style = "color: var(--gd-text-mute); margin-top: 3px; font-size: 0.92em;",
+          sprintf("%d GWAS (%s)%s. Results are in the tabs above.",
+                  ng, gwas_txt, pipe_txt))
+      )
     })
 
     list(
