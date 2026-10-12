@@ -64,6 +64,11 @@ rule sumstat_prep_i:
     n= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'n'].iloc[0],
     path= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'path'].iloc[0],
     resdir=resdir,
+    # Per-SHA GenoUtils library (see rule install_genoutils). Exported as
+    # R_LIBS_USER below so both the system.file lookup and the cleaner's own
+    # library(GenoUtils) resolve the pinned copy rather than any build in the
+    # shared conda env.
+    genoutils_lib=f"{resdir}/software/genoutils/{GENOUTILS_SHA}",
     # When the run is restricted to a single chromosome (e.g. chromosomes: [22]
     # for test mode, or a chr-restricted input like the chr22 demo), pass it to
     # sumstat_cleaner's --test so ref_harmonise only harmonises that chromosome.
@@ -75,6 +80,7 @@ rule sumstat_prep_i:
     f"{outdir}/logs/sumstat_prep_i-{{gwas}}.log"
   shell:
     """
+    export R_LIBS_USER={params.genoutils_lib}
     (sumstat_cleaner_script=$(Rscript --vanilla -e 'cat(system.file("scripts", "sumstat_cleaner.R", package = "GenoUtils"))')
     Rscript --vanilla $sumstat_cleaner_script \
       --sumstats {params.path} \

@@ -146,7 +146,7 @@ chromosomes = config.get("chromosomes", list(range(1, 23)))
 # resdir; from a fresh job dir Snakemake has no code-provenance to notice the
 # SHA changed in the shell command, so a plain 'install_*.done' marker would be
 # treated as up-to-date and the reinstall silently skipped.)
-GENOUTILS_SHA = "501f1d19a774a6e17b61ae0271f170ca2f15e949"
+GENOUTILS_SHA = "73a18fbf25ad1ca35d5a6e510283e5bf2f2b1294"
 LME4QTL_SHA = "0c173ea8d8386b205f62ad642698519a861650b4"
 
 ########
@@ -380,7 +380,12 @@ rule install_genoutils:
   output:
     touch(f"{resdir}/software/install_genoutils.{GENOUTILS_SHA}.done")
   params:
-    sha=GENOUTILS_SHA
+    sha=GENOUTILS_SHA,
+    # Install GenoUtils into a per-SHA library (not into the shared conda env) so
+    # each pipeline version resolves the exact GenoUtils it pins. Bumping the SHA
+    # never overwrites the GenoUtils that older versions use. sumstat_prep_i points
+    # R_LIBS_USER at the matching dir.
+    libdir=f"{resdir}/software/genoutils/{GENOUTILS_SHA}"
   benchmark:
     f"{resdir}/benchmarks/install_genoutils.tsv"
   conda:
@@ -388,7 +393,8 @@ rule install_genoutils:
   log:
     f"{resdir}/logs/install_genoutils.log"
   shell:
-    "Rscript --vanilla -e 'devtools::install_github(\"opain/GenoUtils@{params.sha}\", upgrade = \"never\")' > {log} 2>&1"
+    "mkdir -p {params.libdir} && "
+    "Rscript --vanilla -e '.libPaths(c(\"{params.libdir}\", .libPaths())); devtools::install_github(\"opain/GenoUtils@{params.sha}\", lib = \"{params.libdir}\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Download MAGMA
