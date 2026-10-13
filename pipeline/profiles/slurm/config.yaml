@@ -23,7 +23,7 @@
 # the shell.
 cluster:
   mkdir -p logs/slurm/{rule} &&
-  sbatch
+  bash /scratch/prj/neurohackpain/GenoDisc/repo/current/pipeline/profiles/slurm/sbatch-submit.sh
     --parsable
     --partition=${{GENODISC_PARTITIONS:-neurohack_cpu}}
     --job-name=gd-{rule}-{wildcards}
