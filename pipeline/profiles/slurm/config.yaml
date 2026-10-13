@@ -113,8 +113,15 @@ set-resources:
 jobs: 40
 latency-wait: 90
 restart-times: 2
-max-jobs-per-second: 5
-max-status-checks-per-second: 5
+# Per-orchestrator rate limits on calls to the SLURM controller. Lowered from
+# 5 -> 2 on 2026-10-13: with several orchestrators active at once (one shared
+# service account), the aggregate squeue/sacct/sbatch traffic was overloading
+# slurmctld, causing sbatch/squeue to time out (SSH submits spuriously failing;
+# see the SUBMISSION-FAILED flakiness). status-checks is the heavier call
+# (slurm-status.sh runs squeue then sacct per job), so both are trimmed.
+# Trade-off: slightly slower completion detection / job launch per orchestrator.
+max-jobs-per-second: 2
+max-status-checks-per-second: 2
 rerun-incomplete: true
 use-conda: true
 conda-frontend: mamba
