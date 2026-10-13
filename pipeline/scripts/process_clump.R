@@ -55,6 +55,13 @@ Genes<-Genes[!duplicated(Genes),]
 
 window<-50000
 
+# Always emit a NearestGene column, even when there are no clumped SNPs. The
+# per-SNP loop below only creates it as a side effect, so an empty ss_subset
+# (GWAS with no genome-wide-significant clumps) would otherwise write a CSV
+# missing this column, which downstream consumers expect (e.g. plot_manhattan.R
+# fread(..., select=c(..., "NearestGene"))). Non-empty runs overwrite each row.
+ss_subset$NearestGene<-NA_character_
+
 for(i in seq_len(nrow(ss_subset))){
   Genes_i<-Genes[Genes$start_position < (ss_subset$BP[i] + window) & Genes$end_position > (ss_subset$BP[i] - window) & Genes$chromosome_name == ss_subset$CHR[i],]
   if(nrow(Genes_i) != 0){
