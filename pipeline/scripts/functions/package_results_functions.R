@@ -586,7 +586,14 @@ read_magma_gene<-function(config, gwas){
 }
 
 identify_nearest<-function(x){
-  if(!is.null(x)){
+  # A GWAS with no genome-wide-significant clumps writes a header-only
+  # clump.clean.csv, so fread types the empty NearestGene column as logical(0)
+  # (not character) - guard against that (and NULL/NA) before strsplit, which
+  # errors on a non-character argument. Coerce so a real character column is
+  # unaffected.
+  x <- as.character(x)
+  x <- x[!is.na(x)]
+  if(length(x) > 0){
     # Identify genes containing lead SNP (Some are within multiple genes)
     nearest_list<-unlist(strsplit(x,','))
     nearest_list<-nearest_list[!grepl("kb", nearest_list)]

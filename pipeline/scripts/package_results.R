@@ -210,9 +210,12 @@ for(gwas_i in gwas_list$name){
   mol_assoc$finemap<-list()
 
   if(read_param(config = opt$config, param = 'finemap', return_obj = F) == "T"){
-    mol_assoc$finemap$L1<-unlist(strsplit(snp_assoc$susie$L1$Gene, ', '))
+    # as.character guards the no-signal case: an empty finemap CSV makes
+    # process_susie return a 0-row table whose $Gene is logical(0), which
+    # strsplit rejects as a non-character argument.
+    mol_assoc$finemap$L1<-unlist(strsplit(as.character(snp_assoc$susie$L1$Gene), ', '))
     mol_assoc$finemap$L1<-mol_assoc$finemap$L1[mol_assoc$finemap$L1 != 'None']
-    mol_assoc$finemap$L10<-unlist(strsplit(snp_assoc$susie$L10$Gene, ', '))
+    mol_assoc$finemap$L10<-unlist(strsplit(as.character(snp_assoc$susie$L10$Gene), ', '))
     mol_assoc$finemap$L10<-mol_assoc$finemap$L10[mol_assoc$finemap$L10 != 'None']
   } else {
     mol_assoc$finemap<-NULL
