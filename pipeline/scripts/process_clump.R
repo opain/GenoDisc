@@ -55,7 +55,7 @@ Genes<-Genes[!duplicated(Genes),]
 
 window<-50000
 
-for(i in 1:nrow(ss_subset)){
+for(i in seq_len(nrow(ss_subset))){
   Genes_i<-Genes[Genes$start_position < (ss_subset$BP[i] + window) & Genes$end_position > (ss_subset$BP[i] - window) & Genes$chromosome_name == ss_subset$CHR[i],]
   if(nrow(Genes_i) != 0){
     gene_string<-NULL
