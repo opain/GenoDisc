@@ -11,27 +11,6 @@ overviewUI <- function(id) {
   tabPanel(
     title = "Overview",
     br(),
-    tags$details(class = "gd-details",
-      tags$summary("Filter data"),
-      tags$div(class = "gd-details-body",
-        fluidRow(
-          column(6,
-            numericInput(ns("sig_threshold"), "FDR significance threshold:",
-                          value = 0.05, min = 1e-12, max = 1, step = 0.01)
-          ),
-          column(6,
-            selectInput(ns("gwas_sort"), "Order GWAS by:",
-                         choices = c("As selected"   = "as_selected",
-                                      "Alphabetical" = "alphabetical",
-                                      "Sample size"  = "n",
-                                      "N sig SNPs"   = "n_sig_snp",
-                                      "SNP-h²"       = "h2"),
-                         selected = "as_selected")
-          )
-        )
-      )
-    ),
-    br(),
     tags$div(style = "max-width: 1100px;",
       h4("QC and power"),
       p(

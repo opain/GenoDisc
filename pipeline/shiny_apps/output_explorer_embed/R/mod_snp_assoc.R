@@ -409,14 +409,15 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                           "Suggestive line at P <:", value = "1e-5")
               ),
               textInput(ns("mh_highlight_threshold"),
-                        "Highlight independent leads at P <:", value = "5e-8",
+                        "Highlight independent leads at P < (max 1e-5):", value = "5e-8",
                         placeholder = "max 1e-5 (the clumping P threshold)"),
               checkboxInput(ns("mh_label"),
                             "Label nearest gene at lead variants", value = FALSE),
               conditionalPanel(
                 condition = sprintf("input['%s'] == true", ns("mh_label")),
                 textInput(ns("mh_label_threshold"),
-                          "Label leads with P <:", value = "5e-8")
+                          "Label leads with P < (max 1e-5):", value = "5e-8",
+                          placeholder = "max 1e-5 (the clumping P threshold)")
               )
             ),
             column(4,
@@ -520,7 +521,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         # P above that exists in the data, so a looser value is meaningless.
         highlight_threshold  = min(parse_p(input$mh_highlight_threshold, 5e-8), 1e-5),
         label_variants      = isTRUE(input$mh_label),
-        label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
+        # Cap at 1e-5 as above — no labelled index variant exists above it.
+        label_threshold     = min(parse_p(input$mh_label_threshold, 5e-8), 1e-5),
         font_size           = input$mh_font_size  %||% 14,
         point_size          = input$mh_point_size %||% 0.9,
         theme_fn            = mol_theme_fn(input$mh_theme),
@@ -558,9 +560,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         p <- build_manhattan_plot(
           md,
           sig_threshold       = parse_p(input$mh_sig_threshold,       5e-8),
-          highlight_threshold = parse_p(input$mh_highlight_threshold, 5e-8),
+          # Cap at 1e-5 — the clumping P threshold — so the saved figure
+          # matches the on-screen plot (see renderPlot above).
+          highlight_threshold = min(parse_p(input$mh_highlight_threshold, 5e-8), 1e-5),
           label_variants      = isTRUE(input$mh_label),
-          label_threshold     = parse_p(input$mh_label_threshold,     5e-8),
+          label_threshold     = min(parse_p(input$mh_label_threshold, 5e-8), 1e-5),
           font_size           = input$mh_font_size  %||% 14,
           point_size          = input$mh_point_size %||% 0.9,
           theme_fn            = mol_theme_fn(input$mh_theme),
