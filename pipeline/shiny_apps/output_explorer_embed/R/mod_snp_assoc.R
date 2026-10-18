@@ -153,9 +153,9 @@ snpAssocUI <- function(id) {
     title = "SNP Associations",
     br(),
     p("This tab shows SNP association results. Manhattan plot and per-GWAS ",
-      "content include a GWAS selector at the top; Lead variants and ",
-      "Fine-mapping are split into Single- and Multi-GWAS sub-tabs so both ",
-      "the per-trait and the cross-trait views are always accessible."),
+      "content include a GWAS selector at the top. The Lead variants and ",
+      "Fine-mapping sub-tabs appear when those analyses (LD-based clumping / ",
+      "COJO, and SuSiE fine-mapping) were run for the job."),
     hr(),
     tabsetPanel(
       id = ns("snp_assoc_tabs"),
@@ -164,7 +164,7 @@ snpAssocUI <- function(id) {
         value = "manhattan",
         br(),
         gwas_picker("manhattan_gwas_ui"),
-        p("Genome-wide summary of the association signal. Each point is a variant, positioned by chromosome (x) and ", tags$code("-log10(P)"), " (y). Green points are variants clumped with an index (lead) variant; dark-green diamonds are the index variants themselves. Use ", tags$b("Plot options"), " to customise thresholds, gene labels, appearance, and download the figure."),
+        uiOutput(ns("manhattan_desc")),
         hr(),
         uiOutput(ns("manhattan_options_ui")),
         br(),
@@ -378,14 +378,49 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # Plot options collapsible — only shown when we have raw manhattan_data
     # (bundles produced before the pipeline change fall through to the
     # legacy PNG fallback in manhattan_plot_ui).
+    # Per-plot description. Clump-derived features (green members, lead
+    # diamonds, gene labels) are described only when clumping ran; otherwise
+    # we note that those features require clumping.
+    output$manhattan_desc <- renderUI({
+      has_clump <- isTRUE(config_flags()$clump)
+      base <- tagList(
+        "Genome-wide summary of the association signal. Each point is a variant, ",
+        "positioned by chromosome (x) and ", tags$code("-log10(P)"), " (y)."
+      )
+      if (has_clump) {
+        p(base,
+          " Green points are variants clumped with an index (lead) variant; ",
+          "dark-green diamonds are the index variants themselves. Use ",
+          tags$b("Plot options"),
+          " to customise thresholds, gene labels, appearance, and download the figure.")
+      } else {
+        tagList(
+          p(base, " Use ", tags$b("Plot options"),
+            " to customise the significance threshold and appearance, and download the figure."),
+          tags$p(style = "color: var(--gd-text-mute);",
+            tags$em("Independent lead-variant highlighting and nearest-gene labels are ",
+                    "only available when LD-based clumping was selected for this job."))
+        )
+      }
+    })
+
     output$manhattan_options_ui <- renderUI({
       if (is.null(manhattan_data())) return(NULL)
+      # Independent-lead highlighting and nearest-gene labels are derived from
+      # LD-based clumping only, so those controls (and the member/lead colour
+      # pickers) are shown only when clumping ran for this job.
+      has_clump <- isTRUE(config_flags()$clump)
+      intro_text <- if (has_clump) {
+        paste0("Customise thresholds, gene labels, appearance (title, theme, ",
+               "font size, point size), and download the figure as PNG / PDF / SVG.")
+      } else {
+        paste0("Customise the significance threshold and appearance (title, theme, ",
+               "font size, point size), and download the figure as PNG / PDF / SVG.")
+      }
       tags$details(class = "gd-details",
         tags$summary("Plot options"),
         tags$div(class = "gd-details-body",
-          tags$p(class = "gd-details-intro",
-            "Customise thresholds, gene labels, appearance (title, theme, ",
-            "font size, point size), and download the figure as PNG / PDF / SVG."),
+          tags$p(class = "gd-details-intro", intro_text),
           fluidRow(
             column(4,
               textInput(ns("mh_title"), "Plot title (optional):", value = ""),
@@ -408,17 +443,19 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                 textInput(ns("mh_suggestive_threshold"),
                           "Suggestive line at P <:", value = "1e-5")
               ),
-              textInput(ns("mh_highlight_threshold"),
-                        "Highlight independent leads at P < (max 1e-5):", value = "5e-8",
-                        placeholder = "max 1e-5 (the clumping P threshold)"),
-              checkboxInput(ns("mh_label"),
-                            "Label nearest gene at lead variants", value = FALSE),
-              conditionalPanel(
-                condition = sprintf("input['%s'] == true", ns("mh_label")),
-                textInput(ns("mh_label_threshold"),
-                          "Label leads with P < (max 1e-5):", value = "5e-8",
-                          placeholder = "max 1e-5 (the clumping P threshold)")
-              )
+              if (has_clump) tagList(
+                textInput(ns("mh_highlight_threshold"),
+                          "Highlight independent leads at P < (max 1e-5):", value = "5e-8",
+                          placeholder = "max 1e-5 (the clumping P threshold)"),
+                checkboxInput(ns("mh_label"),
+                              "Label nearest gene at lead variants", value = FALSE),
+                conditionalPanel(
+                  condition = sprintf("input['%s'] == true", ns("mh_label")),
+                  textInput(ns("mh_label_threshold"),
+                            "Label leads with P < (max 1e-5):", value = "5e-8",
+                            placeholder = "max 1e-5 (the clumping P threshold)")
+                )
+              ) else NULL
             ),
             column(4,
               selectInput(ns("mh_dl_format"), "Download format:",
@@ -444,10 +481,10 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
               ns("mh_col_chr_odd"),  "Colour: odd chromosomes",  value = "#8c8c8c")),
             column(3, colourpicker::colourInput(
               ns("mh_col_chr_even"), "Colour: even chromosomes", value = "#4d4d4d")),
-            column(3, colourpicker::colourInput(
-              ns("mh_col_member"),   "Colour: clumped members",  value = "#2ca02c")),
-            column(3, colourpicker::colourInput(
-              ns("mh_col_index"),    "Colour: independent leads", value = "#006400"))
+            if (has_clump) column(3, colourpicker::colourInput(
+              ns("mh_col_member"),   "Colour: clumped members",  value = "#2ca02c")) else NULL,
+            if (has_clump) column(3, colourpicker::colourInput(
+              ns("mh_col_index"),    "Colour: independent leads", value = "#006400")) else NULL
           ),
           tags$div(style = "text-align: right; margin-top: 4px;",
             actionButton(ns("mh_reset_colours"), "Reset colours")
@@ -471,18 +508,24 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         } else {
           "All variants are plotted (fewer than 10 passed the usual P < 1e-3 filter, so the pipeline fell back to showing everything)."
         }
+        legend_items <- list(
+          "Axes" = "Each point is a variant, positioned by chromosome (x) and -log10(P) (y); higher points are more strongly associated.",
+          "Variant filter" = variant_filter_note,
+          "Red dashed line" = "Significance line (default P < 5e-8; adjustable in Plot options)."
+        )
+        # Clump-derived marks only exist when clumping ran.
+        if (isTRUE(config_flags()$clump)) {
+          legend_items <- c(legend_items, list(
+            "Green points" = "Variants clumped with an index variant (part of the same association signal).",
+            "Dark-green diamonds" = "Index (lead) variants below the highlight threshold (adjustable in Plot options).",
+            "Gene labels" = "Nearest gene to each labelled index variant (toggle and threshold in Plot options)."
+          ))
+        }
         return(tagList(
           tags$div(style = "max-width: 1200px;",
             plotOutput(ns("manhattan_plot"), height = "500px")
           ),
-          gd_legend(list(
-            "Axes" = "Each point is a variant, positioned by chromosome (x) and -log10(P) (y); higher points are more strongly associated.",
-            "Variant filter" = variant_filter_note,
-            "Red dashed line" = "Significance line (default P < 5e-8; adjustable in Plot options).",
-            "Green points" = "Variants clumped with an index variant (part of the same association signal).",
-            "Dark-green diamonds" = "Index (lead) variants below the highlight threshold (adjustable in Plot options).",
-            "Gene labels" = "Nearest gene to each labelled index variant (toggle and threshold in Plot options)."
-          ), heading = "How to read this plot")
+          gd_legend(legend_items, heading = "How to read this plot")
         ))
       }
 

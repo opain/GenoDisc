@@ -57,19 +57,42 @@ ui <- fluidPage(
                             "family=Inter+Tight:wght@400;500;600;700&",
                             "family=Montserrat:wght@500;600&",
                             "display=swap")),
-    # Pre-paint: restore saved theme before body renders (no flash).
+    # Pre-paint: restore theme before body renders (no flash). When embedded by
+    # the Django app a ?theme= param carries the parent's choice and wins over
+    # localStorage; a postMessage listener then tracks later parent toggles live.
     tags$script(HTML("
       (function () {
+        function apply(t) {
+          if (t === 'light') { document.documentElement.setAttribute('data-theme', 'light'); }
+          else if (t === 'dark') { document.documentElement.removeAttribute('data-theme'); }
+        }
         try {
-          if (localStorage.getItem('genodisc_theme') === 'light') {
-            document.documentElement.setAttribute('data-theme', 'light');
+          var qp = new URLSearchParams(location.search).get('theme');
+          if (qp === 'light' || qp === 'dark') {
+            apply(qp);
+          } else if (localStorage.getItem('genodisc_theme') === 'light') {
+            apply('light');
           }
         } catch (e) {}
+        window.addEventListener('message', function (e) {
+          var d = e.data;
+          if (!d || d.type !== 'genodisc-theme') return;
+          if (d.theme !== 'light' && d.theme !== 'dark') return;
+          apply(d.theme);
+          try { localStorage.setItem('genodisc_theme', d.theme); } catch (err) {}
+        });
       })();
     ")),
-    # Wire up the toggle button once the DOM is ready.
+    # Wire up the toggle button once the DOM is ready. In embed mode (embed=1)
+    # Django owns the single toggle, so hide this one.
     tags$script(HTML("
       document.addEventListener('DOMContentLoaded', function () {
+        try {
+          if (new URLSearchParams(location.search).get('embed') === '1') {
+            var tc = document.querySelector('.gd-theme-toggle');
+            if (tc) { tc.style.display = 'none'; }
+          }
+        } catch (e) {}
         var KEY = 'genodisc_theme';
         var btn = document.getElementById('themeToggle');
         if (!btn) return;
@@ -599,6 +622,21 @@ server <- function(input, output, session) {
     gd_config(shared$gwas_data())$gwas_list
   })
 
+  # Manhattan + QQ are always-on QC diagnostics stored in the gwas_qc block, so
+  # the Manhattan plot (which lives under the SNP Associations tab) must show
+  # even when no clumping / COJO / fine-mapping ran. Detect it in the loaded
+  # bundle — covers modern bundles (manhattan_data) and the legacy PNG fallback.
+  has_manhattan <- reactive({
+    req(shared$gwas_data())
+    for (g in gwas_list()) {
+      qc <- tryCatch(gd_read(shared$gwas_data(), g, "gwas_qc"),
+                     error = function(e) NULL)
+      if (!is.null(qc$manhattan_data) ||
+          !is.null(qc$manhattan_plot_unlabelled_base64)) return(TRUE)
+    }
+    FALSE
+  })
+
   # Show relevant tabs when data loads
   observeEvent(config_flags(), {
     cf <- config_flags()
@@ -611,7 +649,7 @@ server <- function(input, output, session) {
       if (cond) showTab("main_tabs", tab) else hideTab("main_tabs", tab)
     }
     toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor))
-    toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap))
+    toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap) || isTRUE(has_manhattan()))
     toggle("Molecular Associations", cf$mol_assoc)
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma, cf$pathway))
 
