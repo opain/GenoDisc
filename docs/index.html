@@ -13,7 +13,7 @@
 
 <title>GenoDisc - Homepage</title>
 
-<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -32,8 +32,8 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -65,51 +65,12 @@ document.getElementById('toggleNightMode').addEventListener('change', function()
 });
 </script>
 
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'G-QTZQY06TLF');
-</script>
-
-<!-- Osano Cookie Consent -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.css" />
-<script src="https://cdn.jsdelivr.net/npm/cookieconsent@3/build/cookieconsent.min.js"></script>
-<script>
-window.addEventListener("load", function(){
-  window.cookieconsent.initialise({
-    palette: {
-      popup: { background: "#000" },
-      button: { background: "#f1d600" }
-    },
-    theme: "classic",
-    position: "bottom-right",
-    content: {
-      message: "We use a cookie for Google Analytics to understand how people use this site. This helps us improve GenoPred and demonstrate its impact. Please click 'Accept' to help us with this.",
-      dismiss: "Accept",
-      link: "Google's privacy info",
-      href: "https://policies.google.com/technologies/partner-sites"
-    },
-    onStatusChange: function(status) {
-      if (status === 'allow') {
-        // Now load Google Analytics only if user consents
-        var gtagScript = document.createElement('script');
-        gtagScript.setAttribute('async', '');
-        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-QTZQY06TLF';
-        document.head.appendChild(gtagScript);
-
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){ dataLayer.push(arguments); }
-        gtag('js', new Date());
-        gtag('config', 'G-QTZQY06TLF');
-      }
-    }
-  });
-});
-</script>
+<!-- Cloudflare Web Analytics (cookieless, no personal data - no consent required).
+     Same token as the hosted service (genodisc.er.kcl.ac.uk) so both surfaces
+     roll up into one dashboard. Replaces the previous Google Analytics setup
+     and its Osano cookie-consent banner. -->
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7709e512a3d5400a96a68c4893306f2c"}'></script>
+<!-- End Cloudflare Web Analytics -->
 
 <style type="text/css">
   code{white-space: pre-wrap;}
@@ -342,6 +303,9 @@ $(document).ready(function () {
       </ul>
       <ul class="nav navbar-nav navbar-right">
         <li>
+  <a href="https://genodisc.er.kcl.ac.uk/">Hosted service ↗</a>
+</li>
+<li>
   <a href="https://github.com/opain/GenoDisc">
     <span class="fa fa-github fa-lg"></span>
      
@@ -383,6 +347,16 @@ developing tools that implement current best practises.</p>
 <p>We have implemented a range of post-GWAS analyses into our GenoPred
 pipeline - An easy-to-use and robust software pipeline.</p>
 <p><a href="pipeline_guide.html" class="button">Learn More</a></p>
+<p><br/></p>
+</div>
+<div id="the-hosted-service" class="section level1">
+<h1>The Hosted Service</h1>
+<p>Don’t want to install anything? Submit your GWAS via the hosted web
+service — the pipeline runs on our King’s College London servers and
+results appear in an interactive viewer, without any local software
+installation.</p>
+<p><a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to hosted
+service ↗</a></p>
 <p><br/></p>
 <p>Please contact Oliver Pain (<a href="mailto:oliver.pain@kcl.ac.uk"
 class="email">oliver.pain@kcl.ac.uk</a>) for any questions or

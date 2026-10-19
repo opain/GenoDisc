@@ -13,7 +13,7 @@
 
 <title>GenoDisc Pipeline - User Guide</title>
 
-<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -35,8 +35,8 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -596,8 +596,8 @@ and/or <code>twas_gsea_pathway: T</code>.</td>
 (skip).</p>
 <table>
 <colgroup>
-<col width="25%" />
-<col width="71%" />
+<col width="20%" />
+<col width="76%" />
 <col width="3%" />
 </colgroup>
 <thead>
@@ -719,14 +719,29 @@ sets</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="odd">
-<td align="left"><code>twas_gsea_drugtargetor</code></td>
-<td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene
-sets</td>
+<td align="left"><code>magma_drugtargetor_gls</code></td>
+<td align="left">Recommended ATC-class readout for MAGMA: drug-level GLS
+(DRUGSETS-style; Bell et al. 2022), non-directional. Requires
+magma_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="even">
+<td align="left"><code>twas_gsea_drugtargetor</code></td>
+<td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene sets
+(experimental)</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="odd">
 <td align="left"><code>twas_gsea_drugtargetor_nondirectional</code></td>
-<td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment</td>
+<td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment
+(experimental)</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="even">
+<td align="left"><code>drug_targetor_atc_gls</code></td>
+<td align="left">Recommended ATC-class readout for TWAS-GSEA: drug-level
+GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient
++ 95% CI. Requires twas_gsea_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="odd">
@@ -1363,6 +1378,15 @@ portable bundle:</p>
         {gwas}.manhattan_data.rds              # Raw filtered variants (used
                                                #   by the Shiny app to rebuild
                                                #   the Manhattan interactively)
+        {gwas}.cleaned.removed.gz              # QC-removed variants with P below
+                                               #   removed_p_thresh (original user-build
+                                               #   SNP/CHR/BP/P + removal reason)
+        {gwas}.cleaned.manhattan_raw.rds       # Raw-input (pre-reference) thinned
+                                               #   Manhattan data, with a removed
+                                               #   flag + reason per variant
+        {gwas}.lost_signals.rds                # Summary of removed genome-wide
+                                               #   significant signals (counts by
+                                               #   reason + approximate loci)
       clump/               # LD clumping results
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
@@ -1451,6 +1475,13 @@ as follows:</p>
     manhattan_data              # list(data, offsets, indexes, p_threshold)
                                 #   consumed by the Shiny app&#39;s modifiable
                                 #   Manhattan tab; NULL for old bundles
+    manhattan_raw               # raw-input (pre-reference) thinned Manhattan
+                                #   data with a removed flag + reason per
+                                #   variant; NULL for old bundles / no CHR:BP
+    lost_signals                # removed genome-wide significant variants:
+                                #   counts by reason + ~1 Mb loci (each flagged
+                                #   as a lost signal when no retained variant
+                                #   there reaches significance); NULL for old bundles
     maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
     qq_plot_base64              # base64-encoded QQ plot PNG, or NULL
     manhattan_plot_*_base64     # legacy base64 Manhattan PNGs (kept for
@@ -1490,11 +1521,23 @@ as follows:</p>
                                 # twas_gsea_drugtargetor: T
       twas_gsea_nondir          # non-directional; NULL unless
                                 # twas_gsea_drugtargetor_nondirectional: T
-    atc/                        # ATC-class aggregations of the same four
-      magma                     # sources (same gating flags as tx$drug)
-      gcsc
+    atc/                        # LEGACY per-drug Wilcoxon ATC aggregations
+      magma                     # (secondary cross-check), same gating flags as
+      gcsc                      # tx$drug.
       twas_gsea
       twas_gsea_nondir
+    atc_gls                     # NULL unless drug_targetor_atc_gls: T. RECOMMENDED
+                                # TWAS-GSEA drug-level GLS (DRUGSETS-style):
+                                # coefficient + 95% CI per (panel x Level x class);
+                                # directional. Experimental.
+    atc_gls_magma               # NULL unless magma_drugtargetor_gls: T. RECOMMENDED
+                                # MAGMA drug-level GLS (DRUGSETS-style): coefficient
+                                # per Level x class; non-directional, genome-wide.
+    evidence                    # NULL unless twas_gsea_drugtargetor: T.
+                                # Per-gene evidence for drug &amp; ATC drill-down:
+                                # $drug, $class (membership, TWAS Z, contribution,
+                                # source/activity provenance), $drug_summary,
+                                # $class_summary (modelled-vs-total coverage).
     cmap/                       # NULL unless twas_gsea_cmap: T
       drug                      # per-signature x panel results
       moa                       # per-MOA enrichment
@@ -1563,7 +1606,11 @@ shiny::runApp(&quot;shiny_apps/output_explorer_embed/&quot;)</code></pre>
 <p>The Shiny app provides interactive tabs for exploring:</p>
 <ul>
 <li><strong>Data Input &amp; GWAS QC</strong> - Summary statistic
-quality metrics</li>
+quality metrics, plus a <strong>Removed Variants</strong> sub-tab
+showing an unfiltered (raw-input) Manhattan with QC-removed variants
+highlighted by reason, a table of variants removed per reason (total and
+the subset with p &lt; 5e-8), and any genome-wide-significant signals
+lost during QC</li>
 <li><strong>SNP-h² &amp; rG</strong> - LDSC heritability (h²) and
 genetic correlation (rG). The rG sub-tab shows a forest plot against the
 reference panel (<code>gencor_gwas_list</code>) and, on multi-GWAS

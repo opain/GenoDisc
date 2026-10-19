@@ -522,6 +522,15 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
         {gwas}.manhattan_data.rds              # Raw filtered variants (used
                                                #   by the Shiny app to rebuild
                                                #   the Manhattan interactively)
+        {gwas}.cleaned.removed.gz              # QC-removed variants with P below
+                                               #   removed_p_thresh (original user-build
+                                               #   SNP/CHR/BP/P + removal reason)
+        {gwas}.cleaned.manhattan_raw.rds       # Raw-input (pre-reference) thinned
+                                               #   Manhattan data, with a removed
+                                               #   flag + reason per variant
+        {gwas}.lost_signals.rds                # Summary of removed genome-wide
+                                               #   significant signals (counts by
+                                               #   reason + approximate loci)
       clump/               # LD clumping results
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
@@ -607,6 +616,13 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
     manhattan_data              # list(data, offsets, indexes, p_threshold)
                                 #   consumed by the Shiny app's modifiable
                                 #   Manhattan tab; NULL for old bundles
+    manhattan_raw               # raw-input (pre-reference) thinned Manhattan
+                                #   data with a removed flag + reason per
+                                #   variant; NULL for old bundles / no CHR:BP
+    lost_signals                # removed genome-wide significant variants:
+                                #   counts by reason + ~1 Mb loci (each flagged
+                                #   as a lost signal when no retained variant
+                                #   there reaches significance); NULL for old bundles
     maf_plot_base64             # base64-encoded MAF plot PNG, or NULL
     qq_plot_base64              # base64-encoded QQ plot PNG, or NULL
     manhattan_plot_*_base64     # legacy base64 Manhattan PNGs (kept for
@@ -731,7 +747,7 @@ shiny::runApp("shiny_apps/output_explorer_embed/")
 
 The Shiny app provides interactive tabs for exploring:
 
-- **Data Input & GWAS QC** - Summary statistic quality metrics
+- **Data Input & GWAS QC** - Summary statistic quality metrics, plus a **Removed Variants** sub-tab showing an unfiltered (raw-input) Manhattan with QC-removed variants highlighted by reason, a table of variants removed per reason (total and the subset with p < 5e-8), and any genome-wide-significant signals lost during QC
 - **SNP-h² & rG** - LDSC heritability (h²) and genetic correlation (rG). The rG sub-tab shows a forest plot against the reference panel (`gencor_gwas_list`) and, on multi-GWAS bundles with `gencor_within_gwas_list: T`, an N×N heatmap of pairwise rG among the primary GWAS.
 - **SNP Associations** - Clumping and fine-mapping results
 - **Molecular Associations** - TWAS, SMR, MAGMA, and PWAS gene-level results

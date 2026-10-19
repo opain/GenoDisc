@@ -13,7 +13,7 @@
 
 <title>GenoDisc Pipeline - Technical Details</title>
 
-<script src="site_libs/header-attrs-2.26/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -35,8 +35,8 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -566,6 +566,22 @@ to BETA and SE where possible.</p></li>
 (<code>.cleaned.munged.sumstats.gz</code>) is written alongside them,
 containing <code>CHR SNP BP A1 A2 Z N</code> with
 <code>Z = BETA/SE</code>, as required by LDSC and FUSION.</p>
+<p>To make quality control transparent — in particular, which
+associations were dropped before downstream analysis — the cleaner also
+writes two additive sidecar files (the cleaned sumstats themselves are
+unchanged):</p>
+<ul>
+<li><code>{gwas}.cleaned.removed.gz</code> — the QC-removed variants,
+with their original (user-build) <code>SNP</code>, <code>CHR</code>,
+<code>BP</code>, <code>P</code> and the removal reason. To keep the file
+small it is limited to variants with <code>P</code> below
+<code>removed_p_thresh</code> (config default <code>1e-5</code>).</li>
+<li><code>{gwas}.cleaned.manhattan_raw.rds</code> — a thinned Manhattan
+dataset built from the <strong>raw input</strong> (before reference
+harmonisation), with a <code>removed</code> flag and reason per variant,
+so the web app can plot where removed variants sit relative to those
+carried through.</li>
+</ul>
 <details>
 <summary>
 <strong>Recognised column name variants</strong>
@@ -804,18 +820,23 @@ prediction models in place of gene expression models.</p>
 href="https://drugtargetor.com/">DrugTargetor</a> drug-gene interaction
 sets. This tests whether genes targeted by specific drugs are enriched
 for GWAS associations. The analysis also evaluates enrichment at the ATC
-(Anatomical Therapeutic Chemical) classification level.</p>
+(Anatomical Therapeutic Chemical) classification level (see <a
+href="#atc-class-enrichment-drug-level-gls-recommended-vs-legacy-wilcoxon">ATC-class
+enrichment</a> below — the recommended drug-level GLS plus a legacy
+Wilcoxon).</p>
 <p>Results are stored in
 <code>{outdir}/results/{gwas}/magma/</code>.</p>
 <hr />
 </div>
 <div id="twas-gsea-drugtargetor-enrichment" class="section level2">
 <h2>TWAS-GSEA DrugTargetor enrichment</h2>
-<p><a href="https://github.com/opain/TWAS-GSEA">TWAS-GSEA</a> performs
-gene set enrichment analysis using TWAS results rather than SNP-level
-summary statistics. By leveraging gene expression prediction, TWAS-GSEA
-can detect drug-gene set enrichments that are not captured by
-traditional MAGMA-based approaches.</p>
+<p><strong>The TWAS-GSEA DrugTargetor analysis is experimental</strong>
+(MAGMA DrugTargetor is the more robust drug-class readout). <a
+href="https://github.com/opain/TWAS-GSEA">TWAS-GSEA</a> performs gene
+set enrichment analysis using TWAS results rather than SNP-level summary
+statistics. By leveraging gene expression prediction, TWAS-GSEA can
+detect drug-gene set enrichments that are not captured by traditional
+MAGMA-based approaches.</p>
 <p>Both directional and non-directional enrichment tests are
 available:</p>
 <ul>
@@ -826,7 +847,84 @@ effect direction</li>
 </ul>
 <p>Results are aggregated across TWAS panels and stored alongside other
 enrichment results.</p>
+<div
+id="atc-class-enrichment-drug-level-gls-recommended-vs.-legacy-wilcoxon"
+class="section level3">
+<h3>ATC-class enrichment: drug-level GLS (recommended) vs. legacy
+Wilcoxon</h3>
+<p>ATC (Anatomical Therapeutic Chemical) drug <em>classes</em> are
+scored two ways, for both the MAGMA and TWAS-GSEA DrugTargetor
+analyses:</p>
+<ul>
+<li><strong>Drug-level GLS (recommended;
+<code>drug_targetor_atc_gls</code>,
+<code>magma_drugtargetor_gls</code>)</strong>: a DRUGSETS-style test (<a
+href="https://doi.org/10.1101/2022.09.06.22279660">Bell et al. 2022</a>)
+that asks whether the drugs in a class are more associated than other
+drugs, while validly accounting for drugs that share target genes. It
+regresses the per-drug statistic on an ATC-class indicator (plus
+gene-set-size covariates) by generalised least squares, weighted by the
+drug–drug correlation of the per-drug statistics. It is reported for two
+engines:
+<ul>
+<li><strong>MAGMA GLS</strong>: on the MAGMA per-drug competitive
+statistics (<code>BETA/SE</code>), with the drug–drug correlation
+reconstructed from the MAGMA gene–gene correlations in
+<code>.genes.raw</code> (the approach of Bell et al.). It is
+<strong>non-directional</strong> (magnitude) and
+<strong>genome-wide</strong> (a single result, not per eQTL panel).</li>
+<li><strong>TWAS-GSEA GLS</strong> <em>(experimental)</em>: on the
+per-drug signed TWAS-GSEA <code>T</code>, with the exact drug–drug
+correlation TWAS-GSEA computes internally
+(<code>cov2cor(Z_whᵀZ_wh)</code>, dumped from the same per-drug run via
+<code>--drug_corr_out</code>, no extra TWAS pass). It is
+<strong>directional</strong>, computed <strong>per eQTL panel</strong>,
+and reports a <strong>coefficient with a 95% CI</strong> (read the CI,
+not the sign, near the null).</li>
+</ul></li>
+<li><strong>Legacy per-drug Wilcoxon
+(<code>twas_gsea_drugtargetor</code>,
+<code>magma_drugtargetor</code>)</strong>: each drug is scored
+individually, then a competitive Wilcoxon rank-sum is run on the
+per-drug statistics within each ATC class. Because a class’s drugs share
+target genes their statistics are correlated (often identical), this
+two-stage test is anti-conservative; it is retained only as a secondary
+cross-check.</li>
+</ul>
+<p>The drug-level GLS is computed at ATC levels L2 (1st–3rd chars), L3
+(1st–4th) and L4 (1st–5th); the legacy Wilcoxon is L3 only. <strong>The
+TWAS-GSEA DrugTargetor analysis is experimental</strong>; MAGMA
+DrugTargetor is the more robust drug-class readout.</p>
+</div>
+<div id="interpreting-direction-and-the-per-gene-evidence-view"
+class="section level3">
+<h3>Interpreting direction, and the per-gene evidence view</h3>
+<p>For the directional (TWAS-GSEA) results, direction
+(<code>Matches</code> vs <code>Opposes disease</code>) reflects the sign
+of the class’s aggregate statistic, but its therapeutic meaning depends
+on <strong>what the drug–gene set encoding captures</strong> and
+<strong>which target genes are TWAS-modelled</strong> in the panel.
+DrugTargetor signs are largely drug perturbation signatures (source
+<code>DSIGDB</code>) — the drug’s <em>observed</em> effect on each
+gene’s expression — which can include compensatory or off-target effects
+that point opposite to the therapeutic mechanism. For example a
+lipid-lowering class can read as <code>Matches</code> a CAD signature
+because the modelled driver is a compensatory up-regulation of
+<code>PCSK9</code>, while the actual drug target (<code>NPC1L1</code>)
+is not TWAS-modelled. (The MAGMA GLS is non-directional, so this caveat
+does not apply to it.)</p>
+<p>To make this legible, when <code>twas_gsea_drugtargetor</code> is on
+the pipeline also emits a per-gene <strong>evidence</strong> table
+(<code>twas_gsea_drugtargetor_evidence_{panel}.rds</code>, script
+<code>drug_targetor_gene_evidence.R</code>): for every drug and every
+ATC class it lists the member genes with their signed membership, TWAS
+Z, contribution (membership × TWAS Z), evidence provenance (source
+database and <code>activity_type</code>), and the modelled-vs-total
+coverage. The Shiny output explorer exposes this as a drill-down so
+users can see exactly which genes drive an association and where the
+evidence came from.</p>
 <hr />
+</div>
 </div>
 <div id="pathway-enrichment-magma-twas-gsea" class="section level2">
 <h2>Pathway enrichment (MAGMA + TWAS-GSEA)</h2>
@@ -912,6 +1010,39 @@ specific tissues are enriched for GWAS associations. This uses GTEx
 tissue expression profiles to identify tissues where GWAS-associated
 genes are preferentially expressed, and performs conditional analysis to
 identify independently enriched tissues.</p>
+<p><strong>Conditional analysis.</strong> The marginal test evaluates
+each GTEx tissue independently, so several tissues can appear enriched
+simply because their expression profiles overlap with the true driving
+tissue rather than carrying independent signal. To resolve this,
+<code>scripts/magma_tissue_conditional.R</code> takes the tissues that
+are FDR-significant (<code>P.FDR ≤ 0.05</code>) in the marginal test,
+orders them by p-value, and iteratively re-tests each remaining tissue
+while conditioning on the current lead tissue’s expression profile (via
+MAGMA’s <code>condition-hide</code>, alongside the <code>Average</code>
+expression covariate).</p>
+<p>A tissue is <strong>retained</strong> if any of the following hold
+after conditioning:</p>
+<ul>
+<li><strong>Collinear with the lead</strong> — the conditional model
+cannot separate its signal from the lead’s (variance-explained is
+undefined / <code>NA</code>). The tissue is kept because it is
+statistically indistinguishable from the lead, not because it adds
+independent information.</li>
+<li><strong>Comparable marginal strength</strong> — its marginal χ² is
+within 95% of the lead’s (<code>R2_ratio &gt; 0.95</code>), i.e. the two
+tissues are essentially co-leading.</li>
+<li><strong>Still significant after conditioning</strong> — its
+conditional <code>P &lt; 0.05</code>, meaning it contributes signal
+beyond what the lead explains.</li>
+</ul>
+<p>Tissues that fail all three criteria are dropped, because their
+marginal enrichment is adequately accounted for by tissues already
+retained. The final set is written to
+<code>magma_tissue_conditional.indep.txt</code>. A retained tissue
+should be interpreted as a plausible driver of the GWAS signal, but
+retention does not imply it acts independently of every other retained
+tissue: some are kept precisely because collinearity prevents that
+distinction.</p>
 <p>Results are stored in
 <code>{outdir}/results/{gwas}/magma/</code>.</p>
 <hr />
@@ -943,6 +1074,18 @@ usage scales with the block being inspected rather than with the full
 bundle — see the <a
 href="pipeline_guide.html#reading-results-into-r">User Guide</a> for
 examples.</p>
+<p>Before packaging, the <code>lost_signals</code> rule
+(<code>scripts/summarise_lost_signals.R</code>) reads the per-variant
+removed-variant file and the cleaned sumstats, counts the removed
+genome-wide-significant (<code>P &lt; 5e-8</code>) variants by reason,
+and groups them into approximate ~1 Mb loci around each lead removed
+variant — flagging loci where every genome-wide-significant variant was
+removed (a <em>lost signal</em>) versus those where a variant was
+retained. Its output (<code>{gwas}.lost_signals.rds</code>), together
+with the raw-input Manhattan data, is folded into the
+<code>gwas_qc</code> block as <code>gwas_qc$lost_signals</code> and
+<code>gwas_qc$manhattan_raw</code>, which the Shiny explorer’s
+<strong>Removed Variants</strong> sub-tab displays.</p>
 <p>Pooled-FDR helpers in
 <code>scripts/functions/package_results_functions.R</code>
 (e.g. <code>read_pathway_magma()</code>,

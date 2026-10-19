@@ -89,6 +89,11 @@ GWAS summary statistics undergo a standardised cleaning procedure implemented in
 
 The cleaned summary statistics are stored in `{outdir}/results/{gwas}/gwas_sumstat/`. A munged copy (`.cleaned.munged.sumstats.gz`) is written alongside them, containing `CHR SNP BP A1 A2 Z N` with `Z = BETA/SE`, as required by LDSC and FUSION.
 
+To make quality control transparent — in particular, which associations were dropped before downstream analysis — the cleaner also writes two additive sidecar files (the cleaned sumstats themselves are unchanged):
+
+- `{gwas}.cleaned.removed.gz` — the QC-removed variants, with their original (user-build) `SNP`, `CHR`, `BP`, `P` and the removal reason. To keep the file small it is limited to variants with `P` below `removed_p_thresh` (config default `1e-5`).
+- `{gwas}.cleaned.manhattan_raw.rds` — a thinned Manhattan dataset built from the **raw input** (before reference harmonisation), with a `removed` flag and reason per variant, so the web app can plot where removed variants sit relative to those carried through.
+
 <details><summary>**Recognised column name variants**</summary>
 
 The pipeline accepts many common column name formats. Below are examples of recognised names for key columns:
@@ -370,6 +375,8 @@ The `package_results` rule (`rules/report.smk`) aggregates every analysis into a
 - `{outdir}/results/bundle.tar.gz` — the tarballed `package/` directory. This is the file the Shiny explorer accepts and the download the web app hands users.
 
 The canonical block IDs are defined in `scripts/reader.R:.gd_block_ids`. Downstream code loads blocks lazily via `gd_open()` → `gd_read(gd, "<gwas>", "<block>")` so that memory usage scales with the block being inspected rather than with the full bundle — see the [User Guide](pipeline_guide.html#reading-results-into-r) for examples.
+
+Before packaging, the `lost_signals` rule (`scripts/summarise_lost_signals.R`) reads the per-variant removed-variant file and the cleaned sumstats, counts the removed genome-wide-significant (`P < 5e-8`) variants by reason, and groups them into approximate ~1 Mb loci around each lead removed variant — flagging loci where every genome-wide-significant variant was removed (a *lost signal*) versus those where a variant was retained. Its output (`{gwas}.lost_signals.rds`), together with the raw-input Manhattan data, is folded into the `gwas_qc` block as `gwas_qc$lost_signals` and `gwas_qc$manhattan_raw`, which the Shiny explorer's **Removed Variants** sub-tab displays.
 
 Pooled-FDR helpers in `scripts/functions/package_results_functions.R` (e.g. `read_pathway_magma()`, `read_twas_gsea_drug()`, `read_twas_gsea_cmap_drug()`) compute BH-adjusted p-values across the natural pooling unit (all gmts for pathway, all panels for TWAS-GSEA, all CMAP signatures × panels for CMAP) at bundle-write time, so the FDR column in each block reflects the correct multiple-testing burden without the consumer having to re-adjust.
 
