@@ -83,3 +83,10 @@ The target should be the output file you want to produce, placed before the flag
 snakemake tests/output/results/COAD01chr22/twas/cmap/twas_gsea_cmap_Whole_Blood_moa_res.csv \
   --configfile tests/config_test.yaml --use-conda -c1
 ```
+
+## Project recipes
+
+To add or modify a pipeline analysis, follow the recipe in [`CONTRIBUTING.md`](CONTRIBUTING.md)
+(humans) / [`AGENTS.md`](AGENTS.md) (AI). Note: the pipeline runs on the CREATE HPC inside the
+`genodisc` conda env (not the dev VM) — run tests by SSHing to the HPC and `sbatch`-ing a wrapper
+that `source`s `bin/activate_genodisc.sh`, exactly as the web app does.

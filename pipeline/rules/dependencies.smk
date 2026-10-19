@@ -375,6 +375,23 @@ rule download_gcta:
   shell:
     "(mkdir -p {params.resdir}/software/gcta; wget -O {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d {params.resdir}/software/gcta; rm {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip) > {log} 2>&1"
 
+# Download GCTB (for SBayesRC). Official static Linux binary from the GCTB site
+# (cnsgenomics redirects to gctbhub). Deliberately the current v2.5.5 release,
+# not GenoPred's 2.5.2 and not the GitHub SBayesRC R package.
+rule download_gctb:
+  output:
+    directory(f'{resdir}/software/gctb/gctb_2.5.5_Linux/')
+  benchmark:
+    f"{resdir}/benchmarks/download_gctb.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_gctb.log"
+  shell:
+    "(mkdir -p {params.resdir}/software/gctb; wget -O {params.resdir}/software/gctb/gctb_2.5.5_Linux.zip https://cnsgenomics.com/software/gctb/download/gctb_2.5.5_Linux.zip; unzip -o {params.resdir}/software/gctb/gctb_2.5.5_Linux.zip -d {params.resdir}/software/gctb; rm {params.resdir}/software/gctb/gctb_2.5.5_Linux.zip) > {log} 2>&1"
+
 # Install GenoUtils
 rule install_genoutils:
   input:
@@ -1320,6 +1337,11 @@ if config["ldsc"] == "T":
 # COJO
 if config["cojo"] == "T":
     resource_inputs.append(rules.download_gcta.output)
+
+# SBayesRC (LD + annotation reference data are shared with GenoPred and not
+# downloaded here; only the GCTB binary is staged.)
+if config.get("sbayesrc", "F") == "T":
+    resource_inputs.append(rules.download_gctb.output)
 
 # MAGMA
 if config["magma_gene"] == "T" or config["magma_drugtargetor"] == "T" or config["tissue_magma"] == "T":

@@ -40,6 +40,20 @@ cojo: F
 # Perform SNP finemapping analysis
 finemap: F
 
+# Run GCTB SBayesRC to estimate SNP-heritability and polygenicity (number of
+# non-zero-effect variants). Genome-wide; LD reference picked by the per-GWAS
+# population column. Only EUR/EAS/AFR have published references; other
+# populations are skipped. NOT a fine-mapping output.
+sbayesrc: F
+
+# SBayesRC reference data (shared with GenoPred). Explicit paths; NA falls back
+# to GenoPred's staged copies (see rules/sbayesrc.smk).
+# sbayesrc_ldref: directory holding per-population eigen-decomposed LD, i.e.
+#   <sbayesrc_ldref>/<POP>/{ldm.info,snp.info,block*.eigen.bin}.
+# sbayesrc_annot: GCTB functional annotation file (header: SNP Intercept ...).
+sbayesrc_ldref: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_ref
+sbayesrc_annot: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_annot/annot_baseline2.2.txt
+
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: F
 

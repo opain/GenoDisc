@@ -1,0 +1,10 @@
+# Whole-genome end-to-end test for SBayesRC (SNP-h2 + polygenicity), with LDSC
+# alongside for comparison in the viewer's "SNP-h2 & rG" tab. Extends config.yaml
+# (explicit sbayesrc ref paths live there). Uses the fully-staged shared resources.
+outdir: tests/output_sbrc_wg
+config_file: tests/config_sbayesrc_wg.yaml
+gwas_list: tests/gwas_list_test_full.txt
+resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
+
+sbayesrc: T
+ldsc: T

@@ -19,6 +19,7 @@ resdir: resources
 clump: T
 cojo: T
 finemap: T
+sbayesrc: T
 ldsc: T
 
 # MAGMA

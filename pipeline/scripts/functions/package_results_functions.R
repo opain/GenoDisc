@@ -90,6 +90,42 @@ process_ldsc_log<-function(config, gwas){
   return(dat)
 }
 
+process_sbayesrc <- function(config, gwas){
+  # SBayesRC SNP-heritability + polygenicity (produced by scripts/sbayesrc.R).
+  # h2 is summarised from the post-burn-in MCMC trace: posterior MODE (point
+  # estimate for a near-zero skewed posterior), 95% HPD interval, and posterior
+  # mean/SD (the SD is the SE). The post-burn-in hsq samples are carried through
+  # so the viewer can plot the posterior density. Gated on the sbayesrc flag;
+  # returns NULL when not run or no file for this GWAS (e.g. a skipped AMR/SAS GWAS).
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+
+  if(read_param(config = config, param = 'sbayesrc', return_obj = F) != "T") return(NULL)
+
+  csv_path <- paste0(outdir, '/results/', gwas, '/sbayesrc/', gwas, '.GW.sbayesrc.clean.csv')
+  if(!file.exists(csv_path)) return(NULL)
+
+  tab <- fread(csv_path)
+  dat <- list()
+  dat$val <- list(
+    h2_mode     = as.numeric(tab$h2_mode[1]),
+    h2_mean     = as.numeric(tab$h2_mean[1]),
+    h2_sd       = as.numeric(tab$h2_sd[1]),
+    h2_hpd_low  = as.numeric(tab$h2_hpd_low[1]),
+    h2_hpd_high = as.numeric(tab$h2_hpd_high[1]),
+    n_nonzero   = as.numeric(tab$n_nonzero[1]),
+    n_snp_total = as.numeric(tab$n_snp_total[1]),
+    pi_est      = as.numeric(tab$pi_est[1])
+  )
+
+  # Post-burn-in hsq posterior samples (for the viewer's density plot).
+  samples_path <- paste0(outdir, '/results/', gwas, '/sbayesrc/', gwas, '.GW.sbayesrc.h2_samples.txt')
+  if(file.exists(samples_path)){
+    s <- suppressWarnings(as.numeric(readLines(samples_path)))
+    dat$h2_samples <- s[!is.na(s)]
+  }
+  return(dat)
+}
+
 process_ldsc_gencor <- function(config, gwas){
 
   outdir      <- read_param(config = config, param = 'outdir',           return_obj = F)

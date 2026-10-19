@@ -1,0 +1,12 @@
+# Minimal test config exercising ONLY GCTB SBayesRC (SNP-h2 + polygenicity).
+# Extends the base config.yaml, which defaults every other analysis to F and
+# magma_interaction.enabled to false — so this isolates the SBayesRC rule from
+# the rest of the test pipeline (e.g. the MSigDB .gmt files the full
+# config_test.yaml needs are not required here).
+outdir: tests/output
+config_file: tests/config_test_sbayesrc.yaml
+gwas_list: tests/gwas_list_test.txt
+resdir: NA
+chromosomes: [22]
+
+sbayesrc: T

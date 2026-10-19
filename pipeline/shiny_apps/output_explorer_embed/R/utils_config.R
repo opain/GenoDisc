@@ -13,6 +13,7 @@ parse_config_flags <- function(config) {
   clump <- flag(config, "clump")
   cojo <- flag(config, "cojo")
   finemap <- flag(config, "finemap")
+  sbayesrc <- flag(config, "sbayesrc")
   ldsc <- flag(config, "ldsc")
 
   # Bivariate LDSC: enabled if gencor_gwas_list is set (not NA / empty)
@@ -105,6 +106,7 @@ parse_config_flags <- function(config) {
     clump = clump,
     cojo = cojo,
     finemap = finemap,
+    sbayesrc = sbayesrc,
     ldsc = ldsc,
     ldsc_gencor = ldsc_gencor,
     gencor_within = gencor_within,

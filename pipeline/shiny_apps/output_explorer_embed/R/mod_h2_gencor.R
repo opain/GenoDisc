@@ -140,6 +140,20 @@ h2GencorUI <- function(id) {
         value = "gencor",
         br(),
         uiOutput(ns("gencor_ui"))
+      ),
+      tabPanel(
+        title = "SBayesRC (h² & polygenicity)",
+        value = "sbayesrc",
+        br(),
+        div(style = "max-width: 900px;",
+          DT::DTOutput(ns("sbayesrc_table"))
+        ),
+        br(),
+        div(style = "max-width: 900px;",
+          plotOutput(ns("sbayesrc_density"), height = "320px")
+        ),
+        br(),
+        uiOutput(ns("sbayesrc_legend"))
       )
     )
   )
@@ -230,6 +244,116 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         "See also"        = paste0(
           "The LDSC intercept — a QC-relevant statistic — is shown on ",
           "the GWAS QC tab.")
+      ))
+    })
+
+    # -------------------------------------------------------------------
+    # SBayesRC: SNP-h² + polygenicity (GCTB SBayesRC, annotation-informed,
+    # genome-wide). Parsed from .parRes into gwas_qc$sbayesrc_dat$val.
+    # -------------------------------------------------------------------
+
+    output$sbayesrc_table <- DT::renderDT({
+      req(gwas_data(), config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sbayesrc)) return(NULL)
+      gvec <- h2_gwas_vec()
+      if (is.null(gvec) || length(gvec) == 0) return(NULL)
+      rows <- lapply(gvec, function(g) {
+        v <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sbayesrc_dat$val,
+                      error = function(e) NULL)
+        if (is.null(v)) return(NULL)
+        hpd <- if (is.null(v$h2_hpd_low) || is.na(v$h2_hpd_low)) "—" else
+          sprintf("%.3f – %.3f", v$h2_hpd_low, v$h2_hpd_high)
+        data.frame(
+          GWAS                   = g,
+          `SNP-h² (mode)`        = if (is.null(v$h2_mode) || is.na(v$h2_mode)) "—" else sprintf("%.3f", v$h2_mode),
+          `95% HPD`              = hpd,
+          `Posterior mean (SD)`  = if (is.null(v$h2_mean) || is.na(v$h2_mean)) "—" else sprintf("%.3f (%.3f)", v$h2_mean, v$h2_sd),
+          `Non-zero SNPs`        = if (is.null(v$n_nonzero) || is.na(v$n_nonzero)) "—" else formatC(round(v$n_nonzero), format = "d", big.mark = ","),
+          `Polygenicity (π)`     = if (is.null(v$pi_est) || is.na(v$pi_est)) "—" else formatC(v$pi_est, format = "g", digits = 3),
+          check.names = FALSE, stringsAsFactors = FALSE
+        )
+      })
+      rows <- Filter(Negate(is.null), rows)
+      if (length(rows) == 0) return(NULL)
+      DT::datatable(
+        do.call(rbind, rows), rownames = FALSE, escape = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE)
+      )
+    })
+
+    # Posterior density of SNP-h² from the MCMC trace, with the mode (solid) and
+    # 95% HPD bounds (dashed) marked — shows how skewed/symmetric the posterior is.
+    output$sbayesrc_density <- renderPlot({
+      req(gwas_data(), config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sbayesrc)) return(NULL)
+      gvec <- h2_gwas_vec()
+      if (is.null(gvec) || length(gvec) == 0) return(NULL)
+      parts <- lapply(gvec, function(g) {
+        d <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sbayesrc_dat, error = function(e) NULL)
+        s <- d$h2_samples
+        if (is.null(s) || length(s) < 10) return(NULL)
+        data.frame(gwas = g, h2 = as.numeric(s), stringsAsFactors = FALSE)
+      })
+      parts <- Filter(Negate(is.null), parts)
+      if (length(parts) == 0) return(NULL)
+      df <- do.call(rbind, parts)
+      marks <- do.call(rbind, lapply(gvec, function(g) {
+        v <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sbayesrc_dat$val, error = function(e) NULL)
+        if (is.null(v) || is.null(v$h2_mode) || is.na(v$h2_mode)) return(NULL)
+        data.frame(gwas = g, mode = v$h2_mode, lo = v$h2_hpd_low, hi = v$h2_hpd_high)
+      }))
+      p <- ggplot2::ggplot(df, ggplot2::aes(x = h2)) +
+        ggplot2::geom_density(fill = "#2c7fb8", alpha = 0.35, colour = "#2c7fb8") +
+        ggplot2::geom_vline(data = marks, ggplot2::aes(xintercept = mode), colour = "#08519c", linewidth = 0.7) +
+        ggplot2::geom_vline(data = marks, ggplot2::aes(xintercept = lo), colour = "#08519c", linetype = "dashed") +
+        ggplot2::geom_vline(data = marks, ggplot2::aes(xintercept = hi), colour = "#08519c", linetype = "dashed") +
+        ggplot2::labs(x = expression(SNP-h^2), y = "Posterior density",
+                      title = "SBayesRC SNP-h² posterior (mode solid, 95% HPD dashed)") +
+        ggplot2::theme_bw(base_size = 13)
+      if (length(gvec) > 1) p <- p + ggplot2::facet_wrap(~ gwas, scales = "free")
+      p
+    })
+
+    output$sbayesrc_legend <- renderUI({
+      req(config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sbayesrc)) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          tags$strong("SBayesRC not run"),
+          br(),
+          "Enable sbayesrc in the pipeline config to populate this view."
+        ))
+      }
+      gd_legend(list(
+        "SNP-h² (mode)"       = paste0(
+          "SNP-based heritability from GCTB SBayesRC — a Bayesian mixed-model estimate ",
+          "incorporating functional annotations and a genome-wide eigen-decomposed LD ",
+          "reference. SNP-h² is bounded at 0 and its posterior is skewed near zero, so the ",
+          "posterior MODE is reported as the point estimate. Complements the LDSC estimate ",
+          "on the SNP-based heritability tab."),
+        "95% HPD"             = paste0(
+          "95% highest-posterior-density credible interval for SNP-h² (the narrowest ",
+          "interval containing 95% of the posterior) — the measure of uncertainty for a ",
+          "skewed posterior."),
+        "Posterior mean (SD)" = paste0(
+          "Posterior mean of SNP-h² with its posterior standard deviation. The SD is the ",
+          "standard error (it is the SD of the MCMC samples; it is not divided by √N)."),
+        "Density plot"        = paste0(
+          "The SNP-h² posterior from the post-burn-in MCMC samples; the solid line marks the ",
+          "mode and the dashed lines the 95% HPD bounds. Inspect it to judge how symmetric ",
+          "the posterior is."),
+        "Non-zero SNPs"       = paste0(
+          "Number of variants assigned a non-zero effect (posterior mean, summed across ",
+          "the non-null mixture components) — a measure of polygenicity."),
+        "Polygenicity (π)"    = paste0(
+          "Proportion of modelled variants with a non-zero effect (non-zero SNPs / total ",
+          "SNPs in the model)."),
+        "Reference"           = paste0(
+          "SBayesRC: Zheng et al. 2024, Nature Genetics. LD and annotation references are ",
+          "the UKB HapMap3 panels shared with GenoPred.")
       ))
     })
 

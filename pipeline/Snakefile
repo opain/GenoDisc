@@ -18,6 +18,7 @@ wildcard_constraints:
 include: "rules/dependencies.smk"
 include: "rules/sumstat_qc.smk"
 include: "rules/finemapping.smk"
+include: "rules/sbayesrc.smk"
 include: "rules/magma.smk"
 include: "rules/magma_interaction.smk"
 include: "rules/twas_pwas.smk"
