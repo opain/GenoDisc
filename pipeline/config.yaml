@@ -23,6 +23,10 @@ rosmap_smr: NA
 # Chromosomes to analyse (default: all autosomes)
 chromosomes: [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22]
 
+# P-value threshold below which QC-removed variants are recorded per-variant in
+# <gwas>.cleaned.removed.gz (keeps the file small). Also feeds the lost-signal summary.
+removed_p_thresh: 1.0e-5
+
 ############
 # Specify desired output
 ############

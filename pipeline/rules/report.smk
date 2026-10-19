@@ -106,6 +106,10 @@ if config["gcsc"] == "T":
 myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.qq_plot.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.manhattan_plot.labelled.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+# Lost-signal summary (lost_signals rule) + raw-input Manhattan data (sumstat_prep_i), so both
+# are built before packaging and read into gwas_qc$lost_signals / gwas_qc$manhattan_raw.
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.lost_signals.rds", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.manhattan_raw.rds", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
 rule package_results:
   input:

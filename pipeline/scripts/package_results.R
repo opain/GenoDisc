@@ -79,6 +79,16 @@ for(gwas_i in gwas_list$name){
   manhattan_data_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.manhattan_data.rds')
   gwas_qc$manhattan_data <- if (file.exists(manhattan_data_path)) readRDS(manhattan_data_path) else NULL
 
+  # Genome-wide significant signals removed during QC: a summary (counts by reason, loci,
+  # and which loci lost their entire GW-significant signal) plus the raw-input (pre-reference)
+  # thinned Manhattan data with a removed flag/reason, so the app can show what was dropped.
+  # file.exists-guarded so bundles produced before this feature still load unchanged.
+  lost_signals_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.lost_signals.rds')
+  gwas_qc$lost_signals <- if (file.exists(lost_signals_path)) readRDS(lost_signals_path) else NULL
+
+  manhattan_raw_path <- paste0(outdir, '/results/', gwas_i, '/gwas_sumstat/', gwas_i, '.cleaned.manhattan_raw.rds')
+  gwas_qc$manhattan_raw <- if (file.exists(manhattan_raw_path)) readRDS(manhattan_raw_path) else NULL
+
   ##################
   # SNP associations
   ##################

@@ -52,7 +52,13 @@ rule sumstat_prep_i:
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.sumstats.gz",
     # HapMap3 merge-alleles copy for LDSC (h2/rg); the full .munged file above is
     # kept for FUSION TWAS, whose weight panels can be denser than HapMap3.
-    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.mergealleles.sumstats.gz"
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.mergealleles.sumstats.gz",
+    # Attrition reporting (additive; cleaned outputs above are unchanged):
+    # per-variant file of QC-removed variants with P < removed_p_thresh (original
+    # user-build SNP/CHR/BP/P + reason), and raw-input (pre-reference) thinned
+    # Manhattan data with a removed flag/reason for plotting lost signals.
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.removed.gz",
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.manhattan_raw.rds"
   benchmark:
     f"{outdir}/benchmarks/sumstat_prep_i_{{gwas}}.tsv"
   conda:
@@ -75,7 +81,9 @@ rule sumstat_prep_i:
     # Without it, ref_harmonise defaults to chr 1:22 and merge()s an empty target
     # chunk for the absent chromosomes -> "'by' must specify a uniquely valid
     # column". Omitted for full genome-wide runs (unchanged behaviour).
-    test_arg=("--test " + str(chromosomes[0])) if len(chromosomes) == 1 else ""
+    test_arg=("--test " + str(chromosomes[0])) if len(chromosomes) == 1 else "",
+    # P-value threshold for the per-variant removed-variant file (see config.yaml).
+    removed_p_thresh=config.get('removed_p_thresh', 1e-5)
   log:
     f"{outdir}/logs/sumstat_prep_i-{{gwas}}.log"
   shell:
@@ -89,12 +97,43 @@ rule sumstat_prep_i:
       --population {params.population} \
       --munged T \
       --merge_alleles {params.resdir}/data/ldsc/w_hm3.snplist \
+      --removed_p_thresh {params.removed_p_thresh} \
       {params.test_arg} \
       --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
 
 rule sumstat_prep:
   input: expand(f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz", gwas=gwas_list_df_eur['name'])
+
+###
+# Summarise genome-wide significant signals removed during QC (lost signals)
+###
+
+# Reads the per-variant removed-variant file (written by sumstat_prep_i / the GenoUtils
+# cleaner) plus the cleaned sumstats, and summarises removed genome-wide significant
+# variants: counts by reason, approximate 1 Mb loci around each lead removed variant, and
+# a flag for loci where every GW-significant variant was removed (lost signal) vs loci that
+# still retain a variant. A standalone rule (rather than extending manhattan_plot) so it
+# runs whenever QC runs, independent of the clump-gated Manhattan inputs.
+rule lost_signals:
+  input:
+    removed=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.removed.gz",
+    cleaned=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
+    script=f"{workflow.basedir}/scripts/summarise_lost_signals.R"
+  output:
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.lost_signals.rds"
+  benchmark:
+    f"{outdir}/benchmarks/lost_signals_{{gwas}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    f"{outdir}/logs/lost_signals-{{gwas}}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/summarise_lost_signals.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} > {log} 2>&1"
 
 ###
 # Calculate median effective sample size
