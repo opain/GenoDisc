@@ -26,6 +26,10 @@ Guidance for AI coding tools working in the GenoDisc pipeline. The full recipe i
    into the bundle (gated; returns `NULL` when absent).
 6. Viewer (if surfaced): flag in `R/utils_config.R`, gate in `app.R`, render in a `R/mod_*.R`.
 7. `tests/config_test.yaml` + `prepare_resources.yaml`: `<name>: T`.
+8. Fill the contribution form: copy `pipeline/docs/method_contribution_template.md` →
+   `pipeline/docs/methods/<name>.md` and complete it (submission-panel metadata + user-facing docs
+   prose). The maintainer uses it to wire the website form + docs (CONTRIBUTING.md Part C). Worked
+   example: `pipeline/docs/methods/sbayesrc.md`.
 
 ## Invariants
 

@@ -181,3 +181,23 @@ All edited R files parse clean.
 - config.yaml explicit paths re-applied (user confirmed); fallback kept in rules/sbayesrc.smk.
 - Re-ran WG (job 38094363) to regenerate the bundle with the new outputs (only sbayesrc + package
   rerun; resdir=pipeline_resources fully staged).
+
+## Contributor/maintainer docs model (user request, 2026-10-19)
+- SBayesRC was committed to the pipeline but not surfaced to users (no website submission-panel
+  toggle, no website/pipeline user docs). User wants the external-contributor model: the contributor
+  supplies a structured method form + docs prose; the maintainer integrates into the web app + docs.
+- Explored the integration edit points (3 agents): Django submission panel is version-gated by the
+  selected version's config.yaml keys (hpc_interface `_version_capabilities`; dev→repo/current), so
+  a `data-version-key="sbayesrc"` card shows for dev. Edit points: forms.py, analysis_dependencies.py
+  (ANALYSIS_LABELS/ANALYSIS_CONFIG_KEYS), _job_form.html (card + BOOLEAN_FIELDS), job_service.py
+  (build/_build_config_yaml/flatten/summarize), resource_estimates.py (RULE_COST + _rule_load).
+  Website docs are hardcoded HTML: docs_webapp.html (analyses table), docs_results.html (viewer-tab
+  <h3> + sidebar + glossary; screenshot via capture_viewer_screenshots.py, deferred until release).
+  Pipeline docs are RMarkdown: docs/pipeline_technical.Rmd + docs/pipeline_guide.Rmd, re-knit via
+  rmarkdown::render_site("docs") and commit HTML.
+- Delivered (docs only, pipeline repo): `pipeline/docs/method_contribution_template.md` (blank form),
+  `pipeline/docs/methods/sbayesrc.md` (filled), CONTRIBUTING.md rewritten end-to-end (Part A
+  implement / Part B form / Part C maintainer integration), AGENTS.md pointer. Did NOT edit the
+  Django app or the RMarkdown docs site — that is the maintainer's integration step.
+- Card placement decided: GWAS QC section next to LDSC (not SNP Associations), since the output is
+  SNP-h² + polygenicity shown beside LDSC. Label "SBayesRC (SNP-h² & polygenicity)".
