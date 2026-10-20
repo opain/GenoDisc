@@ -175,6 +175,7 @@ params <- list(
   list(Parameter = '`cojo`', Description = 'GCTA-COJO conditional analysis for independent associations', Part = 'Part 1'),
   list(Parameter = '`finemap`', Description = 'SuSiE fine-mapping analysis', Part = 'Part 1'),
   list(Parameter = '`ldsc`', Description = 'LD score regression for heritability and intercept estimation', Part = 'Part 1'),
+  list(Parameter = '`sbayesrc`', Description = 'GCTB SBayesRC: SNP-based heritability and polygenicity (number of non-zero-effect variants); EUR/EAS/AFR only', Part = 'Part 1'),
   list(Parameter = '`gencor_within_gwas_list`', Description = 'Bivariate LDSC rG among every pair of EUR primaries in `gwas_list` (requires `ldsc: T`; self-pairs and non-EUR primaries skipped)', Part = 'Part 1'),
   list(Parameter = '`magma_gene`', Description = 'MAGMA gene-level association analysis', Part = 'Part 2'),
   list(Parameter = '`twas_panel_fusion`', Description = 'TWAS using FUSION GTEx and non-GTEx weight panels', Part = 'Part 2'),
@@ -200,6 +201,26 @@ params <- list(
   list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
   list(Parameter = '`magma_pathway`', Description = 'MAGMA gene-set enrichment against user-supplied `.gmt` pathway sets (requires `magma_gene: T` and `pathway_gmt_dir`)', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_pathway`', Description = 'Non-directional TWAS-GSEA against user-supplied `.gmt` pathway sets (requires a TWAS panel and `pathway_gmt_dir`)', Part = 'Part 3')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View SBayesRC parameters**</summary>
+
+Only consulted when `sbayesrc: T`. References default to the copies staged in `resdir`.
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`sbayesrc_ldref`', Description = 'Directory of per-population eigen-decomposed LD (`<dir>/<POP>/{ldm.info,snp.info,block*.eigen.bin}`). `NA` = use the copy staged in `resdir` by `download_sbayesrc_ref`.', Example = '`NA`'),
+  list(Parameter = '`sbayesrc_annot`', Description = 'GCTB baseline functional annotation file. `NA` = use the copy staged in `resdir` by `download_sbayesrc_annot`.', Example = '`NA`'),
+  list(Parameter = '`sbayesrc_threads`', Description = 'MCMC threads (the single chain barely scales past ~4 cores)', Example = '`4`'),
+  list(Parameter = '`sbayesrc_seed`', Description = 'MCMC random seed (for reproducible runs)', Example = '`1`'),
+  list(Parameter = '`sbayesrc_chain_length`', Description = 'MCMC chain length', Example = '`3000`'),
+  list(Parameter = '`sbayesrc_burn_in`', Description = 'MCMC burn-in iterations discarded', Example = '`1000`')
 )
 
 df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
@@ -466,6 +487,7 @@ Below are the main output files you can request, grouped by analysis. Replace `{
 | GCTA-COJO | `{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv` |
 | Fine-mapping | `{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv` |
 | LDSC | `{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log` |
+| SBayesRC | `{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv` |
 
 </details>
 
@@ -535,6 +557,7 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
       ldsc/                # LD score regression results
+      sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
       gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
       gencor_within/       # Bivariate LDSC among primaries in gwas_list;
                            #   only when gencor_within_gwas_list: T
