@@ -35,7 +35,11 @@ def get_mem_mb_sbayesrc(wildcards, attempt):
 
 rule sbayesrc:
   resources:
-    mem_mb=get_mem_mb_sbayesrc
+    mem_mb=get_mem_mb_sbayesrc,
+    # Per-rule CPU request: this pipeline's SLURM profile reads resources.cpus
+    # (NOT the threads: directive) for --cpus-per-task. Without this the job gets
+    # the default 1 CPU and gctb runs single-threaded.
+    cpus=sbayesrc_threads
   threads: sbayesrc_threads
   input:
     sumstats="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz",
@@ -67,4 +71,4 @@ rule sbayesrc:
       --seed {params.seed} \
       --chain_length {params.chain_length} \
       --burn_in {params.burn_in} \
-      --threads {threads} > {log} 2>&1"
+      --threads {resources.cpus} > {log} 2>&1"
