@@ -20,6 +20,12 @@ complete the sections below. See `pipeline/docs/methods/sbayesrc.md` for a worke
 - **Rule module:** `pipeline/rules/<flag>.smk` <!-- new include added to Snakefile -->
 - **External tool + version:** <!-- e.g. gctb 2.5.5 (official binary); how it is obtained -->
 - **References / citations:** <!-- papers + URLs -->
+- **Tool licence:** <!-- licence of the external tool/binary, e.g. MIT, GPL-3 -->
+- **Reference-data licence / redistribution:** <!-- licence + redistribution terms of any reference
+  data the method needs; FLAG UKB-derived terms (e.g. UKB LD references have usage restrictions),
+  or "none / public domain" -->
+- **Citation users should give:** <!-- the paper(s) a user must cite when reporting results from this method -->
+- **Maintainer / contact:** <!-- name + email of the method's maintainer, for questions -->
 
 ## 2. Config parameters
 List every NEW `config.yaml` key the method adds (the T/F toggle AND any path/option params).
@@ -78,5 +84,12 @@ outputs, references, results location). 3–8 sentences; user/method-facing, not
 
 ## 9. Testing / verification
 - **Test config + GWAS used:** <!-- e.g. tests/config_<flag>.yaml on COAD01 (whole genome) -->
-- **How it was run end to end:** <!-- command / HPC submission -->
+- **How it was run end to end:** <!-- command (generic / own cluster) -->
 - **Expected / observed result:** <!-- concrete numbers proving it works -->
+
+## 10. Known failure modes
+How the method can fail and what the user/maintainer should do. e.g. populations with no reference;
+inputs that trip the tool (too few SNPs, allele mismatches); convergence/robustness issues; resource
+(memory/time) limits; any silent-degradation cases.
+
+<!-- list the known failure modes here -->
