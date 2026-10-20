@@ -34,8 +34,8 @@ cojo: T
 # Perform SNP finemapping analysis
 finemap: T
 
-# Run GCTB SBayesRC (SNP-h2 + polygenicity)
-sbayesrc: T
+# Run GCTB SBayesRC (SNP-h2 + polygenicity) — exercised via tests/config_test_sbayesrc.yaml
+sbayesrc: F
 
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: T

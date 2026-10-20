@@ -3,7 +3,8 @@
 #
 # Two-step official gctb recipe (gctb 2.5.5 binary):
 #   1. gctb --ldm-eigen <ldref> --gwas-summary <gwas>.ma --impute-summary --out <prefix>
-#   2. gctb --ldm-eigen <ldref> --gwas-summary <prefix>.imputed.ma --sbayes RC --annot <annot> --out <prefix> --out-freq 1
+#   2. gctb --ldm-eigen <ldref> --gwas-summary <prefix>.imputed.ma --sbayes RC --annot <annot>
+#        --out <prefix> --seed S --chain-length C --burn-in B --out-freq 1
 # SNP-h2 is summarised from the post-burn-in MCMC trace of hsq (posterior mode +
 # 95% HPD + SD) parsed from gctb's stdout; polygenicity (non-zero-effect variant
 # count) comes from .parRes. Only model-level parameters are kept; the per-SNP
@@ -25,7 +26,13 @@ option_list = list(
   make_option("--annot", action="store", default=NA, type='character',
               help="SBayesRC functional annotation file [required]"),
   make_option("--threads", action="store", default=1, type='integer',
-              help="Number of threads [default: 1]")
+              help="Number of threads [default: 1]"),
+  make_option("--seed", action="store", default=1, type='integer',
+              help="MCMC random seed [default: 1]"),
+  make_option("--chain_length", action="store", default=3000, type='integer',
+              help="MCMC chain length [default: 3000]"),
+  make_option("--burn_in", action="store", default=1000, type='integer',
+              help="MCMC burn-in iterations to discard [default: 1000]")
 )
 
 opt = parse_args(OptionParser(option_list=option_list))
@@ -54,6 +61,14 @@ cat('Wrote', nrow(ma), 'variants to', ma_file, '\n')
 prefix  <- paste0(tmp_dir, '/', gwas)
 threads <- opt$threads
 
+# gctb parallelises the heavy eigen (LD) operations only when given
+# --multi-thread-eigen (added to both gctb calls below); without it the threads
+# are largely idle. Also pin the OpenMP / BLAS thread counts so every parallel
+# region uses `threads` (gctb is statically linked; OMP_NUM_THREADS still governs it).
+Sys.setenv(OMP_NUM_THREADS = threads,
+           OPENBLAS_NUM_THREADS = threads,
+           MKL_NUM_THREADS = threads)
+
 run <- function(cmd) {
   cat('RUN:', cmd, '\n')
   st <- system(cmd)
@@ -66,6 +81,7 @@ run(paste(shQuote(opt$gctb),
           '--gwas-summary', shQuote(ma_file),
           '--impute-summary',
           '--out', shQuote(prefix),
+          '--multi-thread-eigen',
           '--thread', threads))
 
 imputed_ma <- paste0(prefix, '.imputed.ma')
@@ -82,7 +98,11 @@ run(paste(shQuote(opt$gctb),
           '--sbayes RC',
           '--annot', shQuote(opt$annot),
           '--out', shQuote(prefix),
+          '--seed', opt$seed,
+          '--chain-length', opt$chain_length,
+          '--burn-in', opt$burn_in,
           '--out-freq 1',
+          '--multi-thread-eigen',
           '--thread', threads,
           '>', shQuote(sbrc_log), '2>&1'))
 
@@ -111,14 +131,10 @@ pi_est    <- if (total_snp > 0) n_nonzero / total_snp else NA_real_
 # The posterior of SNP-h2 is skewed when the true value is near zero, so we
 # report the posterior MODE as the point estimate and a 95% HPD credible
 # interval (per J. Zeng). The posterior SD (= SD of the MCMC samples; no
-# sqrt(N) division) is the SE. Burn-in iterations are discarded first.
+# sqrt(N) division) is the SE. Burn-in iterations (the known --burn-in value)
+# are discarded.
 loglines <- readLines(sbrc_log)
-log_int <- function(pat) {
-  m <- loglines[grepl(pat, loglines)]
-  if (length(m) == 0) return(NA_integer_)
-  as.integer(gsub('[^0-9]', '', sub('.*:', '', m[1])))
-}
-burn_in <- log_int('Burn-in:'); if (is.na(burn_in)) burn_in <- 0L
+burn_in <- opt$burn_in
 
 # Locate the Iter/.../hsq progress table and pull iter + hsq from each MCMC row
 # (16 whitespace fields, integer iter, trailing h:m:s TimeLeft).
@@ -137,6 +153,15 @@ if (length(hdr_idx) >= 1) {
   }
 }
 
+# Fail hard rather than silently falling back — a missing trace means something
+# is wrong with the run (flags, gctb version, truncated log) and the h2 summary
+# would otherwise be unreliable.
+if (length(h2_samples) < 10) {
+  stop('Could not parse the post-burn-in hsq MCMC trace from ', sbrc_log,
+       ' (found ', length(h2_samples), ' usable iterations; check --out-freq / --burn-in',
+       ' and that the Iter...hsq table is present).')
+}
+
 hpd_interval <- function(x, prob = 0.95) {
   x <- sort(x); n <- length(x); k <- floor(prob * n)
   if (n < 2 || k < 1) return(c(NA_real_, NA_real_))
@@ -144,18 +169,22 @@ hpd_interval <- function(x, prob = 0.95) {
   c(x[i], x[i + k])
 }
 
-if (length(h2_samples) >= 10) {
-  dens <- density(h2_samples, from = 0)          # h2 >= 0: respect the boundary
-  h2_mode <- dens$x[which.max(dens$y)]
-  h2_mean <- mean(h2_samples); h2_sd <- sd(h2_samples)
-  hpd <- hpd_interval(h2_samples, 0.95)
-} else {
-  # Fallback to the .parRes posterior mean/SD if the trace could not be parsed.
-  warning('Could not parse hsq MCMC trace; falling back to .parRes mean/SD.')
-  hsq <- get_par('hsq')
-  h2_mode <- unname(hsq['est']); h2_mean <- unname(hsq['est']); h2_sd <- unname(hsq['sd'])
-  hpd <- c(NA_real_, NA_real_)
+# Effective sample size: n / (1 + 2*sum of the initial positive autocorrelations).
+# Computed manually (coda is not in the pipeline env). Approximate but adequate
+# for flagging poor mixing.
+eff_sample_size <- function(x) {
+  n <- length(x); if (n < 10 || var(x) == 0) return(NA_real_)
+  ac <- as.numeric(acf(x, lag.max = min(n - 1L, 1000L), plot = FALSE, demean = TRUE)$acf)[-1]
+  rho_sum <- 0
+  for (r in ac) { if (is.na(r) || r <= 0) break; rho_sum <- rho_sum + r }
+  max(1, min(n, n / (1 + 2 * rho_sum)))
 }
+
+dens    <- density(h2_samples, from = 0)          # h2 >= 0: respect the boundary
+h2_mode <- dens$x[which.max(dens$y)]
+h2_mean <- mean(h2_samples); h2_sd <- sd(h2_samples)
+hpd     <- hpd_interval(h2_samples, 0.95)
+n_ess   <- eff_sample_size(h2_samples)
 
 out <- data.frame(
   gwas        = gwas,
@@ -165,6 +194,7 @@ out <- data.frame(
   h2_hpd_low  = hpd[1],
   h2_hpd_high = hpd[2],
   n_post_samples = length(h2_samples),
+  n_ess       = n_ess,
   n_nonzero   = n_nonzero,
   n_snp_total = total_snp,
   pi_est      = pi_est,
@@ -179,8 +209,14 @@ samples_file <- paste0(sbrc_dir, '/', gwas, '.GW.sbayesrc.h2_samples.txt')
 writeLines(format(h2_samples, scientific = FALSE, trim = TRUE), samples_file)
 cat('Wrote', clean_csv, 'and', samples_file, '\n')
 
-# --- Tidy large intermediates; keep .parRes + stdout log for provenance ---
-if (file.exists(par_file)) file.copy(par_file, paste0(sbrc_dir, '/', gwas, '.parRes'), overwrite = TRUE)
+# --- Tidy large intermediates; keep model-parameter outputs + stdout log for provenance ---
+# .parRes (summary), .enrich (per-annotation h2 enrichment) and .parSetRes (per-annotation x
+# per-component parameters) are retained in the results dir for provenance. They are NOT packaged
+# into the bundle or shown in the viewer (heritability + polygenicity only).
+for (ext in c('.parRes', '.enrich', '.parSetRes')) {
+  src <- paste0(prefix, ext)
+  if (file.exists(src)) file.copy(src, paste0(sbrc_dir, '/', gwas, ext), overwrite = TRUE)
+}
 if (file.exists(sbrc_log)) file.copy(sbrc_log, paste0(sbrc_dir, '/', gwas, '.sbrc.stdout.log'), overwrite = TRUE)
 for (f in c(ma_file, imputed_ma, paste0(prefix, '.snpRes'))) {
   if (file.exists(f)) file.remove(f)

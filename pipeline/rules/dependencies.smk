@@ -395,6 +395,50 @@ rule download_gctb:
   shell:
     "(mkdir -p {params.resdir}/software/gctb; wget -O {params.resdir}/software/gctb/gctb_2.5.5_Linux.zip https://cnsgenomics.com/software/gctb/download/gctb_2.5.5_Linux.zip; unzip -o {params.resdir}/software/gctb/gctb_2.5.5_Linux.zip -d {params.resdir}/software/gctb; rm {params.resdir}/software/gctb/gctb_2.5.5_Linux.zip) > {log} 2>&1"
 
+# Download SBayesRC eigen-decomposed LD reference (per population) from the
+# official GCTB site. The eigen LD is UK-Biobank-derived — download from source
+# (do not re-host). Each zip unpacks to ukb<POP>_HM3/{ldm.info,snp.info,block*.eigen.bin};
+# we rename it to <POP>/.
+rule download_sbayesrc_ref:
+  output:
+    f"{resdir}/data/sbayesrc_ref/{{population}}/ldm.info"
+  benchmark:
+    f"{resdir}/benchmarks/download_sbayesrc_ref-{{population}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_sbayesrc_ref-{{population}}.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/sbayesrc_ref; "
+    "rm -rf {params.resdir}/data/sbayesrc_ref/{wildcards.population}; "
+    "wget -O {params.resdir}/data/sbayesrc_ref/ukb{wildcards.population}_HM3.zip "
+    "https://gctbhub.cloud.edu.au/data/SBayesRC/resources/v2.0/LD/HapMap3/ukb{wildcards.population}_HM3.zip; "
+    "unzip -q {params.resdir}/data/sbayesrc_ref/ukb{wildcards.population}_HM3.zip -d {params.resdir}/data/sbayesrc_ref; "
+    "mv {params.resdir}/data/sbayesrc_ref/ukb{wildcards.population}_HM3 {params.resdir}/data/sbayesrc_ref/{wildcards.population}; "
+    "rm {params.resdir}/data/sbayesrc_ref/ukb{wildcards.population}_HM3.zip) > {log} 2>&1"
+
+# Download SBayesRC functional annotation (S-LDSC BaselineLD v2.2) from the
+# official GCTB site; unpacks to annot_baseline2.2.txt.
+rule download_sbayesrc_annot:
+  output:
+    f"{resdir}/data/sbayesrc_annot/annot_baseline2.2.txt"
+  benchmark:
+    f"{resdir}/benchmarks/download_sbayesrc_annot.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_sbayesrc_annot.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/sbayesrc_annot; "
+    "wget -O {params.resdir}/data/sbayesrc_annot/annot_baseline2.2.zip "
+    "https://gctbhub.cloud.edu.au/data/SBayesRC/resources/v2.0/Annotation/annot_baseline2.2.zip; "
+    "unzip -o {params.resdir}/data/sbayesrc_annot/annot_baseline2.2.zip -d {params.resdir}/data/sbayesrc_annot; "
+    "rm {params.resdir}/data/sbayesrc_annot/annot_baseline2.2.zip) > {log} 2>&1"
+
 # Install GenoUtils
 rule install_genoutils:
   input:
@@ -1345,6 +1389,10 @@ if config["cojo"] == "T":
 # downloaded here; only the GCTB binary is staged.)
 if config.get("sbayesrc", "F") == "T":
     resource_inputs.append(rules.download_gctb.output)
+    resource_inputs.append(rules.download_sbayesrc_annot.output)
+    resource_inputs.extend(
+        expand(f"{resdir}/data/sbayesrc_ref/{{population}}/ldm.info",
+               population=['EUR', 'EAS', 'AFR']))
 
 # MAGMA
 if config["magma_gene"] == "T" or config["magma_drugtargetor"] == "T" or config["tissue_magma"] == "T":

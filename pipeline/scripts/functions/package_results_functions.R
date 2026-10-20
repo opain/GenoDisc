@@ -112,6 +112,7 @@ process_sbayesrc <- function(config, gwas){
     h2_sd       = as.numeric(tab$h2_sd[1]),
     h2_hpd_low  = as.numeric(tab$h2_hpd_low[1]),
     h2_hpd_high = as.numeric(tab$h2_hpd_high[1]),
+    n_ess       = if (!is.null(tab$n_ess)) as.numeric(tab$n_ess[1]) else NA_real_,
     n_nonzero   = as.numeric(tab$n_nonzero[1]),
     n_snp_total = as.numeric(tab$n_snp_total[1]),
     pi_est      = as.numeric(tab$pi_est[1])

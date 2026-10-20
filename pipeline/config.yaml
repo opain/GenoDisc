@@ -46,13 +46,22 @@ finemap: F
 # populations are skipped. NOT a fine-mapping output.
 sbayesrc: F
 
-# SBayesRC reference data (shared with GenoPred). Explicit paths; NA falls back
-# to GenoPred's staged copies (see rules/sbayesrc.smk).
+# SBayesRC reference data. NA = use the copies staged in resdir by
+# download_sbayesrc_ref / download_sbayesrc_annot (from the official GCTB site).
+# Set an explicit path to reuse an existing copy instead of downloading.
 # sbayesrc_ldref: directory holding per-population eigen-decomposed LD, i.e.
 #   <sbayesrc_ldref>/<POP>/{ldm.info,snp.info,block*.eigen.bin}.
 # sbayesrc_annot: GCTB functional annotation file (header: SNP Intercept ...).
-sbayesrc_ldref: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_ref
-sbayesrc_annot: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_annot/annot_baseline2.2.txt
+sbayesrc_ldref: NA
+sbayesrc_annot: NA
+
+# SBayesRC MCMC controls (explicit for reproducibility; see scripts/sbayesrc.R).
+# threads: the MCMC (1 chain) dominates runtime and barely scales past ~4 cores
+# (measured: 10 threads used only ~4.3), so 4 is the sensible default.
+sbayesrc_threads: 4
+sbayesrc_seed: 1
+sbayesrc_chain_length: 3000
+sbayesrc_burn_in: 1000
 
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: F
