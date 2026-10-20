@@ -632,146 +632,211 @@ estimation</td>
 <td align="left">Part 1</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>sbayesrc</code></td>
+<td align="left">GCTB SBayesRC: SNP-based heritability and polygenicity
+(number of non-zero-effect variants); EUR/EAS/AFR only</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="even">
 <td align="left"><code>gencor_within_gwas_list</code></td>
 <td align="left">Bivariate LDSC rG among every pair of EUR primaries in
 <code>gwas_list</code> (requires <code>ldsc: T</code>; self-pairs and
 non-EUR primaries skipped)</td>
 <td align="left">Part 1</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>magma_gene</code></td>
 <td align="left">MAGMA gene-level association analysis</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_panel_fusion</code></td>
 <td align="left">TWAS using FUSION GTEx and non-GTEx weight panels</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_panel_psychencode</code></td>
 <td align="left">TWAS using PsychENCODE panel</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_conditional</code></td>
 <td align="left">Conditional analysis of significant TWAS hits</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>smr_expression_panel_psychencode</code></td>
 <td align="left">SMR using PsychENCODE eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>smr_expression_panel_metabrain_cortex</code></td>
 <td align="left">SMR using MetaBrain cortex eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td
 align="left"><code>smr_expression_panel_metabrain_basalganglia</code></td>
 <td align="left">SMR using MetaBrain basal ganglia eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td
 align="left"><code>smr_expression_panel_metabrain_cerebellum</code></td>
 <td align="left">SMR using MetaBrain cerebellum eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td
 align="left"><code>smr_expression_panel_metabrain_hippocampus</code></td>
 <td align="left">SMR using MetaBrain hippocampus eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td
 align="left"><code>smr_expression_panel_metabrain_spinalcord</code></td>
 <td align="left">SMR using MetaBrain spinal cord eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>smr_expression_panel_eqtlgen</code></td>
 <td align="left">SMR using eQTLGen blood eQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>pwas_panel_rosmap</code></td>
 <td align="left">PWAS using ROSMAP brain pQTL weights</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>pwas_panel_banner</code></td>
 <td align="left">PWAS using Banner brain pQTL weights</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>smr_protein_panel_rosmap</code></td>
 <td align="left">SMR using ROSMAP pQTL data</td>
 <td align="left">Part 2</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>magma_drugtargetor</code></td>
 <td align="left">MAGMA gene set enrichment using DrugTargetor drug-gene
 sets</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>magma_drugtargetor_gls</code></td>
 <td align="left">Recommended ATC-class readout for MAGMA: drug-level GLS
 (DRUGSETS-style; Bell et al. 2022), non-directional. Requires
 magma_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_gsea_drugtargetor</code></td>
 <td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene sets
 (experimental)</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_gsea_drugtargetor_nondirectional</code></td>
 <td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment
 (experimental)</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>drug_targetor_atc_gls</code></td>
 <td align="left">Recommended ATC-class readout for TWAS-GSEA: drug-level
 GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient
 + 95% CI. Requires twas_gsea_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_gsea_cmap</code></td>
 <td align="left">TWAS-GSEA against CMAP level5 drug signatures</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>gcsc</code></td>
 <td align="left">Gene co-regulation-based drug scoring (GCSC)</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>tissue_magma</code></td>
 <td align="left">MAGMA tissue enrichment analysis</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>magma_pathway</code></td>
 <td align="left">MAGMA gene-set enrichment against user-supplied
 <code>.gmt</code> pathway sets (requires <code>magma_gene: T</code> and
 <code>pathway_gmt_dir</code>)</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>twas_gsea_pathway</code></td>
 <td align="left">Non-directional TWAS-GSEA against user-supplied
 <code>.gmt</code> pathway sets (requires a TWAS panel and
 <code>pathway_gmt_dir</code>)</td>
 <td align="left">Part 3</td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>View SBayesRC parameters</strong>
+</summary>
+<p>Only consulted when <code>sbayesrc: T</code>. References default to
+the copies staged in <code>resdir</code>.</p>
+<table>
+<colgroup>
+<col width="11%" />
+<col width="84%" />
+<col width="3%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>sbayesrc_ldref</code></td>
+<td align="left">Directory of per-population eigen-decomposed LD
+(<code>&lt;dir&gt;/&lt;POP&gt;/{ldm.info,snp.info,block*.eigen.bin}</code>).
+<code>NA</code> = use the copy staged in <code>resdir</code> by
+<code>download_sbayesrc_ref</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>sbayesrc_annot</code></td>
+<td align="left">GCTB baseline functional annotation file.
+<code>NA</code> = use the copy staged in <code>resdir</code> by
+<code>download_sbayesrc_annot</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>sbayesrc_threads</code></td>
+<td align="left">MCMC threads (the single chain barely scales past ~4
+cores)</td>
+<td align="left"><code>4</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>sbayesrc_seed</code></td>
+<td align="left">MCMC random seed (for reproducible runs)</td>
+<td align="left"><code>1</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>sbayesrc_chain_length</code></td>
+<td align="left">MCMC chain length</td>
+<td align="left"><code>3000</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>sbayesrc_burn_in</code></td>
+<td align="left">MCMC burn-in iterations discarded</td>
+<td align="left"><code>1000</code></td>
 </tr>
 </tbody>
 </table>
@@ -1272,6 +1337,10 @@ Replace <code>{outdir}</code> with your output directory and
 <td>LDSC</td>
 <td><code>{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log</code></td>
 </tr>
+<tr class="odd">
+<td>SBayesRC</td>
+<td><code>{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv</code></td>
+</tr>
 </tbody>
 </table>
 </details>
@@ -1391,6 +1460,7 @@ portable bundle:</p>
       cojo/                # GCTA-COJO results
       finemap/             # SuSiE fine-mapping results
       ldsc/                # LD score regression results
+      sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
       gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
       gencor_within/       # Bivariate LDSC among primaries in gwas_list;
                            #   only when gencor_within_gwas_list: T

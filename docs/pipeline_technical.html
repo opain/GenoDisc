@@ -411,9 +411,9 @@ the <a href="pipeline_guide.html">User Guide</a>.</p>
 <p>The pipeline relies on the following tools:</p>
 <table>
 <colgroup>
-<col width="12%" />
-<col width="60%" />
-<col width="26%" />
+<col width="13%" />
+<col width="62%" />
+<col width="23%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -439,58 +439,66 @@ href="https://doi.org/10.1038/ng.3211">Bulik-Sullivan et
 al. 2015</a></td>
 </tr>
 <tr class="odd">
+<td align="left">GCTB (SBayesRC)</td>
+<td align="left">SNP-based heritability and polygenicity (Bayesian,
+annotation-informed)</td>
+<td align="left"><a
+href="https://doi.org/10.1038/s41588-024-01704-y">Zheng et
+al. 2024</a></td>
+</tr>
+<tr class="even">
 <td align="left">PLINK 1.9</td>
 <td align="left">LD clumping and general variant-level operations</td>
 <td align="left"><a
 href="https://doi.org/10.1186/s13742-015-0047-8">Chang et
 al. 2015</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">GCTA-COJO</td>
 <td align="left">Conditional and joint association analysis</td>
 <td align="left"><a href="https://doi.org/10.1038/ng.2213">Yang et
 al. 2012</a></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">SuSiE</td>
 <td align="left">Fine-mapping via Sum of Single Effects model</td>
 <td align="left"><a href="https://doi.org/10.1111/rssb.12388">Wang et
 al. 2020</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">MAGMA</td>
 <td align="left">Gene-level and gene set association analysis</td>
 <td align="left"><a
 href="https://doi.org/10.1371/journal.pcbi.1004219">de Leeuw et
 al. 2015</a></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">FUSION</td>
 <td align="left">Transcriptome-wide association study</td>
 <td align="left"><a href="https://doi.org/10.1038/ng.3506">Gusev et
 al. 2016</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">SMR</td>
 <td align="left">Summary-data-based Mendelian randomisation</td>
 <td align="left"><a href="https://doi.org/10.1038/ng.3538">Zhu et
 al. 2016</a></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">TWAS-GSEA</td>
 <td align="left">Gene set enrichment of TWAS results</td>
 <td align="left"><a
 href="https://doi.org/10.1101/2023.07.24.23293084">Pain et
 al. 2023</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">DrugTargetor</td>
 <td align="left">Drug-gene interaction database for enrichment</td>
 <td align="left"><a
 href="https://doi.org/10.1093/bioinformatics/bty742">Gaspar et
 al. 2019</a></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">liftOver</td>
 <td align="left">Genome build coordinate conversion</td>
 <td align="left"><a
@@ -685,6 +693,38 @@ exit and the R post-processor
 (<code>scripts/process_ldsc_gencor.R</code>) treats that marker (and
 LDSC’s own <code>ERROR computing rg</code> line) as an <code>NA</code>
 row, keeping successful pairs intact.</p>
+<hr />
+</div>
+<div id="sbayesrc-snp-based-heritability-polygenicity"
+class="section level2">
+<h2>SBayesRC (SNP-based heritability &amp; polygenicity)</h2>
+<p><a href="https://cnsgenomics.com/software/gctb/">GCTB SBayesRC</a>
+estimates SNP-based heritability and polygenicity from GWAS summary
+statistics using a Bayesian multi-component mixed model that
+incorporates functional genomic annotations and a genome-wide
+eigen-decomposed LD reference. It is an optional alternative to LDSC for
+heritability, and additionally reports polygenicity.</p>
+<p>The pipeline runs the official <strong>gctb 2.5.5</strong> binary in
+two steps per GWAS: (1) <code>--impute-summary</code> QCs and imputes
+the summary statistics to the LD-reference SNP set, then (2)
+<code>--sbayes RC</code> fits the model with the baseline annotation.
+SNP-heritability is summarised from the post-burn-in MCMC trace of
+<code>hsq</code> as the posterior <strong>mode</strong> (robust for the
+skewed near-zero posterior) with a <strong>95% HPD</strong> interval and
+posterior <strong>mean/SD</strong> (the SD is the posterior SD, i.e. the
+standard error). Polygenicity is the posterior-mean number of
+non-zero-effect variants (sum of the non-null mixture components) and
+its proportion <span class="math inline">\(\pi\)</span>. Effective
+sample size (ESS) of the <code>hsq</code> draws is reported as a mixing
+diagnostic.</p>
+<p>The LD reference (UK Biobank HapMap3 eigen-decomposition) is chosen
+per-GWAS from the population column (<strong>EUR/EAS/AFR</strong> only;
+other populations are skipped). The eigen-LD and baseline annotation are
+downloaded from the official GCTB site and staged in
+<code>resdir</code>. Results are stored in
+<code>{outdir}/results/{gwas}/sbayesrc/</code>. This is a
+heritability/polygenicity summary, <strong>not</strong> a fine-mapping
+output.</p>
 <hr />
 </div>
 <div id="ld-clumping" class="section level2">
