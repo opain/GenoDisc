@@ -86,7 +86,6 @@ snakemake tests/output/results/COAD01chr22/twas/cmap/twas_gsea_cmap_Whole_Blood_
 
 ## Project recipes
 
-To add or modify a pipeline analysis, follow the recipe in [`CONTRIBUTING.md`](CONTRIBUTING.md)
-(humans) / [`AGENTS.md`](AGENTS.md) (AI). Note: the pipeline runs on the CREATE HPC inside the
-`genodisc` conda env (not the dev VM) — run tests by SSHing to the HPC and `sbatch`-ing a wrapper
-that `source`s `bin/activate_genodisc.sh`, exactly as the web app does.
+To add or modify a pipeline analysis or dataset, follow the recipe in
+[`CONTRIBUTING.md`](CONTRIBUTING.md) (humans) / [`AGENTS.md`](AGENTS.md) (AI). The pipeline runs
+inside its conda environment (`pipeline/envs/main.yaml`); see CONTRIBUTING.md → Testing.
