@@ -146,8 +146,11 @@ chromosomes = config.get("chromosomes", list(range(1, 23)))
 # resdir; from a fresh job dir Snakemake has no code-provenance to notice the
 # SHA changed in the shell command, so a plain 'install_*.done' marker would be
 # treated as up-to-date and the reinstall silently skipped.)
-# GENOUTILS_SHA d734c605 adds the per-variant removed-variant + raw-Manhattan outputs
-# that sumstat_prep_i (rules/sumstat_qc.smk) now declares; see forks/GenoUtils.
+# NOTE: bump to the new GenoUtils SHA after pushing the removed-variant / raw-Manhattan
+# change (forks/GenoUtils) so install_genoutils installs the cleaner that writes
+# <gwas>.cleaned.removed.gz and <gwas>.cleaned.manhattan_raw.rds. The sumstat_prep_i
+# outputs added in rules/sumstat_qc.smk require this cleaner; do not apply that rule
+# change until this SHA is bumped, or dev runs will fail on missing outputs.
 GENOUTILS_SHA = "d734c605cf8e60125b735e553577d56242898abe"  # was 73a18fbf25ad1ca35d5a6e510283e5bf2f2b1294
 LME4QTL_SHA = "0c173ea8d8386b205f62ad642698519a861650b4"
 
