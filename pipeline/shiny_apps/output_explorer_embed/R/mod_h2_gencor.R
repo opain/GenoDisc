@@ -154,6 +154,16 @@ h2GencorUI <- function(id) {
         ),
         br(),
         uiOutput(ns("sbayesrc_legend"))
+      ),
+      tabPanel(
+        title = "SBayesRC (R package)",
+        value = "sbayesrc_r",
+        br(),
+        div(style = "max-width: 900px;",
+          DT::DTOutput(ns("sbayesrc_r_table"))
+        ),
+        br(),
+        uiOutput(ns("sbayesrc_r_legend"))
       )
     )
   )
@@ -354,6 +364,68 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         "Reference"           = paste0(
           "SBayesRC: Zheng et al. 2024, Nature Genetics. LD and annotation references are ",
           "the UKB HapMap3 panels shared with GenoPred.")
+      ))
+    })
+
+    # -------------------------------------------------------------------
+    # SBayesRC (R package): same model via the SBayesRC R package (faster
+    # engine). Posterior mean + SD from <prefix>.par (no MCMC trace, so no
+    # mode / HPD / density). Parsed into gwas_qc$sbayesrc_r_dat$val.
+    # -------------------------------------------------------------------
+
+    output$sbayesrc_r_table <- DT::renderDT({
+      req(gwas_data(), config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sbayesrc_r)) return(NULL)
+      gvec <- h2_gwas_vec()
+      if (is.null(gvec) || length(gvec) == 0) return(NULL)
+      rows <- lapply(gvec, function(g) {
+        v <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sbayesrc_r_dat$val,
+                      error = function(e) NULL)
+        if (is.null(v)) return(NULL)
+        data.frame(
+          GWAS                   = g,
+          `SNP-h² (mean (SD))`   = if (is.null(v$h2_mean) || is.na(v$h2_mean)) "—" else sprintf("%.3f (%.3f)", v$h2_mean, v$h2_sd),
+          `Non-zero SNPs`        = if (is.null(v$n_nonzero) || is.na(v$n_nonzero)) "—" else formatC(round(v$n_nonzero), format = "d", big.mark = ","),
+          `Polygenicity (π)`     = if (is.null(v$pi_est) || is.na(v$pi_est)) "—" else formatC(v$pi_est, format = "g", digits = 3),
+          check.names = FALSE, stringsAsFactors = FALSE
+        )
+      })
+      rows <- Filter(Negate(is.null), rows)
+      if (length(rows) == 0) return(NULL)
+      DT::datatable(
+        do.call(rbind, rows), rownames = FALSE, escape = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE)
+      )
+    })
+
+    output$sbayesrc_r_legend <- renderUI({
+      req(config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sbayesrc_r)) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          tags$strong("SBayesRC (R package) not run"),
+          br(),
+          "Enable sbayesrc_r in the pipeline config to populate this view."
+        ))
+      }
+      gd_legend(list(
+        "SNP-h² (mean (SD))" = paste0(
+          "SNP-based heritability from the SBayesRC R package — the same Bayesian, ",
+          "annotation-informed model as the GCTB SBayesRC tab, run via the SBayesRC R ",
+          "package (a faster engine over the same LD reference). Reported as the posterior ",
+          "mean with its SD (the SD is the standard error). No per-iteration MCMC trace is ",
+          "retained, so there is no posterior mode / HPD / density here."),
+        "Non-zero SNPs"      = paste0(
+          "Number of variants assigned a non-zero effect — a measure of polygenicity."),
+        "Polygenicity (π)"   = paste0(
+          "Proportion of modelled variants with a non-zero effect (non-zero SNPs / total ",
+          "SNPs in the model)."),
+        "Reference"          = paste0(
+          "SBayesRC R package: Zheng et al. 2024, Nature Genetics ",
+          "(github.com/zhilizheng/SBayesRC). Same UKB HapMap3 LD + annotation references as ",
+          "the GCTB SBayesRC method.")
       ))
     })
 
