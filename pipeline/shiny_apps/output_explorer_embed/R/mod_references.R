@@ -27,6 +27,18 @@ referencesServer <- function(id) {
                                              Type = 'Software',
                                              Use = 'Estimate SNP-h2 and LD-score intercept'))
 
+      ref_table<-rbind(ref_table, data.frame(Name = 'SBayesRC',
+                                             PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/38689000">38689000</a>',
+                                             Website = '<a href="https://github.com/zhilizheng/SBayesRC">link</a>',
+                                             Type = 'Software',
+                                             Use = 'Estimate SNP-h2, polygenicity and functional-annotation heritability enrichment'))
+
+      ref_table<-rbind(ref_table, data.frame(Name = 'SumHer (LDAK)',
+                                             PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/30510236">30510236</a>',
+                                             Website = '<a href="https://dougspeed.com/">link</a>',
+                                             Type = 'Software',
+                                             Use = 'Estimate SNP-h2 and functional-annotation heritability enrichment (BLD-LDAK model)'))
+
       ref_table<-rbind(ref_table, data.frame(Name = 'SuSiE',
                                              PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/35853082">35853082</a>',
                                              Website = '<a href="https://stephenslab.github.io/susie-paper">link</a>',
