@@ -34,6 +34,7 @@ tools <- list(
   list(Tool = 'Snakemake', Purpose = 'Workflow management', Reference = '[Molder et al. 2021](https://doi.org/10.12688/f1000research.29032.2)'),
   list(Tool = 'LDSC', Purpose = 'LD score regression for heritability and genetic correlation', Reference = '[Bulik-Sullivan et al. 2015](https://doi.org/10.1038/ng.3211)'),
   list(Tool = 'GCTB (SBayesRC)', Purpose = 'SNP-based heritability and polygenicity (Bayesian, annotation-informed)', Reference = '[Zheng et al. 2024](https://doi.org/10.1038/s41588-024-01704-y)'),
+  list(Tool = 'SBayesRC (R package)', Purpose = 'SNP-based heritability and polygenicity (SBayesRC R-package engine; faster alternative to GCTB)', Reference = '[Zheng et al. 2024](https://doi.org/10.1038/s41588-024-01704-y)'),
   list(Tool = 'PLINK 1.9', Purpose = 'LD clumping and general variant-level operations', Reference = '[Chang et al. 2015](https://doi.org/10.1186/s13742-015-0047-8)'),
   list(Tool = 'GCTA-COJO', Purpose = 'Conditional and joint association analysis', Reference = '[Yang et al. 2012](https://doi.org/10.1038/ng.2213)'),
   list(Tool = 'SuSiE', Purpose = 'Fine-mapping via Sum of Single Effects model', Reference = '[Wang et al. 2020](https://doi.org/10.1111/rssb.12388)'),
@@ -152,6 +153,8 @@ Failure handling is identical for both passes: `ldsc.py` exits `0` even on `KeyE
 The pipeline runs the official **gctb 2.5.5** binary in two steps per GWAS: (1) `--impute-summary` QCs and imputes the summary statistics to the LD-reference SNP set, then (2) `--sbayes RC` fits the model with the baseline annotation. SNP-heritability is summarised from the post-burn-in MCMC trace of `hsq` as the posterior **mode** (robust for the skewed near-zero posterior) with a **95% HPD** interval and posterior **mean/SD** (the SD is the posterior SD, i.e. the standard error). Polygenicity is the posterior-mean number of non-zero-effect variants (sum of the non-null mixture components) and its proportion $\pi$. Effective sample size (ESS) of the `hsq` draws is reported as a mixing diagnostic.
 
 The LD reference (UK Biobank HapMap3 eigen-decomposition) is chosen per-GWAS from the population column (**EUR/EAS/AFR** only; other populations are skipped). The eigen-LD and baseline annotation are downloaded from the official GCTB site and staged in `resdir`. Results are stored in `{outdir}/results/{gwas}/sbayesrc/`. This is a heritability/polygenicity summary, **not** a fine-mapping output.
+
+**Alternative — SBayesRC via the R package (`sbayesrc_r`).** The same model is also available through the **SBayesRC R package** (Zheng et al. 2024; `SBayesRC::tidy()` → `impute()` → `sbayesrc()`) over the *same* UK Biobank HapMap3 eigen-LD reference. It is a faster engine — it multithreads the MCMC, where the gctb binary effectively does not — and is enabled with the separate `sbayesrc_r` flag. It reports SNP-h² as the posterior **mean (SD)** and polygenicity (non-zero variants, $\pi$) from the package's `.par` output (there is no retained MCMC trace, hence no mode / HPD / density). Results are stored in `{outdir}/results/{gwas}/sbayesrc_r/`.
 
 ***
 

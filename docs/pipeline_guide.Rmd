@@ -176,6 +176,7 @@ params <- list(
   list(Parameter = '`finemap`', Description = 'SuSiE fine-mapping analysis', Part = 'Part 1'),
   list(Parameter = '`ldsc`', Description = 'LD score regression for heritability and intercept estimation', Part = 'Part 1'),
   list(Parameter = '`sbayesrc`', Description = 'GCTB SBayesRC: SNP-based heritability and polygenicity (number of non-zero-effect variants); EUR/EAS/AFR only', Part = 'Part 1'),
+  list(Parameter = '`sbayesrc_r`', Description = 'SBayesRC via the R package: same SNP-h2 + polygenicity as `sbayesrc`, faster engine (params `sbayesrc_r_ldref/annot/threads/seed`); EUR/EAS/AFR only', Part = 'Part 1'),
   list(Parameter = '`gencor_within_gwas_list`', Description = 'Bivariate LDSC rG among every pair of EUR primaries in `gwas_list` (requires `ldsc: T`; self-pairs and non-EUR primaries skipped)', Part = 'Part 1'),
   list(Parameter = '`magma_gene`', Description = 'MAGMA gene-level association analysis', Part = 'Part 2'),
   list(Parameter = '`twas_panel_fusion`', Description = 'TWAS using FUSION GTEx and non-GTEx weight panels', Part = 'Part 2'),
@@ -488,6 +489,7 @@ Below are the main output files you can request, grouped by analysis. Replace `{
 | Fine-mapping | `{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv` |
 | LDSC | `{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log` |
 | SBayesRC | `{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv` |
+| SBayesRC (R package) | `{outdir}/results/{gwas}/sbayesrc_r/{gwas}.GW.sbayesrc_r.clean.csv` |
 
 </details>
 
@@ -558,6 +560,7 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
       finemap/             # SuSiE fine-mapping results
       ldsc/                # LD score regression results
       sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
+      sbayesrc_r/          # SBayesRC (R package) SNP-h2 + polygenicity (only when sbayesrc_r: T)
       gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
       gencor_within/       # Bivariate LDSC among primaries in gwas_list;
                            #   only when gencor_within_gwas_list: T
