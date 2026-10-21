@@ -485,7 +485,10 @@ rule install_sbayesrc_rpkg:
   log:
     f"{resdir}/logs/install_sbayesrc_rpkg.log"
   shell:
-    "Rscript -e 'install.packages(\"https://github.com/zhilizheng/SBayesRC/releases/download/v0.2.6/SBayesRC_0.2.6.tar.gz\", repos=NULL, type=\"source\")' > {log} 2>&1"
+    # Idempotent: only (re)install when SBayesRC isn't already available in this
+    # conda env's library, so re-runs don't recompile the package every time
+    # (mirrors the guard on install_genoutils).
+    "Rscript -e 'if (!requireNamespace(\"SBayesRC\", quietly = TRUE)) install.packages(\"https://github.com/zhilizheng/SBayesRC/releases/download/v0.2.6/SBayesRC_0.2.6.tar.gz\", repos = NULL, type = \"source\")' > {log} 2>&1"
 
 # Install GenoUtils
 rule install_genoutils:
