@@ -376,6 +376,17 @@ ui <- fluidPage(
       border-radius: 0 0 var(--gd-r-input) var(--gd-r-input);
       max-width: 1100px;
     }
+    /* Theme-aware caution box (amber accent), readable in both dark and light. */
+    .gd-warn {
+      background-color: rgba(243, 201, 105, 0.14);
+      border: 1px solid var(--gd-accent-2);
+      border-radius: var(--gd-r-input);
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      color: var(--gd-text);
+    }
+    .gd-warn strong { color: var(--gd-accent-2); }
+    .gd-warn ul { margin-bottom: 0; }
     .gd-details-intro {
       color: var(--gd-text-mute);
       font-size: 0.9em;

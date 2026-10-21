@@ -487,9 +487,9 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         tags$li(HTML(sprintf("<strong>%s:</strong> %s; interpret with caution.",
                              htmltools::htmlEscape(v$GWAS), paste(notes, collapse = ", and "))))
       })
-      div(style = "background-color: #fff3cd; border: 1px solid #ffe69c; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; color: #664d03;",
+      div(class = "gd-warn",
           tags$strong("SumHer reliability warning"),
-          tags$ul(style = "margin-bottom: 0;", msgs))
+          tags$ul(msgs))
     })
 
     output$sumher_table <- DT::renderDT({
