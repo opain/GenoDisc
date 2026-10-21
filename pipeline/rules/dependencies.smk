@@ -507,8 +507,13 @@ rule install_genoutils:
   log:
     f"{resdir}/logs/install_genoutils.log"
   shell:
+    # Idempotent: only install when GenoUtils isn't already in the per-SHA lib.
+    # devtools::install_github on an already-installed SHA takes a buggy "skip"
+    # path (rlang/devtools trace_format error -> non-zero exit) that fails the
+    # rule even though the package is present; the requireNamespace guard avoids
+    # calling install_github at all in that case, so the rule stays green.
     "mkdir -p {params.libdir} && "
-    "Rscript --vanilla -e '.libPaths(c(\"{params.libdir}\", .libPaths())); devtools::install_github(\"opain/GenoUtils@{params.sha}\", lib = \"{params.libdir}\", upgrade = \"never\")' > {log} 2>&1"
+    "Rscript --vanilla -e '.libPaths(c(\"{params.libdir}\", .libPaths())); if (!requireNamespace(\"GenoUtils\", lib.loc = \"{params.libdir}\", quietly = TRUE)) devtools::install_github(\"opain/GenoUtils@{params.sha}\", lib = \"{params.libdir}\", upgrade = \"never\")' > {log} 2>&1"
 
 ####
 # Download MAGMA
