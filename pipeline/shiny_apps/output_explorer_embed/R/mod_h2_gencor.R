@@ -103,6 +103,68 @@ build_gencor_plot <- function(tab, sort_choice = "rg", facet_by = NULL,
   p
 }
 
+# Horizontal forest plot of per-annotation heritability enrichment: enrichment on
+# the x-axis (dashed null at 1), annotation on y, 95% CI whiskers (est +/- 1.96*se).
+# Rows ordered by enrichment (largest at top); coloured by whether the CI excludes 1.
+# Shared by the SBayesRC enrichment view (and, later, SumHer). `est`/`se`/`label` are
+# column names in `df`.
+build_enrich_plot <- function(df, est = "Enrich", se = "SD", label = "Annotation",
+                               xlab = "Per-SNP h² enrichment",
+                               font_size = 13, theme_fn = ggplot2::theme_bw, title = "") {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  dt <- data.table::as.data.table(df)
+  dt[, enr    := suppressWarnings(as.numeric(get(est)))]
+  dt[, enr_se := suppressWarnings(as.numeric(get(se)))]
+  dt[, annot  := as.character(get(label))]
+  dt <- dt[is.finite(enr)]
+  if (nrow(dt) == 0) return(NULL)
+  dt[, ci_lo := enr - 1.96 * enr_se]
+  dt[, ci_hi := enr + 1.96 * enr_se]
+  dt[, sig := data.table::fifelse(
+        !is.na(ci_lo) & !is.na(ci_hi) & (ci_lo > 1 | ci_hi < 1),
+        "95% CI excludes 1", "Not significant")]
+  dt[, sig := factor(sig, levels = c("95% CI excludes 1", "Not significant"))]
+  dt[, annot := factor(annot, levels = annot[order(enr)])]   # largest enrichment at top
+  sig_cols <- c("95% CI excludes 1" = "#d62728", "Not significant" = "#7f7f7f")
+  ggplot2::ggplot(dt, ggplot2::aes(x = enr, y = annot, colour = sig)) +
+    ggplot2::geom_vline(xintercept = 1, linetype = "dashed", colour = "grey55") +
+    ggplot2::geom_errorbarh(ggplot2::aes(xmin = ci_lo, xmax = ci_hi), height = 0, na.rm = TRUE) +
+    ggplot2::geom_point(size = 2.4, na.rm = TRUE) +
+    ggplot2::scale_colour_manual(values = sig_cols, drop = FALSE, name = NULL) +
+    ggplot2::labs(x = xlab, y = NULL, title = if (nzchar(title)) title else NULL) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(legend.position = "top", panel.grid.minor = ggplot2::element_blank(),
+                   plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
+}
+
+# BLD-LDAK annotation labels for SumHer's opaque LDAK category codes (A1..A65 +
+# Base). Authoritative mapping from LDAK's own construction (ldak_bld/README +
+# dougspeed.com/bldldak): A1..A64 are the 64 BLD-LDAK annotations — baseline-LD
+# v2.1 annotations 1-58 and 69-74 in order (the 10 MAF bins excluded) — A65 is the
+# LDAK per-SNP weighting, and Base is all SNPs. Codes not found here fall back to
+# the raw code, so an unexpected tagging build degrades gracefully (never mislabels).
+.sumher_bld_labels <- local({
+  bld64 <- c(
+    "Coding_UCSC","Coding_UCSC.extend.500","Conserved_LindbladToh","Conserved_LindbladToh.extend.500",
+    "CTCF_Hoffman","CTCF_Hoffman.extend.500","DGF_ENCODE","DGF_ENCODE.extend.500",
+    "DHS_peaks_Trynka","DHS_Trynka","DHS_Trynka.extend.500","Enhancer_Andersson","Enhancer_Andersson.extend.500",
+    "Enhancer_Hoffman","Enhancer_Hoffman.extend.500","FetalDHS_Trynka","FetalDHS_Trynka.extend.500",
+    "H3K27ac_Hnisz","H3K27ac_Hnisz.extend.500","H3K27ac_PGC2","H3K27ac_PGC2.extend.500",
+    "H3K4me1_peaks_Trynka","H3K4me1_Trynka","H3K4me1_Trynka.extend.500","H3K4me3_peaks_Trynka",
+    "H3K4me3_Trynka","H3K4me3_Trynka.extend.500","H3K9ac_peaks_Trynka","H3K9ac_Trynka","H3K9ac_Trynka.extend.500",
+    "Intron_UCSC","Intron_UCSC.extend.500","PromoterFlanking_Hoffman","PromoterFlanking_Hoffman.extend.500",
+    "Promoter_UCSC","Promoter_UCSC.extend.500","Repressed_Hoffman","Repressed_Hoffman.extend.500",
+    "SuperEnhancer_Hnisz","SuperEnhancer_Hnisz.extend.500","TFBS_ENCODE","TFBS_ENCODE.extend.500",
+    "Transcr_Hoffman","Transcr_Hoffman.extend.500","TSS_Hoffman","TSS_Hoffman.extend.500",
+    "UTR_3_UCSC","UTR_3_UCSC.extend.500","UTR_5_UCSC","UTR_5_UCSC.extend.500",
+    "WeakEnhancer_Hoffman","WeakEnhancer_Hoffman.extend.500","Super_Enhancer_Vahedi","Super_Enhancer_Vahedi.extend.500",
+    "Typical_Enhancer_Vahedi","Typical_Enhancer_Vahedi.extend.500","GERP.NS","GERP.RSsup4",
+    "MAF_Adj_Predicted_Allele_Age","MAF_Adj_LLD_AFR","Recomb_Rate_10kb","Nucleotide_Diversity_10kb",
+    "Backgrd_Selection_Stat","CpG_Content_50kb")
+  stats::setNames(c(bld64, "LDAK weighting", "Base (all SNPs)"),
+                  c(paste0("A", seq_len(65)), "Base"))
+})
+
 # SNP-h² and rG tab
 #
 # A dedicated top-level tab that groups the LDSC SNP-based heritability
@@ -163,7 +225,21 @@ h2GencorUI <- function(id) {
           DT::DTOutput(ns("sbayesrc_r_table"))
         ),
         br(),
-        uiOutput(ns("sbayesrc_r_legend"))
+        uiOutput(ns("sbayesrc_r_legend")),
+        br(),
+        tags$details(class = "gd-details",
+          tags$summary("Functional-annotation h² enrichment"),
+          tags$div(class = "gd-details-body",
+            p(style = "color:#6c757d;",
+              "Per-SNP heritability enrichment across LDSC baseline-LD (v2.2) functional ",
+              "annotations, for the selected GWAS. Enrichment = the category's per-SNP h² ",
+              "divided by the genome-wide per-SNP h² (1 = no enrichment); whiskers are 95% CIs ",
+              "(enrichment ± 1.96·SD)."),
+            plotOutput(ns("sbayesrc_r_enrich_plot"), height = "auto"),
+            br(),
+            div(style = "max-width: 760px;", DT::DTOutput(ns("sbayesrc_r_enrich_table")))
+          )
+        )
       ),
       tabPanel(
         title = "SumHer",
@@ -174,7 +250,21 @@ h2GencorUI <- function(id) {
           DT::DTOutput(ns("sumher_table"))
         ),
         br(),
-        uiOutput(ns("sumher_legend"))
+        uiOutput(ns("sumher_legend")),
+        br(),
+        tags$details(class = "gd-details",
+          tags$summary("Functional-annotation h² enrichment"),
+          tags$div(class = "gd-details-body",
+            p(style = "color:#6c757d;",
+              "Heritability enrichment across the BLD-LDAK functional annotations, for the selected GWAS. ",
+              "Enrichment = the category's share of h² divided by its expected share (1 = no enrichment); ",
+              "whiskers are 95% CIs (enrichment ± 1.96·SE). Treat with the same caution as the SNP-h² above ",
+              "when reference coverage is low or the model did not converge."),
+            plotOutput(ns("sumher_enrich_plot"), height = "auto"),
+            br(),
+            div(style = "max-width: 760px;", DT::DTOutput(ns("sumher_enrich_table")))
+          )
+        )
       )
     )
   )
@@ -440,6 +530,42 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       ))
     })
 
+    # SBayesRC (R package) functional-annotation h2 enrichment. Per-GWAS and large
+    # (~96 baseline-LD annotations), so read the SINGLE selected GWAS (like the
+    # gencor table), not the stacked h2_gwas_vec(). The Intercept row is dropped.
+    sbayesrc_r_enrich <- reactive({
+      req(gwas_data(), config_flags(), selected_gwas())
+      cf <- config_flags()
+      if (!isTRUE(cf$sbayesrc_r)) return(NULL)
+      e <- tryCatch(gd_read(gwas_data(), selected_gwas(), "gwas_qc")$sbayesrc_r_dat$enrich,
+                    error = function(e) NULL)
+      if (is.null(e) || nrow(e) == 0) return(NULL)
+      e <- data.table::as.data.table(e)
+      if (!all(c("Annotation", "Enrich", "SD") %in% names(e))) return(NULL)
+      e[tolower(as.character(Annotation)) != "intercept"]
+    })
+
+    output$sbayesrc_r_enrich_table <- DT::renderDT({
+      e <- sbayesrc_r_enrich()
+      if (is.null(e) || nrow(e) == 0) return(NULL)
+      dt <- DT::datatable(
+        e[, .(Annotation, Enrichment = Enrich, SD)],
+        rownames = FALSE,
+        options = list(pageLength = 15, order = list(list(1, "desc")))
+      )
+      DT::formatRound(dt, c("Enrichment", "SD"), 3)
+    })
+
+    output$sbayesrc_r_enrich_plot <- renderPlot({
+      e <- sbayesrc_r_enrich()
+      if (is.null(e) || nrow(e) == 0) return(NULL)
+      build_enrich_plot(e, est = "Enrich", se = "SD", label = "Annotation",
+                        xlab = "Per-SNP h² enrichment (SBayesRC, baseline-LD v2.2)")
+    }, height = function() {
+      e <- sbayesrc_r_enrich()
+      max(300, 60 + 16 * (if (is.null(e)) 0 else nrow(e)))
+    })
+
     # -------------------------------------------------------------------
     # LDAK SumHer: a third, independent SNP-h2 estimate (BLD-LDAK model) over a
     # pre-computed HapMap3 tagging file. A different heritability model from LDSC
@@ -528,6 +654,47 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
             "Balding 2020, Nature Genetics 52:458-462. LDAK: dougspeed.com (GPLv3).")
         ))
       )
+    })
+
+    # SumHer functional-annotation h2 enrichment (BLD-LDAK). Per-GWAS; read the
+    # single selected GWAS. LDAK reports opaque category codes A1..A65 + Base, mapped
+    # to BLD-LDAK annotation names via .sumher_bld_labels. The .enrich columns are
+    # `Component Share SE Expected Enrichment SE Z` (duplicate SE header), so read the
+    # enrichment estimate + its SE BY POSITION (5, 6). The Base row (=1 by def.) is dropped.
+    sumher_enrich <- reactive({
+      req(gwas_data(), config_flags(), selected_gwas())
+      cf <- config_flags()
+      if (!isTRUE(cf$sumher)) return(NULL)
+      e <- tryCatch(gd_read(gwas_data(), selected_gwas(), "gwas_qc")$sumher_dat$enrich,
+                    error = function(e) NULL)
+      if (is.null(e) || nrow(e) == 0 || ncol(e) < 6) return(NULL)
+      e <- data.table::as.data.table(e)
+      code <- sub("^Enrich_", "", as.character(e[[1]]))
+      lab  <- unname(.sumher_bld_labels[code]); lab[is.na(lab)] <- code[is.na(lab)]
+      out <- data.table::data.table(
+        Annotation = lab,
+        Enrichment = suppressWarnings(as.numeric(e[[5]])),
+        SE         = suppressWarnings(as.numeric(e[[6]])),
+        code       = code)
+      out[code != "Base"]
+    })
+
+    output$sumher_enrich_table <- DT::renderDT({
+      e <- sumher_enrich()
+      if (is.null(e) || nrow(e) == 0) return(NULL)
+      dt <- DT::datatable(e[, .(Annotation, Enrichment, SE)], rownames = FALSE,
+                          options = list(pageLength = 15, order = list(list(1, "desc"))))
+      DT::formatRound(dt, c("Enrichment", "SE"), 3)
+    })
+
+    output$sumher_enrich_plot <- renderPlot({
+      e <- sumher_enrich()
+      if (is.null(e) || nrow(e) == 0) return(NULL)
+      build_enrich_plot(e, est = "Enrichment", se = "SE", label = "Annotation",
+                        xlab = "h² enrichment (SumHer, BLD-LDAK)")
+    }, height = function() {
+      e <- sumher_enrich()
+      max(300, 60 + 16 * (if (is.null(e)) 0 else nrow(e)))
     })
 
     # -------------------------------------------------------------------

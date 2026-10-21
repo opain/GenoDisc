@@ -149,6 +149,11 @@ process_sbayesrc_r <- function(config, gwas){
     n_snp_total = as.numeric(tab$n_snp_total[1]),
     pi_est      = as.numeric(tab$pi_est[1])
   )
+  # Per-annotation h2 enrichment (LDSC baseline-LD v2.2). The R package writes
+  # <prefix>.AnnoPerSnpHsqEnrichment (Annotation / Enrich / SD); sbayesrc_r.R copies
+  # it out as {gwas}.AnnoPerSnpHsqEnrichment. Surfaced in the viewer enrichment view.
+  enrich_path <- paste0(outdir, '/results/', gwas, '/sbayesrc_r/', gwas, '.AnnoPerSnpHsqEnrichment')
+  if(file.exists(enrich_path)) dat$enrich <- tryCatch(fread(enrich_path), error = function(e) NULL)
   return(dat)
 }
 
