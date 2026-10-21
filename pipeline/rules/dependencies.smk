@@ -439,6 +439,54 @@ rule download_sbayesrc_annot:
     "unzip -o {params.resdir}/data/sbayesrc_annot/annot_baseline2.2.zip -d {params.resdir}/data/sbayesrc_annot; "
     "rm {params.resdir}/data/sbayesrc_annot/annot_baseline2.2.zip) > {log} 2>&1"
 
+# SBayesRC-author eigen-LD panel used by the SBayesRC R package (sbayesrc_r).
+# This is a DIFFERENT build from the gctb-binary method's official gctbhub refs
+# (148 blocks vs 591); it is what the R package v0.2.6 expects. Downloaded from
+# the SBayesRC authors' Google Drive via gdown (as GenoPred does; gdown must be
+# available in the env). On CREATE this is usually skipped by pointing
+# sbayesrc_r_ldref at GenoPred's already-staged copy.
+sbayesrc_r_ref_dev_urls = {
+    'EUR': '1HkxMT2UJKK__TfqNcZQoO7Q9XGnVtI28',
+    'EAS': '1qytY1H3ZracD2OoyqjsPjsTjxl9qdQ-c',
+    'AFR': '1kPOp2mc1odJBInd66sC40aKNwOhC--5A',
+}
+
+rule download_sbayesrc_r_ref:
+  output:
+    f"{resdir}/data/sbayesrc_r_ref/{{population}}/ldm.info"
+  benchmark:
+    f"{resdir}/benchmarks/download_sbayesrc_r_ref-{{population}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir,
+    id=lambda w: sbayesrc_r_ref_dev_urls.get(w.population)
+  log:
+    f"{resdir}/logs/download_sbayesrc_r_ref-{{population}}.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/sbayesrc_r_ref; "
+    "rm -rf {params.resdir}/data/sbayesrc_r_ref/{wildcards.population}; "
+    "gdown {params.id} -O {params.resdir}/data/sbayesrc_r_ref/{wildcards.population}.xz; "
+    "tar -xJf {params.resdir}/data/sbayesrc_r_ref/{wildcards.population}.xz -C {params.resdir}/data/sbayesrc_r_ref/; "
+    "mv {params.resdir}/data/sbayesrc_r_ref/ukb{wildcards.population}_HM3 {params.resdir}/data/sbayesrc_r_ref/{wildcards.population}; "
+    "rm {params.resdir}/data/sbayesrc_r_ref/{wildcards.population}.xz) > {log} 2>&1"
+
+# Install the SBayesRC R package (zhilizheng, v0.2.6) into the sbayesrc_r conda
+# env for the sbayesrc_r method.
+rule install_sbayesrc_rpkg:
+  input:
+    f"{workflow.basedir}/envs/sbayesrc_r.yaml"
+  output:
+    touch(f"{resdir}/software/install_sbayesrc_rpkg.done")
+  benchmark:
+    f"{resdir}/benchmarks/install_sbayesrc_rpkg.tsv"
+  conda:
+    "../envs/sbayesrc_r.yaml"
+  log:
+    f"{resdir}/logs/install_sbayesrc_rpkg.log"
+  shell:
+    "Rscript -e 'install.packages(\"https://github.com/zhilizheng/SBayesRC/releases/download/v0.2.6/SBayesRC_0.2.6.tar.gz\", repos=NULL, type=\"source\")' > {log} 2>&1"
+
 # Install GenoUtils
 rule install_genoutils:
   input:
@@ -1392,6 +1440,19 @@ if config.get("sbayesrc", "F") == "T":
     resource_inputs.append(rules.download_sbayesrc_annot.output)
     resource_inputs.extend(
         expand(f"{resdir}/data/sbayesrc_ref/{{population}}/ldm.info",
+               population=['EUR', 'EAS', 'AFR']))
+
+# sbayesrc_r (SBayesRC R-package route): the SBayesRC package + the baseline2.2
+# annotation (shared) + the SBayesRC-author eigen-LD panel. Honour an explicit
+# sbayesrc_r_ldref (e.g. GenoPred's staged copy) so reuse doesn't force a download.
+if config.get("sbayesrc_r", "F") == "T":
+    resource_inputs.append(rules.install_sbayesrc_rpkg.output)
+    resource_inputs.append(rules.download_sbayesrc_annot.output)
+    _sbrc_r_ld = config.get("sbayesrc_r_ldref", "NA")
+    _sbrc_r_ld_base = (f"{resdir}/data/sbayesrc_r_ref"
+                       if _sbrc_r_ld in (None, "NA") else _sbrc_r_ld)
+    resource_inputs.extend(
+        expand(f"{_sbrc_r_ld_base}/{{population}}/ldm.info",
                population=['EUR', 'EAS', 'AFR']))
 
 # MAGMA

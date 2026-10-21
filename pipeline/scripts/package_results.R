@@ -55,6 +55,7 @@ for(gwas_i in gwas_list$name){
   gwas_qc$cleaner_dat<-process_cleaner_log(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_dat<-process_ldsc_log(config=opt$config, gwas=gwas_i)
   gwas_qc$sbayesrc_dat<-process_sbayesrc(config=opt$config, gwas=gwas_i)
+  gwas_qc$sbayesrc_r_dat<-process_sbayesrc_r(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_gencor_dat<-process_ldsc_gencor(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_gencor_within_dat<-process_ldsc_gencor_within(config=opt$config, gwas=gwas_i)
 

@@ -1,0 +1,15 @@
+# Minimal test config exercising ONLY the SBayesRC R-package method (sbayesrc_r).
+# Extends base config.yaml (everything else F, magma_interaction disabled).
+# resdir points at the shared pipeline_resources (QC refs + annotation already
+# staged there); the eigen-LD panel + annotation reuse GenoPred's staged copies
+# (the SBayesRC R package consumes that 148-block panel), so nothing is downloaded.
+outdir: tests/output_sbayesrc_r
+config_file: tests/config_sbayesrc_r.yaml
+gwas_list: tests/gwas_list_test.txt
+resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
+chromosomes: [22]
+
+sbayesrc_r: T
+sbayesrc_r_ldref: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_ref
+sbayesrc_r_annot: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_annot/annot_baseline2.2.txt
+sbayesrc_r_threads: 4

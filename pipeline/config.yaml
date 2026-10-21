@@ -63,6 +63,22 @@ sbayesrc_seed: 1
 sbayesrc_chain_length: 3000
 sbayesrc_burn_in: 1000
 
+# Alternative SBayesRC via the SBayesRC R package (flag: sbayesrc_r; see
+# rules/sbayesrc_r.smk). Same SNP-h2 + polygenicity output as `sbayesrc`, but
+# using the R package (tidy->impute->sbayesrc, OpenMP-multithreaded) over the
+# SBayesRC-author eigen-LD panel -- typically faster. EUR/EAS/AFR only.
+sbayesrc_r: F
+
+# sbayesrc_r reference data. NA = use the copies staged in resdir by
+# download_sbayesrc_r_ref (eigen-LD) + the shared sbayesrc_annot. Set an explicit
+# path to reuse an existing copy (e.g. GenoPred's staged refs on CREATE).
+sbayesrc_r_ldref: NA
+sbayesrc_r_annot: NA
+
+# sbayesrc_r controls. threads drive OpenMP (OMP_NUM_THREADS); 10 matches GenoPred.
+sbayesrc_r_threads: 10
+sbayesrc_r_seed: 1
+
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: F
 

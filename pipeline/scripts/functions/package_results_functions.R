@@ -127,6 +127,31 @@ process_sbayesrc <- function(config, gwas){
   return(dat)
 }
 
+process_sbayesrc_r <- function(config, gwas){
+  # SBayesRC (R-package route) SNP-heritability + polygenicity (scripts/sbayesrc_r.R).
+  # The R package reports the posterior MEAN + SD of hsq (from .parRes); unlike the
+  # gctb-binary method it does not expose a per-iteration trace, so there is no
+  # mode / HPD / ESS / density. Gated on sbayesrc_r; NULL when not run or no file
+  # for this GWAS (e.g. a skipped AMR/SAS GWAS).
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+
+  if(read_param(config = config, param = 'sbayesrc_r', return_obj = F) != "T") return(NULL)
+
+  csv_path <- paste0(outdir, '/results/', gwas, '/sbayesrc_r/', gwas, '.GW.sbayesrc_r.clean.csv')
+  if(!file.exists(csv_path)) return(NULL)
+
+  tab <- fread(csv_path)
+  dat <- list()
+  dat$val <- list(
+    h2_mean     = as.numeric(tab$h2_mean[1]),
+    h2_sd       = as.numeric(tab$h2_sd[1]),
+    n_nonzero   = as.numeric(tab$n_nonzero[1]),
+    n_snp_total = as.numeric(tab$n_snp_total[1]),
+    pi_est      = as.numeric(tab$pi_est[1])
+  )
+  return(dat)
+}
+
 process_ldsc_gencor <- function(config, gwas){
 
   outdir      <- read_param(config = config, param = 'outdir',           return_obj = F)
