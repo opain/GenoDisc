@@ -79,6 +79,33 @@ sbayesrc_r_annot: NA
 sbayesrc_r_threads: 10
 sbayesrc_r_seed: 1
 
+# LDAK SumHer SNP-heritability (flag: sumher; see rules/sumher.smk). A THIRD,
+# independent SNP-h2 estimator alongside LDSC and SBayesRC, using LDAK's SumHer
+# with the BLD-LDAK model over pre-computed HapMap3 tagging files. Genome-wide;
+# the tagging file is picked by the per-GWAS population (EUR->gbr, EAS->eas,
+# SAS->sas, AFR->afr; AMR is skipped). Observed scale only. SumHer, LDSC and
+# SBayesRC assume different heritability models, so estimates are not expected
+# to agree.
+sumher: F
+
+# SumHer reference data. NA = use the copies staged in resdir by download_ldak
+# (the LDAK binary) + download_sumher_tagging (BLD-LDAK HapMap3 tagging files,
+# from dougspeed.com). Set an explicit path to reuse an existing copy.
+# sumher_ref:  base dir holding <ldakpop>/bld.ldak.hapmap.<ldakpop>.tagging.
+# sumher_ldak: the LDAK executable (ldak7.01.linux, pinned to a commit SHA).
+sumher_ref: NA
+sumher_ldak: NA
+
+# SumHer controls. cutoff = --cutoff: excludes predictors whose effect implies
+# an outsized per-SNP heritability (large-effect loci bias heritability models);
+# 0.01 is LDAK's default. max_missing = warn threshold for the fraction of
+# tagging predictors absent after GenoDisc QC (LDAK's author advises <0.2 for the
+# pre-computed taggings). threads drives --max-threads (SumHer from a pre-computed
+# tagfile is light, so 1 is enough).
+sumher_cutoff: 0.01
+sumher_max_missing: 0.2
+sumher_threads: 1
+
 # Estimate SNP-heritability and intercept using LD score regression
 ldsc: F
 

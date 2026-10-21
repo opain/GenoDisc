@@ -648,7 +648,7 @@ server <- function(input, output, session) {
     toggle <- function(tab, cond) {
       if (cond) showTab("main_tabs", tab) else hideTab("main_tabs", tab)
     }
-    toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor, cf$sbayesrc, cf$sbayesrc_r))
+    toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor, cf$sbayesrc, cf$sbayesrc_r, cf$sumher))
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap) || isTRUE(has_manhattan()))
     toggle("Molecular Associations", cf$mol_assoc)
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma, cf$pathway))

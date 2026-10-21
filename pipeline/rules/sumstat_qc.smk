@@ -16,6 +16,10 @@ gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 # SBayesRC is run per these populations; AMR/SAS are skipped.
 gwas_list_df_sbrc = gwas_list_df.loc[gwas_list_df['population'].isin(['EUR', 'EAS', 'AFR'])]
 
+# Subset to GWAS with a pre-computed BLD-LDAK HapMap3 tagging file for SumHer
+# (EUR->gbr, EAS->eas, SAS->sas, AFR->afr). AMR has no tagging file and is skipped.
+gwas_list_df_sumher = gwas_list_df.loc[gwas_list_df['population'].isin(['EUR', 'EAS', 'SAS', 'AFR'])]
+
 # Path to bivariate LDSC secondary list (NA when not configured).
 # Read only as a path for input-staleness tracking; per-pair file existence is
 # verified at runtime so a missing secondary fails in isolation (NA row) rather

@@ -20,6 +20,9 @@ if config.get("sbayesrc", "F") == "T":
 if config.get("sbayesrc_r", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/sbayesrc_r/{gwas}.GW.sbayesrc_r.clean.csv", gwas=gwas_list_df_sbrc['name'], outdir={outdir}))
 
+if config.get("sumher", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/sumher/{gwas}.sumher.clean.csv", gwas=gwas_list_df_sumher['name'], outdir={outdir}))
+
 if config["ldsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 

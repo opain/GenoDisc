@@ -1,0 +1,18 @@
+# Minimal test config exercising ONLY LDAK SumHer (sumher), on COAD01chr22 (EUR).
+# Extends base config.yaml (everything else F). resdir points at the shared
+# pipeline_resources (QC refs already staged there); sumher_ref/sumher_ldak are NA
+# so the LDAK binary + the BLD-LDAK HapMap3 gbr tagging file are staged there by
+# download_ldak / download_sumher_tagging on first run. A chr22-only summary
+# against a genome-wide tagging file deliberately trips the missingness warning.
+outdir: tests/output_sumher
+config_file: tests/config_test_sumher.yaml
+gwas_list: tests/gwas_list_test.txt
+resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
+chromosomes: [22]
+
+sumher: T
+sumher_ref: NA
+sumher_ldak: NA
+sumher_cutoff: 0.01
+sumher_max_missing: 0.2
+sumher_threads: 1

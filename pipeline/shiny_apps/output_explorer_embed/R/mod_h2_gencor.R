@@ -164,6 +164,17 @@ h2GencorUI <- function(id) {
         ),
         br(),
         uiOutput(ns("sbayesrc_r_legend"))
+      ),
+      tabPanel(
+        title = "SumHer",
+        value = "sumher",
+        br(),
+        uiOutput(ns("sumher_warning")),
+        div(style = "max-width: 900px;",
+          DT::DTOutput(ns("sumher_table"))
+        ),
+        br(),
+        uiOutput(ns("sumher_legend"))
       )
     )
   )
@@ -427,6 +438,96 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
           "(github.com/zhilizheng/SBayesRC). Same UKB HapMap3 LD + annotation references as ",
           "the GCTB SBayesRC method.")
       ))
+    })
+
+    # -------------------------------------------------------------------
+    # LDAK SumHer: a third, independent SNP-h2 estimate (BLD-LDAK model) over a
+    # pre-computed HapMap3 tagging file. A different heritability model from LDSC
+    # / SBayesRC, so not expected to agree. Parsed into gwas_qc$sumher_dat$val.
+    # -------------------------------------------------------------------
+
+    sumher_rows <- reactive({
+      req(gwas_data(), config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sumher)) return(NULL)
+      gvec <- h2_gwas_vec()
+      if (is.null(gvec) || length(gvec) == 0) return(NULL)
+      vals <- lapply(gvec, function(g) {
+        v <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sumher_dat$val,
+                      error = function(e) NULL)
+        if (is.null(v)) return(NULL)
+        v$GWAS <- g
+        v
+      })
+      Filter(Negate(is.null), vals)
+    })
+
+    output$sumher_warning <- renderUI({
+      vals <- sumher_rows()
+      if (is.null(vals) || length(vals) == 0) return(NULL)
+      flagged <- Filter(function(v) isTRUE(v$missing_warning) || isFALSE(v$converged), vals)
+      if (length(flagged) == 0) return(NULL)
+      msgs <- lapply(flagged, function(v) {
+        notes <- character(0)
+        if (isTRUE(v$missing_warning)) {
+          pct <- if (is.null(v$prop_missing) || is.na(v$prop_missing)) "A large share" else sprintf("%.0f%%", 100 * v$prop_missing)
+          notes <- c(notes, sprintf("%s of the reference SNPs used by SumHer are absent after GenoDisc QC (above the 20%% level LDAK's author advises for pre-computed taggings)", pct))
+        }
+        if (isFALSE(v$converged)) notes <- c(notes, "the LDAK optimiser did not converge")
+        tags$li(HTML(sprintf("<strong>%s:</strong> %s; interpret with caution.",
+                             htmltools::htmlEscape(v$GWAS), paste(notes, collapse = ", and "))))
+      })
+      div(style = "background-color: #fff3cd; border: 1px solid #ffe69c; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; color: #664d03;",
+          tags$strong("SumHer reliability warning"),
+          tags$ul(style = "margin-bottom: 0;", msgs))
+    })
+
+    output$sumher_table <- DT::renderDT({
+      vals <- sumher_rows()
+      if (is.null(vals) || length(vals) == 0) return(NULL)
+      rows <- lapply(vals, function(v) {
+        data.frame(
+          GWAS                = v$GWAS,
+          `SNP-h² (SD)`       = if (is.null(v$h2) || is.na(v$h2)) "—" else sprintf("%.4f (%.4f)", v$h2, v$h2_sd),
+          Model               = if (is.null(v$model)) "BLD-LDAK" else v$model,
+          `Ref. SNPs matched` = if (is.null(v$n_matched) || is.na(v$n_matched) || is.null(v$n_tagging) || is.na(v$n_tagging) || v$n_tagging == 0) "—" else sprintf("%s / %s (%.0f%%)", formatC(round(v$n_matched), format = "d", big.mark = ","), formatC(round(v$n_tagging), format = "d", big.mark = ","), 100 * v$n_matched / v$n_tagging),
+          check.names = FALSE, stringsAsFactors = FALSE
+        )
+      })
+      DT::datatable(
+        do.call(rbind, rows), rownames = FALSE, escape = FALSE,
+        options = list(dom = "t", paging = FALSE, ordering = FALSE)
+      )
+    })
+
+    output$sumher_legend <- renderUI({
+      req(config_flags())
+      cf <- config_flags()
+      if (!isTRUE(cf$sumher)) {
+        return(div(
+          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+          tags$strong("SumHer not run"),
+          br(),
+          "Enable sumher in the pipeline config to populate this view."
+        ))
+      }
+      tagList(
+        p(style = "color: #6c757d; font-style: italic;",
+          "SumHer, LDSC and SBayesRC assume different heritability models, so their estimates are not expected to agree."),
+        gd_legend(list(
+          "SNP-h² (SD)"       = paste0(
+            "SNP-based heritability from LDAK SumHer using the BLD-LDAK heritability model over a ",
+            "pre-computed HapMap3 tagging file, on the observed scale. Reported as the point estimate ",
+            "with its SD (the SD is the standard error)."),
+          "Model"             = "BLD-LDAK (Baseline-LD + LDAK), LDAK's recommended SNP-heritability model.",
+          "Ref. SNPs matched" = paste0(
+            "How many of the tagging file's reference SNPs are present in this GWAS after GenoDisc QC ",
+            "(matched / total). SumHer can only use matched SNPs; low coverage makes the estimate less reliable."),
+          "Reference"         = paste0(
+            "SumHer: Speed & Balding 2019, Nature Genetics 51:277-284. BLD-LDAK model: Speed, Holmes & ",
+            "Balding 2020, Nature Genetics 52:458-462. LDAK: dougspeed.com (GPLv3).")
+        ))
+      )
     })
 
     # -------------------------------------------------------------------

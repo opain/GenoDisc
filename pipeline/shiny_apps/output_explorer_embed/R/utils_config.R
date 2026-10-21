@@ -15,6 +15,7 @@ parse_config_flags <- function(config) {
   finemap <- flag(config, "finemap")
   sbayesrc <- flag(config, "sbayesrc")
   sbayesrc_r <- flag(config, "sbayesrc_r")
+  sumher <- flag(config, "sumher")
   ldsc <- flag(config, "ldsc")
 
   # Bivariate LDSC: enabled if gencor_gwas_list is set (not NA / empty)
@@ -109,6 +110,7 @@ parse_config_flags <- function(config) {
     finemap = finemap,
     sbayesrc = sbayesrc,
     sbayesrc_r = sbayesrc_r,
+    sumher = sumher,
     ldsc = ldsc,
     ldsc_gencor = ldsc_gencor,
     gencor_within = gencor_within,

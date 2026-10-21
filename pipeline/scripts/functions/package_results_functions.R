@@ -152,6 +152,48 @@ process_sbayesrc_r <- function(config, gwas){
   return(dat)
 }
 
+process_sumher <- function(config, gwas){
+  # LDAK SumHer SNP-heritability (BLD-LDAK model; scripts/sumher.R). A third,
+  # independent SNP-h2 estimate alongside LDSC and SBayesRC, on a different
+  # heritability model, so it is not expected to agree with them. Reports the
+  # point estimate + SD, the BLD-LDAK model label, and reference-SNP missingness
+  # (n_tagging / n_matched / prop_missing + a warning flag). Gated on sumher;
+  # NULL when not run or no file for this GWAS (e.g. a skipped AMR GWAS).
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+
+  if(read_param(config = config, param = 'sumher', return_obj = F) != "T") return(NULL)
+
+  csv_path <- paste0(outdir, '/results/', gwas, '/sumher/', gwas, '.sumher.clean.csv')
+  if(!file.exists(csv_path)) return(NULL)
+
+  tab <- fread(csv_path)
+  dat <- list()
+  dat$val <- list(
+    h2              = as.numeric(tab$h2[1]),
+    h2_sd           = as.numeric(tab$h2_sd[1]),
+    model           = as.character(tab$model[1]),
+    n_tagging       = as.numeric(tab$n_tagging[1]),
+    n_matched       = as.numeric(tab$n_matched[1]),
+    prop_missing    = as.numeric(tab$prop_missing[1]),
+    missing_warning = as.logical(tab$missing_warning[1]),
+    converged       = if (!is.null(tab$converged)) as.logical(tab$converged[1]) else NA,
+    n_excluded_cutoff = if (!is.null(tab$n_excluded_cutoff)) as.numeric(tab$n_excluded_cutoff[1]) else NA_real_,
+    logl_null       = if (!is.null(tab$logl_null)) as.numeric(tab$logl_null[1]) else NA_real_,
+    logl_alt        = if (!is.null(tab$logl_alt)) as.numeric(tab$logl_alt[1]) else NA_real_,
+    cutoff          = as.numeric(tab$cutoff[1])
+  )
+  dat$meta <- list(
+    ldak_banner = if (!is.null(tab$ldak_banner)) as.character(tab$ldak_banner[1]) else NA_character_
+  )
+  # Enrichment table (.enrich) kept for provenance (not surfaced in the viewer yet).
+  enrich_path <- paste0(outdir, '/results/', gwas, '/sumher/', gwas, '.enrich')
+  if(file.exists(enrich_path)) dat$enrich <- tryCatch(fread(enrich_path), error = function(e) NULL)
+  # LDAK screen log (provenance).
+  log_path <- paste0(outdir, '/results/', gwas, '/sumher/', gwas, '.ldak.log')
+  if(file.exists(log_path)) dat$meta$log <- paste(readLines(log_path), collapse = '\n')
+  return(dat)
+}
+
 process_ldsc_gencor <- function(config, gwas){
 
   outdir      <- read_param(config = config, param = 'outdir',           return_obj = F)

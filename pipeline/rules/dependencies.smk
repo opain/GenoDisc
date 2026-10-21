@@ -490,6 +490,68 @@ rule install_sbayesrc_rpkg:
     # (mirrors the guard on install_genoutils).
     "Rscript -e 'if (!requireNamespace(\"SBayesRC\", quietly = TRUE)) install.packages(\"https://github.com/zhilizheng/SBayesRC/releases/download/v0.2.6/SBayesRC_0.2.6.tar.gz\", repos = NULL, type = \"source\")' > {log} 2>&1"
 
+# Download the LDAK binary for SumHer SNP-heritability (flag: sumher). Pinned to
+# a specific commit SHA (NOT main) for reproducibility: dougspeed re-versions the
+# Linux executable on every change (ldak7.XX.linux) and main moves. LDAK is GPLv3.
+# ldak7.01.linux @ 8934ac2 prints "Version 6" and accepts the SumHer flags used.
+# The sha256 is pinned (verified with -c) so a silent upstream change is caught.
+# sumher_ldak=NA uses this staged copy.
+LDAK_SHA256 = "c40268ad5e24d4de6ba64876e22411181f894e45637aad2f7ed89babcef7cbec"
+
+rule download_ldak:
+  output:
+    f"{resdir}/software/ldak/ldak7.01.linux"
+  benchmark:
+    f"{resdir}/benchmarks/download_ldak.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir,
+    sha256=LDAK_SHA256
+  log:
+    f"{resdir}/logs/download_ldak.log"
+  shell:
+    "(mkdir -p {params.resdir}/software/ldak; "
+    "wget -O {params.resdir}/software/ldak/ldak7.01.linux "
+    "https://github.com/dougspeed/LDAK/raw/8934ac25b2264e926219da52c05beddd29a6546a/ldak7.01.linux; "
+    "chmod +x {params.resdir}/software/ldak/ldak7.01.linux; "
+    # Provenance: print the LDAK version banner, then verify the pinned sha256.
+    "{params.resdir}/software/ldak/ldak7.01.linux 2>&1 | grep -m1 Version || true; "
+    "echo '{params.sha256}  {params.resdir}/software/ldak/ldak7.01.linux' | sha256sum -c -"
+    ") > {log} 2>&1"
+
+# Download pre-computed BLD-LDAK HapMap3 tagging files for SumHer from the LDAK
+# author's site. rsID-keyed, ~1.0-1.2M HapMap3 predictors per population. Pops are
+# LDAK codes gbr/eas/sas/afr (the sumher rule maps EUR->gbr, EAS->eas, SAS->sas,
+# AFR->afr). sumher_ref=NA uses this staged copy. Checksums are verified (-c) for
+# pops whose sha256 has been pinned below (non-institutional host — detect drift);
+# unpinned pops only log their sha256 until a first download pins them.
+SUMHER_TAGGING_SHA256 = {
+    'gbr': '3870005be192bc8978c0ee051dc835a4097600d87b0f004d1aea03a474ddea44',
+    # 'eas', 'sas', 'afr' pinned on first download (sha256 logged until then).
+}
+
+rule download_sumher_tagging:
+  output:
+    f"{resdir}/data/sumher_tagging/bld_ldak/hapmap/{{ldakpop}}/bld.ldak.hapmap.{{ldakpop}}.tagging"
+  benchmark:
+    f"{resdir}/benchmarks/download_sumher_tagging-{{ldakpop}}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir,
+    sha256=lambda w: SUMHER_TAGGING_SHA256.get(w.ldakpop, "")
+  log:
+    f"{resdir}/logs/download_sumher_tagging-{{ldakpop}}.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/sumher_tagging/bld_ldak/hapmap/{wildcards.ldakpop}; "
+    "wget -O {params.resdir}/data/sumher_tagging/bld_ldak/hapmap/{wildcards.ldakpop}/bld.ldak.hapmap.{wildcards.ldakpop}.tagging.gz "
+    "https://genetics.ghpc.au.dk/doug/TaggingFiles/bld.ldak.hapmap.{wildcards.ldakpop}.tagging.gz; "
+    "gunzip -f {params.resdir}/data/sumher_tagging/bld_ldak/hapmap/{wildcards.ldakpop}/bld.ldak.hapmap.{wildcards.ldakpop}.tagging.gz; "
+    "F={params.resdir}/data/sumher_tagging/bld_ldak/hapmap/{wildcards.ldakpop}/bld.ldak.hapmap.{wildcards.ldakpop}.tagging; "
+    "sha256sum $F; "
+    "if [ -n '{params.sha256}' ]; then echo '{params.sha256}  '$F | sha256sum -c -; fi) > {log} 2>&1"
+
 # Install GenoUtils
 rule install_genoutils:
   input:
@@ -1462,6 +1524,20 @@ if config.get("sbayesrc_r", "F") == "T":
     resource_inputs.extend(
         expand(f"{_sbrc_r_ld_base}/{{population}}/ldm.info",
                population=['EUR', 'EAS', 'AFR']))
+
+# SumHer (LDAK): the LDAK binary + the BLD-LDAK HapMap3 tagging files. Honour an
+# explicit sumher_ldak / sumher_ref so reuse of an existing copy doesn't force a
+# download. Tagging files are keyed by LDAK pop code (gbr/eas/sas/afr).
+if config.get("sumher", "F") == "T":
+    _sumher_ldak = config.get("sumher_ldak", "NA")
+    if _sumher_ldak in (None, "NA"):
+        resource_inputs.append(rules.download_ldak.output)
+    _sumher_ref = config.get("sumher_ref", "NA")
+    _sumher_ref_base = (f"{resdir}/data/sumher_tagging/bld_ldak/hapmap"
+                        if _sumher_ref in (None, "NA") else _sumher_ref)
+    resource_inputs.extend(
+        expand(f"{_sumher_ref_base}/{{ldakpop}}/bld.ldak.hapmap.{{ldakpop}}.tagging",
+               ldakpop=['gbr', 'eas', 'sas', 'afr']))
 
 # MAGMA
 if config["magma_gene"] == "T" or config["magma_drugtargetor"] == "T" or config["tissue_magma"] == "T":

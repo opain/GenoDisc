@@ -1,0 +1,14 @@
+name: sumher
+# Thin R env for the LDAK SumHer worker (scripts/sumher.R). The LDAK binary
+# itself is a static ELF staged separately by rule download_ldak (not a conda
+# package), so this env only needs R + the packages the worker uses to build the
+# LDAK summary file, drive the binary, and parse its output.
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - r-base>=4.1
+  - r-data.table>=1.14
+  - r-optparse>=1.6.6
+  - r-r.utils>=2.12
