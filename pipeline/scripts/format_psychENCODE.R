@@ -48,7 +48,7 @@ library(data.table)
 for(i in 1:22){
   print(i)
   pos_i<-pos[pos$CHR == i,]
-  ref_i<-fread(paste0(opt$resdir, '/data/1kg/1KG.Phase3.EUR.MAF_001.chr',i,'.bim'))
+  ref_i<-fread(paste0(opt$resdir, '/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr',i,'.bim'))
   ref_i$ID<-paste0(ref_i$V1,':',ref_i$V4)
   names(ref_i)[2]<-'RSID'
   

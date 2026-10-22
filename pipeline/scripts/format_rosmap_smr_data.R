@@ -45,7 +45,7 @@ names(esi_new)<-c('CHR','SNP','POS','BP','A1','A2')
 
 frq<-NULL
 for(i in 1:22){
-  tmp<-fread(paste0(opt$resdir, '/data/1kg/1KG.Phase3.EUR.MAF_001.chr',i,'.frq'))
+  tmp<-fread(paste0(opt$resdir, '/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr',i,'.frq'))
   tmp<-tmp[tmp$SNP %in% esi_new$SNP[esi_new$CHR == i],]
   frq<-rbind(frq, tmp)
 }

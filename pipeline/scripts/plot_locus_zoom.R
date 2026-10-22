@@ -154,7 +154,7 @@ make_plot <- function(idx_row) {
     return(invisible(NULL))
   }
 
-  bfile <- sprintf("%s/data/1kg/1KG.Phase3.%s.MAF_001.chr%d", resdir, population, chr_i)
+  bfile <- sprintf("%s/data/1kg_hgdp/1KG.Phase3.%s.MAF_001.chr%d", resdir, population, chr_i)
   tmp_prefix <- tempfile(pattern = paste0("ld_", sanitise_id(snp_id), "_"))
   window_kb_half <- ceiling(max(bp_i - win_lo, win_hi - bp_i) / 1000)
 

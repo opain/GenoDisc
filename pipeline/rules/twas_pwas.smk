@@ -47,7 +47,7 @@ rule run_twas:
     --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weights} \
-    --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 1e-3 \
@@ -123,7 +123,7 @@ rule run_conditional:
       --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
       --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
-      --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+      --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
       --out {outdir}/results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --save_loci \
@@ -184,7 +184,7 @@ rule run_rosmap_pwas:
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
-    --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
@@ -221,7 +221,7 @@ rule run_banner_pwas:
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS \
-    --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \

@@ -101,7 +101,7 @@ rule sumstat_prep_i:
     Rscript --vanilla $sumstat_cleaner_script \
       --sumstats {params.path} \
       --n {params.n} \
-      --ref_chr {params.resdir}/data/1kg/1KG.Phase3.MAF_001.chr \
+      --ref_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.MAF_001.chr \
       --population {params.population} \
       --munged T \
       --merge_alleles {params.resdir}/data/ldsc/w_hm3.snplist \
@@ -111,7 +111,7 @@ rule sumstat_prep_i:
     """
 
 rule sumstat_prep:
-  input: expand(f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz", gwas=gwas_list_df_eur['name'])
+  input: expand(f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz", gwas=gwas_list_df['name'])
 
 ###
 # Summarise genome-wide significant signals removed during QC (lost signals)
@@ -382,13 +382,13 @@ rule clump:
   conda:
     "../envs/main.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     resdir=resdir
   log:
     "{outdir}/logs/clump-{gwas}-chr{chr}.log"
   shell:
     "(mkdir -p {outdir}/results/{wildcards.gwas}/clump; plink \
-      --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
+      --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --maf 0.01 \
       --clump {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz \
@@ -445,7 +445,7 @@ rule cojo:
   conda:
     "../envs/ldsc.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     resdir=resdir
   log:
     "{outdir}/logs/cojo-{gwas}-chr{chr}.log"
@@ -459,7 +459,7 @@ rule cojo:
     mkdir -p {outdir}/results/{wildcards.gwas}/cojo
     sf={outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}.cojo.status
     if {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
-        --bfile {params.resdir}/data/1kg/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
+        --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
         --chr {wildcards.chr} \
         --maf 0.01 \
         --cojo-file {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \

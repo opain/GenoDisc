@@ -29,7 +29,7 @@ rule run_twas_gcsc:
     --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01/{wildcards.gcsc_tissue}.P01.pos \
     --weights_dir {params.resdir}/data/GCSC/twas_weights/GTEx.{wildcards.gcsc_tissue}.P01 \
-    --ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr}) > {log} 2>&1"
 

@@ -293,17 +293,33 @@ rule download_liftover_track:
     "(mkdir -p {params.resdir}/data/liftover/; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg38.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg38.over.chain.gz; wget --no-check-certificate -O {params.resdir}/data/liftover/hg19ToHg18.over.chain.gz ftp://hgdownload.cse.ucsc.edu/goldenPath/hg19/liftOver/hg19ToHg18.over.chain.gz) > {log} 2>&1"
 
 ####
-# Download and format 1000 Genomes reference data
+# Download and format 1000 Genomes + HGDP reference data
 ####
+
+# Download the prebuilt dense 1KG+HGDP reference (6 super-populations: EUR/EAS/AFR/AMR/CSA/MID).
+# No conda directive on purpose: this runs in the orchestrator (genodisc) env where gdown is installed.
+rule download_1kg_hgdp:
+  output:
+    touch(f"{resdir}/data/1kg_hgdp/download_1kg_hgdp.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_1kg_hgdp.tsv"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_1kg_hgdp.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/1kg_hgdp; "
+    "gdown --id 15GCDTwRaGcYoGlZRN26kQ5blBKwnlvsr -O {params.resdir}/data/1kg_hgdp/genopred_dense_1kg_hgdp.tar.gz; "
+    "tar -xzf {params.resdir}/data/1kg_hgdp/genopred_dense_1kg_hgdp.tar.gz -C {params.resdir}/data/1kg_hgdp/; "
+    "rm {params.resdir}/data/1kg_hgdp/genopred_dense_1kg_hgdp.tar.gz) > {log} 2>&1"
 
 rule prep_1kg:
   input:
-    rules.install_liftover.output,
-    rules.download_liftover_track.output
+    rules.download_1kg_hgdp.output
   resources:
     mem_mb=20000
   output:
-    touch(f"{resdir}/data/prep_1kg.done")
+    touch(f"{resdir}/data/1kg_hgdp/prep_1kg.done")
   benchmark:
     f"{resdir}/benchmarks/prep_1kg.tsv"
   conda:
@@ -313,7 +329,7 @@ rule prep_1kg:
   log:
     f"{resdir}/logs/prep_1kg.log"
   shell:
-    "Rscript --vanilla {workflow.basedir}/scripts/prep_1kg.R --pipeline_dir {workflow.basedir} --resdir {params.resdir} > {log} 2>&1"
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_1kg.R --resdir {params.resdir} > {log} 2>&1"
 
 ####
 # Download LDSC
@@ -1078,15 +1094,15 @@ rule feature_pred:
     f"{resdir}/logs/feature_pred-{{weight}}.log"
   shell:
     "Rscript --vanilla {params.resdir}/software/Predicting-TWAS-features/FeaturePred.V2.0.R \
-    	--PLINK_prefix_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    	--PLINK_prefix_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     	--weights {params.resdir}/data/fusion_snp_weights/{wildcards.weight}/{wildcards.weight}.pos \
     	--weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weight} \
-    	--ref_ld_chr {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    	--ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     	--targ_pred F \
     	--save_ref_expr T \
     	--save_score F \
     	--plink plink \
-    	--ref_maf {params.resdir}/data/1kg/1KG.Phase3.EUR.MAF_001.chr \
+    	--ref_maf {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
     	--pigz {params.resdir}/software/pigz/pigz/pigz \
     	--memory 40000 \
       --n_cores 5 \

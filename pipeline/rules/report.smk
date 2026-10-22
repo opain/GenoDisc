@@ -5,11 +5,11 @@
 myoutput = list()
 
 if config["clump"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-    myoutput.append(expand("{outdir}/results/{gwas}/locus_plots/{gwas}.locus_plots.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv", gwas=gwas_list_df['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/locus_plots/{gwas}.locus_plots.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["cojo"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["finemap"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
@@ -112,13 +112,13 @@ if config["tissue_magma"] == "T":
 if config["gcsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
-myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.qq_plot.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.manhattan_plot.labelled.png", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.qq_plot.png", gwas=gwas_list_df['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.manhattan_plot.labelled.png", gwas=gwas_list_df['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 # Lost-signal summary (lost_signals rule) + raw-input Manhattan data (sumstat_prep_i), so both
 # are built before packaging and read into gwas_qc$lost_signals / gwas_qc$manhattan_raw.
-myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.lost_signals.rds", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.manhattan_raw.rds", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.lost_signals.rds", gwas=gwas_list_df['name'], outdir={outdir}))
+myoutput.append(expand("{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.manhattan_raw.rds", gwas=gwas_list_df['name'], outdir={outdir}))
 
 rule package_results:
   input:
