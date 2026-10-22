@@ -315,7 +315,8 @@ rule download_1kg_hgdp:
 
 rule prep_1kg:
   input:
-    rules.download_1kg_hgdp.output
+    rules.download_1kg_hgdp.output,
+    f"{resdir}/data/ldsc/w_hm3.snplist"
   resources:
     mem_mb=20000
   output:

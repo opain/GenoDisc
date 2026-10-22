@@ -55,6 +55,24 @@ for(pop in pops){
   file.remove(ml_file)
 }
 
+# Build a HapMap3-restricted copy of each per-population x per-chromosome bfile for FUSION TWAS/PWAS.
+# All FUSION weight panels except PsychENCODE reference only HapMap3 SNPs, so FUSION's --ref_ld_chr can
+# be restricted to HapMap3 for those panels: the LD among the weight SNPs is unchanged (every weight SNP
+# is still present) but the per-chromosome reference genotype matrix FUSION loads shrinks ~10-20x,
+# cutting its memory and runtime. PsychENCODE keeps the full dense bfiles above.
+# --keep-allele-order preserves the dense bfiles' A1/A2 (plink1.9 would otherwise
+# recode A1 to the minor allele, flipping the sign of FUSION's reported EQTL columns
+# vs the dense reference; the TWAS Z is allele-invariant either way, but we keep the
+# HapMap3 reference byte-consistent with the dense panel).
+for(pop in pops){
+  for(chr in 1:22){
+    system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,
+                  ' --extract ',opt$resdir,'/data/ldsc/w_hm3.snplist',
+                  ' --keep-allele-order',
+                  ' --make-bed --out ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.hm3.chr',chr))
+  }
+}
+
 # Stage the combined cross-population .rds under the name the sumstat cleaner reads (--ref_chr).
 for(chr in 1:22){
   file.rename(paste0(ref_dir,'/ref.chr',chr,'.rds'),

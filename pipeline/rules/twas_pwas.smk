@@ -8,19 +8,23 @@
 
 # Per-chromosome memory ceiling for run_twas: FUSION holds the per-chromosome LD
 # reference genotype matrix in memory, so peak RSS scales with the number of
-# reference SNPs (bigger chr = more memory). The baseline below is ~2x the limits
-# tuned on job k1642468_20260729_134415, because the reference is now the dense
-# 1KG+HGDP panel (~1.8x more SNPs/chr than the old 1KG panel those limits were set
-# for - the old limits OOM-killed FUSION on the dense panel). Scales with `attempt`
-# so a job that still OOMs is retried with proportionally more memory.
+# reference SNPs (bigger chr = more memory). Only PsychENCODE now loads the full
+# dense 1KG+HGDP panel (~600k-1M SNPs/chr) - every other panel uses the
+# HapMap3-restricted reference (~45k SNPs/chr; see _twas_ref_prefix), which needs
+# only a few GB. The dense baseline below is ~2x the limits tuned on job
+# k1642468_20260729_134415 (the old 1KG-panel limits OOM-killed FUSION on the dense
+# panel). Scales with `attempt` so a job that still OOMs is retried with more memory.
 def get_run_twas_mem_mb(wildcards, attempt):
-    base = {
-        "1":  30000, "2":  32000, "3":  26000, "4":  26000, "5":  24000,
-        "6":  24000, "7":  24000, "8":  22000, "9":  16000, "10": 20000,
-        "11": 20000, "12": 20000, "13": 14000, "14": 12000, "15": 12000,
-        "16": 12000, "17": 12000, "18": 12000, "19": 10000, "20": 10000,
-        "21":  8000, "22":  8000,
-    }[str(wildcards.chr)]
+    if wildcards.weights == "psychencode":
+        base = {
+            "1":  30000, "2":  32000, "3":  26000, "4":  26000, "5":  24000,
+            "6":  24000, "7":  24000, "8":  22000, "9":  16000, "10": 20000,
+            "11": 20000, "12": 20000, "13": 14000, "14": 12000, "15": 12000,
+            "16": 12000, "17": 12000, "18": 12000, "19": 10000, "20": 10000,
+            "21":  8000, "22":  8000,
+        }[str(wildcards.chr)]
+    else:
+        base = 8000
     return base * attempt
 
 # run twas
@@ -29,6 +33,14 @@ def get_run_twas_mem_mb(wildcards, attempt):
 # cross-ancestry approximation (COLOC is suppressed downstream in packaging).
 def _pop(w):
     return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+
+# FUSION LD-reference prefix (--ref_ld_chr). PsychENCODE weights span SNPs beyond
+# HapMap3, so it uses the full dense per-pop panel; every other panel references
+# only HapMap3 SNPs, so it uses the HapMap3-restricted bfiles (built by prep_1kg.R)
+# - result-identical but far smaller to load.
+def _twas_ref_prefix(w):
+    base = "{}/data/1kg_hgdp/1KG.Phase3.{}.MAF_001".format(resdir, _pop(w))
+    return base + (".chr" if w.weights == "psychencode" else ".hm3.chr")
 
 rule run_twas:
   resources:
@@ -50,7 +62,7 @@ rule run_twas:
     "../envs/main.yaml"
   params:
     resdir=resdir,
-    population=_pop
+    ref_prefix=_twas_ref_prefix
   log:
     "{outdir}/logs/run_twas-{gwas}-{weights}-chr{chr}.log"
   shell:
@@ -58,7 +70,7 @@ rule run_twas:
     --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weights} \
-    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
+    --ref_ld_chr {params.ref_prefix} \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 1e-3 \
@@ -173,7 +185,7 @@ rule process_conditional:
 
 # Run twas using ROSMAP SNP-weights
 rule run_rosmap_pwas:
-  resources: mem_mb=20000
+  resources: mem_mb=lambda wildcards, attempt: 8000 * attempt
   input:
     sumstats="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
     neff_txt="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
@@ -197,7 +209,7 @@ rule run_rosmap_pwas:
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
-    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.hm3.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
@@ -211,7 +223,7 @@ rule rosmap_pwas_all_chr:
 
 # Run twas using Banner SNP-weights
 rule run_banner_pwas:
-  resources: mem_mb=20000
+  resources: mem_mb=lambda wildcards, attempt: 8000 * attempt
   input:
     sumstats="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.sumstats.gz",
     neff_txt="{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.median_N.txt",
@@ -235,7 +247,7 @@ rule run_banner_pwas:
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS \
-    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.hm3.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
