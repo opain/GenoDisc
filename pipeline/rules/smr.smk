@@ -34,6 +34,15 @@ rule format_sumstats_smr:
 def _pop(w):
     return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
 
+def _smr_diff_freq(w):
+    # SMR aborts when >5% of SNPs differ by >0.2 in allele frequency between the
+    # GWAS, the eQTL panel and the LD reference. For a non-EUR GWAS the EUR-trained
+    # eQTL panel differs from the non-EUR GWAS/LD by design, so relax the abort
+    # (--diff-freq-prop 1): SMR still drops the discordant SNPs and runs on the
+    # rest - the cross-ancestry approximation (HEIDI is suppressed in packaging).
+    # EUR keeps SMR's default behaviour (empty -> no flag).
+    return '--diff-freq-prop 1' if _pop(w) != 'EUR' else ''
+
 rule run_psychencode_smr:
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
@@ -46,7 +55,8 @@ rule run_psychencode_smr:
     "../envs/main.yaml"
   params:
     resdir=resdir,
-    population=_pop
+    population=_pop,
+    diff_freq=_smr_diff_freq
   log:
     "{outdir}/logs/run_psychencode_smr-{gwas}-chr{chr}.log"
   shell:
@@ -54,6 +64,7 @@ rule run_psychencode_smr:
     --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
+    {params.diff_freq} \
     --out {outdir}/results/{wildcards.gwas}/smr/psychencode/{wildcards.gwas}_smr_psychencode_chr{wildcards.chr} > {log} 2>&1"
 
 rule run_psychencode_smr_chr:
@@ -80,7 +91,8 @@ rule run_eqtlgen_smr:
     "../envs/main.yaml"
   params:
     resdir=resdir,
-    population=_pop
+    population=_pop,
+    diff_freq=_smr_diff_freq
   log:
     "{outdir}/logs/run_eqtlgen_smr-{gwas}-chr{chr}.log"
   shell:
@@ -88,6 +100,7 @@ rule run_eqtlgen_smr:
     --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
+    {params.diff_freq} \
     --out {outdir}/results/{wildcards.gwas}/smr/eqtlgen/{wildcards.gwas}_smr_eqtlgen_chr{wildcards.chr} > {log} 2>&1"
 
 rule run_eqtlgen_smr_chr:
@@ -132,7 +145,8 @@ rule run_rosmap_smr:
     "../envs/main.yaml"
   params:
     resdir=resdir,
-    population=_pop
+    population=_pop,
+    diff_freq=_smr_diff_freq
   log:
     "{outdir}/logs/run_rosmap_smr-{gwas}-chr{chr}.log"
   shell:
@@ -140,6 +154,7 @@ rule run_rosmap_smr:
     --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
+    {params.diff_freq} \
     --out {outdir}/results/{wildcards.gwas}/smr/rosmap/{wildcards.gwas}_smr_rosmap_chr{wildcards.chr} > {log} 2>&1"
 
 rule run_rosmap_smr_chr:
@@ -188,7 +203,8 @@ rule smr_analysis_MetaBrain:
     "../envs/main.yaml"
   params:
     resdir=resdir,
-    population=_pop
+    population=_pop,
+    diff_freq=_smr_diff_freq
   log:
     "{outdir}/logs/smr_analysis_MetaBrain-{gwas}-{tissue}-chr{chr}.log"
   shell:
@@ -196,6 +212,7 @@ rule smr_analysis_MetaBrain:
       --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
       --beqtl-summary {params.resdir}/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
+      {params.diff_freq} \
       --out {outdir}/results/{wildcards.gwas}/smr/metabrain/{wildcards.tissue}/{wildcards.gwas}_smr_metabrain_{wildcards.tissue}_chr{wildcards.chr} \
       --thread-num 1 > {log} 2>&1"
 

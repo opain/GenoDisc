@@ -6,18 +6,22 @@
 # Run TWAS
 ###
 
-# Per-chromosome memory ceiling for run_twas: observed peak RSS × ~1.3,
-# rounded up to the next GB. Baseline was job k1642468_20260729_134415, where
-# max RSS scaled strongly with chromosome (bigger chr = more reference SNPs =
-# bigger genotype matrix held in memory).
-def get_run_twas_mem_mb(wildcards):
-    return {
-        "1":  15000, "2":  16000, "3":  13000, "4":  13000, "5":  12000,
-        "6":  12000, "7":  12000, "8":  11000, "9":   8000, "10": 10000,
-        "11": 10000, "12": 10000, "13":  7000, "14":  6000, "15":  6000,
-        "16":  6000, "17":  6000, "18":  6000, "19":  5000, "20":  5000,
-        "21":  4000, "22":  4000,
+# Per-chromosome memory ceiling for run_twas: FUSION holds the per-chromosome LD
+# reference genotype matrix in memory, so peak RSS scales with the number of
+# reference SNPs (bigger chr = more memory). The baseline below is ~2x the limits
+# tuned on job k1642468_20260729_134415, because the reference is now the dense
+# 1KG+HGDP panel (~1.8x more SNPs/chr than the old 1KG panel those limits were set
+# for - the old limits OOM-killed FUSION on the dense panel). Scales with `attempt`
+# so a job that still OOMs is retried with proportionally more memory.
+def get_run_twas_mem_mb(wildcards, attempt):
+    base = {
+        "1":  30000, "2":  32000, "3":  26000, "4":  26000, "5":  24000,
+        "6":  24000, "7":  24000, "8":  22000, "9":  16000, "10": 20000,
+        "11": 20000, "12": 20000, "13": 14000, "14": 12000, "15": 12000,
+        "16": 12000, "17": 12000, "18": 12000, "19": 10000, "20": 10000,
+        "21":  8000, "22":  8000,
     }[str(wildcards.chr)]
+    return base * attempt
 
 # run twas
 # GWAS population (gnomAD super-pop code) -> selects the ancestry-matched LD
