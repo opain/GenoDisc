@@ -29,6 +29,17 @@ source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'sumstat_cleaner_func
 sub_ss <- fread(opt$sumstats, nrows = 1000)
 header_interp <- head_interp(sub_ss)
 
+# First few values of each column, to help users eyeball what each column
+# actually contains when checking the interpretation. Each value is truncated
+# to keep the preview compact, and the string is suffixed with an ellipsis.
+preview_vals <- function(colname) {
+  if (!(colname %in% names(sub_ss))) return(NA_character_)
+  vals <- as.character(head(sub_ss[[colname]], 3))
+  vals <- ifelse(nchar(vals) > 20, paste0(substr(vals, 1, 20), '…'), vals)
+  paste0(paste(vals, collapse = ', '), ' …')
+}
+header_interp$Sample <- vapply(as.character(header_interp$Original), preview_vals, character(1))
+
 # Same detection the real pipeline uses as its own fallback (scripts/sumstat_cleaner.R):
 # N is usable if present directly, or derivable from N_CAS + N_CON.
 n_detected <- ('N' %in% header_interp$Interpreted) ||
