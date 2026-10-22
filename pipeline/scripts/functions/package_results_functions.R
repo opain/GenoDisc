@@ -1,5 +1,16 @@
 #!/usr/bin/Rscript
 
+# Skip a per-GWAS output that was not produced (e.g. an EUR-only analysis such as
+# LDSC/TWAS/SMR/MAGMA run on a non-EUR GWAS, whose report.smk targets are gated to
+# EUR) instead of erroring on the missing file: return NULL if `path` is absent,
+# else reader(path, ...). Use ONLY for per-GWAS OUTPUT files - resource files
+# (ATC table, GTEx tissue labels, FUSION .pos, etc.) always exist and are read
+# directly.
+read_if_exists <- function(path, reader = readLines, ...) {
+  if (!file.exists(path)) return(NULL)
+  reader(path, ...)
+}
+
 process_cleaner_log<-function(config, gwas){
 
   # Identify outdir
@@ -72,9 +83,14 @@ process_ldsc_log<-function(config, gwas){
 
   if(read_param(config = config, param = 'ldsc', return_obj = F) == "T"){
 
+    # LDSC h2 is EUR-only (EUR LD scores); for a non-EUR GWAS its report.smk
+    # target is skipped, so the log is absent - return NULL rather than erroring.
+    ldsc_log_path<-paste0(outdir,'/results/',gwas,'/ldsc/',gwas,'_ldsc_res.log')
+    if(!file.exists(ldsc_log_path)) return(NULL)
+
     dat<-list()
 
-    dat$log<-readLines(paste0(outdir,'/results/',gwas,'/ldsc/',gwas,'_ldsc_res.log'))
+    dat$log<-readLines(ldsc_log_path)
 
     dat$val<-list()
     tmp<-gsub('Total Observed scale h2: ','',dat$log[grepl('Total Observed scale h2:', dat$log)])
@@ -249,12 +265,17 @@ process_ldsc_gencor_within <- function(config, gwas){
 }
 
 process_susie<-function(outdir, gwas, L){
+  # Fine-mapping is EUR-only (EUR LD panel); for a non-EUR GWAS the output is
+  # absent, so return NULL rather than erroring on the missing file.
+  csv_path<-NULL
   if(L==1){
-  dat<-fread(paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.L1.csv'))
+  csv_path<-paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.L1.csv')
   }
   if(L==10){
-  dat<-fread(paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.csv'))
+  csv_path<-paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.csv')
   }
+  if(is.null(csv_path) || !file.exists(csv_path)) return(NULL)
+  dat<-fread(csv_path)
 
   dat$variable<-NULL
   dat$Gene[is.na(dat$Gene)]<-'None'
@@ -382,8 +403,11 @@ read_fusion_exp<-function(config, gwas){
     # Update panel names to be easier to read
     dat$panels$Panel<-tidy_panel_names(dat$panels$Panel)
 
-    # Read in TWAS results
-    dat$res<-fread(paste0(outdir,'/results/',gwas,'/twas/',gwas,'_twas_GW_clean.txt.gz'))
+    # Read in TWAS results. TWAS is EUR-only (EUR-trained eQTL weights); for a
+    # non-EUR GWAS the result is absent, so skip rather than error.
+    twas_res_path<-paste0(outdir,'/results/',gwas,'/twas/',gwas,'_twas_GW_clean.txt.gz')
+    if(!file.exists(twas_res_path)) return(NULL)
+    dat$res<-fread(twas_res_path)
     dat$res$FILE<-NULL
     dat$res$MODEL<-NULL
     dat$res<-dat$res[!is.na(dat$res$TWAS.Z),]
@@ -427,6 +451,9 @@ read_pwas<-function(outdir, gwas, panel){
 
     pwas_all<-rbind(pwas_all, pwas)
   }
+
+  # PWAS is EUR-only; for a non-EUR GWAS no per-chromosome files exist -> skip.
+  if(is.null(pwas_all)) return(NULL)
 
   pwas_all<-pwas_all[!is.na(pwas_all$TWAS.P),]
   pwas_all$TWAS.P.FDR<-p.adjust(pwas_all$TWAS.P, method = 'fdr')
@@ -588,6 +615,8 @@ read_smr_exp<-function(config, gwas){
         smr_psychencode<-rbind(smr_psychencode, fread(paste0(outdir,'/results/',gwas,'/smr/psychencode/',i)))
       }
 
+      # SMR is EUR-only; for a non-EUR GWAS there are no per-chr files -> skip.
+      if(!is.null(smr_psychencode)){
       smr_psychencode_tmp<-smr_psychencode
 
       smr_psychencode_tmp$PANEL<-"Brain - DLPFC (PsychENCODE)"
@@ -597,9 +626,10 @@ read_smr_exp<-function(config, gwas){
       names(smr_psychencode_tmp)<-c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_HEIDI')
 
       res<-rbind(res, smr_psychencode_tmp)
+      }
     }
 
-    if(smr_expression_panel_eqtlgen_logical){
+    if(smr_expression_panel_eqtlgen_logical && file.exists(paste0(outdir,'/results/',gwas,'/smr/eqtlgen/',gwas,'_smr_eqtlgen_GW.txt.gz'))){
 
       smr_eqtlgen<-fread(paste0(outdir,'/results/',gwas,'/smr/eqtlgen/',gwas,'_smr_eqtlgen_GW.txt.gz'))
 
@@ -616,8 +646,11 @@ read_smr_exp<-function(config, gwas){
     }
 
     if(metabrain_logical){
+      # SMR is EUR-only; for a non-EUR GWAS the output is absent -> skip.
+      smr_metabrain_path<-paste0(outdir,'/results/',gwas,'/smr/metabrain/',gwas,'_smr_metabrain_GW.txt.gz')
+      if(file.exists(smr_metabrain_path)){
 
-      smr_metabrain_all<-fread(paste0(outdir,'/results/',gwas,'/smr/metabrain/',gwas,'_smr_metabrain_GW.txt.gz'))
+      smr_metabrain_all<-fread(smr_metabrain_path)
 
       smr_metabrain_tmp<-smr_metabrain_all
 
@@ -631,14 +664,18 @@ read_smr_exp<-function(config, gwas){
 
       res<-rbind(res, smr_metabrain_tmp)
 
+      }
     }
 
-    # Adjust for multiple testing
-    res$p_SMR.FDR<-p.adjust(res$p_SMR, method='fdr')
+    # Adjust for multiple testing (only if any panel produced results - a non-EUR
+    # GWAS skips all SMR panels, leaving res NULL).
+    if(!is.null(res) && nrow(res) > 0){
+      res$p_SMR.FDR<-p.adjust(res$p_SMR, method='fdr')
 
-    res<-res[,c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
+      res<-res[,c('PANEL','CHR','BP','Ensembl ID','Gene Symbol','b_SMR','se_SMR','p_SMR','p_SMR.FDR','p_HEIDI'), with=T]
 
-    res<-res[order(res$CHR, res$BP),]
+      res<-res[order(res$CHR, res$BP),]
+    }
 
   }
 
@@ -655,6 +692,8 @@ read_smr_protein<-function(config, gwas){
   dat<-NULL
 
   if(read_param(config = config, param = 'smr_protein_panel_rosmap', return_obj = F) == "T"){
+    # SMR is EUR-only; for a non-EUR GWAS the output is absent -> skip.
+    if(!file.exists(paste0(outdir,'/results/',gwas,'/smr/rosmap/',gwas,'_smr_rosmap_GW.txt.gz'))) return(NULL)
     # Insert panel information
     dat$panels<-data.frame( Type='Protein',
                             Software='SMR',
@@ -686,7 +725,10 @@ read_magma_gene<-function(config, gwas){
   dat<-NULL
 
   if(read_param(config = config, param = 'magma_gene', return_obj = F) == "T"){
-    dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_gene_level.clean.csv'))
+    # MAGMA is EUR-only; for a non-EUR GWAS the output is absent -> skip.
+    magma_gene_path<-paste0(outdir,'/results/',gwas,'/magma/magma_gene_level.clean.csv')
+    if(!file.exists(magma_gene_path)) return(NULL)
+    dat<-fread(magma_gene_path)
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
     dat<-dat[order(dat$CHR, dat$START),]
   }
@@ -739,7 +781,10 @@ read_twas_gsea_drug<-function(config, gwas, mode = 'directional'){
 
     atc_labels<-atc[nchar(atc$Code) == 4,]
 
-    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+    # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+    weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+    if(!file.exists(weights_path)) return(NULL)
+    weights<-scan(weights_path, what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     dat<-NULL
@@ -810,7 +855,10 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
 
   if(read_param(config = config, param = flag_param, return_obj = F) == "T"){
 
-    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+    # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+    weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+    if(!file.exists(weights_path)) return(NULL)
+    weights<-scan(weights_path, what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     dat<-NULL
@@ -899,7 +947,10 @@ read_twas_gsea_atc_gls<-function(config, gwas){
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
   if(read_param(config = config, param = 'drug_targetor_atc_gls', return_obj = F) != "T") return(NULL)
 
-  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+  # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+  weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+  if(!file.exists(weights_path)) return(NULL)
+  weights<-scan(weights_path, what=character(), quiet=TRUE)
   weights<-weights[!grepl('SPLIC',weights)]
 
   dat<-NULL
@@ -957,7 +1008,10 @@ read_twas_gsea_atc_vif<-function(config, gwas){
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
   if(read_param(config = config, param = 'drug_targetor_atc_gls', return_obj = F) != "T") return(NULL)
 
-  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+  # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+  weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+  if(!file.exists(weights_path)) return(NULL)
+  weights<-scan(weights_path, what=character(), quiet=TRUE)
   weights<-weights[!grepl('SPLIC',weights)]
 
   dat<-NULL
@@ -990,7 +1044,10 @@ read_drug_targetor_evidence<-function(config, gwas){
   outdir <- read_param(config = config, param = 'outdir', return_obj = F)
   if(read_param(config = config, param = 'twas_gsea_drugtargetor', return_obj = F) != "T") return(NULL)
 
-  weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+  # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+  weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+  if(!file.exists(weights_path)) return(NULL)
+  weights<-scan(weights_path, what=character(), quiet=TRUE)
   weights<-weights[!grepl('SPLIC',weights)]
 
   drug<-NULL; cls<-NULL; dsum<-NULL; csum<-NULL
@@ -1067,7 +1124,10 @@ read_twas_gsea_cmap_drug<-function(config, gwas){
   dat<-NULL
 
   if(read_param(config = config, param = 'twas_gsea_cmap', return_obj = F) == "T"){
-    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+    # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+    weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+    if(!file.exists(weights_path)) return(NULL)
+    weights<-scan(weights_path, what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     for(i in weights){
@@ -1110,7 +1170,10 @@ read_twas_gsea_cmap_moa<-function(config, gwas){
   dat<-NULL
 
   if(read_param(config = config, param = 'twas_gsea_cmap', return_obj = F) == "T"){
-    weights<-scan(paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt'), what=character(), quiet=TRUE)
+    # TWAS is EUR-only; the weights list is absent for a non-EUR GWAS -> skip.
+    weights_path<-paste0(outdir,'/results/',gwas,'/twas/list_of_weights.txt')
+    if(!file.exists(weights_path)) return(NULL)
+    weights<-scan(weights_path, what=character(), quiet=TRUE)
     weights<-weights[!grepl('SPLIC',weights)]
 
     for(i in weights){
@@ -1164,7 +1227,9 @@ read_magma_drug<-function(config, gwas){
 
     atc_labels<-atc[nchar(atc$Code) == 4,]
 
-    dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor.clean.csv'))
+    magma_drug_path<-paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor.clean.csv')
+    if(!file.exists(magma_drug_path)) return(NULL)   # MAGMA is EUR-only
+    dat<-fread(magma_drug_path)
     dat<-dat[order(dat$P),]
     dat$P.FDR<-p.adjust(dat$P, method='fdr')
 
@@ -1282,7 +1347,9 @@ read_gcsc<-function(config, gwas){
 
     atc_labels<-atc[nchar(atc$Code) == 4,]
 
-    dat<-fread(paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res.txt'))
+    gcsc_path<-paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res.txt')
+    if(!file.exists(gcsc_path)) return(NULL)   # GCSC rides FUSION (EUR-only)
+    dat<-fread(gcsc_path)
     dat$Drug<-paste(toupper(substr(dat$Drug, 1, 1)), substr(dat$Drug, 2, nchar(dat$Drug)), sep="")
 
     dat<-dat[order(dat$P),]
@@ -1313,7 +1380,9 @@ read_magma_drug_atc<-function(config, gwas){
 
   if(read_param(config = config, param = 'magma_drugtargetor', return_obj = F) == "T"){
 
-    dat<-fread(paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_atc_res.csv'))
+    magma_drug_atc_path<-paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_atc_res.csv')
+    if(!file.exists(magma_drug_atc_path)) return(NULL)   # MAGMA is EUR-only
+    dat<-fread(magma_drug_atc_path)
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
 
     dat<-dat[,c("ATC","N","P","P.FDR","Name"), with=F]
@@ -1333,7 +1402,9 @@ read_gcsc_atc<-function(config, gwas){
 
   if(read_param(config = config, param = 'gcsc', return_obj = F) == "T"){
 
-    dat<-fread(paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res_atc.csv'))
+    gcsc_atc_path<-paste0(outdir,'/results/',gwas,'/gcsc/',gwas,'_drugtargetor_gcsc_res_atc.csv')
+    if(!file.exists(gcsc_atc_path)) return(NULL)   # GCSC rides FUSION (EUR-only)
+    dat<-fread(gcsc_atc_path)
 
     dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
 
@@ -1358,8 +1429,13 @@ read_magma_tissue<-function(config, gwas, type){
 
     if(type == 'specific'){
 
+      # Tissue-specificity MAGMA is EUR-only; for a non-EUR GWAS the output is
+      # absent, so skip rather than error (grep on a missing file).
+      gsa_out_path<-paste0(outdir,"/results/",gwas,'/magma/magma_tissue_spec.gsa.out')
+      if(!file.exists(gsa_out_path)) return(NULL)
+
       # Read in the MAGMA gene property enrichment results
-      property_enrich<-fread(cmd=paste0("grep -v '^#' ",outdir,"/results/",gwas,'/magma/magma_tissue_spec.gsa.out'))
+      property_enrich<-fread(cmd=paste0("grep -v '^#' ",gsa_out_path))
 
       # Insert FULL_NAME column if not present
       if(all(names(property_enrich) != 'FULL_NAME')){
