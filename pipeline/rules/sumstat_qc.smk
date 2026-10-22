@@ -16,9 +16,10 @@ gwas_list_df_eur = gwas_list_df.loc[gwas_list_df['population'] == 'EUR']
 # SBayesRC is run per these populations; AMR/SAS are skipped.
 gwas_list_df_sbrc = gwas_list_df.loc[gwas_list_df['population'].isin(['EUR', 'EAS', 'AFR'])]
 
-# Subset to GWAS with a pre-computed BLD-LDAK HapMap3 tagging file for SumHer
-# (EUR->gbr, EAS->eas, SAS->sas, AFR->afr). AMR has no tagging file and is skipped.
-gwas_list_df_sumher = gwas_list_df.loc[gwas_list_df['population'].isin(['EUR', 'EAS', 'SAS', 'AFR'])]
+# Subset to GWAS with a pre-computed BLD-LDAK HapMap3 tagging file for SumHer.
+# Populations use the reference's gnomAD codes (EUR/EAS/AFR/CSA); CSA reuses the
+# SAS tagging (see _sumher_pop_map). AMR/MID have no tagging file and are skipped.
+gwas_list_df_sumher = gwas_list_df.loc[gwas_list_df['population'].isin(['EUR', 'EAS', 'AFR', 'CSA'])]
 
 # Path to bivariate LDSC secondary list (NA when not configured).
 # Read only as a path for input-staleness tracking; per-pair file existence is
@@ -166,11 +167,31 @@ rule retrieve_N:
 # Run LDSC
 ###
 
+# LDSC SNP-h2 LD-score reference per GWAS population. EUR keeps the classic
+# per-chromosome eur_w_ld_chr (so existing EUR h2 estimates are unchanged);
+# non-EUR uses the PanUKB genome-wide LD scores UKBB.{POP}.rsid, which ldsc.py
+# reads via --ref-ld/--w-ld (single prefix), not --ref-ld-chr.
+def _ldsc_pop(w):
+    return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+
+def _ldsc_ldscore_input(w):
+    if _ldsc_pop(w) == 'EUR':
+        return f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz"
+    return f"{resdir}/data/ld_scores/download_ldscores_panukb.done"
+
+def _ldsc_ld_args(w):
+    pop = _ldsc_pop(w)
+    if pop == 'EUR':
+        return (f"--ref-ld-chr {resdir}/data/ldsc/eur_w_ld_chr/ "
+                f"--w-ld-chr {resdir}/data/ldsc/eur_w_ld_chr/")
+    return (f"--ref-ld {resdir}/data/ld_scores/UKBB.{pop}.rsid "
+            f"--w-ld {resdir}/data/ld_scores/UKBB.{pop}.rsid")
+
 rule ldsc:
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.munged.mergealleles.sumstats.gz",
     f"{resdir}/software/ldsc/",
-    f"{resdir}/data/ldsc/eur_w_ld_chr/10.l2.ldscore.gz",
+    _ldsc_ldscore_input,
     f"{resdir}/data/ldsc/w_hm3.snplist"
   output:
     "{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log"
@@ -179,14 +200,14 @@ rule ldsc:
   conda:
     "../envs/ldsc.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    ld_args=_ldsc_ld_args
   log:
     "{outdir}/logs/ldsc-{gwas}.log"
   shell:
     "(mkdir -p {outdir}/results/{wildcards.gwas}/ldsc/; python2.7 {params.resdir}/software/ldsc/ldsc.py \
       --h2 {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.mergealleles.sumstats.gz \
-      --ref-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
-      --w-ld-chr {params.resdir}/data/ldsc/eur_w_ld_chr/ \
+      {params.ld_args} \
       --out {outdir}/results/{wildcards.gwas}/ldsc/{wildcards.gwas}_ldsc_res) > {log} 2>&1"
 
 ###

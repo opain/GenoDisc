@@ -12,7 +12,7 @@ if config["cojo"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["finemap"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config.get("sbayesrc", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv", gwas=gwas_list_df_sbrc['name'], outdir={outdir}))
@@ -24,7 +24,7 @@ if config.get("sumher", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/sumher/{gwas}.sumher.clean.csv", gwas=gwas_list_df_sumher['name'], outdir={outdir}))
 
 if config["ldsc"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["ldsc"] == "T" and config.get("gencor_gwas_list", "NA") not in (None, "NA"):
     myoutput.append(expand("{outdir}/results/{gwas}/gencor/{gwas}_gencor_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
@@ -33,81 +33,81 @@ if config["ldsc"] == "T" and config.get("gencor_within_gwas_list", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/gencor_within/{gwas}_gencor_within_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
 
 if config["magma_gene"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_gene_level.clean.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config.get("magma_pathway", "F") == "T" and pathway_gmts:
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/pathway/magma_pathway_all.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/pathway/magma_pathway_all.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if magma_interaction_enabled:
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/interaction/interaction_results.tsv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/interaction/interaction_calibration.tsv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/interaction/interaction_results.tsv", gwas=gwas_list_df['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/interaction/interaction_calibration.tsv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config.get("twas_gsea_pathway", "F") == "T" and pathway_gmts:
-    myoutput.append(expand("{outdir}/results/{gwas}/twas/pathway/twas_gsea_pathway_all.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/twas/pathway/twas_gsea_pathway_all.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["magma_drugtargetor"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config.get("magma_drugtargetor_gls", "F") == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_{level}_res.csv", gwas=gwas_list_df_eur['name'], level=["l2","l3","l4"], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_{level}_res.csv", gwas=gwas_list_df['name'], level=["l2","l3","l4"], outdir={outdir}))
     # VIF-OLS (recommended drug-level test) rides the same flag as the MAGMA GLS.
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_{level}_res.csv", gwas=gwas_list_df_eur['name'], level=["l2","l3","l4"], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_{level}_res.csv", gwas=gwas_list_df['name'], level=["l2","l3","l4"], outdir={outdir}))
 
 if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["twas_conditional"] == "T" and (config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T"):
-    myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["pwas_panel_rosmap"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/rosmap_pwas_all_chr.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["pwas_panel_banner"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/banner_pwas_all_chr.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_psychencode"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/psychencode_smr_all_chr.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/psychencode_smr_all_chr.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_metabrain_basalganglia"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_metabrain_cerebellum"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_metabrain_cortex"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_metabrain_hippocampus"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_metabrain_spinalcord"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/metabrain/{gwas}_smr_metabrain_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_expression_panel_eqtlgen"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/eqtlgen/{gwas}_smr_eqtlgen_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["smr_protein_panel_rosmap"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/smr/rosmap/{gwas}_smr_rosmap_GW.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["twas_gsea_drugtargetor"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done", gwas=gwas_list_df['name'], outdir={outdir}))
     # Per-gene evidence for the Shiny drill-down (rides the TWAS-GSEA DrugTargetor toggle).
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/drug_targetor_gene_evidence_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/drug_targetor_gene_evidence_all_panel.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["twas_gsea_drugtargetor_nondirectional"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 # Drug-level GLS ATC-class enrichment (DRUGSETS-style).
 if config.get("drug_targetor_atc_gls", "F") == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_gls_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_gls_results_all_panel.done", gwas=gwas_list_df['name'], outdir={outdir}))
     # VIF-OLS (recommended drug-level test) rides the same flag as the TWAS GLS.
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_vif_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_drug_targetor_vif_results_all_panel.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["twas_gsea_cmap"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_cmap_results_all_panel.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/checks/format_twas_gsea_cmap_results_all_panel.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["tissue_magma"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_property_conditional.done", gwas=gwas_list_df_eur['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_property_conditional.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["gcsc"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/gcsc/{gwas}_drugtargetor_gcsc_res_atc.csv", gwas=gwas_list_df_eur['name'], outdir={outdir}))

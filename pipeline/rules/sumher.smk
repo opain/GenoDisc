@@ -24,8 +24,10 @@ sumher_cutoff      = config.get("sumher_cutoff", 0.01)
 sumher_max_missing = config.get("sumher_max_missing", 0.2)
 sumher_threads     = int(config.get("sumher_threads", 1))
 
-# GWAS population -> LDAK tagging population code.
-_sumher_pop_map = {'EUR': 'gbr', 'EAS': 'eas', 'SAS': 'sas', 'AFR': 'afr'}
+# GWAS population (gnomAD super-pop code) -> LDAK BLD-LDAK tagging population code.
+# CSA (central/south Asian) reuses the SAS tagging (closest available); AMR/MID
+# have no tagging file and are excluded upstream (gwas_list_df_sumher).
+_sumher_pop_map = {'EUR': 'gbr', 'EAS': 'eas', 'AFR': 'afr', 'CSA': 'sas'}
 
 def _sumher_pop(w):
     return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]

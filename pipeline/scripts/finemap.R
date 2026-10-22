@@ -5,7 +5,9 @@ option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
               help="Name of GWAS [required]"),
   make_option("--chr", action="store", default=NA, type='character',
-              help="chromosome number [required]"),  
+              help="chromosome number [required]"),
+  make_option("--population", action="store", default='EUR', type='character',
+              help="GWAS population code; selects the ancestry-matched LD reference panel [default EUR]"),
   make_option("--config_file", action="store", default=NA, type='character',
               help="Path to config file [required]")
 )
@@ -61,7 +63,7 @@ if(nrow(lead) == 0){
 lead$NearestGene<-NULL
 
 # Read in reference SNP data to match alleles
-bim<-fread(paste0(resdir, '/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr',opt$chr,'.bim'))
+bim<-fread(paste0(resdir, '/data/1kg_hgdp/1KG.Phase3.',opt$population,'.MAF_001.chr',opt$chr,'.bim'))
 
 # Flip sumstat Z to match alleles across gwas and reference
 ss_bim_match<-merge(ss, bim, by.x=c('SNP','A1','A2'), by.y=c('V2','V5','V6'))
@@ -92,7 +94,7 @@ for(loc in 1:nrow(lead)){
   write.table(ss_subset$SNP, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt'), col.names=F, row.names=F, quote=F)
   
   # Calculate LD matrix for variants surrounding lead variants
-  system(paste0('plink --bfile ',resdir,'/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
+  system(paste0('plink --bfile ',resdir,'/data/1kg_hgdp/1KG.Phase3.',opt$population,'.MAF_001.chr',opt$chr,' --extract ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.snp_for_ld.txt --r square --out ',outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc]))
   
   ld<-as.matrix(fread(paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.ld')))
   dimnames(ld)<-list(ss_subset$SNP, ss_subset$SNP)

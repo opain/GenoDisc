@@ -18,13 +18,14 @@ rule finemap:
   conda:
     "../envs/main.yaml"
   params:
-    population= lambda w: gwas_list_df_eur.loc[gwas_list_df_eur['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
     config_file=config['config_file']
   log:
     "{outdir}/logs/finemap-{gwas}-chr{chr}.log"
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/finemap.R --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
+      --population {params.population} \
       --config_file {params.config_file} \
       --chr {wildcards.chr} > {log} 2>&1"
 

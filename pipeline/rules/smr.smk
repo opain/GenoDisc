@@ -28,6 +28,12 @@ rule format_sumstats_smr:
 # Run SMR using eQTL
 ####
 
+# GWAS population (gnomAD super-pop code) -> selects the ancestry-matched LD
+# reference. The eQTL/pQTL besd panels stay EUR-trained, so non-EUR SMR is a
+# cross-ancestry approximation (HEIDI is suppressed downstream in packaging).
+def _pop(w):
+    return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+
 rule run_psychencode_smr:
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo",
@@ -39,12 +45,13 @@ rule run_psychencode_smr:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_psychencode_smr-{gwas}-chr{chr}.log"
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
-    --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/psychencode_smr/PsychENCODE_cis_eqtl_HCP100_summary/Gandal_PsychENCODE_eQTL_HCP100+gPCs20_QTLtools \
     --out {outdir}/results/{wildcards.gwas}/smr/psychencode/{wildcards.gwas}_smr_psychencode_chr{wildcards.chr} > {log} 2>&1"
@@ -72,12 +79,13 @@ rule run_eqtlgen_smr:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_eqtlgen_smr-{gwas}-chr{chr}.log"
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
-    --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/eqtlgen/cis-eQTLs-full_eQTLGen_AF_incl_nr_formatted_20191212.new.txt_besd-dense \
     --out {outdir}/results/{wildcards.gwas}/smr/eqtlgen/{wildcards.gwas}_smr_eqtlgen_chr{wildcards.chr} > {log} 2>&1"
@@ -123,12 +131,13 @@ rule run_rosmap_smr:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_rosmap_smr-{gwas}-chr{chr}.log"
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
-    --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+    --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
     --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
     --beqtl-summary {params.resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd \
     --out {outdir}/results/{wildcards.gwas}/smr/rosmap/{wildcards.gwas}_smr_rosmap_chr{wildcards.chr} > {log} 2>&1"
@@ -178,12 +187,13 @@ rule smr_analysis_MetaBrain:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/smr_analysis_MetaBrain-{gwas}-{tissue}-chr{chr}.log"
   shell:
     "{params.resdir}/software/smr/smr_linux_x86_64 \
-      --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr{wildcards.chr} \
+      --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
       --gwas-summary {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
       --beqtl-summary {params.resdir}/data/MetaBrain/{wildcards.tissue}/2020-05-26-{wildcards.tissue}-EUR-{wildcards.chr}-SMR-besd \
       --out {outdir}/results/{wildcards.gwas}/smr/metabrain/{wildcards.tissue}/{wildcards.gwas}_smr_metabrain_{wildcards.tissue}_chr{wildcards.chr} \

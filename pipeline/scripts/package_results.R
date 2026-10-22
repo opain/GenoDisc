@@ -50,7 +50,14 @@ for(gwas_i in gwas_list$name){
   # GWAS QC
   ##################
 
+  # Cross-ancestry flag: a non-EUR GWAS runs TWAS/PWAS/SMR against EUR-trained
+  # weights, so COLOC (FUSION) and HEIDI (SMR) are not valid and are suppressed
+  # (NA-ed) below; the flag lets the viewer label those results as approximate.
+  gwas_pop_i <- as.character(gwas_list$population[gwas_list$name == gwas_i][1])
+  is_cross_ancestry <- !is.na(gwas_pop_i) && toupper(gwas_pop_i) != 'EUR'
+
   gwas_qc<-list()
+  gwas_qc$cross_ancestry_weights <- is_cross_ancestry
 
   gwas_qc$cleaner_dat<-process_cleaner_log(config=opt$config, gwas=gwas_i)
   gwas_qc$ldsc_dat<-process_ldsc_log(config=opt$config, gwas=gwas_i)
@@ -201,6 +208,23 @@ for(gwas_i in gwas_list$name){
   ######
 
   mol_assoc$magma<-read_magma_gene(config=opt$config, gwas=gwas_i)
+
+  # For a non-EUR GWAS the TWAS/PWAS/SMR weights are EUR-trained, so the
+  # colocalisation (FUSION COLOC) and heterogeneity (SMR HEIDI) statistics are
+  # not valid - NA them out so the viewer/report doesn't present them. The
+  # TWAS/SMR Z and P (the user-accepted cross-ancestry approximation) are kept.
+  if(is_cross_ancestry){
+    .na_cols <- function(df, cols){
+      if(is.null(df)) return(df)
+      for(cc in intersect(cols, names(df))) df[[cc]] <- NA
+      df
+    }
+    coloc_cols <- c('COLOC.PP3','COLOC.PP4','COLOC_logical')
+    mol_assoc$exp$fusion$res         <- .na_cols(mol_assoc$exp$fusion$res, coloc_cols)
+    mol_assoc$protein$fusion$results <- .na_cols(mol_assoc$protein$fusion$results, coloc_cols)
+    mol_assoc$exp$smr$results        <- .na_cols(mol_assoc$exp$smr$results, 'p_HEIDI')
+    mol_assoc$protein$smr$results    <- .na_cols(mol_assoc$protein$smr$results, 'p_HEIDI')
+  }
 
   ######
   # Nearest

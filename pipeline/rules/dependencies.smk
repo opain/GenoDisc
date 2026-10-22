@@ -379,6 +379,24 @@ rule download_ldsc_hm3:
   shell:
     "(mkdir -p {params.resdir}/data/ldsc; wget --no-check-certificate -O {params.resdir}/data/ldsc/w_hm3.snplist.gz https://zenodo.org/record/7773502/files/w_hm3.snplist.gz?download=1; gzip -d {params.resdir}/data/ldsc/w_hm3.snplist.gz) > {log} 2>&1"
 
+# PanUKB per-population LDSC LD scores (UKBB.{POP}.rsid.l2.*), for non-EUR SNP-h2.
+# One genome-wide set per super-population (EUR/EAS/AFR/AMR/CSA/MID), used with
+# ldsc.py --ref-ld/--w-ld (NOT --ref-ld-chr). EUR h2 keeps using eur_w_ld_chr
+# (above) so existing EUR results are unchanged; these cover the other ancestries.
+rule download_ldscores_panukb:
+  output:
+    touch(f"{resdir}/data/ld_scores/download_ldscores_panukb.done")
+  benchmark:
+    f"{resdir}/benchmarks/download_ldscores_panukb.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir
+  log:
+    f"{resdir}/logs/download_ldscores_panukb.log"
+  shell:
+    "(mkdir -p {params.resdir}/data/ld_scores; wget --no-check-certificate -O {params.resdir}/data/ld_scores/ld_scores.tar.gz https://zenodo.org/records/10666891/files/ld_scores.tar.gz?download=1; tar -xf {params.resdir}/data/ld_scores/ld_scores.tar.gz -C {params.resdir}/data/ld_scores; rm {params.resdir}/data/ld_scores/ld_scores.tar.gz) > {log} 2>&1"
+
 # Download GCTA
 rule download_gcta:
   output:
@@ -667,7 +685,7 @@ rule magma_annot:
   input:
     rules.download_magma.output,
     rules.download_magma_gene_loc.output,
-    rules.download_magma_ref.output
+    rules.prep_1kg.output
   output:
     f"{resdir}/data/magma/NCBI37.3.genes.annot"
   benchmark:
@@ -679,9 +697,12 @@ rule magma_annot:
   log:
     f"{resdir}/logs/magma_annot.log"
   shell:
+    # Built from the dense 1KG+HGDP panel (EUR merge). The variant set is identical
+    # across populations, so this single annotation serves every ancestry; only the
+    # per-pop LD reference (--bfile in magma_gene_level) differs.
     "{params.resdir}/software/magma/magma \
       --annotate window=35,10 \
-    	--snp-loc {params.resdir}/data/magma_ref/g1000_eur.bim \
+    	--snp-loc {params.resdir}/data/magma_ref/1kg_hgdp_EUR.bim \
     	--gene-loc {params.resdir}/data/magma/NCBI37.3.gene.loc \
     	--out {params.resdir}/data/magma/NCBI37.3 > {log} 2>&1"
 

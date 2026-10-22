@@ -38,6 +38,23 @@ for(pop in pops){
   }
 }
 
+# Build a genome-wide merged PLINK1 bfile per population for MAGMA, which needs a
+# single genome-wide reference (not per-chromosome). Different chromosomes have no
+# overlapping variants, so the merge is clean. The variant set is identical across
+# populations (they differ only in samples), so one MAGMA gene annotation (built by
+# rule magma_annot from the EUR merge) serves every population; only the LD (samples)
+# is ancestry-specific here.
+magma_dir<-paste0(opt$resdir, '/data/magma_ref')
+dir.create(magma_dir, recursive = TRUE, showWarnings = FALSE)
+for(pop in pops){
+  ml_file<-paste0(magma_dir, '/merge_list_', pop, '.txt')
+  writeLines(paste0(output_dir, '/1KG.Phase3.', pop, '.MAF_001.chr', 2:22), ml_file)
+  system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr1',
+                ' --merge-list ',ml_file,
+                ' --make-bed --out ',magma_dir,'/1kg_hgdp_',pop))
+  file.remove(ml_file)
+}
+
 # Stage the combined cross-population .rds under the name the sumstat cleaner reads (--ref_chr).
 for(chr in 1:22){
   file.rename(paste0(ref_dir,'/ref.chr',chr,'.rds'),

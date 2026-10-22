@@ -18,13 +18,14 @@ rule magma_gene_level:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
   log:
     "{outdir}/logs/magma_gene_level-{gwas}.log"
   shell:
     "(gzip -f -d -c {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz > {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned; \
     {params.resdir}/software/magma/magma \
-      --bfile {params.resdir}/data/magma_ref/g1000_eur \
+      --bfile {params.resdir}/data/magma_ref/1kg_hgdp_{params.population} \
       --pval {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
       --gene-annot {params.resdir}/data/magma/NCBI37.3.genes.annot \
       --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1"

@@ -20,6 +20,12 @@ def get_run_twas_mem_mb(wildcards):
     }[str(wildcards.chr)]
 
 # run twas
+# GWAS population (gnomAD super-pop code) -> selects the ancestry-matched LD
+# reference. The FUSION weight panels stay EUR-trained, so non-EUR TWAS/PWAS is a
+# cross-ancestry approximation (COLOC is suppressed downstream in packaging).
+def _pop(w):
+    return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+
 rule run_twas:
   resources:
     mem_mb=get_run_twas_mem_mb
@@ -39,7 +45,8 @@ rule run_twas:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_twas-{gwas}-{weights}-chr{chr}.log"
   shell:
@@ -47,7 +54,7 @@ rule run_twas:
     --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
     --weights {params.resdir}/data/fusion_snp_weights/{wildcards.weights}/{wildcards.weights}.pos \
     --weights_dir {params.resdir}/data/fusion_snp_weights/{wildcards.weights} \
-    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 1e-3 \
@@ -115,7 +122,8 @@ rule run_conditional:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_conditional-{gwas}-chr{chr}.log"
   shell:
@@ -123,7 +131,7 @@ rule run_conditional:
       --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
       --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
-      --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
+      --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
       --out {outdir}/results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --save_loci \
@@ -176,7 +184,8 @@ rule run_rosmap_pwas:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_rosmap_pwas-{gwas}-chr{chr}.log"
   shell:
@@ -184,7 +193,7 @@ rule run_rosmap_pwas:
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/rosmap_twas/ROSMAP.n376.fusion.WEIGHTS \
-    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
@@ -213,7 +222,8 @@ rule run_banner_pwas:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    population=_pop
   log:
     "{outdir}/logs/run_banner_pwas-{gwas}-chr{chr}.log"
   shell:
@@ -221,7 +231,7 @@ rule run_banner_pwas:
     --sumstats {input.sumstats} \
     --weights {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS/train_weights_withN.pos \
     --weights_dir {params.resdir}/data/banner_twas/Banner.n152.fusion.WEIGHTS \
-    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr \
+    --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
     --out {output} \
     --chr {wildcards.chr} \
     --coloc_P 5e-2 \
