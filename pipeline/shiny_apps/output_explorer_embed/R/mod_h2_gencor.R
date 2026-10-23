@@ -680,13 +680,32 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       tab <- gencor_table()
 
       if (!isTRUE(cf$ldsc_gencor) || is.null(tab) || nrow(tab) == 0) {
+        # Distinguish "not requested" from "requested but skipped because the GWAS
+        # is cross-ancestry": LDSC rg needs matched-ancestry LD scores for both
+        # traits, and the reference-GWAS panel is European, so cross-ancestry rg is
+        # not computed (gwas_qc$cross_ancestry_weights set by package_results).
+        cross <- isTRUE(gd_read(gwas_data(), selected_gwas(), "gwas_qc")$cross_ancestry_weights)
+        msg <- if (isTRUE(cf$ldsc_gencor) && cross) {
+          tagList(
+            tags$strong("Genetic correlation not available for this cross-ancestry GWAS"),
+            br(),
+            paste("This GWAS is non-European, while the reference-GWAS panel is",
+                  "European. LDSC genetic correlation requires both traits to use",
+                  "matched-ancestry LD scores, so cross-ancestry rg is not valid",
+                  "and is omitted.")
+          )
+        } else {
+          tagList(
+            tags$strong("Bivariate LDSC not run"),
+            br(),
+            "Set gencor_gwas_list in the pipeline config to enable genetic-correlation analysis."
+          )
+        }
         return(div(
           style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
           icon("link", style = "font-size: 2em;"),
           br(), br(),
-          tags$strong("Bivariate LDSC not run"),
-          br(),
-          "Set gencor_gwas_list in the pipeline config to enable genetic-correlation analysis."
+          msg
         ))
       }
 
