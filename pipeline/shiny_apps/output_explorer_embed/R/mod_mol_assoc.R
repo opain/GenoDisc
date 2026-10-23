@@ -473,8 +473,13 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$mol_cross_ancestry_note <- renderUI({
       req(gwas_data())
       if (!.mol_cross_ancestry()) return(NULL)
-      div(class = "alert alert-warning", style = "margin-top: 8px;",
-        tags$b("Cross-ancestry analysis. "),
+      div(style = paste0(
+            "border: 1px solid var(--gd-border); ",
+            "border-left: 4px solid var(--gd-accent-2); ",
+            "background: var(--gd-panel-2); color: var(--gd-text-mute); ",
+            "border-radius: var(--gd-r-card, 12px); ",
+            "padding: 10px 14px; margin-top: 8px; font-size: 0.9em;"),
+        tags$strong(style = "color: var(--gd-text);", "Cross-ancestry analysis. "),
         "This GWAS is non-European, while the FUSION and SMR weight panels are ",
         "European-ancestry. The TWAS/SMR effect estimates (Z / BETA) on the FUSION ",
         "and SMR tabs below are still informative, but colocalisation (COLOC ",
