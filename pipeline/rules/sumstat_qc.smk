@@ -92,7 +92,12 @@ rule sumstat_prep_i:
     # column". Omitted for full genome-wide runs (unchanged behaviour).
     test_arg=("--test " + str(chromosomes[0])) if len(chromosomes) == 1 else "",
     # P-value threshold for the per-variant removed-variant file (see config.yaml).
-    removed_p_thresh=config.get('removed_p_thresh', 1e-5)
+    removed_p_thresh=config.get('removed_p_thresh', 1e-5),
+    # User-configurable QC thresholds (see config.yaml). Defaults match
+    # sumstat_cleaner.R's own, so configs without these keys are unchanged.
+    info=config.get('info', 0.9),
+    maf=config.get('maf', 0.01),
+    maf_diff=config.get('maf_diff', 0.2)
   log:
     f"{outdir}/logs/sumstat_prep_i-{{gwas}}.log"
   shell:
@@ -107,6 +112,9 @@ rule sumstat_prep_i:
       --munged T \
       --merge_alleles {params.resdir}/data/ldsc/w_hm3.snplist \
       --removed_p_thresh {params.removed_p_thresh} \
+      --info {params.info} \
+      --maf {params.maf} \
+      --maf_diff {params.maf_diff} \
       {params.test_arg} \
       --output {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1
     """
