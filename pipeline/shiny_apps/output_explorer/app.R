@@ -278,6 +278,7 @@ ui <- fluidPage(
           title="Molecular Associations",
           br(),
           p("This tab shows molecular association results. Select the tabs below to see a summary of results across methods, or method-specific results tables."),
+          uiOutput("mol_cross_ancestry_note"),
           hr(),
           tabsetPanel(
             tabPanel(
@@ -1416,6 +1417,19 @@ server <- function(input, output, session) {
     # Prepare data for molecular association tables
     #######
 
+    output$mol_cross_ancestry_note<-renderUI({
+      req(gwas_data(), selected_gwas())
+      if (!isTRUE(gwas_data()[[selected_gwas()]]$gwas_qc$cross_ancestry_weights)) return(NULL)
+      div(class = "alert alert-warning", style = "margin-top: 8px;",
+        tags$b("Cross-ancestry analysis. "),
+        "This GWAS is non-European, while the FUSION and SMR weight panels are ",
+        "European-ancestry. The TWAS/SMR effect estimates (Z / BETA) on the FUSION ",
+        "and SMR tabs are still informative, but colocalisation (COLOC PP3/PP4) and ",
+        "the SMR HEIDI test are not valid across ancestries, so those columns are ",
+        "omitted. MAGMA is ancestry-matched and unaffected."
+      )
+    })
+
     output$mol_assoc_magma_table<-renderDataTable({
       # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
       js <- c(
@@ -1447,6 +1461,7 @@ server <- function(input, output, session) {
         "}"
       )
 
+      cross<-isTRUE(gwas_data()[[selected_gwas()]]$gwas_qc$cross_ancestry_weights)
       tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$fusion$res
       tmp$TWAS.Z<-round(tmp$TWAS.Z, 3)
       tmp$`High Confidence`  <- tmp$TWAS.P.FDR < 0.05 & tmp$COLOC_logical
@@ -1457,13 +1472,16 @@ server <- function(input, output, session) {
       names(tmp)[names(tmp) == 'TWAS.P']<-'P'
       names(tmp)[names(tmp) == 'TWAS.P.FDR']<-'P.FDR'
 
-      tmp<-tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4","High Confidence"), with=F]
+      keep<-c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR")
+      # COLOC is not valid across ancestries (all NA) - drop it for cross-ancestry GWAS.
+      if (!cross) keep<-c(keep,"COLOC.PP3","COLOC.PP4","High Confidence")
+      tmp<-tmp[, keep, with=F]
 
       datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js),
         # Centre column contents and fix width of Pvalue column
-        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     output$mol_assoc_fusion_protein_table<-renderDataTable({
@@ -1477,6 +1495,7 @@ server <- function(input, output, session) {
         "}"
       )
 
+      cross<-isTRUE(gwas_data()[[selected_gwas()]]$gwas_qc$cross_ancestry_weights)
       tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$protein$fusion$res
       tmp$pwas_all.Z<-round(tmp$pwas_all.Z, 3)
       tmp$`High Confidence`  <- tmp$pwas_all.P.FDR < 0.05 & tmp$COLOC_logical
@@ -1487,31 +1506,41 @@ server <- function(input, output, session) {
       names(tmp)[names(tmp) == 'pwas_all.P']<-'P'
       names(tmp)[names(tmp) == 'pwas_all.P.FDR']<-'P.FDR'
 
-      tmp<-tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4","High Confidence"), with=F]
+      keep<-c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR")
+      # COLOC is not valid across ancestries (all NA) - drop it for cross-ancestry GWAS.
+      if (!cross) keep<-c(keep,"COLOC.PP3","COLOC.PP4","High Confidence")
+      tmp<-tmp[, keep, with=F]
 
       datatable(tmp, rownames=F, options = list(
         # Apply javascript for P value column
         rowCallback = JS(js),
         # Centre column contents and fix width of Pvalue column
-        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     output$mol_assoc_smr_expr_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      # HEIDI is not valid across ancestries (European weights vs non-European GWAS);
+      # package_results NA-outs it and sets gwas_qc$cross_ancestry_weights.
+      cross<-isTRUE(gwas_data()[[selected_gwas()]]$gwas_qc$cross_ancestry_weights)
+      # Exponential-format P (col 7) and P.FDR (col 8) always; P (HEIDI) (col 9) only
+      # when present. Null/NaN-safe so a missing value never breaks the render.
+      expo <- if (cross) "[7,8]" else "[7,8,9]"
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[7];",
-        "  $('td:eq(7)', row).html(x.toExponential(2));",
-        "  var y = data[8];",
-        "  $('td:eq(8)', row).html(y.toExponential(2));",
-        "  var x = data[9];",
-        "  $('td:eq(9)', row).html(x.toExponential(2));",
+        paste0("  ", expo, ".forEach(function(i){ var v = data[i];"),
+        "    if (v !== null && v !== '' && v !== 'NA' && !isNaN(v)) {",
+        "      $('td:eq('+i+')', row).html(Number(v).toExponential(2)); }",
+        "  });",
         "}"
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$exp$smr$res
-      tmp$`High Confidence`<-tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
-      tmp<-tmp[,c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI","High Confidence"), with=F]
+      keep<-c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR")
+      if (!cross) {
+        tmp$`High Confidence`<-tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
+        keep<-c(keep,"p_HEIDI","High Confidence")
+      }
+      tmp<-tmp[,keep, with=F]
       tmp$b_SMR<-round(tmp$b_SMR, 3)
       tmp$se_SMR<-round(tmp$b_SMR, 3)
 
@@ -1525,25 +1554,25 @@ server <- function(input, output, session) {
         # Apply javascript for P value column
         rowCallback = JS(js),
         # Centre column contents and fix width of Pvalue column
-        columnDefs = list(list(className = 'dt-center', targets = 0:10))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     output$mol_assoc_smr_protein_table<-renderDataTable({
-      # Create java script to force scientific notation for P and P.FDR value column, whilst allowing numeric sorting
+      cross<-isTRUE(gwas_data()[[selected_gwas()]]$gwas_qc$cross_ancestry_weights)
+      expo <- if (cross) "[7,8]" else "[7,8,9]"
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[7];",
-        "  $('td:eq(7)', row).html(x.toExponential(2));",
-        "  var y = data[8];",
-        "  $('td:eq(8)', row).html(y.toExponential(2));",
-        "  var y = data[9];",
-        "  $('td:eq(9)', row).html(y.toExponential(2));",
+        paste0("  ", expo, ".forEach(function(i){ var v = data[i];"),
+        "    if (v !== null && v !== '' && v !== 'NA' && !isNaN(v)) {",
+        "      $('td:eq('+i+')', row).html(Number(v).toExponential(2)); }",
+        "  });",
         "}"
       )
 
       tmp<-gwas_data()[[selected_gwas()]]$mol_assoc$protein$smr$res
-      tmp$`High Confidence`<-tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
-      tmp<-tmp[,c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with=F]
+      keep<-c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR")
+      if (!cross) keep<-c(keep,"p_HEIDI")
+      tmp<-tmp[,keep, with=F]
       tmp$b_SMR<-round(tmp$b_SMR, 3)
       tmp$se_SMR<-round(tmp$b_SMR, 3)
 
@@ -1557,7 +1586,7 @@ server <- function(input, output, session) {
         # Apply javascript for P value column
         rowCallback = JS(js),
         # Centre column contents and fix width of Pvalue column
-        columnDefs = list(list(className = 'dt-center', targets = 0:9))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     #######

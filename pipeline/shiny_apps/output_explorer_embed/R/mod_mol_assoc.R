@@ -356,6 +356,7 @@ molAssocUI <- function(id) {
     title = "Molecular Associations",
     br(),
     p("Molecular association results. On multi-GWAS bundles the per-trait content (Summary + MAGMA / FUSION / SMR tables) lives under the Single GWAS sub-tab, Multi-GWAS shows the cross-GWAS gene comparison, and Panel Info is bundle-level. On single-GWAS bundles the per-trait tabs and Panel Info sit at the top level directly."),
+    uiOutput(ns("mol_cross_ancestry_note")),
     hr(),
     # Dynamic tab structure — flat for single-GWAS bundles, nested
     # (Single GWAS / Multi-GWAS / Panel Info) for multi-GWAS bundles.
@@ -456,6 +457,31 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       v <- input$mol_single_gwas
       if (is.null(v) || !nzchar(v)) selected_gwas() else v
     }
+
+    # TRUE when the picked GWAS was analysed with ancestry-mismatched (European)
+    # FUSION/SMR weight panels. package_results sets gwas_qc$cross_ancestry_weights
+    # and NA-outs the COLOC (PP3/PP4) and HEIDI columns in that case, because those
+    # colocalisation tests are not valid across ancestries. Used to flag this in the
+    # UI and to drop the (all-NA) COLOC/HEIDI columns from the FUSION/SMR tables.
+    .mol_cross_ancestry <- function() {
+      g <- .pick_mol_gwas()
+      if (is.null(gwas_data()) || is.null(g)) return(FALSE)
+      qc <- tryCatch(gd_read(gwas_data(), g, "gwas_qc"), error = function(e) NULL)
+      isTRUE(qc$cross_ancestry_weights)
+    }
+
+    output$mol_cross_ancestry_note <- renderUI({
+      req(gwas_data())
+      if (!.mol_cross_ancestry()) return(NULL)
+      div(class = "alert alert-warning", style = "margin-top: 8px;",
+        tags$b("Cross-ancestry analysis. "),
+        "This GWAS is non-European, while the FUSION and SMR weight panels are ",
+        "European-ancestry. The TWAS/SMR effect estimates (Z / BETA) on the FUSION ",
+        "and SMR tabs below are still informative, but colocalisation (COLOC ",
+        "PP3/PP4) and the SMR HEIDI test are not valid across ancestries, so those ",
+        "columns are omitted. MAGMA is ancestry-matched and unaffected."
+      )
+    })
 
     ########
     # Show/hide method sub-tabs based on config
@@ -575,6 +601,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
+      cross <- .mol_cross_ancestry()
       tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/exp/fusion")$res
       tmp$TWAS.Z <- round(tmp$TWAS.Z, 3)
       tmp$`High Confidence` <- tmp$TWAS.P.FDR < 0.05 & tmp$COLOC_logical
@@ -585,11 +612,14 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       names(tmp)[names(tmp) == 'TWAS.P'] <- 'P'
       names(tmp)[names(tmp) == 'TWAS.P.FDR'] <- 'P.FDR'
 
-      tmp <- tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4","High Confidence"), with = F]
+      keep <- c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR")
+      # COLOC is not valid across ancestries (all NA) - drop it for cross-ancestry GWAS.
+      if (!cross) keep <- c(keep, "COLOC.PP3","COLOC.PP4","High Confidence")
+      tmp <- tmp[, keep, with = F]
 
       datatable(tmp, rownames = F, options = list(
         rowCallback = JS(js),
-        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     output$mol_assoc_fusion_protein_table <- renderDataTable({
@@ -603,6 +633,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
+      cross <- .mol_cross_ancestry()
       tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/protein/fusion")$res
       tmp$pwas_all.Z <- round(tmp$pwas_all.Z, 3)
       tmp$`High Confidence` <- tmp$pwas_all.P.FDR < 0.05 & tmp$COLOC_logical
@@ -613,29 +644,39 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       names(tmp)[names(tmp) == 'pwas_all.P'] <- 'P'
       names(tmp)[names(tmp) == 'pwas_all.P.FDR'] <- 'P.FDR'
 
-      tmp <- tmp[, c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR","COLOC.PP3","COLOC.PP4","High Confidence"), with = F]
+      keep <- c("PANEL","CHR","P0","P1","Ensembl ID","Gene Symbol","Z","P","P.FDR")
+      # COLOC is not valid across ancestries (all NA) - drop it for cross-ancestry GWAS.
+      if (!cross) keep <- c(keep, "COLOC.PP3","COLOC.PP4","High Confidence")
+      tmp <- tmp[, keep, with = F]
 
       datatable(tmp, rownames = F, options = list(
         rowCallback = JS(js),
-        columnDefs = list(list(className = 'dt-center', targets = 0:11))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     output$mol_assoc_smr_expr_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
+      cross <- .mol_cross_ancestry()
+      # Exponential-format P (col 7) and P.FDR (col 8) always; P (HEIDI) (col 9)
+      # only when present. Null/NaN-safe so a missing value never breaks the render.
+      expo <- if (cross) "[7,8]" else "[7,8,9]"
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[7];",
-        "  $('td:eq(7)', row).html(x.toExponential(2));",
-        "  var y = data[8];",
-        "  $('td:eq(8)', row).html(y.toExponential(2));",
-        "  var x = data[9];",
-        "  $('td:eq(9)', row).html(x.toExponential(2));",
+        paste0("  ", expo, ".forEach(function(i){ var v = data[i];"),
+        "    if (v !== null && v !== '' && v !== 'NA' && !isNaN(v)) {",
+        "      $('td:eq('+i+')', row).html(Number(v).toExponential(2)); }",
+        "  });",
         "}"
       )
 
       tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/exp/smr")$res
-      tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
-      tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI","High Confidence"), with = F]
+      keep <- c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR")
+      # HEIDI is not valid across ancestries (all NA) - drop it for cross-ancestry GWAS.
+      if (!cross) {
+        tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
+        keep <- c(keep, "p_HEIDI", "High Confidence")
+      }
+      tmp <- tmp[, keep, with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
       tmp$se_SMR <- round(tmp$se_SMR, 3)
 
@@ -647,25 +688,27 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       datatable(tmp, rownames = F, options = list(
         rowCallback = JS(js),
-        columnDefs = list(list(className = 'dt-center', targets = 0:10))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     output$mol_assoc_smr_protein_table <- renderDataTable({
       req(gwas_data()); req(.pick_mol_gwas())
+      cross <- .mol_cross_ancestry()
+      expo <- if (cross) "[7,8]" else "[7,8,9]"
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[7];",
-        "  $('td:eq(7)', row).html(x.toExponential(2));",
-        "  var y = data[8];",
-        "  $('td:eq(8)', row).html(y.toExponential(2));",
-        "  var y = data[9];",
-        "  $('td:eq(9)', row).html(y.toExponential(2));",
+        paste0("  ", expo, ".forEach(function(i){ var v = data[i];"),
+        "    if (v !== null && v !== '' && v !== 'NA' && !isNaN(v)) {",
+        "      $('td:eq('+i+')', row).html(Number(v).toExponential(2)); }",
+        "  });",
         "}"
       )
 
       tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/protein/smr")$res
-      tmp$`High Confidence` <- tmp$p_SMR.FDR < 0.05 & tmp$p_HEIDI > 0.05
-      tmp <- tmp[, c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR","p_HEIDI"), with = F]
+      keep <- c("PANEL","CHR","BP","Ensembl ID","Gene Symbol","b_SMR","se_SMR","p_SMR","p_SMR.FDR")
+      # HEIDI is not valid across ancestries (all NA) - drop it for cross-ancestry GWAS.
+      if (!cross) keep <- c(keep, "p_HEIDI")
+      tmp <- tmp[, keep, with = F]
       tmp$b_SMR <- round(tmp$b_SMR, 3)
       tmp$se_SMR <- round(tmp$se_SMR, 3)
 
@@ -677,7 +720,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       datatable(tmp, rownames = F, options = list(
         rowCallback = JS(js),
-        columnDefs = list(list(className = 'dt-center', targets = 0:9))))
+        columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
 
     ########
