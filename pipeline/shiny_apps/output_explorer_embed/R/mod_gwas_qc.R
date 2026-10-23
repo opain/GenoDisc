@@ -583,23 +583,54 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
       mr <- qc$manhattan_raw
       ls <- qc$lost_signals
 
-      if (is.null(mr)) {
-        return(div(
-          style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
-          icon("chart-area", style = "font-size: 2em;"),
-          br(), br(),
-          tags$strong("Unfiltered Manhattan Unavailable"),
-          br(),
-          "This results package was produced before removed-variant reporting was added, ",
-          "or the input GWAS had no chromosome/position columns."
-        ))
-      }
-
       gw     <- ls$gw_threshold %||% 5e-8
       rpt    <- ls$removed_p_thresh %||% 1e-5
       n_sig  <- ls$n_removed_sig %||% 0
       n_lost <- ls$n_lost_signal_loci %||% 0
       n_loci <- if (!is.null(ls$loci)) nrow(ls$loci) else 0
+
+      # No raw-input Manhattan: the input had no chromosome/position (rsID-only), or
+      # this is a legacy bundle. We can't draw the plot or locate loci, but the
+      # per-reason removal counts (from the cleaner log) and the number of removed
+      # genome-wide-significant variants are still available, so show those.
+      if (is.null(mr)) {
+        counts_tbl <- gd_build_removed_counts_table(qc$cleaner_dat$log, ls)
+        if (is.null(counts_tbl)) {
+          return(div(
+            style = "background-color: #e9ecef; border-radius: 8px; padding: 60px 20px; text-align: center; color: #6c757d;",
+            icon("chart-area", style = "font-size: 2em;"),
+            br(), br(),
+            tags$strong("Removed-variant summary unavailable"),
+            br(),
+            "This results package was produced before removed-variant reporting was added."
+          ))
+        }
+        headline <- if (n_sig == 0) {
+          div(style = "padding: 10px 14px; border-radius: 6px; background: #e6f4ea; color: #1e4620; margin-bottom: 12px; max-width: 1000px;",
+            icon("circle-check"),
+            sprintf(" No genome-wide significant variants (P < %s) were removed during QC.",
+                    format(gw, scientific = TRUE)))
+        } else {
+          div(style = "padding: 10px 14px; border-radius: 6px; background: #fdecea; color: #611a15; margin-bottom: 12px; max-width: 1000px;",
+            icon("triangle-exclamation"),
+            sprintf(" %s genome-wide significant variant(s) (P < %s) were removed during QC.",
+                    format(n_sig, big.mark = ","), format(gw, scientific = TRUE)))
+        }
+        return(tagList(
+          div(style = "padding: 10px 14px; border-radius: 6px; background: #eef3f8; color: #30455c; margin-bottom: 12px; max-width: 1000px;",
+            icon("circle-info"),
+            " This GWAS was supplied with rsIDs only (no chromosome/position), so the unfiltered ",
+            "Manhattan plot and per-locus breakdown are not available. The counts of variants ",
+            "removed during QC, by reason, are shown below."),
+          headline,
+          h5("Variants removed during QC, by reason"),
+          p(style = "color: var(--gd-text-mute); max-width: 1000px;",
+            "Number of variants removed at each QC step (across all SNPs), and the subset that were ",
+            "genome-wide significant (P < 5e-8). Totals are from the cleaner log; pre-reference losses ",
+            "(variants absent from the panel and non-SNPs) are grouped together."),
+          div(style = "max-width: 640px;", tableOutput(ns("removed_counts_tbl")))
+        ))
+      }
 
       headline <- if (n_sig == 0) {
         div(style = "padding: 10px 14px; border-radius: 6px; background: #e6f4ea; color: #1e4620; margin-bottom: 12px; max-width: 1000px;",
