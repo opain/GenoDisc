@@ -34,13 +34,15 @@ def get_run_twas_mem_mb(wildcards, attempt):
 def _pop(w):
     return gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
 
-# FUSION LD-reference prefix (--ref_ld_chr). PsychENCODE weights span SNPs beyond
-# HapMap3, so it uses the full dense per-pop panel; every other panel references
-# only HapMap3 SNPs, so it uses the HapMap3-restricted bfiles (built by prep_1kg.R)
-# - result-identical but far smaller to load.
+# FUSION LD-reference prefix (--ref_ld_chr). Both references are MAF-filtered per
+# population (built by prep_1kg.R) so monomorphic-in-population weight SNPs don't
+# break FUSION's LD computation. PsychENCODE weights span SNPs beyond HapMap3, so it
+# uses the MAF-filtered dense panel ('.fusion.'); every other panel references only
+# HapMap3 SNPs, so it uses the HapMap3-restricted copy ('.hm3.') - result-identical
+# but far smaller to load.
 def _twas_ref_prefix(w):
     base = "{}/data/1kg_hgdp/1KG.Phase3.{}.MAF_001".format(resdir, _pop(w))
-    return base + (".chr" if w.weights == "psychencode" else ".hm3.chr")
+    return base + (".fusion.chr" if w.weights == "psychencode" else ".hm3.chr")
 
 rule run_twas:
   resources:
@@ -147,7 +149,7 @@ rule run_conditional:
       --input {outdir}/results/{wildcards.gwas}/twas/{wildcards.gwas}_twas_GW_clean_sig.txt \
       --sumstats {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.munged.sumstats.gz \
       --report \
-      --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr \
+      --ref_ld_chr {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.fusion.chr \
       --out {outdir}/results/{wildcards.gwas}/twas/conditional/{wildcards.gwas}_twas_conditional_chr{wildcards.chr} \
       --chr {wildcards.chr} \
       --save_loci \

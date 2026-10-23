@@ -55,18 +55,30 @@ for(pop in pops){
   file.remove(ml_file)
 }
 
-# Build a HapMap3-restricted copy of each per-population x per-chromosome bfile for FUSION TWAS/PWAS.
-# All FUSION weight panels except PsychENCODE reference only HapMap3 SNPs, so FUSION's --ref_ld_chr can
-# be restricted to HapMap3 for those panels: the LD among the weight SNPs is unchanged (every weight SNP
-# is still present) but the per-chromosome reference genotype matrix FUSION loads shrinks ~10-20x,
-# cutting its memory and runtime. PsychENCODE keeps the full dense bfiles above.
-# --keep-allele-order preserves the dense bfiles' A1/A2 (plink1.9 would otherwise
-# recode A1 to the minor allele, flipping the sign of FUSION's reported EQTL columns
-# vs the dense reference; the TWAS Z is allele-invariant either way, but we keep the
-# HapMap3 reference byte-consistent with the dense panel).
+# Build the per-population LD references FUSION TWAS/PWAS uses. Two things matter here:
+#
+# (1) MAF filter (--maf 0.01, per population). The dense panel above is deliberately NOT MAF-filtered
+#     (clump/COJO re-filter at runtime), but FUSION is different: it scale()s the reference genotypes of
+#     each gene's weight SNPs, so a SNP that is monomorphic in the target population (sd=0) produces NaN
+#     in the LD matrix and FUSION silently skips the whole gene. The EUR-trained weight panels contain
+#     many SNPs polymorphic in EUR but fixed in non-EUR populations, so without this filter nearly every
+#     gene is skipped for a non-EUR GWAS (observed: 167/173 -> 7/173 with the filter). This also restores
+#     the MAF-filtered-reference behaviour of the pre-dense GenoDisc reference.
+# (2) HapMap3 restriction for the non-PsychENCODE panels. Those weights reference only HapMap3 SNPs, so
+#     FUSION's --ref_ld_chr can be restricted to HapMap3 (result-identical, but the per-chromosome matrix
+#     it loads shrinks ~10-20x, cutting memory/runtime). PsychENCODE's weights span SNPs beyond HapMap3,
+#     so it uses the MAF-filtered dense reference ('.fusion.') instead.
+#
+# --keep-allele-order preserves the dense bfiles' A1/A2 (plink1.9 would otherwise recode A1 to the minor
+# allele, flipping the sign of FUSION's reported EQTL columns; the TWAS Z is allele-invariant either way).
 for(pop in pops){
   for(chr in 1:22){
+    # MAF-filtered dense reference (PsychENCODE + the TWAS conditional step)
     system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,
+                  ' --maf 0.01 --keep-allele-order',
+                  ' --make-bed --out ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.fusion.chr',chr))
+    # HapMap3-restricted copy of that MAF-filtered reference (all other FUSION panels)
+    system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.fusion.chr',chr,
                   ' --extract ',opt$resdir,'/data/ldsc/w_hm3.snplist',
                   ' --keep-allele-order',
                   ' --make-bed --out ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.hm3.chr',chr))
