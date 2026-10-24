@@ -53,7 +53,12 @@ dir.create(tmp_dir, recursive = TRUE, showWarnings = FALSE)
 # --- Build COJO/.ma input (SNP A1 A2 freq b se p N) from the cleaned sumstats ---
 ss <- fread(paste0(outdir, '/results/', gwas, '/gwas_sumstat/', gwas, '.cleaned.gz'))
 if (!any(names(ss) == 'BETA')) ss$BETA <- log(ss$OR)
-ma <- ss[, .(SNP, A1, A2, freq = FREQ, b = BETA, se = SE, p = P, N)]
+# Allele frequency is 'FREQ' when the GWAS supplied its own, else 'REF.FREQ'
+# (reference-panel frequency the cleaner backfills). Accept either, mirroring
+# process_cojo.R, so a GWAS without a frequency column still works.
+freq_col <- if ('FREQ' %in% names(ss)) 'FREQ' else 'REF.FREQ'
+if (!freq_col %in% names(ss)) stop("No FREQ or REF.FREQ column in cleaned sumstats for ", gwas)
+ma <- ss[, .(SNP, A1, A2, freq = get(freq_col), b = BETA, se = SE, p = P, N)]
 ma_file <- paste0(tmp_dir, '/', gwas, '.ma')
 fwrite(ma, ma_file, sep = ' ', na = 'NA', quote = FALSE)
 cat('Wrote', nrow(ma), 'variants to', ma_file, '\n')

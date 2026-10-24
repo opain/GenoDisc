@@ -55,18 +55,25 @@ unlink(list.files(tmp_dir, full.names = TRUE), recursive = TRUE, force = TRUE)
 ss <- fread(paste0(outdir, '/results/', gwas, '/gwas_sumstat/', gwas, '.cleaned.gz'))
 if (!any(names(ss) == 'BETA')) ss$BETA <- log(ss$OR)
 
+# Allele frequency is 'FREQ' when the GWAS supplied its own, else 'REF.FREQ'
+# (reference-panel frequency the cleaner backfills). Accept either, mirroring
+# process_cojo.R / format_sumstats_smr.R, so a GWAS without a frequency column
+# still works.
+freq_col <- if ('FREQ' %in% names(ss)) 'FREQ' else 'REF.FREQ'
+if (!freq_col %in% names(ss)) stop("No FREQ or REF.FREQ column in cleaned sumstats for ", gwas)
+
 n_raw <- nrow(ss)
 # Defensive QC: single-character alleles, finite stats, positive SE/N, and no
 # duplicate predictors (LDAK errors on duplicates).
 ss <- ss[nchar(A1) == 1 & nchar(A2) == 1 &
          is.finite(BETA) & is.finite(SE) & SE > 0 &
-         is.finite(N) & N > 0 & is.finite(FREQ)]
+         is.finite(N) & N > 0 & is.finite(get(freq_col))]
 ss <- ss[!duplicated(SNP)]
 n_kept <- nrow(ss)
 cat('Summary file: kept', n_kept, 'of', n_raw, 'variants after QC\n')
 if (n_kept == 0) stop('No variants left after QC for ', gwas)
 
-summ <- ss[, .(Predictor = SNP, A1 = A1, A2 = A2, n = N, Z = BETA / SE, A1Freq = FREQ)]
+summ <- ss[, .(Predictor = SNP, A1 = A1, A2 = A2, n = N, Z = BETA / SE, A1Freq = get(freq_col))]
 summ_predictors <- summ$Predictor
 summ_file <- paste0(tmp_dir, '/', gwas, '.sumher.summary')
 fwrite(summ, summ_file, sep = ' ', na = 'NA', quote = FALSE)
