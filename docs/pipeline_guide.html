@@ -35,8 +35,8 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -428,8 +428,8 @@ and potential drug targets associated with a trait or disease.</p>
 <ul>
 <li>GWAS summary statistic quality control</li>
 <li>Confounding and SNP-heritability estimation (LDSC)</li>
-<li>Identification of independent associations (LD clumping,
-GCTA-COJO)</li>
+<li>Identification of independent associations (LD clumping, COJO
+[Manc-COJO])</li>
 </ul>
 <p><strong>Part 2: Gene finding analyses</strong></p>
 <ul>
@@ -615,26 +615,40 @@ SNPs</td>
 <td align="left">Part 1</td>
 </tr>
 <tr class="even">
-<td align="left"><code>cojo</code></td>
-<td align="left">GCTA-COJO conditional analysis for independent
-associations</td>
+<td align="left"><code>manc_cojo</code></td>
+<td align="left">Manc-COJO conditional &amp; joint analysis for
+independent associations (fast GCTA-COJO re-implementation; the COJO
+method used)</td>
 <td align="left">Part 1</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>cojo</code></td>
+<td align="left">GCTA-COJO conditional analysis (retained for
+comparison; superseded by manc_cojo)</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="even">
 <td align="left"><code>finemap</code></td>
 <td align="left">SuSiE fine-mapping analysis</td>
 <td align="left">Part 1</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>ldsc</code></td>
 <td align="left">LD score regression for heritability and intercept
 estimation</td>
 <td align="left">Part 1</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>sbayesrc</code></td>
 <td align="left">GCTB SBayesRC: SNP-based heritability and polygenicity
 (number of non-zero-effect variants); EUR/EAS/AFR only</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>sbayesrc_r</code></td>
+<td align="left">SBayesRC via the R package: same SNP-h2 + polygenicity
+as <code>sbayesrc</code>, faster engine (params
+<code>sbayesrc_r_ldref/annot/threads/seed</code>); EUR/EAS/AFR only</td>
 <td align="left">Part 1</td>
 </tr>
 <tr class="even">
@@ -1326,20 +1340,28 @@ Replace <code>{outdir}</code> with your output directory and
 <td><code>{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv</code></td>
 </tr>
 <tr class="even">
-<td>GCTA-COJO</td>
-<td><code>{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv</code></td>
+<td>COJO (Manc-COJO)</td>
+<td><code>{outdir}/results/{gwas}/manc_cojo/{gwas}.GW.manc_cojo.clean.csv</code></td>
 </tr>
 <tr class="odd">
+<td>COJO (GCTA, when <code>cojo: T</code>)</td>
+<td><code>{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv</code></td>
+</tr>
+<tr class="even">
 <td>Fine-mapping</td>
 <td><code>{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td>LDSC</td>
 <td><code>{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td>SBayesRC</td>
 <td><code>{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv</code></td>
+</tr>
+<tr class="odd">
+<td>SBayesRC (R package)</td>
+<td><code>{outdir}/results/{gwas}/sbayesrc_r/{gwas}.GW.sbayesrc_r.clean.csv</code></td>
 </tr>
 </tbody>
 </table>
@@ -1457,10 +1479,12 @@ portable bundle:</p>
                                                #   significant signals (counts by
                                                #   reason + approximate loci)
       clump/               # LD clumping results
-      cojo/                # GCTA-COJO results
+      manc_cojo/           # Manc-COJO results (the COJO method used)
+      cojo/                # GCTA-COJO results (only when cojo: T)
       finemap/             # SuSiE fine-mapping results
       ldsc/                # LD score regression results
       sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
+      sbayesrc_r/          # SBayesRC (R package) SNP-h2 + polygenicity (only when sbayesrc_r: T)
       gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
       gencor_within/       # Bivariate LDSC among primaries in gwas_list;
                            #   only when gencor_within_gwas_list: T
