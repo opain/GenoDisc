@@ -6,6 +6,7 @@
 GD_REMOVED_REASON_LABELS <- c(
   not_in_reference  = "Not in reference panel",
   not_biallelic_snp = "Not a biallelic SNP",
+  info              = "INFO score below threshold",
   reported_maf      = "Reported MAF below threshold",
   reference_maf     = "Reference MAF below threshold",
   maf_discordance   = "MAF discordant with reference",
@@ -17,6 +18,7 @@ GD_REMOVED_REASON_LABELS <- c(
 GD_REMOVED_REASON_COLS <- c(
   not_in_reference  = "#e41a1c",
   not_biallelic_snp = "#377eb8",
+  info              = "#dede00",
   reported_maf      = "#4daf4a",
   reference_maf     = "#984ea3",
   maf_discordance   = "#ff7f00",
@@ -27,7 +29,11 @@ GD_REMOVED_REASON_COLS <- c(
 )
 gd_reason_label <- function(x) {
   lab <- GD_REMOVED_REASON_LABELS[as.character(x)]
-  ifelse(is.na(lab), as.character(x), unname(lab))
+  # unname() the whole result: for a code absent from the map the lookup name is
+  # NA, and that NA propagates into row names when `labs` is used in data.frame()
+  # (gd_build_removed_counts_table), which errors with "row names contain missing
+  # values". Stripping names makes any unknown code degrade to its raw code safely.
+  unname(ifelse(is.na(lab), as.character(x), lab))
 }
 
 # Unfiltered (raw-input, pre-reference) Manhattan plot with QC-removed variants
