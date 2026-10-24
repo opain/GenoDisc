@@ -37,6 +37,7 @@ tools <- list(
   list(Tool = 'SBayesRC (R package)', Purpose = 'SNP-based heritability and polygenicity (SBayesRC R-package engine; faster alternative to GCTB)', Reference = '[Zheng et al. 2024](https://doi.org/10.1038/s41588-024-01704-y)'),
   list(Tool = 'PLINK 1.9', Purpose = 'LD clumping and general variant-level operations', Reference = '[Chang et al. 2015](https://doi.org/10.1186/s13742-015-0047-8)'),
   list(Tool = 'GCTA-COJO', Purpose = 'Conditional and joint association analysis', Reference = '[Yang et al. 2012](https://doi.org/10.1038/ng.2213)'),
+  list(Tool = 'Manc-COJO (v1.1.0)', Purpose = 'Conditional and joint association analysis (fast re-implementation of GCTA-COJO single-ancestry selection; the COJO method used)', Reference = '[Wang et al. 2026](https://doi.org/10.1038/s41588-026-02799-1)'),
   list(Tool = 'SuSiE', Purpose = 'Fine-mapping via Sum of Single Effects model', Reference = '[Wang et al. 2020](https://doi.org/10.1111/rssb.12388)'),
   list(Tool = 'MAGMA', Purpose = 'Gene-level and gene set association analysis', Reference = '[de Leeuw et al. 2015](https://doi.org/10.1371/journal.pcbi.1004219)'),
   list(Tool = 'FUSION', Purpose = 'Transcriptome-wide association study', Reference = '[Gusev et al. 2016](https://doi.org/10.1038/ng.3506)'),
@@ -176,6 +177,14 @@ Results are stored in `{outdir}/results/{gwas}/clump/`.
 [GCTA-COJO](https://yanglab.westlake.edu.cn/software/gcta/) (Conditional and Joint analysis) performs stepwise conditional analysis to identify independently associated variants. Unlike simple LD clumping, COJO accounts for the joint effects of variants using summary statistics and an LD reference panel.
 
 Results are stored in `{outdir}/results/{gwas}/cojo/`.
+
+***
+
+## Manc-COJO
+
+[Manc-COJO](https://github.com/light156/multi-ancestry-COJO) v1.1.0 (Wang et al. 2026) reproduces GCTA-COJO's single-ancestry stepwise conditional selection with a much faster implementation (roughly 5–6× faster, at a fraction of the memory). It is the COJO method the pipeline uses (config `manc_cojo: T`): it runs on the same summary statistics, LD reference panel and parameters as GCTA-COJO, and on test data selects an identical set of conditionally independent SNPs with identical joint effects. GCTA-COJO (config `cojo: T`) is retained for internal comparison but is no longer the method consumed by the results package and output viewer.
+
+Results are stored in `{outdir}/results/{gwas}/manc_cojo/` (GCTA-COJO, when run, in `{outdir}/results/{gwas}/cojo/`).
 
 ***
 

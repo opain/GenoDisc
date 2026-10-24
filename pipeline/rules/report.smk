@@ -11,6 +11,10 @@ if config["clump"] == "T":
 if config["cojo"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
+# Manc-COJO runs alongside GCTA-COJO for comparison. Build its outputs (not packaged yet).
+if config.get("manc_cojo", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/manc_cojo/{gwas}.GW.manc_cojo.clean.csv", gwas=gwas_list_df['name'], outdir={outdir}))
+
 if config["finemap"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 

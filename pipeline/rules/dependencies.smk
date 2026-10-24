@@ -50,6 +50,16 @@ if config.get('gencor_within_gwas_list', 'F') == 'T':
         print("Error: gencor_within_gwas_list is 'T' but ldsc is not 'T'; genetic correlation requires LDSC heritability - set ldsc: 'T'.")
         sys.exit(1)
 
+# COJO method flags must be strictly 'T'/'F' (no silent coercion of e.g. 'maybe'
+# to off). manc_cojo is newer than cojo, so default an omitted flag to 'F' - an
+# absent flag legitimately means "don't run"; only an explicit invalid value errs.
+# GCTA-COJO (cojo) and Manc-COJO (manc_cojo) are independent and may both be 'T'.
+config.setdefault('manc_cojo', 'F')
+for _cojo_flag in ('cojo', 'manc_cojo'):
+    if config.get(_cojo_flag, 'F') not in ('T', 'F'):
+        print(f"Error: {_cojo_flag} must be 'T' or 'F' (got {config.get(_cojo_flag)!r}).")
+        sys.exit(1)
+
 # Pathway enrichment: glob the user's gmt dir at parse time so downstream
 # rules can expand() over pathway_gmts. Empty list is fine — the report/
 # dependencies gates then turn into no-ops.
@@ -412,6 +422,36 @@ rule download_gcta:
     f"{resdir}/logs/download_gcta.log"
   shell:
     "(mkdir -p {params.resdir}/software/gcta; wget -O {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip https://yanglab.westlake.edu.cn/software/gcta/bin/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip; unzip {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip -d {params.resdir}/software/gcta; rm {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64.zip) > {log} 2>&1"
+
+# Download Manc-COJO (flag: manc_cojo). Single-ancestry stepwise selection that
+# reproduces GCTA-COJO but is reported >100x faster; run alongside GCTA-COJO
+# pending a comparison (GCTA remains the default/packaged method). Pinned to the
+# official v1.1.0 release binary (statically-linked x86-64 ELF, no glibc dep) with
+# its sha256 verified (-c) so a silent upstream re-release is caught. Manc-COJO is
+# GPLv3. Invoked by absolute path from rule manc_cojo (like the GCTA binary).
+MANCCOJO_SHA256 = "6f90654b1cb2e884a40a19ecc65c83618c1aae6ab003ed0fd0fbaabec8b6fe61"
+
+rule download_manc_cojo:
+  output:
+    f"{resdir}/software/manc_cojo/manc_cojo_v1.1.0"
+  benchmark:
+    f"{resdir}/benchmarks/download_manc_cojo.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir,
+    sha256=MANCCOJO_SHA256
+  log:
+    f"{resdir}/logs/download_manc_cojo.log"
+  shell:
+    "(mkdir -p {params.resdir}/software/manc_cojo; "
+    "wget -O {params.resdir}/software/manc_cojo/manc_cojo_v1.1.0 "
+    "https://github.com/light156/multi-ancestry-COJO/releases/download/v1.1.0/manc_cojo; "
+    "chmod +x {params.resdir}/software/manc_cojo/manc_cojo_v1.1.0; "
+    # Provenance: print the Manc-COJO banner, then verify the pinned sha256.
+    "{params.resdir}/software/manc_cojo/manc_cojo_v1.1.0 --help 2>&1 | grep -m1 -i 'conditional and joint' || true; "
+    "echo '{params.sha256}  {params.resdir}/software/manc_cojo/manc_cojo_v1.1.0' | sha256sum -c -"
+    ") > {log} 2>&1"
 
 # Download GCTB (for SBayesRC). Official static Linux binary from the GCTB site
 # (cnsgenomics redirects to gctbhub). Deliberately the current v2.5.5 release,
@@ -1540,6 +1580,10 @@ if config["ldsc"] == "T":
 # COJO
 if config["cojo"] == "T":
     resource_inputs.append(rules.download_gcta.output)
+
+# Manc-COJO (runs alongside GCTA-COJO; independent flag)
+if config["manc_cojo"] == "T":
+    resource_inputs.append(rules.download_manc_cojo.output)
 
 # SBayesRC (LD + annotation reference data are shared with GenoPred and not
 # downloaded here; only the GCTB binary is staged.)

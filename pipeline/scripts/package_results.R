@@ -124,8 +124,15 @@ for(gwas_i in gwas_list$name){
     snp_assoc$clump<-NULL
   }
 
-  if(read_param(config = opt$config, param = 'cojo', return_obj = F) == "T"){
-    cojo_csv<-paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.clean.csv')
+  # COJO: the website now selects Manc-COJO, which writes the same clean.csv/status.csv
+  # schema (via process_cojo.R --method manc) as GCTA-COJO. Prefer Manc when enabled,
+  # else GCTA, so the packaged snp_assoc$cojo is engine-agnostic. GCTA (cojo: T) remains
+  # available for internal comparison. (The subdir and the ".GW.<x>." infix share a name.)
+  cojo_gcta <- isTRUE(read_param(config = opt$config, param = 'cojo', return_obj = F) == "T")
+  cojo_manc <- isTRUE(read_param(config = opt$config, param = 'manc_cojo', return_obj = F) == "T")
+  if(cojo_gcta || cojo_manc){
+    cojo_sub <- if(cojo_manc) 'manc_cojo' else 'cojo'
+    cojo_csv<-paste0(outdir,'/results/',gwas_i,'/',cojo_sub,'/',gwas_i,'.GW.',cojo_sub,'.clean.csv')
     if(file.exists(cojo_csv)){
       snp_assoc$cojo<-fread(cojo_csv)
       snp_assoc$cojo<-snp_assoc$cojo[order(snp_assoc$cojo$CHR, snp_assoc$cojo$BP),]
@@ -133,9 +140,11 @@ for(gwas_i in gwas_list$name){
       snp_assoc$cojo<-NULL
     }
 
-    # Carry the per-chromosome COJO status so the app can report which chromosomes (if any)
-    # could not be analysed because their independent signals exceeded the LD reference size.
-    cojo_status_csv<-paste0(outdir,'/results/',gwas_i,'/cojo/',gwas_i,'.GW.cojo.status.csv')
+    # Carry the per-chromosome COJO status. GCTA-COJO drops a chromosome whose independent
+    # signals exceed the LD reference size (status 'reference_too_small'); Manc-COJO keeps
+    # such chromosomes (status 'exceeds_reference_n'), so only 'reference_too_small' counts
+    # as a dropped chromosome for the viewer banner.
+    cojo_status_csv<-paste0(outdir,'/results/',gwas_i,'/',cojo_sub,'/',gwas_i,'.GW.',cojo_sub,'.status.csv')
     if(file.exists(cojo_status_csv)){
       cojo_status_tab<-fread(cojo_status_csv)
       failed_chrs<-cojo_status_tab$chr[cojo_status_tab$status == 'reference_too_small']

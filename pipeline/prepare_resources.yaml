@@ -18,6 +18,7 @@ resdir: resources
 # SNP-level
 clump: T
 cojo: T
+manc_cojo: T
 finemap: T
 sbayesrc: T
 sumher: T

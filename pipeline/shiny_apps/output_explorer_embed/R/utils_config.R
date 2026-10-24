@@ -11,7 +11,9 @@ parse_config_flags <- function(config) {
   }
 
   clump <- flag(config, "clump")
-  cojo <- flag(config, "cojo")
+  # COJO: either engine (GCTA 'cojo' or Manc 'manc_cojo') populates the same packaged
+  # snp_assoc$cojo object, so treat either as "COJO ran" for showing the COJO surface.
+  cojo <- flag(config, "cojo") || flag(config, "manc_cojo")
   finemap <- flag(config, "finemap")
   sbayesrc <- flag(config, "sbayesrc")
   sbayesrc_r <- flag(config, "sbayesrc_r")

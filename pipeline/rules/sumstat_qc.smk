@@ -486,7 +486,14 @@ rule cojo:
     # chromosomes that succeeded (recording a per-chr status); any other GCTA failure
     # still exits non-zero and fails the rule as before.
     mkdir -p {outdir}/results/{wildcards.gwas}/cojo
-    sf={outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}.cojo.status
+    pfx={outdir}/results/{wildcards.gwas}/cojo/{wildcards.gwas}_chr{wildcards.chr}
+    # Remove any stale per-chr COJO products from a prior run. The .jma.cojo (read
+    # by process_cojo.R) and its .cma/.ldr/.badsnps siblings are NOT declared
+    # Snakemake outputs (only the check file is), so on a re-run that now selects
+    # nothing GCTA writes no new .jma.cojo and an old one would otherwise persist
+    # and be mis-read as this run's result.
+    rm -f "$pfx".jma.cojo "$pfx".cma.cojo "$pfx".ldr.cojo "$pfx".badsnps
+    sf="$pfx".cojo.status
     if {params.resdir}/software/gcta/gcta_v1.94.0Beta_linux_kernel_3_x86_64/gcta_v1.94.0Beta_linux_kernel_3_x86_64_static \
         --bfile {params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr} \
         --chr {wildcards.chr} \
@@ -530,6 +537,105 @@ rule process_cojo:
     "{outdir}/logs/process_cojo-{gwas}.log"
   shell:
     "Rscript --vanilla {workflow.basedir}/scripts/process_cojo.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --config_file {params.config_file} > {log} 2>&1"
+
+###
+# Run Manc-COJO (runs ALONGSIDE GCTA-COJO for comparison; GCTA remains the
+# default/packaged method). Same reference, sumstat input and parameters as
+# rule cojo, so results are directly comparable. Reproduces GCTA-COJO's
+# single-ancestry stepwise selection but is much faster.
+###
+
+rule manc_cojo:
+  input:
+    rules.download_manc_cojo.output,
+    "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.cojo"
+  output:
+    touch("{outdir}/results/{gwas}/checks/{gwas}_manc_cojo_chr{chr}.done")
+  benchmark:
+    "{outdir}/benchmarks/manc_cojo_{gwas}_chr{chr}.tsv"
+  conda:
+    "../envs/ldsc.yaml"
+  # 1 thread: Manc-COJO's per-chromosome cost is I/O-bound (reading the reference
+  # .bed/.bim); the selection compute is sub-second, so extra threads give no
+  # speed-up (measured: 1 thread ~82s vs 4 threads ~99s over 22 chr) and only
+  # reserve idle SLURM slots. Passed through as --thread-num {threads}.
+  threads: 1
+  params:
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0],
+    resdir=resdir
+  log:
+    "{outdir}/logs/manc_cojo-{gwas}-chr{chr}.log"
+  shell:
+    """
+    # Unlike GCTA-COJO, Manc-COJO does NOT abort when the number of selected
+    # signals exceeds the LD reference sample size - it continues and resolves
+    # collinearity. We therefore flag (but KEEP) a chromosome whose selected-SNP
+    # count reaches the reference N (mirroring GCTA's condition, not its drop),
+    # so the comparison can see what Manc-COJO does where GCTA-COJO would abort.
+    # --thread-num uses the rule's threads; default window/collinearity match GCTA.
+    mkdir -p {outdir}/results/{wildcards.gwas}/manc_cojo
+    ref={params.resdir}/data/1kg_hgdp/1KG.Phase3.{params.population}.MAF_001.chr{wildcards.chr}
+    out={outdir}/results/{wildcards.gwas}/manc_cojo/{wildcards.gwas}_chr{wildcards.chr}
+    # Remove any stale per-chr outputs from a prior run (same hazard as rule cojo:
+    # .jma.cojo is not a declared output, so a no-signal re-run must not leave an
+    # old one behind for process_cojo.R to read).
+    rm -f "$out".jma.cojo "$out".cma.cojo "$out".ldr.cojo "$out".badsnps
+    sf="$out".manc_cojo.status
+    if {params.resdir}/software/manc_cojo/manc_cojo_v1.1.0 \
+        --bfile "$ref" \
+        --chr {wildcards.chr} \
+        --maf 0.01 \
+        --cojo-file {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.cojo \
+        --cojo-slct \
+        --cojo-p 5e-8 \
+        --thread-num {threads} \
+        --out "$out" > {log} 2>&1; then
+      jma="$out".jma.cojo
+      if [ -f "$jma" ]; then
+        n_ref=$(wc -l < "$ref".fam)
+        n_sel=$(tail -n +2 "$jma" | wc -l)
+        if [ "$n_sel" -ge "$n_ref" ]; then
+          echo exceeds_reference_n > "$sf"
+          echo "NOTE: Manc-COJO chr{wildcards.chr} selected $n_sel SNPs >= LD reference N ($n_ref); results kept (Manc-COJO resolves collinearity rather than aborting, unlike GCTA-COJO)." >> {log}
+        else
+          echo ok > "$sf"
+        fi
+      else
+        echo ok > "$sf"
+      fi
+    else
+      exit 1
+    fi
+    """
+
+rule manc_cojo_all_chr:
+    input:
+      lambda w: expand("{outdir}/results/{gwas}/checks/{gwas}_manc_cojo_chr{chr}.done", gwas=w.gwas, chr=chromosomes, outdir={outdir})
+    output:
+      touch("{outdir}/results/{gwas}/checks/manc_cojo_all_chr.done")
+
+###
+# Process Manc-COJO results (parameterised process_cojo.R --method manc)
+###
+
+rule process_manc_cojo:
+  input:
+    "{outdir}/results/{gwas}/checks/manc_cojo_all_chr.done",
+    rules.download_biomart.output
+  output:
+    "{outdir}/results/{gwas}/manc_cojo/{gwas}.GW.manc_cojo.clean.csv"
+  benchmark:
+    "{outdir}/benchmarks/process_manc_cojo_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file']
+  log:
+    "{outdir}/logs/process_manc_cojo-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/process_cojo.R --method manc --pipeline_dir {workflow.basedir} \
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 

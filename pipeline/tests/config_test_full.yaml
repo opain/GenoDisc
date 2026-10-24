@@ -21,8 +21,11 @@ resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
 # Identify independent significant SNPs using clumping
 clump: T
 
-# Perform COJO analysis
+# Perform COJO analysis (GCTA-COJO)
 cojo: T
+
+# Perform COJO analysis with Manc-COJO (runs alongside GCTA-COJO for comparison)
+manc_cojo: T
 
 # Perform SNP finemapping analysis
 finemap: T

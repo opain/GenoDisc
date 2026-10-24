@@ -42,8 +42,17 @@ maf_diff: 0.2
 # Identify independent significant SNPs using clumping
 clump: F
 
-# Perform COJO analysis
+# Perform COJO analysis (GCTA-COJO)
 cojo: F
+
+# Perform COJO analysis with Manc-COJO (flag: manc_cojo; see rules/sumstat_qc.smk).
+# Reproduces GCTA-COJO's single-ancestry stepwise selection but is much faster. It
+# runs ALONGSIDE GCTA-COJO (independent of `cojo`; set both T to compare) - GCTA-COJO
+# remains the default and is the method consumed by the results package / viewer.
+# Uses the same per-GWAS 1KG+HGDP reference as GCTA-COJO (EUR/population column) and
+# a staged binary (download_manc_cojo). Results are written to
+# {outdir}/results/{gwas}/manc_cojo/ and are not yet packaged (comparison pending).
+manc_cojo: F
 
 # Perform SNP finemapping analysis
 finemap: F

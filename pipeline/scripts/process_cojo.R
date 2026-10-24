@@ -3,9 +3,11 @@ suppressMessages(library("optparse"))
 
 option_list = list(
   make_option("--gwas", action="store", default=NA, type='character',
-              help="Name of GWAs [required]"),  
+              help="Name of GWAs [required]"),
   make_option("--config_file", action="store", default=NA, type='character',
-              help="Path to config file [required]")
+              help="Path to config file [required]"),
+  make_option("--method", action="store", default='gcta', type='character',
+              help="COJO method whose outputs to process: 'gcta' (GCTA-COJO, default) or 'manc' (Manc-COJO)")
 )
 
 option_list <- c(option_list, list(
@@ -15,6 +17,18 @@ option_list <- c(option_list, list(
 
 opt = parse_args(OptionParser(option_list=option_list))
 options(pipeline_dir = opt$pipeline_dir)
+
+# Method-specific locations. GCTA-COJO (default) and Manc-COJO write the same
+# file shapes into different subdirs with different status side-car / output
+# basenames; everything else (reading SNP+pJ from .jma.cojo, the clean table,
+# nearest-gene annotation) is identical. Default 'gcta' reproduces prior behaviour.
+method <- if(is.na(opt$method)) 'gcta' else opt$method
+if(!method %in% c('gcta','manc')){
+  stop(paste0("--method must be 'gcta' or 'manc' (got '", method, "')"))
+}
+cojo_subdir <- if(method == 'manc') 'manc_cojo' else 'cojo'
+status_suffix <- if(method == 'manc') '.manc_cojo.status' else '.cojo.status'
+out_infix <- if(method == 'manc') 'manc_cojo' else 'cojo'
 
 library(data.table)
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
@@ -30,19 +44,26 @@ resdir <- read_param(config = opt$config_file, param = 'resdir', return_obj = F)
 ss<-fread(paste0(outdir,'/results/',opt$gwas,'/gwas_sumstat/',opt$gwas,'.cleaned.gz'))
 
 # Read in COJO results, and classify each chromosome's COJO status.
-# rule cojo writes a per-chromosome ".cojo.status" file: "ok" (GCTA succeeded, with or
-# without signals) or "reference_too_small" (GCTA aborted with "too many SNPs" because the
-# independent signals outnumber the LD reference sample size). A chromosome that produced a
-# .jma.cojo has genome-wide independent signals; "ok" with no .jma.cojo means no signal.
+# The per-chromosome rule writes a status side-car:
+#  - GCTA-COJO: "ok" (succeeded, with or without signals) or "reference_too_small"
+#    (GCTA aborted with "too many SNPs" because the independent signals outnumber the
+#    LD reference sample size, so NO .jma.cojo is produced).
+#  - Manc-COJO: "ok", or "exceeds_reference_n" (selected signals reach the reference
+#    sample size - GCTA's abort condition - but Manc-COJO keeps going, so the .jma.cojo
+#    IS produced and its results are retained; the chromosome is flagged, not dropped).
+# A chromosome that produced a .jma.cojo has genome-wide independent signals; "ok" with
+# no .jma.cojo means no signal.
 cojo_res<-NULL
 cojo_status<-NULL
 for(i in 1:22){
-  jma<-paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.jma.cojo')
-  sf<-paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'_chr',i,'.cojo.status')
+  jma<-paste0(outdir,'/results/',opt$gwas,'/',cojo_subdir,'/',opt$gwas,'_chr',i,'.jma.cojo')
+  sf<-paste0(outdir,'/results/',opt$gwas,'/',cojo_subdir,'/',opt$gwas,'_chr',i,status_suffix)
   status_word<-if(file.exists(sf)) trimws(readLines(sf, warn=FALSE)[1]) else NA
 
   if(!is.na(status_word) && status_word == 'reference_too_small'){
     chr_status<-'reference_too_small'
+  } else if(!is.na(status_word) && status_word == 'exceeds_reference_n'){
+    chr_status<-'exceeds_reference_n'
   } else if(file.exists(jma)){
     chr_status<-'ok_with_signals'
   } else if(!is.na(status_word) && status_word == 'ok'){
@@ -60,7 +81,7 @@ for(i in 1:22){
 
 # Always record the per-chromosome status so packaging/Shiny can report which chromosomes
 # (if any) could not be analysed.
-write.csv(cojo_status, paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'.GW.cojo.status.csv'), row.names=F, quote=F)
+write.csv(cojo_status, paste0(outdir,'/results/',opt$gwas,'/',cojo_subdir,'/',opt$gwas,'.GW.',out_infix,'.status.csv'), row.names=F, quote=F)
 
 # Make table with original sumstats but containing only independent associations from COJO
 # (insert the COJO joint p-value pJ). When no chromosome produced any independent signal
@@ -119,7 +140,7 @@ for(i in seq_len(nrow(ss_subset))){
 if(!('NearestGene' %in% names(ss_subset))) ss_subset$NearestGene<-character(0)
 
 # Write out results
-write.csv(ss_subset, paste0(outdir,'/results/',opt$gwas,'/cojo/',opt$gwas,'.GW.cojo.clean.csv'), row.names=F, quote=T)
+write.csv(ss_subset, paste0(outdir,'/results/',opt$gwas,'/',cojo_subdir,'/',opt$gwas,'.GW.',out_infix,'.clean.csv'), row.names=F, quote=T)
 
 
 
