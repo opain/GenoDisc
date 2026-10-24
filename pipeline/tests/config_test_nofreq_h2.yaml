@@ -1,0 +1,24 @@
+# Regression test for the FREQ/REF.FREQ bug: a GWAS submitted WITHOUT an allele-
+# frequency column (COAD01_chr22_nofreq.gz) gets REF.FREQ (not FREQ) from the
+# sumstat cleaner, which previously crashed sumher and sbayesrc_r with
+# "object 'FREQ' not found". Runs both h2 methods on chr22 so a re-break is
+# caught. Resource paths mirror config_test_sumher.yaml / config_sbayesrc_r.yaml.
+outdir: tests/output_nofreq_h2
+config_file: tests/config_test_nofreq_h2.yaml
+gwas_list: tests/gwas_list_test_nofreq.txt
+resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
+chromosomes: [22]
+
+# LDAK SumHer
+sumher: T
+sumher_ref: NA
+sumher_ldak: NA
+sumher_cutoff: 0.01
+sumher_max_missing: 0.2
+sumher_threads: 1
+
+# SBayesRC (R package) — reuses GenoPred's staged eigen-LD panel + annotation
+sbayesrc_r: T
+sbayesrc_r_ldref: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_ref
+sbayesrc_r_annot: /scratch/prj/neurohackpain/GenoPred/pipeline_resources/data/sbayesrc_annot/annot_baseline2.2.txt
+sbayesrc_r_threads: 4
