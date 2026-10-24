@@ -39,6 +39,12 @@ referencesServer <- function(id) {
                                              Type = 'Software',
                                              Use = 'Estimate SNP-h2 and functional-annotation heritability enrichment (BLD-LDAK model)'))
 
+      ref_table<-rbind(ref_table, data.frame(Name = 'Manc-COJO',
+                                             PMID = '<a href="https://doi.org/10.1038/s41588-026-02799-1">10.1038/s41588-026-02799-1</a>',
+                                             Website = '<a href="https://github.com/light156/multi-ancestry-COJO">link</a>',
+                                             Type = 'Software',
+                                             Use = 'Conditional & joint analysis for independent association signals'))
+
       ref_table<-rbind(ref_table, data.frame(Name = 'SuSiE',
                                              PMID = '<a href="https://pubmed.ncbi.nlm.nih.gov/35853082">35853082</a>',
                                              Website = '<a href="https://stephenslab.github.io/susie-paper">link</a>',

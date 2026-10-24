@@ -748,7 +748,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (input$clumping_type == "cojo_analysis") {
         items <- c(list(
           "Method (COJO)" = paste0(
-            "GCTA-COJO runs a stepwise conditional & joint analysis, keeping variants that stay ",
+            "COJO (Manc-COJO) runs a stepwise conditional & joint analysis, keeping variants that stay ",
             "genome-wide significant after conditioning on each other - i.e. approximately ",
             "independent association signals at a locus.")),
           common,

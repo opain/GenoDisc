@@ -46,7 +46,7 @@ Analyses are organised into three parts:
 
 - GWAS summary statistic quality control
 - Confounding and SNP-heritability estimation (LDSC)
-- Identification of independent associations (LD clumping, GCTA-COJO)
+- Identification of independent associations (LD clumping, COJO [Manc-COJO])
 
 **Part 2: Gene finding analyses**
 
@@ -172,7 +172,8 @@ All analysis toggles accept `T` (run) or `F` (skip).
 ```{r, eval=T, echo=F, results='asis'}
 params <- list(
   list(Parameter = '`clump`', Description = 'LD clumping to identify independent significant SNPs', Part = 'Part 1'),
-  list(Parameter = '`cojo`', Description = 'GCTA-COJO conditional analysis for independent associations', Part = 'Part 1'),
+  list(Parameter = '`manc_cojo`', Description = 'Manc-COJO conditional & joint analysis for independent associations (fast GCTA-COJO re-implementation; the COJO method used)', Part = 'Part 1'),
+  list(Parameter = '`cojo`', Description = 'GCTA-COJO conditional analysis (retained for comparison; superseded by manc_cojo)', Part = 'Part 1'),
   list(Parameter = '`finemap`', Description = 'SuSiE fine-mapping analysis', Part = 'Part 1'),
   list(Parameter = '`ldsc`', Description = 'LD score regression for heritability and intercept estimation', Part = 'Part 1'),
   list(Parameter = '`sbayesrc`', Description = 'GCTB SBayesRC: SNP-based heritability and polygenicity (number of non-zero-effect variants); EUR/EAS/AFR only', Part = 'Part 1'),
@@ -485,7 +486,8 @@ Below are the main output files you can request, grouped by analysis. Replace `{
 | Analysis | Target file |
 |----------|------------|
 | LD clumping | `{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv` |
-| GCTA-COJO | `{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv` |
+| COJO (Manc-COJO) | `{outdir}/results/{gwas}/manc_cojo/{gwas}.GW.manc_cojo.clean.csv` |
+| COJO (GCTA, when `cojo: T`) | `{outdir}/results/{gwas}/cojo/{gwas}.GW.cojo.clean.csv` |
 | Fine-mapping | `{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv` |
 | LDSC | `{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log` |
 | SBayesRC | `{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv` |
@@ -556,7 +558,8 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
                                                #   significant signals (counts by
                                                #   reason + approximate loci)
       clump/               # LD clumping results
-      cojo/                # GCTA-COJO results
+      manc_cojo/           # Manc-COJO results (the COJO method used)
+      cojo/                # GCTA-COJO results (only when cojo: T)
       finemap/             # SuSiE fine-mapping results
       ldsc/                # LD score regression results
       sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
