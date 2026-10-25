@@ -22,17 +22,17 @@ src <- cands[1]
 pos <- fread(src)
 stopifnot(all(c("WGT", "ID", "CHR", "P0", "P1") %in% names(pos)))
 
-# WGT is relative to the directory containing the source .pos. The archive nests
-# the weights under a subdir whose name collides with the outer dir, so rather
-# than flatten, move the referenced weight files into a clean wgt/ subdir under
-# the panel dir and rewrite WGT to 'wgt/<file>' (resolves with --weights_dir
-# <panel_dir>). Basenames are unique (Fetal_ENSG...).
+# Move the referenced weight files into a subdir named exactly <panel> and set
+# WGT = '<panel>/<file>'. Both consumers are then satisfied: FUSION.assoc_test
+# reads <weights_dir>/<WGT>, and FeaturePred.V2.0.R reads
+# <weights_dir>/<PANEL>/<basename(WGT)> (FeaturePred.V2.0.R:229) - which require
+# the files to live under <panel_dir>/<panel>/. Basenames are unique (Fetal_...).
 wdir <- dirname(src)
 if (!file.exists(file.path(wdir, pos$WGT[1])))
   stop("WGT path does not resolve under ", wdir, ": ", pos$WGT[1])
-wgt_dir <- file.path(pd, "wgt")
+wgt_dir <- file.path(pd, opt$panel)
 dir.create(wgt_dir, showWarnings = FALSE)
-new_wgt <- file.path("wgt", basename(pos$WGT))
+new_wgt <- file.path(opt$panel, basename(pos$WGT))
 moved <- file.rename(file.path(wdir, pos$WGT), file.path(pd, new_wgt))
 if (!all(moved)) stop("Failed to move ", sum(!moved), " weight files into ", wgt_dir)
 pos[, WGT := new_wgt]

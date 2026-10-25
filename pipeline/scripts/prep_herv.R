@@ -31,8 +31,11 @@ if (is.null(pick)) stop("No plain 'WGT ID CHR P0 P1' .pos found under ", pd)
 src_wdir <- file.path(dirname(pick), "CMC_wrapped")
 if (!dir.exists(src_wdir)) stop("Weights dir not found: ", src_wdir)
 
-# Move CMC_wrapped/ directly under the panel dir so WGT='CMC_wrapped/...' resolves.
-dest_wdir <- file.path(pd, "CMC_wrapped")
+# Move the weights into a subdir named exactly <panel> and set WGT =
+# '<panel>/<file>'. Both consumers then resolve: FUSION.assoc_test reads
+# <weights_dir>/<WGT>, FeaturePred.V2.0.R reads <weights_dir>/<PANEL>/<basename>
+# (FeaturePred.V2.0.R:229) - both require the files under <panel_dir>/<panel>/.
+dest_wdir <- file.path(pd, opt$panel)
 if (normalizePath(src_wdir) != normalizePath(dest_wdir, mustWork = FALSE)) {
   if (dir.exists(dest_wdir)) unlink(dest_wdir, recursive = TRUE)
   if (!file.rename(src_wdir, dest_wdir)) stop("Failed to move ", src_wdir, " -> ", dest_wdir)
@@ -44,6 +47,7 @@ cat("prep_herv: ", sum(is_herv), " HERV of ", nrow(pos), " features (dropping ",
     sum(!is_herv), " gene features)\n", sep = "")
 pos <- pos[is_herv]
 if (nrow(pos) == 0L) stop("No HERV features matched ", HERV_RE)
+pos[, WGT := file.path(opt$panel, basename(WGT))]
 if (!file.exists(file.path(pd, pos$WGT[1])))
   stop("WGT path does not resolve under panel_dir after move: ", file.path(pd, pos$WGT[1]))
 

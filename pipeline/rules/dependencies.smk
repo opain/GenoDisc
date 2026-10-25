@@ -1211,6 +1211,10 @@ def feature_pred_input(wildcards):
     w = wildcards.weight
     if w == "psychencode":
         inputs.append(f"{resdir}/data/format_psychencode.done")
+    elif w == "FETAL.BRAIN.RNASEQ":
+        inputs.append(f"{resdir}/data/fusion_snp_weights/FETAL.BRAIN.RNASEQ/FETAL.BRAIN.RNASEQ.pos")
+    elif w == "CMC.BRAIN.HERV":
+        inputs.append(f"{resdir}/data/fusion_snp_weights/CMC.BRAIN.HERV/CMC.BRAIN.HERV.pos")
     elif w in gtex_weights:
         inputs.append(f"{resdir}/data/update_gtex_coord_{w}.done")
     elif w in non_gtex_weights:
