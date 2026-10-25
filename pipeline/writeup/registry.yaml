@@ -1,0 +1,200 @@
+# GenoDisc write-up registry — maps what a run exercised to its citation + version.
+#
+# Consumed by scripts/functions/writeup/registry.R. One entry per tool/method
+# (`software:`) and per reference dataset (`datasets:`). The write-up generator
+# includes an entry only when the run actually used it (a methods paragraph was
+# emitted for a block that depends on it), and renders its version like so:
+#   * conda_env + conda_pkg  -> version read LIVE from pipeline/envs/<env> at
+#                               generation time (so bumping the env updates text).
+#   * version                -> a literal string (binaries / git pins).
+#   * unpinned: true         -> rendered as "version not pinned upstream" (honest
+#                               gap: no version string exists anywhere for this tool).
+# `bibkey` lists keys that MUST exist in writeup/references.bib (enforced by
+# tests/testthat/test-writeup-references.R). `used_by` lists the config.yaml flags
+# (or panel-list keys) that pull the entry in; it powers the coverage test.
+
+software:
+  - key: ldsc
+    name: LD Score Regression (LDSC)
+    version: "git commit aa33296"
+    bibkey: [bulik2015ldsc]
+    used_by: [ldsc]
+    notes: "Runs in the pinned python2 env (envs/ldsc.yaml); tool itself is a git checkout in rules/dependencies.smk."
+
+  - key: ldsc_rg
+    name: cross-trait LD Score regression (genetic correlation)
+    version: "git commit aa33296"
+    bibkey: [bulik2015ldschrg]
+    used_by: [gencor_gwas_list, gencor_within_gwas_list]
+
+  - key: sbayesrc
+    name: GCTB SBayesRC
+    version: "gctb 2.5.5"
+    bibkey: [zheng2024sbayesrc]
+    used_by: [sbayesrc]
+
+  - key: sbayesrc_r
+    name: SBayesRC (R package)
+    version: "v0.2.6"
+    bibkey: [zheng2024sbayesrc]
+    used_by: [sbayesrc_r]
+
+  - key: sumher
+    name: LDAK SumHer (BLD-LDAK model)
+    version: "ldak7.01"
+    bibkey: [speed2017sumher]
+    used_by: [sumher]
+
+  - key: gcta_cojo
+    name: GCTA-COJO
+    version: "gcta v1.94.0Beta"
+    bibkey: [yang2011gcta, yang2012cojo]
+    used_by: [cojo]
+
+  - key: manc_cojo
+    name: Manc-COJO
+    version: "v1.1.0"
+    bibkey: [wang2026manccojo, yang2012cojo]
+    used_by: [manc_cojo]
+
+  - key: plink
+    name: PLINK
+    conda_env: main.yaml
+    conda_pkg: plink
+    bibkey: [chang2015plink]
+    used_by: [clump]
+
+  - key: susie
+    name: SuSiE
+    conda_env: main.yaml
+    conda_pkg: r-susier
+    bibkey: [wang2020susie]
+    used_by: [finemap]
+
+  - key: fusion
+    name: FUSION
+    version: "git commit 4635dd1"
+    bibkey: [gusev2016fusion]
+    used_by: [twas_panel_psychencode, twas_panel_fusion, twas_panel_fetal_brain, twas_panel_herv, external_weights, pwas_panel_rosmap, pwas_panel_banner]
+
+  - key: coloc
+    name: coloc
+    conda_env: main.yaml
+    conda_pkg: r-coloc
+    bibkey: [giambartolomei2014coloc]
+    used_by: [twas_panel_psychencode, twas_panel_fusion, twas_panel_fetal_brain, twas_panel_herv, pwas_panel_rosmap, pwas_panel_banner]
+
+  - key: smr
+    name: SMR
+    unpinned: true
+    bibkey: [zhu2016smr, wu2018smr]
+    used_by: [smr_expression_panel_psychencode, smr_expression_panel_metabrain_basalganglia, smr_expression_panel_metabrain_cerebellum, smr_expression_panel_metabrain_cortex, smr_expression_panel_metabrain_hippocampus, smr_expression_panel_metabrain_spinalcord, smr_expression_panel_eqtlgen, smr_protein_panel_rosmap]
+    notes: "SMR binary carries no version string (no version in download URL, no checksum) — stated as unpinned."
+
+  - key: magma
+    name: MAGMA
+    unpinned: true
+    bibkey: [deleeuw2015magma]
+    used_by: [magma_gene, magma_drugtargetor, magma_pathway, tissue_magma, magma_drugtargetor_gls]
+    notes: "MAGMA binary carries no version string (no version in download URL, no checksum) — stated as unpinned."
+
+  - key: twas_gsea
+    name: TWAS-GSEA
+    version: "github opain/TWAS-GSEA"
+    bibkey: [pain2019twasgsea]
+    used_by: [twas_gsea_drugtargetor, twas_gsea_drugtargetor_nondirectional, twas_gsea_pathway, twas_gsea_cmap, drug_targetor_atc_gls]
+
+  - key: drugtargetor
+    name: Drug Targetor gene-set database
+    version: "ATC extract 2022-02-01-v3"
+    bibkey: [fabbri2018drugtargetor]
+    used_by: [magma_drugtargetor, twas_gsea_drugtargetor, twas_gsea_drugtargetor_nondirectional]
+
+  - key: gcsc
+    name: Gene Co-regulation Score regression (GCSC)
+    unpinned: true
+    bibkey: [siewertrocks2022gcsc]
+    used_by: [gcsc]
+    notes: "GCSC citation not in the curated in-app table — VERIFY before publication."
+
+  - key: atc_enrichment_vif
+    name: VIF-OLS ATC-class enrichment (CAMERA-style)
+    version: "GenoDisc implementation"
+    bibkey: [wu2012camera]
+    used_by: [magma_drugtargetor_gls, drug_targetor_atc_gls]
+
+  - key: atc_enrichment_gls
+    name: GLS ATC-class enrichment (DRUGSETS-style)
+    version: "GenoDisc implementation"
+    bibkey: [bell2022drugsets]
+    used_by: [magma_drugtargetor_gls, drug_targetor_atc_gls]
+    notes: "DRUGSETS citation not in the curated in-app table — VERIFY before publication."
+
+datasets:
+  - key: ref_1kg_hgdp
+    name: 1000 Genomes + HGDP reference panel
+    version: "1000 Genomes Phase 3 + HGDP"
+    bibkey: [1000genomes2015]
+    used_by: [clump, cojo, manc_cojo, finemap]
+
+  - key: gtex_v8
+    name: GTEx v8 FUSION expression SNP-weights
+    version: "GTEx v8"
+    bibkey: [gtex2020]
+    used_by: [twas_panel_fusion]
+    notes: "Pulled in when gtex_weights is non-empty (GTEx tissue panels)."
+
+  - key: psychencode_twas
+    name: PsychENCODE DLPFC TWAS SNP-weights
+    version: "PEC_TWAS_weights"
+    bibkey: [psychencode_twas]
+    used_by: [twas_panel_psychencode]
+
+  - key: fetal_brain_panel
+    name: Fetal-brain gene-level FUSION TWAS panel
+    version: "figshare 11637036 (md5 e16e9de8…)"
+    bibkey: [bray2020fetalbrain]
+    used_by: [twas_panel_fetal_brain]
+
+  - key: herv_panel
+    name: HERV retrotranscriptome FUSION TWAS panel
+    version: "figshare 22179655 (md5 e5d1c313…)"
+    bibkey: [duarte2024herv]
+    used_by: [twas_panel_herv]
+
+  - key: psychencode_smr
+    name: PsychENCODE DLPFC cis-eQTL data (SMR)
+    version: "PsychENCODE HCP100 summary"
+    bibkey: [psychencode_smr]
+    used_by: [smr_expression_panel_psychencode]
+
+  - key: metabrain
+    name: MetaBrain cis-eQTL data (SMR)
+    version: "2020-05-26 release"
+    bibkey: [metabrain2023]
+    used_by: [smr_expression_panel_metabrain_basalganglia, smr_expression_panel_metabrain_cerebellum, smr_expression_panel_metabrain_cortex, smr_expression_panel_metabrain_hippocampus, smr_expression_panel_metabrain_spinalcord]
+
+  - key: eqtlgen
+    name: eQTLGen blood cis-eQTL data (SMR)
+    version: "eQTLGen phase 1"
+    bibkey: [vosa2021eqtlgen]
+    used_by: [smr_expression_panel_eqtlgen]
+
+  - key: rosmap_banner
+    name: ROSMAP/Banner DLPFC PWAS SNP-weights and pQTL/eQTL (SMR)
+    version: "Synapse syn23627957"
+    bibkey: [rosmap_banner]
+    used_by: [pwas_panel_rosmap, pwas_panel_banner, smr_protein_panel_rosmap]
+
+  - key: cmap
+    name: CMAP/LINCS L1000 drug signatures
+    version: "L1000 level5"
+    bibkey: [subramanian2017cmap]
+    used_by: [twas_gsea_cmap]
+
+  - key: msigdb
+    name: MSigDB-style gene-set collection (user-supplied .gmt)
+    version: "user-supplied"
+    bibkey: [liberzon2015msigdb]
+    used_by: [magma_pathway, twas_gsea_pathway]
+    notes: "Gene sets are user-supplied via pathway_gmt_dir; the MSigDB citation applies only if MSigDB sets were used — VERIFY."

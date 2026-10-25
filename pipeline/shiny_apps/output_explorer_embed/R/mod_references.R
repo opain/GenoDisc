@@ -3,6 +3,8 @@ referencesUI <- function(id) {
   tabPanel(
     title="References",
     br(),
+    # Draft write-up downloads (auto-generated per run; absent in older bundles).
+    uiOutput(ns("writeup_downloads")),
     p("Please be sure to cite the software and datasets used by this pipeline. Relevent citations are shown below:"),
     fluidRow(
       column(width=8,
@@ -12,8 +14,63 @@ referencesUI <- function(id) {
   )
 }
 
-referencesServer <- function(id) {
+referencesServer <- function(id, gwas_data = NULL) {
   moduleServer(id, function(input, output, session) {
+
+    # ---- draft write-up downloads ------------------------------------------
+    # The pipeline writes a draft methods/results section + reference list into
+    # the bundle at package/writeup/. Surface them as downloads here. gwas_data()
+    # is the opened gd handle; gd$root_dir is the package directory. Bundles
+    # produced before this feature have no writeup/ dir -> show a muted note.
+    writeup_dir <- reactive({
+      if (is.null(gwas_data)) return(NULL)
+      gd <- tryCatch(gwas_data(), error = function(e) NULL)
+      if (is.null(gd) || is.null(gd$root_dir) || is.na(gd$root_dir)) return(NULL)
+      d <- file.path(gd$root_dir, "writeup")
+      if (dir.exists(d)) d else NULL
+    })
+
+    output$writeup_downloads <- renderUI({
+      ns <- session$ns
+      d <- writeup_dir()
+      if (is.null(d)) return(NULL)
+      tagList(
+        tags$div(
+          style = "border:1px solid #d0d7de; border-radius:6px; padding:12px 14px; margin-bottom:16px;",
+          tags$strong("Draft write-up (automatically generated)"),
+          tags$p(style = "margin:6px 0 10px; color:#57606a;",
+                 "A draft methods section, descriptive results section and reference list generated from this run. ",
+                 tags$em("These are drafts — check and edit before use.")),
+          downloadButton(ns("dl_methods"),  "Methods (.md)",     class = "btn-sm"),
+          downloadButton(ns("dl_bib"),      "References (.bib)", class = "btn-sm"),
+          downloadButton(ns("dl_all"),      "All files (.tar.gz)", class = "btn-sm")
+        )
+      )
+    })
+
+    output$dl_methods <- downloadHandler(
+      filename = function() "genodisc_draft_methods.md",
+      content  = function(file) {
+        d <- writeup_dir(); req(d)
+        file.copy(file.path(d, "methods.md"), file, overwrite = TRUE)
+      }
+    )
+    output$dl_bib <- downloadHandler(
+      filename = function() "genodisc_references.bib",
+      content  = function(file) {
+        d <- writeup_dir(); req(d)
+        file.copy(file.path(d, "references.bib"), file, overwrite = TRUE)
+      }
+    )
+    output$dl_all <- downloadHandler(
+      filename = function() "genodisc_draft_writeup.tar.gz",
+      content  = function(file) {
+        d <- writeup_dir(); req(d)
+        old <- setwd(dirname(d)); on.exit(setwd(old), add = TRUE)
+        utils::tar(file, basename(d), compression = "gzip")
+      }
+    )
+
 
     # Small, static reference table - plain shiny::renderTable instead of a DT
     # widget, since this needs no sorting/searching/pagination (avoids the

@@ -1,0 +1,308 @@
+% GenoDisc curated reference list — SOURCE OF TRUTH for the automated write-up generator.
+%
+% One entry per tool / method / reference dataset that GenoDisc can use. The
+% generator (scripts/functions/writeup/) selects the subset that an individual
+% run actually exercised, keyed by the `bibkey` column of writeup/registry.yaml.
+%
+% Maintenance rules:
+%   * When you add a new analysis/method/dataset to the pipeline, add its BibTeX
+%     entry here AND a registry.yaml row that points `bibkey` at it. The
+%     references-coverage test (tests/testthat/test-writeup-references.R) fails
+%     if a registry entry references a bibkey that is absent here.
+%   * Identifiers marked `% VERIFY` were not taken from the curated in-app
+%     reference table (shiny_apps/output_explorer_embed/R/mod_references.R) or the
+%     docs/methods/*.md contribution forms; confirm them before publication.
+%
+% The high-confidence PMIDs/DOIs below are copied from mod_references.R and the
+% docs/methods/*.md forms, which the maintainer curates.
+
+@article{bulik2015ldsc,
+  author  = {Bulik-Sullivan, Brendan K and Loh, Po-Ru and Finucane, Hilary K and others},
+  title   = {LD Score regression distinguishes confounding from polygenicity in genome-wide association studies},
+  journal = {Nature Genetics},
+  year    = {2015},
+  volume  = {47},
+  pages   = {291--295},
+  note    = {PMID: 25642630}
+}
+
+@article{bulik2015ldschrg,
+  author  = {Bulik-Sullivan, Brendan and Finucane, Hilary K and Anttila, Verneri and others},
+  title   = {An atlas of genetic correlations across human diseases and traits},
+  journal = {Nature Genetics},
+  year    = {2015},
+  volume  = {47},
+  pages   = {1236--1241},
+  note    = {PMID: 26414676}
+}
+
+@article{zheng2024sbayesrc,
+  author  = {Zheng, Zhili and Liu, Shouye and Sidorenko, Julia and others},
+  title   = {Leveraging functional genomic annotations and genome coverage to improve polygenic prediction of complex traits within and between ancestries},
+  journal = {Nature Genetics},
+  year    = {2024},
+  volume  = {56},
+  pages   = {767--777},
+  note    = {PMID: 38689000; SBayesRC}
+}
+
+@article{speed2017sumher,
+  author  = {Speed, Doug and Balding, David J},
+  title   = {SumHer better estimates the SNP heritability of complex traits from summary statistics},
+  journal = {Nature Genetics},
+  year    = {2019},
+  volume  = {51},
+  pages   = {277--284},
+  note    = {PMID: 30510236; LDAK SumHer}
+}
+
+@article{wang2026manccojo,
+  author  = {Wang, Yong and others},
+  title   = {Multi-ancestry conditional and joint analysis of genome-wide association studies},
+  journal = {Nature Genetics},
+  year    = {2026},
+  doi     = {10.1038/s41588-026-02799-1},
+  note    = {Manc-COJO}
+}
+
+@article{yang2012cojo,
+  author  = {Yang, Jian and Ferreira, Teresa and Morris, Andrew P and others},
+  title   = {Conditional and joint multiple-SNP analysis of GWAS summary statistics identifies additional variants influencing complex traits},
+  journal = {Nature Genetics},
+  year    = {2012},
+  volume  = {44},
+  pages   = {369--375},
+  note    = {PMID: 22426310; GCTA-COJO method}
+}
+
+@article{yang2011gcta,
+  author  = {Yang, Jian and Lee, S Hong and Goddard, Michael E and Visscher, Peter M},
+  title   = {GCTA: a tool for genome-wide complex trait analysis},
+  journal = {American Journal of Human Genetics},
+  year    = {2011},
+  volume  = {88},
+  pages   = {76--82},
+  note    = {PMID: 21167468}
+}
+
+@article{chang2015plink,
+  author  = {Chang, Christopher C and Chow, Carson C and Tellier, Laurent CAM and others},
+  title   = {Second-generation PLINK: rising to the challenge of larger and richer datasets},
+  journal = {GigaScience},
+  year    = {2015},
+  volume  = {4},
+  pages   = {7},
+  note    = {PMID: 25722852}
+}
+
+@article{wang2020susie,
+  author  = {Wang, Gao and Sarkar, Abhishek and Carbonetto, Peter and Stephens, Matthew},
+  title   = {A simple new approach to variable selection in regression, with application to genetic fine mapping},
+  journal = {Journal of the Royal Statistical Society Series B},
+  year    = {2020},
+  volume  = {82},
+  pages   = {1273--1300},
+  note    = {PMID: 35853082; SuSiE}
+}
+
+@article{gusev2016fusion,
+  author  = {Gusev, Alexander and Ko, Arthur and Shi, Huwenbo and others},
+  title   = {Integrative approaches for large-scale transcriptome-wide association studies},
+  journal = {Nature Genetics},
+  year    = {2016},
+  volume  = {48},
+  pages   = {245--252},
+  note    = {PMID: 26854917; FUSION TWAS/PWAS}
+}
+
+@article{giambartolomei2014coloc,
+  author  = {Giambartolomei, Claudia and Vukcevic, Damjan and Schadt, Eric E and others},
+  title   = {Bayesian test for colocalisation between pairs of genetic association studies using summary statistics},
+  journal = {PLoS Genetics},
+  year    = {2014},
+  volume  = {10},
+  pages   = {e1004383},
+  note    = {PMID: 24830394; coloc}
+}
+
+@article{wu2018smr,
+  author  = {Wu, Yang and Zeng, Jian and Zhang, Futao and others},
+  title   = {Integrative analysis of omics summary data reveals putative mechanisms underlying complex traits},
+  journal = {Nature Communications},
+  year    = {2018},
+  volume  = {9},
+  pages   = {918},
+  note    = {PMID: 29763751; SMR/HEIDI}
+}
+
+@article{zhu2016smr,
+  author  = {Zhu, Zhihong and Zhang, Futao and Hu, Han and others},
+  title   = {Integration of summary data from GWAS and eQTL studies predicts complex trait gene targets},
+  journal = {Nature Genetics},
+  year    = {2016},
+  volume  = {48},
+  pages   = {481--487},
+  note    = {PMID: 27019110; SMR original}
+}
+
+@article{deleeuw2015magma,
+  author  = {de Leeuw, Christiaan A and Mooij, Joris M and Heskes, Tom and Posthuma, Danielle},
+  title   = {MAGMA: generalized gene-set analysis of GWAS data},
+  journal = {PLoS Computational Biology},
+  year    = {2015},
+  volume  = {11},
+  pages   = {e1004219},
+  note    = {PMID: 25885710}
+}
+
+@article{pain2019twasgsea,
+  author  = {Pain, Oliver and Pocklington, Andrew J and Holmans, Peter A and others},
+  title   = {Novel insight into the etiology of autism spectrum disorder gained by integrating expression data with genome-wide association statistics},
+  journal = {Biological Psychiatry},
+  year    = {2019},
+  volume  = {86},
+  pages   = {265--273},
+  note    = {PMID: 31230729; TWAS-GSEA}
+}
+
+@article{fabbri2018drugtargetor,
+  author  = {Fabbri, Chiara and Kasper, Siegfried and Kautzky, Alexander and others},
+  title   = {Drug Targetor: a web interface to investigate the human druggome for over 500 phenotypes},
+  journal = {Bioinformatics},
+  year    = {2019},
+  volume  = {35},
+  pages   = {2672--2674},
+  note    = {PMID: 30517594; DrugTargetor}
+}
+
+@article{siewertrocks2022gcsc,
+  author  = {Siewert-Rocks, Katherine J and Kim, Samuel S and Yao, Douglas W and others},
+  title   = {Leveraging gene co-regulation to identify gene sets enriched for disease heritability},
+  journal = {American Journal of Human Genetics},
+  year    = {2022},
+  volume  = {109},
+  pages   = {393--404},
+  note    = {PMID: 35152375; GCSC. % VERIFY}
+}
+
+@article{wu2012camera,
+  author  = {Wu, Di and Smyth, Gordon K},
+  title   = {Camera: a competitive gene set test accounting for inter-gene correlation},
+  journal = {Nucleic Acids Research},
+  year    = {2012},
+  volume  = {40},
+  pages   = {e133},
+  note    = {PMID: 22718975; VIF-OLS ATC enrichment}
+}
+
+@article{bell2022drugsets,
+  author  = {Bell, Nathaniel and Uffelmann, Emil and van Walree, Eva and others},
+  title   = {Using genome-wide association results to identify drug repurposing candidates},
+  journal = {Nature Communications},
+  year    = {2023},
+  note    = {DRUGSETS-style GLS ATC enrichment. % VERIFY}
+}
+
+% ---- Reference datasets ----------------------------------------------------
+
+@misc{psychencode_twas,
+  author       = {{PsychENCODE Consortium} and Gandal, Michael J and others},
+  title        = {PsychENCODE dorsolateral prefrontal cortex TWAS SNP-weights},
+  howpublished = {\url{http://resource.psychencode.org/}},
+  year         = {2018},
+  note         = {PMID: 30545856}
+}
+
+@misc{psychencode_smr,
+  author       = {{PsychENCODE Consortium} and Gandal, Michael J and others},
+  title        = {PsychENCODE dorsolateral prefrontal cortex cis-eQTL data (SMR)},
+  howpublished = {\url{http://cnsgenomics.com/data/SMR/}},
+  year         = {2018},
+  note         = {PMID: 30545857}
+}
+
+@article{metabrain2023,
+  author  = {de Klein, Niek and Tsai, Ellen A and Vochteloo, Martijn and others},
+  title   = {Brain expression quantitative trait locus and network analyses reveal downstream effects and putative drivers for brain-related diseases},
+  journal = {Nature Genetics},
+  year    = {2023},
+  volume  = {55},
+  pages   = {377--388},
+  note    = {PMID: 36823318; MetaBrain eQTL}
+}
+
+@misc{rosmap_banner,
+  author       = {Wingo, Aliza P and others},
+  title        = {ROSMAP and Banner dorsolateral prefrontal cortex PWAS SNP-weights and pQTL/eQTL data},
+  howpublished = {\url{https://www.synapse.org/#!Synapse:syn23627957}},
+  year         = {2021},
+  note         = {PMID: 33510477}
+}
+
+@article{gtex2020,
+  author  = {{GTEx Consortium}},
+  title   = {The GTEx Consortium atlas of genetic regulatory effects across human tissues},
+  journal = {Science},
+  year    = {2020},
+  volume  = {369},
+  pages   = {1318--1330},
+  note    = {PMID: 32913098; GTEx v8}
+}
+
+@article{vosa2021eqtlgen,
+  author  = {V{\~o}sa, Urmo and Claringbould, Annique and Westra, Harm-Jan and others},
+  title   = {Large-scale cis- and trans-eQTL analyses identify thousands of genetic loci and polygenic scores that regulate blood gene expression},
+  journal = {Nature Genetics},
+  year    = {2021},
+  volume  = {53},
+  pages   = {1300--1310},
+  note    = {PMID: 34475573; eQTLGen}
+}
+
+@article{1000genomes2015,
+  author  = {{1000 Genomes Project Consortium}},
+  title   = {A global reference for human genetic variation},
+  journal = {Nature},
+  year    = {2015},
+  volume  = {526},
+  pages   = {68--74},
+  note    = {PMID: 26432245; 1000 Genomes Phase 3}
+}
+
+@article{liberzon2015msigdb,
+  author  = {Liberzon, Arthur and Birger, Chet and Thorvaldsd{\'o}ttir, Helga and others},
+  title   = {The Molecular Signatures Database hallmark gene set collection},
+  journal = {Cell Systems},
+  year    = {2015},
+  volume  = {1},
+  pages   = {417--425},
+  note    = {PMID: 26771021; MSigDB}
+}
+
+@article{subramanian2017cmap,
+  author  = {Subramanian, Aravind and Narayan, Rajiv and Corsello, Steven M and others},
+  title   = {A next generation connectivity map: L1000 platform and the first 1,000,000 profiles},
+  journal = {Cell},
+  year    = {2017},
+  volume  = {171},
+  pages   = {1437--1452},
+  note    = {PMID: 29195078; CMAP/LINCS L1000}
+}
+
+@article{bray2020fetalbrain,
+  author  = {Bray, Nicholas J and O'Brien, Heath E and Pain, Oliver and others},
+  title   = {Fetal-brain gene expression and genome-wide association studies of neuropsychiatric disorders},
+  journal = {Figshare},
+  year    = {2020},
+  doi     = {10.6084/m9.figshare.11637036},
+  note    = {Fetal-brain FUSION TWAS panel; see docs/methods/fetal_brain_twas.md}
+}
+
+@article{duarte2024herv,
+  author  = {Duarte, Rodrigo R R and Pain, Oliver and others},
+  title   = {Transcriptome-wide association study of human endogenous retroviruses in brain},
+  journal = {Figshare},
+  year    = {2024},
+  doi     = {10.18742/22179655},
+  note    = {HERV retrotranscriptome FUSION panel; see docs/methods/herv_rtwas.md}
+}

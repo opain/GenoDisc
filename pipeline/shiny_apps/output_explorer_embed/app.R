@@ -713,7 +713,7 @@ server <- function(input, output, session) {
                     selected_gwas_multi = shared$selected_gwas_multi,
                     comparison_mode     = shared$comparison_mode,
                     comparison_long     = comparison_long)
-  referencesServer("references")
+  referencesServer("references", shared$gwas_data)
   configurationServer("configuration", shared$gwas_data)
 }
 

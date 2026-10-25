@@ -18,6 +18,8 @@ library(data.table)
 library(jsonlite)
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 source_all(file.path(opt$pipeline_dir, 'scripts', 'functions'))
+# Write-up generator lives in a subdirectory (source_all is non-recursive).
+source_all(file.path(opt$pipeline_dir, 'scripts', 'functions', 'writeup'))
 source(file.path(opt$pipeline_dir, 'scripts', 'reader.R'))
 
 # Read in config: merge default config with user config (user takes priority)
@@ -497,6 +499,35 @@ manifest <- list(
   block_ids        = .gd_block_ids,
   blocks           = blocks_meta
 )
+
+################
+# Draft write-up (methods / results / references)
+################
+# Generate a draft methods section, descriptive results section and cited
+# reference list from the resolved config + provenance + result objects. Wrapped
+# so a write-up failure can never fail the packaging of the results themselves.
+writeup_meta <- tryCatch({
+  wu <- generate_writeup(
+    output        = output,
+    merged_config = merged_config,
+    manifest      = manifest,
+    pipeline_dir  = opt$pipeline_dir
+  )
+  wu_dir <- file.path(pkg_dir, 'writeup')
+  dir.create(wu_dir, showWarnings = FALSE)
+  for (rel in names(wu$files)) {
+    dest <- file.path(wu_dir, rel)
+    dir.create(dirname(dest), recursive = TRUE, showWarnings = FALSE)
+    writeLines(wu$files[[rel]], dest)
+  }
+  wu$meta
+}, error = function(e) {
+  message("WARNING: write-up generation failed (results still packaged): ", conditionMessage(e))
+  list(error = conditionMessage(e))
+})
+
+# Record the generated files + generator/schema versions in the manifest.
+manifest$writeup <- writeup_meta
 
 # auto_unbox = TRUE turns length-1 vectors into JSON scalars (so
 # "pipeline_version": "1.0.0" not ["1.0.0"]). null=null keeps explicit NULLs.

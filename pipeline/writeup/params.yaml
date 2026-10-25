@@ -1,0 +1,31 @@
+# Fixed algorithm parameters that live in the Snakemake rules / R scripts rather
+# than in config.yaml. Mirrored here so the write-up generator can state them
+# without hard-coding numbers in its templates. These are PIPELINE-VERSION
+# CONSTANTS — when the cited rule changes, update this file in the same commit.
+#
+# Values that ARE in config.yaml (info / maf / maf_diff QC thresholds, chromosomes,
+# SBayesRC / SumHer controls, etc.) are read live from the run's resolved config,
+# NOT from here.
+
+clump:                 # rules/sumstat_qc.smk (plink --clump)
+  p1: 1.0e-5           # --clump-p1 (index-variant threshold)
+  r2: 0.1              # --clump-r2
+  kb: 500              # --clump-kb
+  maf: 0.01
+
+cojo:                  # rules/sumstat_qc.smk (GCTA/Manc --cojo-slct)
+  p: 5.0e-8            # --cojo-p
+  maf: 0.01
+
+susie:                 # scripts/finemap.R
+  L_primary: 10        # max causal variants, primary fine-mapping (.GW.finemap.csv)
+  L_secondary: 1       # max causal variants, single-effect pass (.GW.finemap.L1.csv)
+  mhc_note: "the MHC region (chr6:26–34 Mb) is excluded from fine-mapping"
+
+magma:                 # rules/dependencies.smk (--annotate window=35,10)
+  window_upstream_kb: 35
+  window_downstream_kb: 10
+
+fdr_alpha: 0.05        # Benjamini–Hochberg significance threshold used throughout
+gw_sig_p: 5.0e-8       # genome-wide significance threshold
+suggestive_p: 1.0e-5   # suggestive threshold (also the clumping index threshold)
