@@ -113,10 +113,12 @@ above — TWAS panels have their own machinery. See `pipeline/docs/methods/fetal
    If a panel's weights were trained on a full (non-HapMap3) reference, add it to that list or ~80%
    of its weight SNPs are dropped. Verify SNP overlap against the reference before deciding.
 6. **Downstream + multiple testing.** TWAS-GSEA/DrugTargetor/CMAP key on gene symbol and are driven
-   by `weights_nosplice`; the gene FDR in `combine_twas.R` / `package_results_functions.R` is pooled
-   across panels. A non-gene panel must be removed from `weights_nosplice`, excluded from the gene
-   FDR pool (given a separate FDR), and guarded at parse time (error if a gene-based analysis is
-   requested with no gene-producing panel).
+   by `weights_nosplice`; the FDR in `combine_twas.R` / `package_results_functions.R` is a single
+   Benjamini-Hochberg correction pooled across **all** FUSION expression panels (including non-gene
+   panels like HERV, which are presented alongside the gene panels in the viewer). A non-gene panel
+   must be removed from `weights_nosplice` (so it never enters the gene-symbol-based steps) but still
+   shares the pooled TWAS FDR, and a gene-based analysis requested with no gene-producing panel is
+   guarded at parse time (error).
 7. **Display + gating.** Add the panel id → label to `tidy_panel_names()` and enumerate it in
    `read_fusion_exp` (`$panels`); extend the "TWAS active" gates (`report.smk`, `dependencies.smk`
    `resource_inputs`, the viewer `utils_config.R`, `create_report.Rmd`) so the panel's output and
@@ -126,7 +128,11 @@ above — TWAS panels have their own machinery. See `pipeline/docs/methods/fetal
 
 (Gaps this example surfaced, now partly addressed here: the checksum-vs-practice inconsistency, the
 hardcoded N table, the implicit HapMap3 LD routing, the cross-panel FDR, and the `weights_nosplice`
-splicing special-case were all previously undocumented.)
+splicing special-case were all previously undocumented. It also exposed that FUSION's `FeaturePred`
+reference-expression step — which builds the TWAS-GSEA correlation matrix — requires per-chromosome
+PLINK1 `.frq` files alongside the dense reference (`--read-freq`); the 1KG+HGDP migration had dropped
+them, so every panel's predicted reference expression came out all-NA and the correlation matrix
+build failed. `scripts/prep_1kg.R` now regenerates the `.frq` as part of reference prep.)
 
 ## Testing
 The pipeline runs inside its conda environment (`pipeline/envs/main.yaml`, plus per-rule envs

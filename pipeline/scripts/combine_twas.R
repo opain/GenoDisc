@@ -103,16 +103,12 @@ for(weight_i in weights){
 fwrite(all, paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
 
 # Write file listing chromosomes with transcriptome-wide significant results.
-# FDR within feature class (decision D4): gene panels are pooled across panels
-# exactly as before (so existing panels' values are unchanged when the HERV
-# panel is absent), and HERV features (non-genes) get their own separate
-# correction rather than inflating/being inflated by the gene pool.
-is_herv<-all$PANEL == 'CMC.BRAIN.HERV'
-all$TWAS.P.FDR<-NA_real_
-all$TWAS.P.FDR[!is_herv]<-p.adjust(all$TWAS.P[!is_herv], method='fdr')
-if(any(is_herv)){
-  all$TWAS.P.FDR[is_herv]<-p.adjust(all$TWAS.P[is_herv], method='fdr')
-}
+# FDR is pooled across all FUSION expression panels, including HERV: the HERV
+# panel is presented alongside the gene panels, so a single BH correction over
+# every expression feature keeps significance comparable across panels. When the
+# HERV panel is absent this is identical to the gene-only pool (existing panels'
+# values unchanged); when present, every panel shares one correction.
+all$TWAS.P.FDR<-p.adjust(all$TWAS.P, method='fdr')
 write.table(unique(all$CHR[which(all$TWAS.P.FDR < 0.05)]), paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_sig_chr.txt'), row.names=F, col.names=T, quote=F)
 
 # Write out transcriptome-wide significant results

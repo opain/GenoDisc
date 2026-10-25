@@ -13,7 +13,7 @@ association study, rTWAS). Enable with `twas_panel_herv: T`.
 | Features in archive | 8194 = 6956 genes + 1238 HERVs; the gene features are dropped (they duplicate the existing `CMC.BRAIN.RNASEQ` DLPFC panel) |
 | Genome build | hg19 / GRCh37, rsID-keyed |
 | LD reference used | GenoDisc **dense** EUR (`1KG.Phase3.EUR.MAF_001.fusion`) — the weights were trained on a full 1000G reference, so the HapMap3 reference would drop ~80% of weight SNPs; the dense reference retains ~99% (verified; ~1% attrition vs the paper's bundled LD reference, which is therefore not shipped) |
-| Multiple testing | **Separate FDR** from the gene panels (HERVs are not genes) |
+| Multiple testing | **Pooled FDR** with the other FUSION expression panels (a single Benjamini-Hochberg correction across every expression feature), since HERVs are presented alongside the gene panels in the viewer |
 | Downstream | **Excluded** from gene-based steps (TWAS-GSEA, DrugTargetor, CMAP, pathway) — HERVs have no gene-set membership. A parse-time error is raised if a gene-based analysis is requested with the HERV panel as the only TWAS panel. |
 
 **Source.** figshare [22179655](https://doi.org/10.18742/22179655), file

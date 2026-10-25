@@ -12,7 +12,7 @@ non-GTEx TWAS panel. Enable with `twas_panel_fetal_brain: T`.
 | Features in panel | 1351 cis-heritable (P<0.01) genes |
 | Genome build | hg19 / GRCh37, rsID-keyed |
 | LD reference used | GenoDisc HapMap3-restricted EUR (`1KG.Phase3.EUR.MAF_001.hm3`) — the weights are HapMap3-based, so ~100% of weight SNPs are retained (verified) |
-| Multiple testing | Pooled with the other gene panels (standard cross-panel FDR) |
+| Multiple testing | Pooled with all other FUSION expression panels in a single cross-panel FDR (the HERV panel, when enabled, shares this pool) |
 | Downstream | Flows through TWAS-GSEA / DrugTargetor like any gene panel |
 
 **Source.** figshare [11637036](https://doi.org/10.6084/m9.figshare.11637036),

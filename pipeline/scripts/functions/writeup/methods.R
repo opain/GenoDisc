@@ -188,13 +188,13 @@ methods_twas <- function(ctx, g, meta) {
   n_gene <- if (!is.null(panels)) sum(suppressWarnings(as.numeric(panels$N_gene)), na.rm = TRUE) else NA
   ds <- .twas_panel_datasets(ctx)
   ds_cite <- if (length(ds) > 0) paste0(" using ", oxford(vapply(ds, function(k) writeup_tool(ctx, k), character(1)))) else ""
-  herv <- if (cfg_on(ctx, "twas_panel_herv")) "; HERV (retrotranscriptome) features were FDR-corrected separately from genes" else ""
+  herv <- if (cfg_on(ctx, "twas_panel_herv")) ", including the HERV (retrotranscriptome) features," else ""
   cross <- if (.is_cross_ancestry(g)) " As the GWAS is of non-European ancestry, colocalisation was not assessed (the weights are European-trained)." else gstr(" Colocalisation of each significant association was assessed with {writeup_tool(ctx, 'coloc')}.")
   gstr(
     "Transcriptome-wide association analysis (TWAS) was performed with {fusion} across ",
     "{fmt_int(n_panel)} expression SNP-weight {pluralise('panel', n_panel)} ({panel_names}; ",
-    "{fmt_int(n_gene)} gene–tissue models){ds_cite}. Gene-level associations were corrected ",
-    "for multiple testing across gene panels using the Benjamini–Hochberg procedure{herv}.{cross}"
+    "{fmt_int(n_gene)} gene–tissue models){ds_cite}. Associations were corrected ",
+    "for multiple testing across all expression panels{herv} using the Benjamini–Hochberg procedure.{cross}"
   )
 }
 
