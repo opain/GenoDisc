@@ -86,17 +86,17 @@ software:
 
   - key: smr
     name: SMR
-    unpinned: true
+    version: "v1.3.0"
     bibkey: [zhu2016smr, wu2018smr]
     used_by: [smr_expression_panel_psychencode, smr_expression_panel_metabrain_basalganglia, smr_expression_panel_metabrain_cerebellum, smr_expression_panel_metabrain_cortex, smr_expression_panel_metabrain_hippocampus, smr_expression_panel_metabrain_spinalcord, smr_expression_panel_eqtlgen, smr_protein_panel_rosmap]
-    notes: "SMR binary carries no version string (no version in download URL, no checksum) — stated as unpinned."
+    notes: "Version read from the staged binary (`smr --version` -> v1.3.0, build 2022-04-27); the download URL/checksum do not encode it and pipeline_resources is mutable, so re-confirm against the binary used for a given run if reproducibility is critical."
 
   - key: magma
     name: MAGMA
-    unpinned: true
+    version: "v1.10"
     bibkey: [deleeuw2015magma]
     used_by: [magma_gene, magma_drugtargetor, magma_pathway, tissue_magma, magma_drugtargetor_gls]
-    notes: "MAGMA binary carries no version string (no version in download URL, no checksum) — stated as unpinned."
+    notes: "Version read from the staged binary (`magma --version` -> v1.10); the download URL/checksum do not encode it and pipeline_resources is mutable, so re-confirm against the binary used for a given run if reproducibility is critical."
 
   - key: twas_gsea
     name: TWAS-GSEA

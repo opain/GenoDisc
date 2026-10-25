@@ -75,9 +75,15 @@ test_that("present-but-empty SMR block is not described (results NULL)", {
   expect_null(results_smr_exp(ctx, fx_gwas_full(), NULL))
 })
 
-test_that("MAGMA version is flagged unpinned rather than fabricated", {
+test_that("MAGMA reports the registry version and is not flagged unpinned", {
   ctx <- new_ctx()
   m <- methods_magma_gene(ctx, fx_gwas_full(), NULL)
-  expect_true(grepl("version not pinned upstream", m))
-  expect_true(any(grepl("MAGMA version is not recorded", ctx$warnings)))
+  expect_true(grepl("MAGMA (v1.10)", m, fixed = TRUE))
+  expect_false(any(grepl("MAGMA version is not recorded", ctx$warnings)))
+})
+
+test_that("an unpinned tool still resolves to the honest 'not pinned upstream' string", {
+  pd <- wu_pipeline_dir()
+  expect_identical(writeup_resolve_version(list(unpinned = TRUE), pd),
+                   "version not pinned upstream")
 })

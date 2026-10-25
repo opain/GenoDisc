@@ -47,10 +47,13 @@ results-schema version it read, under a `writeup` key.
 
 ## Known limitations (read before publishing)
 
-- **Version gaps.** The MAGMA and SMR binaries carry no version string anywhere
-  (no version in the download URL, no checksum), and `plink2R` is pinned to a moving
-  `master`. Where a version cannot be recovered, the text says *"version not pinned
-  upstream"* rather than inventing one — fill these in from your records if needed.
+- **Version gaps.** MAGMA (`v1.10`) and SMR (`v1.3.0`) are recorded in
+  `writeup/registry.yaml`, read off the staged binaries (`magma --version` /
+  `smr --version`) — their download URLs/checksums do not encode a version, and
+  `pipeline_resources` is mutable, so for strict reproducibility re-confirm against the
+  binary used for a given run. `plink2R` is pinned to a moving `master`. Where a version
+  genuinely cannot be recovered, the text says *"version not pinned upstream"* rather than
+  inventing one.
 - **`[CITE: GenoDisc paper]` placeholders.** The closing paragraph cites the GenoDisc
   pipeline and web server with placeholders; replace them with the real citation(s).
 - **Citations to verify.** A few entries in `references.bib` are marked `% VERIFY`

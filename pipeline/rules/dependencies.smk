@@ -675,6 +675,12 @@ rule install_genoutils:
 # Download MAGMA
 ####
 
+# MAGMA v1.10 (linux). The SURFdrive URL carries no version or checksum, so the
+# extracted binary's sha256 is pinned (verified with -c) to catch a silent upstream
+# change and guarantee the version per run. Bump both the version comment and the
+# hash together if MAGMA is deliberately updated.
+MAGMA_SHA256 = "cfaf44469064d3b4b6717cea11666b9754d0250950d35ce290d059327ae5a583"
+
 rule download_magma:
   output:
     f"{resdir}/software/magma/magma"
@@ -683,14 +689,18 @@ rule download_magma:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    sha256=MAGMA_SHA256
   log:
     f"{resdir}/logs/download_magma.log"
   shell:
     "(rm -rf {params.resdir}/software/magma; \
     wget -O {params.resdir}/software/magma.zip https://vu.data.surfsara.nl/index.php/s/zkKbNeNOZAhFXZB/download; \
     unzip {params.resdir}/software/magma.zip -d {params.resdir}/software/magma; \
-    rm {params.resdir}/software/magma.zip) > {log} 2>&1"
+    rm {params.resdir}/software/magma.zip; \
+    chmod +x {params.resdir}/software/magma/magma; \
+    {params.resdir}/software/magma/magma --version 2>&1 | grep -m1 -i version || true; \
+    echo '{params.sha256}  {params.resdir}/software/magma/magma' | sha256sum -c -) > {log} 2>&1"
 
 ####
 # Download MAGMA gene locations
@@ -1336,6 +1346,12 @@ rule format_drug_targetor_for_twas_gsea:
 # Download SMR
 ####
 
+# SMR v1.3.0 (build 2022-04-27). The westlake URL serves the current release with no
+# version or checksum, so the extracted binary's sha256 is pinned (verified with -c) to
+# catch a silent upstream change and guarantee the version per run. Bump both the version
+# comment and the hash together if SMR is deliberately updated.
+SMR_SHA256 = "1f6abbc2c078c726a60d06045ce1f60bebb02927f6bc9cc0c2b2706cbb170966"
+
 rule download_smr:
   output:
     f"{resdir}/software/smr/smr_linux_x86_64"
@@ -1344,7 +1360,8 @@ rule download_smr:
   conda:
     "../envs/main.yaml"
   params:
-    resdir=resdir
+    resdir=resdir,
+    sha256=SMR_SHA256
   log:
     f"{resdir}/logs/download_smr.log"
   shell:
@@ -1352,7 +1369,10 @@ rule download_smr:
     mkdir -p {params.resdir}/software/smr; \
     wget -O {params.resdir}/software/smr/smr_Linux.zip https://yanglab.westlake.edu.cn/software/smr/download/smr_Linux.zip; \
     unzip {params.resdir}/software/smr/smr_Linux.zip -d {params.resdir}/software/smr; \
-    rm {params.resdir}/software/smr/smr_Linux.zip) > {log} 2>&1"
+    rm {params.resdir}/software/smr/smr_Linux.zip; \
+    chmod +x {params.resdir}/software/smr/smr_linux_x86_64; \
+    {params.resdir}/software/smr/smr_linux_x86_64 --version 2>&1 | grep -m1 -i version || true; \
+    echo '{params.sha256}  {params.resdir}/software/smr/smr_linux_x86_64' | sha256sum -c -) > {log} 2>&1"
 
 ####
 # Format ROSMAP SMR data
