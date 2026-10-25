@@ -15,7 +15,7 @@
 # k1642468_20260729_134415 (the old 1KG-panel limits OOM-killed FUSION on the dense
 # panel). Scales with `attempt` so a job that still OOMs is retried with more memory.
 def get_run_twas_mem_mb(wildcards, attempt):
-    if wildcards.weights == "psychencode":
+    if wildcards.weights in ("psychencode", "CMC.BRAIN.HERV"):
         base = {
             "1":  30000, "2":  32000, "3":  26000, "4":  26000, "5":  24000,
             "6":  24000, "7":  24000, "8":  22000, "9":  16000, "10": 20000,
@@ -42,7 +42,12 @@ def _pop(w):
 # but far smaller to load.
 def _twas_ref_prefix(w):
     base = "{}/data/1kg_hgdp/1KG.Phase3.{}.MAF_001".format(resdir, _pop(w))
-    return base + (".fusion.chr" if w.weights == "psychencode" else ".hm3.chr")
+    # PsychENCODE and the HERV panel were trained on a full 1000G reference (not
+    # HapMap3-restricted), so they need the dense '.fusion.' reference or ~80% of
+    # their weight SNPs would be dropped (verified: hm3 retains ~0.2). Every other
+    # panel (incl. the fetal-brain gene panel, which is HapMap3-based) uses '.hm3.'.
+    dense = w.weights in ("psychencode", "CMC.BRAIN.HERV")
+    return base + (".fusion.chr" if dense else ".hm3.chr")
 
 rule run_twas:
   resources:
@@ -54,6 +59,8 @@ rule run_twas:
     rules.install_plink2R.output,
     rules.prep_1kg.output,
     rules.format_psychencode.output if config["twas_panel_psychencode"] == "T" else [],
+    rules.prep_fetal_brain_weights.output if config["twas_panel_fetal_brain"] == "T" else [],
+    rules.prep_herv_weights.output if config["twas_panel_herv"] == "T" else [],
     rules.update_gtex_coord_all_panel.input,
     rules.insert_n_nongtex_all_panel.input,
   output:

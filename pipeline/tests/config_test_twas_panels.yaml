@@ -1,0 +1,15 @@
+# Minimal test config for the contributed FUSION TWAS panels: fetal-brain
+# gene-level (FETAL.BRAIN.RNASEQ, Bray & Pain 2020) and HERV retrotranscriptome
+# (CMC.BRAIN.HERV, Duarte et al. 2024; HERV features only). Runs both on chr22 of
+# the COAD01 test GWAS (EUR). Extends the base config.yaml (everything else F).
+# Resources (1kg_hgdp LD refs, biomart, FUSION software) are the fully-staged
+# shared pipeline_resources; the two panel archives are downloaded+verified by
+# prep_fetal_brain_weights / prep_herv_weights on first run.
+outdir: tests/output_twas_panels
+config_file: tests/config_test_twas_panels.yaml
+gwas_list: tests/gwas_list_test.txt
+resdir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources
+chromosomes: [22]
+
+twas_panel_fetal_brain: T
+twas_panel_herv: T

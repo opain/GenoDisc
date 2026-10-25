@@ -61,8 +61,10 @@ magma_gene_logical<-config[grepl('magma_gene:',config)] == "magma_gene: T"
 
 twas_panel_psychencode_logical<-config[grepl('twas_panel_psychencode:',config)] == "twas_panel_psychencode: T"
 twas_panel_fusion_logical<-config[grepl('twas_panel_fusion:',config)] == "twas_panel_fusion: T"
+twas_panel_fetal_brain_logical<-any(config[grepl('twas_panel_fetal_brain:',config)] == "twas_panel_fetal_brain: T")
+twas_panel_herv_logical<-any(config[grepl('twas_panel_herv:',config)] == "twas_panel_herv: T")
 
-twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical)
+twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical, twas_panel_fetal_brain_logical, twas_panel_herv_logical)
 
 twas_conditional_logical<-config[grepl('twas_conditional:',config)] == "twas_conditional: T" & twas_logical == T
 

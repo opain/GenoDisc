@@ -345,7 +345,9 @@ tidy_panel_names<-function(x){
     "NTR.BLOOD.RNAARR"                      = "Blood (NTR)",
     "YFS.BLOOD.RNAARR"                      = "Blood (YFS)",
     "psychencode"                           = "Brain - DLPFC (PsychENCODE)",
-    "kcl_brainbank_motor_cortex"            = "Brain - Motor cortex (KCL Brain Bank)"
+    "kcl_brainbank_motor_cortex"            = "Brain - Motor cortex (KCL Brain Bank)",
+    "FETAL.BRAIN.RNASEQ"                    = "Brain - Fetal (Bray & Pain)",
+    "CMC.BRAIN.HERV"                        = "Brain - DLPFC HERVs (Duarte)"
   )
 
   mapped <- unname(panel_map[x])
@@ -364,7 +366,10 @@ read_fusion_exp<-function(config, gwas){
   # Check whether TWAS was performed
   twas_panel_psychencode_logical<-read_param(config = config, param = 'twas_panel_psychencode', return_obj = F) == "T"
   twas_panel_fusion_logical<-read_param(config = config, param = 'twas_panel_fusion', return_obj = F) == "T"
-  twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical)
+  twas_panel_fetal_brain_logical<-read_param(config = config, param = 'twas_panel_fetal_brain', return_obj = F) == "T"
+  twas_panel_herv_logical<-read_param(config = config, param = 'twas_panel_herv', return_obj = F) == "T"
+  twas_logical<-any(twas_panel_psychencode_logical, twas_panel_fusion_logical,
+                    twas_panel_fetal_brain_logical, twas_panel_herv_logical)
 
   dat<-NULL
 
@@ -380,6 +385,12 @@ read_fusion_exp<-function(config, gwas){
 
     if(twas_panel_psychencode_logical){
         twas_weights<-c(twas_weights, 'psychencode')
+    }
+    if(twas_panel_fetal_brain_logical){
+        twas_weights<-c(twas_weights, 'FETAL.BRAIN.RNASEQ')
+    }
+    if(twas_panel_herv_logical){
+        twas_weights<-c(twas_weights, 'CMC.BRAIN.HERV')
     }
 
     external_weights_flag <- read_param(config = config, param = 'external_weights', return_obj = F)
@@ -412,8 +423,18 @@ read_fusion_exp<-function(config, gwas){
     dat$res$MODEL<-NULL
     dat$res<-dat$res[!is.na(dat$res$TWAS.Z),]
 
-    # Calculate P accounting for multiple testing
-    dat$res$TWAS.P.FDR<-p.adjust(dat$res$TWAS.P, method='fdr')
+    # Calculate P accounting for multiple testing. Gene panels are pooled; HERV
+    # features (non-genes) are corrected separately (decision D4), matching
+    # combine_twas.R. PANEL is still the raw id here (tidied below).
+    is_herv_feat<-dat$res$PANEL == 'CMC.BRAIN.HERV'
+    dat$res$TWAS.P.FDR<-NA_real_
+    dat$res$TWAS.P.FDR[!is_herv_feat]<-p.adjust(dat$res$TWAS.P[!is_herv_feat], method='fdr')
+    if(any(is_herv_feat)){
+      dat$res$TWAS.P.FDR[is_herv_feat]<-p.adjust(dat$res$TWAS.P[is_herv_feat], method='fdr')
+      # HERV features have no gene symbol; surface the HERV id as the Gene Symbol
+      # so the viewer (which labels TWAS points by symbol) shows it.
+      dat$res$external_gene_name[is_herv_feat]<-dat$res$ensembl_gene_id[is_herv_feat]
+    }
     dat$res<-dat$res[,c('CHR','P0','P1','ensembl_gene_id','external_gene_name','PANEL','TWAS.Z','TWAS.P','TWAS.P.FDR','COLOC.PP3','COLOC.PP4'), with=T]
     names(dat$res)[names(dat$res) == 'ensembl_gene_id']<-'Ensembl ID'
     names(dat$res)[names(dat$res) == 'external_gene_name']<-'Gene Symbol'

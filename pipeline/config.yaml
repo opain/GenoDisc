@@ -160,6 +160,17 @@ gtex_weights: []
 # Specify TWAS FUSION non-GTEx panels
 non_gtex_weights: []
 
+# TWAS using the fetal-brain gene-level FUSION panel (Bray & Pain 2020,
+# figshare 11637036; 12-19 PCW, N=120, Ensembl gene IDs). Flows through like any
+# gene panel (HapMap3 LD reference).
+twas_panel_fetal_brain: F
+
+# TWAS using the HERV retrotranscriptome FUSION panel (Duarte, Pain et al. 2024,
+# figshare 22179655; adult DLPFC/CMC, EUR N=563). HERV features ONLY (1238);
+# uses the dense '.fusion.' LD reference and is excluded from gene-based
+# downstream (TWAS-GSEA/DrugTargetor) with its own separate FDR.
+twas_panel_herv: F
+
 # Specify external TWAS panels in FUSION format
 external_weights: F
 external_weights_pos_path: []

@@ -32,7 +32,9 @@ parse_config_flags <- function(config) {
 
   twas_panel_psychencode <- flag(config, "twas_panel_psychencode")
   twas_panel_fusion <- flag(config, "twas_panel_fusion")
-  twas <- any(twas_panel_psychencode, twas_panel_fusion)
+  twas_panel_fetal_brain <- flag(config, "twas_panel_fetal_brain")
+  twas_panel_herv <- flag(config, "twas_panel_herv")
+  twas <- any(twas_panel_psychencode, twas_panel_fusion, twas_panel_fetal_brain, twas_panel_herv)
   twas_conditional <- flag(config, "twas_conditional") & twas == TRUE
 
   smr_expression_panel_psychencode <- flag(config, "smr_expression_panel_psychencode")
@@ -119,6 +121,8 @@ parse_config_flags <- function(config) {
     magma_gene = magma_gene,
     twas_panel_psychencode = twas_panel_psychencode,
     twas_panel_fusion = twas_panel_fusion,
+    twas_panel_fetal_brain = twas_panel_fetal_brain,
+    twas_panel_herv = twas_panel_herv,
     twas = twas,
     twas_conditional = twas_conditional,
     smr_expression_panel_psychencode = smr_expression_panel_psychencode,

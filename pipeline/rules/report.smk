@@ -57,10 +57,10 @@ if config.get("magma_drugtargetor_gls", "F") == "T":
     # VIF-OLS (recommended drug-level test) rides the same flag as the MAGMA GLS.
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_vif_{level}_res.csv", gwas=gwas_list_df['name'], level=["l2","l3","l4"], outdir={outdir}))
 
-if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
+if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T" or config["twas_panel_fetal_brain"] == "T" or config["twas_panel_herv"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz", gwas=gwas_list_df['name'], outdir={outdir}))
 
-if config["twas_conditional"] == "T" and (config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T"):
+if config["twas_conditional"] == "T" and (config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T" or config["twas_panel_fetal_brain"] == "T" or config["twas_panel_herv"] == "T"):
     myoutput.append(expand("{outdir}/results/{gwas}/twas/{gwas}_twas_novelty.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["pwas_panel_rosmap"] == "T":

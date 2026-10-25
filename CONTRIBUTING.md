@@ -88,6 +88,46 @@ writes `{gwas}.GW.sbayesrc.clean.csv` (+ `h2_samples.txt`), packaged at `gwas_qc
 SBayesRC is genome-wide — the chr22 test config is a mechanics smoke test (h²≈0); use a whole-genome
 GWAS for meaningful estimates.
 
+## Worked example — adding a FUSION TWAS weight panel
+Adding a new FUSION expression-weight panel is **not** the generic "Adding a reference dataset" flow
+above — TWAS panels have their own machinery. See `pipeline/docs/methods/fetal_brain_twas.md` and
+`herv_rtwas.md` for two completed examples (fetal-brain gene-level; HERV retrotranscriptome). Steps:
+
+1. **Selection is config-driven.** A panel is a string the run assembles into the `weights` list in
+   `rules/dependencies.smk` (`gtex_weights` + `non_gtex_weights`, plus the `twas_panel_*` appends).
+   A GTEx/Broad panel is just an id appended to `gtex_weights`/`non_gtex_weights`; a bespoke panel
+   gets its own `twas_panel_<name>: F` flag that appends its id.
+2. **Acquisition.** `download_non_gtex_weights` hardcodes the Broad mirror and **pins no checksum** —
+   do not copy that for a contributed panel. Add a dedicated rule that pins the official URL **and a
+   checksum** (`curl … | md5sum -c -`), extracts, and runs a prep script (see `prep_fetal_brain.R` /
+   `prep_herv.R`). Weights land in `{resdir}/data/fusion_snp_weights/<PANEL>/` with a `<PANEL>.pos`
+   (`PANEL WGT ID CHR P0 P1 N`), WGT relative to the panel dir (`--weights_dir`).
+3. **Sample size N.** `scripts/insert_n_nongtex.R` holds a **hardcoded per-panel N table**; a panel
+   missing from it silently gets `N=NA`. A dedicated prep script should set N explicitly.
+4. **Feature IDs.** `combine_twas.R` merges the FUSION `ID` to a gene symbol via biomaRt assuming an
+   Ensembl id. Gene panels must therefore use Ensembl gene IDs (unversioned) or HGNC symbols (which
+   `insert_n_nongtex.R` remaps). Non-gene features (e.g. HERVs) must keep their own id and be routed
+   around the gene-based steps (see point 6).
+5. **LD reference.** `_twas_ref_prefix` (`rules/twas_pwas.smk`) sends every panel to the
+   HapMap3-restricted reference **except** those listed as dense (`psychencode`, `CMC.BRAIN.HERV`).
+   If a panel's weights were trained on a full (non-HapMap3) reference, add it to that list or ~80%
+   of its weight SNPs are dropped. Verify SNP overlap against the reference before deciding.
+6. **Downstream + multiple testing.** TWAS-GSEA/DrugTargetor/CMAP key on gene symbol and are driven
+   by `weights_nosplice`; the gene FDR in `combine_twas.R` / `package_results_functions.R` is pooled
+   across panels. A non-gene panel must be removed from `weights_nosplice`, excluded from the gene
+   FDR pool (given a separate FDR), and guarded at parse time (error if a gene-based analysis is
+   requested with no gene-producing panel).
+7. **Display + gating.** Add the panel id → label to `tidy_panel_names()` and enumerate it in
+   `read_fusion_exp` (`$panels`); extend the "TWAS active" gates (`report.smk`, `dependencies.smk`
+   `resource_inputs`, the viewer `utils_config.R`, `create_report.Rmd`) so the panel's output and
+   viewer tab appear when it is the only TWAS panel enabled.
+8. **Bump `VERSION`** (minor for a new panel; the bundle `schema_version` is unchanged — TWAS nests
+   under the existing `mol_assoc/exp/fusion` block).
+
+(Gaps this example surfaced, now partly addressed here: the checksum-vs-practice inconsistency, the
+hardcoded N table, the implicit HapMap3 LD routing, the cross-panel FDR, and the `weights_nosplice`
+splicing special-case were all previously undocumented.)
+
 ## Testing
 The pipeline runs inside its conda environment (`pipeline/envs/main.yaml`, plus per-rule envs
 materialised by `--use-conda`). From `pipeline/`:

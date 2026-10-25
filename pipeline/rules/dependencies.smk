@@ -86,9 +86,25 @@ if config.get('twas_gsea_pathway', 'F') == 'T':
     if pathway_gmt_dir_val in (None, 'NA'):
         print("Error: twas_gsea_pathway is 'T' but pathway_gmt_dir is not set.")
         sys.exit(1)
-    if config.get('twas_panel_fusion', 'F') != 'T' and config.get('twas_panel_psychencode', 'F') != 'T':
-        print("Error: twas_gsea_pathway is 'T' but no TWAS panel is enabled; set twas_panel_fusion: 'T' or twas_panel_psychencode: 'T'.")
-        sys.exit(1)
+
+# Gene-based TWAS-GSEA / DrugTargetor / CMAP steps map TWAS features to gene sets
+# by gene symbol, so they need a gene-producing TWAS panel. The HERV panel's
+# features are HERVs, not genes (decision D3), so twas_panel_herv does NOT satisfy
+# this on its own; the fetal-brain and standard FUSION / PsychENCODE panels do.
+# Error rather than silently producing empty enrichment.
+_gene_twas_panel = (config.get('twas_panel_fusion', 'F') == 'T'
+                    or config.get('twas_panel_psychencode', 'F') == 'T'
+                    or config.get('twas_panel_fetal_brain', 'F') == 'T')
+_gene_downstream_on = [f for f in ('twas_gsea_drugtargetor',
+                                   'twas_gsea_drugtargetor_nondirectional',
+                                   'twas_gsea_pathway', 'twas_gsea_cmap')
+                       if config.get(f, 'F') == 'T']
+if _gene_downstream_on and not _gene_twas_panel:
+    print("Error: gene-based TWAS analyses ({}) are enabled but no gene-producing "
+          "TWAS panel is set. The HERV panel (twas_panel_herv) contains HERV features, "
+          "not genes, so it cannot satisfy these. Enable a gene panel: twas_panel_fusion, "
+          "twas_panel_psychencode or twas_panel_fetal_brain.".format(', '.join(_gene_downstream_on)))
+    sys.exit(1)
 
 # MAGMA gene-set x tissue interaction (post-hoc de Leeuw 2018 analysis).
 magma_interaction_cfg = config.get('magma_interaction', {})
@@ -1019,6 +1035,57 @@ rule insert_n_nongtex:
 rule insert_n_nongtex_all_panel:
     input: expand(f"{resdir}/data/insert_n_nongtex_{{weight}}.done", weight=non_gtex_weights)
 
+# --- Contributed first-class FUSION panels (figshare, CC BY 4.0) --------------
+# Unlike download_non_gtex_weights (Broad mirror, no checksum), these pin the
+# figshare download URL + md5 and verify before use. Each rule downloads,
+# verifies, extracts, and runs a panel-specific prep script that writes the
+# canonical <panel>.pos (PANEL WGT ID CHR P0 P1 N) read by run_twas.
+
+# Fetal-brain gene-level (Bray & Pain 2020, figshare 11637036; 12-19 PCW, N=120).
+FETAL_BRAIN_URL = "https://ndownloader.figshare.com/files/22178265"
+FETAL_BRAIN_MD5 = "e16e9de8f10be07eadd5c3f20479868a"
+rule prep_fetal_brain_weights:
+  output:
+    f"{resdir}/data/fusion_snp_weights/FETAL.BRAIN.RNASEQ/FETAL.BRAIN.RNASEQ.pos"
+  benchmark:
+    f"{resdir}/benchmarks/prep_fetal_brain_weights.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir, url=FETAL_BRAIN_URL, md5=FETAL_BRAIN_MD5,
+    d=f"{resdir}/data/fusion_snp_weights/FETAL.BRAIN.RNASEQ"
+  log:
+    f"{resdir}/logs/prep_fetal_brain_weights.log"
+  shell:
+    "(set -eo pipefail; mkdir -p {params.d}; t={params.d}/dl.tar.gz; "
+    "curl -fsSL '{params.url}' -o $t; echo '{params.md5}  '$t | md5sum -c -; "
+    "tar xzf $t -C {params.d}; rm -f $t; "
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_fetal_brain.R "
+    "--panel_dir {params.d} --panel FETAL.BRAIN.RNASEQ --n 120) > {log} 2>&1"
+
+# HERV retrotranscriptome (Duarte, Pain et al. 2024, figshare 22179655; EUR
+# N=563). FUSION_weights_EUR_all_1.tar.gz; HERV features only (decision D2).
+HERV_URL = "https://ndownloader.figshare.com/files/44227592"
+HERV_MD5 = "e5d1c3135a8a56d9ceb3a1ad2558810c"
+rule prep_herv_weights:
+  output:
+    f"{resdir}/data/fusion_snp_weights/CMC.BRAIN.HERV/CMC.BRAIN.HERV.pos"
+  benchmark:
+    f"{resdir}/benchmarks/prep_herv_weights.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir, url=HERV_URL, md5=HERV_MD5,
+    d=f"{resdir}/data/fusion_snp_weights/CMC.BRAIN.HERV"
+  log:
+    f"{resdir}/logs/prep_herv_weights.log"
+  shell:
+    "(set -eo pipefail; mkdir -p {params.d}; t={params.d}/dl.tar.gz; "
+    "curl -fsSL '{params.url}' -o $t; echo '{params.md5}  '$t | md5sum -c -; "
+    "tar xzf $t -C {params.d}; rm -f $t; "
+    "Rscript --vanilla {workflow.basedir}/scripts/prep_herv.R "
+    "--panel_dir {params.d} --panel CMC.BRAIN.HERV --n 563) > {log} 2>&1"
+
 # Download glist file
 rule download_glist:
   output:
@@ -1115,13 +1182,26 @@ weights=gtex_weights + non_gtex_weights
 if config["twas_panel_psychencode"] == "T":
   weights.append("psychencode")
 
+# First-class contributed panels (figshare, pinned+checksummed downloads).
+if config["twas_panel_fetal_brain"] == "T":
+  weights.append("FETAL.BRAIN.RNASEQ")
+if config["twas_panel_herv"] == "T":
+  weights.append("CMC.BRAIN.HERV")
+
 if config["external_weights"] == "T":
   weights=weights + external_weights_id_list
 
 import copy
+# weights_nosplice = the gene-level panels eligible for gene-based downstream
+# (combine per-panel outputs, TWAS-GSEA, DrugTargetor). Exclude the CMC splicing
+# panel (no gene-level interpretation) and the HERV panel (features are HERVs,
+# not genes - decision D3); both still run TWAS and are packaged, but never feed
+# the gene-set/drug steps or the gene FDR pool.
 weights_nosplice=copy.copy(weights)
 if "CMC.BRAIN.RNASEQ_SPLICING" in weights_nosplice:
     weights_nosplice.remove("CMC.BRAIN.RNASEQ_SPLICING")
+if "CMC.BRAIN.HERV" in weights_nosplice:
+    weights_nosplice.remove("CMC.BRAIN.HERV")
 
 def feature_pred_input(wildcards):
     inputs = [
@@ -1638,7 +1718,7 @@ if magma_interaction_enabled:
     resource_inputs.append(rules.prep_tissue_exp.output)
 
 # TWAS
-if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T":
+if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T" or config["twas_panel_fetal_brain"] == "T" or config["twas_panel_herv"] == "T":
     resource_inputs.extend([
         rules.install_fusion.output,
         rules.install_plink2R.output
@@ -1646,6 +1726,12 @@ if config["twas_panel_fusion"] == "T" or config["twas_panel_psychencode"] == "T"
 
 if config["twas_panel_psychencode"] == "T":
     resource_inputs.append(rules.format_psychencode.output)
+
+if config["twas_panel_fetal_brain"] == "T":
+    resource_inputs.append(rules.prep_fetal_brain_weights.output)
+
+if config["twas_panel_herv"] == "T":
+    resource_inputs.append(rules.prep_herv_weights.output)
 
 if config["twas_panel_fusion"] == "T":
     resource_inputs.extend([

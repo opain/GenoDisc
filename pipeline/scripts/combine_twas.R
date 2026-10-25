@@ -34,6 +34,16 @@ if(twas_panel_psychencode == "T"){
   weights<-c(weights, 'psychencode')
 }
 
+twas_panel_fetal_brain <- read_param(config = opt$config_file, param = 'twas_panel_fetal_brain', return_obj = F)
+if(twas_panel_fetal_brain == "T"){
+  weights<-c(weights, 'FETAL.BRAIN.RNASEQ')
+}
+
+twas_panel_herv <- read_param(config = opt$config_file, param = 'twas_panel_herv', return_obj = F)
+if(twas_panel_herv == "T"){
+  weights<-c(weights, 'CMC.BRAIN.HERV')
+}
+
 external_weights_flag <- read_param(config = opt$config_file, param = 'external_weights', return_obj = F)
 if(external_weights_flag == "T"){
   external_weights_pos_path <- read_param(config = opt$config_file, param = 'external_weights_pos_path', return_obj = F)
@@ -70,8 +80,15 @@ for(weight_i in weights){
   
   twas<-twas[,c('FILE','PANEL','MODEL','BEST.GWAS.Z','NSNP','NWGT','MODELCV.R2','ensembl_gene_id','external_gene_name','CHR','P0','P1','TWAS.Z','TWAS.P','COLOC.PP3','COLOC.PP4'), with=F]
   
-  # Create ID column for compatability with post TWAS analyses
-  twas$ID<-twas$external_gene_name
+  # Create ID column for compatability with post TWAS analyses. HERV features
+  # have no gene symbol (biomaRt merge is NA), so keep their original FUSION id
+  # (e.g. ERVLE_1p36.32a) rather than NA - this keeps them displayable and avoids
+  # NA-id collisions. Gene panels are unchanged (ID = gene symbol as before).
+  if(weight_i == 'CMC.BRAIN.HERV'){
+    twas$ID<-twas$ensembl_gene_id
+  } else {
+    twas$ID<-twas$external_gene_name
+  }
   
   fwrite(twas, paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_',weight_i,'_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
   
@@ -85,8 +102,17 @@ for(weight_i in weights){
 
 fwrite(all, paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_GW_clean.txt.gz'), quote=F, sep=' ', na='NA')
 
-# Write file listing chromosomes with transcriptome-wide significant results
-all$TWAS.P.FDR<-p.adjust(all$TWAS.P, method='fdr')
+# Write file listing chromosomes with transcriptome-wide significant results.
+# FDR within feature class (decision D4): gene panels are pooled across panels
+# exactly as before (so existing panels' values are unchanged when the HERV
+# panel is absent), and HERV features (non-genes) get their own separate
+# correction rather than inflating/being inflated by the gene pool.
+is_herv<-all$PANEL == 'CMC.BRAIN.HERV'
+all$TWAS.P.FDR<-NA_real_
+all$TWAS.P.FDR[!is_herv]<-p.adjust(all$TWAS.P[!is_herv], method='fdr')
+if(any(is_herv)){
+  all$TWAS.P.FDR[is_herv]<-p.adjust(all$TWAS.P[is_herv], method='fdr')
+}
 write.table(unique(all$CHR[which(all$TWAS.P.FDR < 0.05)]), paste0(outdir,'/results/',opt$gwas,'/twas/',opt$gwas,'_twas_sig_chr.txt'), row.names=F, col.names=T, quote=F)
 
 # Write out transcriptome-wide significant results
