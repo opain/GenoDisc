@@ -13,7 +13,7 @@
 
 <title>GenoDisc Pipeline - User Guide</title>
 
-<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.14/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -29,14 +29,14 @@
        h6 {font-size: 12px;}
        code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
        pre:not([class]) { background-color: white }</style>
-<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
+<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -184,15 +184,11 @@ $(document).ready(function () {
     href = "index.html";
   var menuAnchor = $('a[href="' + href + '"]');
 
-  // mark the anchor link active (and if it's in a dropdown, also mark that active)
-  var dropdown = menuAnchor.closest('li.dropdown');
-  if (window.bootstrap) { // Bootstrap 4+
-    menuAnchor.addClass('active');
-    dropdown.find('> .dropdown-toggle').addClass('active');
-  } else { // Bootstrap 3
-    menuAnchor.parent().addClass('active');
-    dropdown.addClass('active');
-  }
+  // mark it active
+  menuAnchor.tab('show');
+
+  // if it's got a parent navbar menu mark it active as well
+  menuAnchor.closest('li.dropdown').addClass('active');
 
   // Navbar adjustments
   var navHeight = $(".navbar").first().height() + 15;
@@ -221,8 +217,8 @@ $(document).ready(function () {
   border-radius: 4px;
 }
 
-.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-  content: "\e259";
+.tabset-dropdown > .nav-tabs > li.active:before {
+  content: "";
   font-family: 'Glyphicons Halflings';
   display: inline-block;
   padding: 10px;
@@ -230,9 +226,16 @@ $(document).ready(function () {
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-  content: "\e258";
-  font-family: 'Glyphicons Halflings';
+  content: "&#xe258;";
   border: none;
+}
+
+.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "";
+  font-family: 'Glyphicons Halflings';
+  display: inline-block;
+  padding: 10px;
+  border-right: 1px solid #ddd;
 }
 
 .tabset-dropdown > .nav-tabs > li.active {
@@ -373,6 +376,9 @@ div.tocify {
     </li>
     <li>
       <a href="pipeline_technical.html">Technical Details</a>
+    </li>
+    <li>
+      <a href="pipeline_guide.html#automated-draft-write-up">Draft write-up</a>
     </li>
   </ul>
 </li>
@@ -920,9 +926,9 @@ align="left"><code>["Brain_Frontal_Cortex_BA9", "Artery_Coronary"]</code></td>
 </summary>
 <table>
 <colgroup>
-<col width="19%" />
-<col width="54%" />
-<col width="25%" />
+<col width="12%" />
+<col width="33%" />
+<col width="53%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -1514,6 +1520,10 @@ portable bundle:</p>
       configuration/
         config.rds
         gwas_list.rds
+      writeup/             # Auto-generated DRAFT write-up (check before use)
+        methods.md         #   methods paragraph per analysis that ran
+        {gwas}/results.md  #   descriptive results per GWAS
+        references.bib     #   cited tools/datasets (+ references.ris)
     bundle.tar.gz          # `package/` tarballed — the portable output the
                            #   Shiny app loads via &quot;Choose a bundle&quot;</code></pre>
 <hr />
@@ -1720,7 +1730,59 @@ tissue enrichment, CMap, and — when <code>magma_pathway: T</code> and/or
 with MAGMA and TWAS-GSEA tables sorted by pooled FDR.</li>
 <li><strong>Configuration</strong> - Pipeline settings used for the
 analysis</li>
+<li><strong>References</strong> - citations for the software and
+datasets used, plus a <strong>Draft write-up</strong> panel to download
+the auto-generated methods, results and reference list (see below)</li>
 </ul>
+<hr />
+</div>
+<div id="automated-draft-write-up" class="section level2">
+<h2>Automated draft write-up</h2>
+<p>Each run also produces a <strong>draft methods section, a descriptive
+results section and a matching reference list</strong>, generated from
+the run’s resolved configuration, recorded software/reference versions
+and result objects — i.e. a description of <em>what actually
+ran</em>.</p>
+<blockquote>
+<p><strong>These are drafts, not finished text.</strong> They save you
+re-deriving tool versions, parameters, test counts and
+significant-result counts by hand, but you must read, check and edit
+them before using them in a paper. Every file opens with a banner saying
+so.</p>
+</blockquote>
+<p><strong>Where to get them.</strong> Download them from the
+<strong>References</strong> tab of the Output Viewer (“Draft write-up”:
+Methods <code>.md</code>, References <code>.bib</code>, and an all-files
+<code>.tar.gz</code>), or read them straight from the bundle under
+<code>package/writeup/</code> (<code>methods.md</code>,
+<code>{gwas}/results.md</code>, <code>references.bib</code>,
+<code>references.ris</code>).</p>
+<p><strong>What the numbers mean.</strong></p>
+<ul>
+<li><em>Significant</em> means the stored Benjamini–Hochberg
+FDR-adjusted p-value (<code>P.FDR</code>) is below 0.05 — the same
+column and threshold the Output Viewer applies, so the counts reconcile
+with the viewer. For TWAS/PWAS/SMR the text also reports how many
+FDR-significant features were colocalised (FUSION) or HEIDI-supported
+(SMR), matching the viewer’s “high-confidence” counts.</li>
+<li>Fine-mapping has no p-value: “significant” means a 95% credible set
+was resolved.</li>
+<li>Heritability (LDSC / SBayesRC / SumHer) has no significance test —
+the estimate and its uncertainty are reported, and the methods differ in
+model so are not expected to agree.</li>
+<li>Analyses that were switched off are omitted (never “not performed”);
+analyses that were requested but produced no output for any GWAS are
+listed in a <em>Reconciliation — check before use</em> footer with the
+likely reason.</li>
+</ul>
+<p><strong>Known limitations.</strong> The text contains
+<code>[CITE: GenoDisc paper]</code> placeholders to fill in; a few
+<code>references.bib</code> entries are flagged <code>% VERIFY</code>;
+MAGMA/SMR versions are read from the staged binaries; and the results
+text is deliberately descriptive — it reports counts and top hits only,
+with no interpretation or causal/novelty claims, which you add yourself.
+See <code>pipeline/docs/automated_writeup.md</code> for the full
+description and the maintainer notes.</p>
 <hr />
 </div>
 </div>
