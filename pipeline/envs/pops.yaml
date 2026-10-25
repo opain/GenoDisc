@@ -1,0 +1,13 @@
+name: pops
+# PoPS (github.com/FinucaneLab/pops) runs as cloned Python scripts, not a package.
+# These are the upstream-pinned deps (requirements.txt); the env was verified to
+# build on conda-forge/py3.8 and to run pops.py end-to-end on the shipped example
+# (2m53s / ~2 GB RSS on neurohack_cpu). CPU-only (no GPU).
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - scipy=1.5.2
+  - scikit-learn=0.24.2
+  - numpy=1.19.5
+  - pandas=1.0.5

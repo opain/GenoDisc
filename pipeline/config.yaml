@@ -257,3 +257,47 @@ gcsc_tissues: []
 
 # MAGMA tissue enrichment
 tissue_magma: F
+
+############
+# Effector-gene prioritisation & credible-set coding annotation
+############
+
+# Annotate SuSiE credible-set variants with their predicted coding consequence
+# (AlphaMissense missense pathogenicity + other protein-altering consequences via
+# bcftools csq). Requires finemap: T. Build is GRCh37/hg19 throughout, so the
+# hg19 AlphaMissense table and a GRCh37 gene model are used. See
+# rules/credset_coding.smk and docs/methods/credset_coding.md.
+credset_coding_annot: F
+
+# AlphaMissense hg19 table + bcftools-csq GFF3/FASTA. NA = use the copies staged
+# in resdir by download_alphamissense / download_bcftools_csq_ref.
+alphamissense_hg19: NA
+csq_gff3: NA
+csq_fasta: NA
+
+# A credible set is flagged "protein-altering" when the summed PIP on
+# protein-altering variants in the set is at or above this threshold.
+credset_coding_pip_thresh: 0.1
+
+# PoPS (Polygenic Priority Score): genome-wide gene prioritisation from the MAGMA
+# gene-level results plus a published feature matrix. Requires magma_gene: T.
+# Runs a dedicated MAGMA against an ENSGID gene annotation (the PoPS features are
+# Ensembl-gene-ID keyed); the existing Entrez magma_gene output is untouched.
+# See rules/pops.smk.
+pops: F
+
+# PoPS reference data. NA = use the copies staged in resdir by download_pops
+# (the cloned repo + the ~7 GB feature matrix, mirrored locally) and
+# magma_ensgid_annot (the ENSGID .genes.annot).
+pops_repo: NA
+pops_features: NA
+pops_gene_annot: NA
+
+# CALDERA effector-gene probabilities per credible set (Heilbron et al. 2024),
+# using the published pretrained model. Requires pops: T AND finemap: T (enforced
+# at config parse). See rules/caldera.smk.
+caldera: F
+
+# CALDERA reference. NA = use the copy staged in resdir by download_caldera (the
+# cloned repo, which ships the pretrained model + gene locations + coding-SNP list).
+caldera_repo: NA

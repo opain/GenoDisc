@@ -1492,3 +1492,51 @@ read_magma_tissue<-function(config, gwas, type){
   }
   return(dat)
 }
+
+# ---- PoPS / coding annotation / CALDERA blocks ------------------------------
+
+# PoPS gene prioritisation: per-gene ENSGID + PoPS_Score (+ symbol via biomart),
+# sorted best-first. NULL when pops is off or no output for this GWAS.
+read_pops <- function(config, gwas){
+  if(read_param(config = config, param = 'pops', return_obj = F) != "T") return(NULL)
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  resdir <- read_param(config = config, param = 'resdir', return_obj = F)
+  f <- paste0(outdir, '/results/', gwas, '/pops/', gwas, '.GW.pops.preds')
+  if(!file.exists(f)) return(NULL)
+  dat <- fread(f)
+  if(!all(c('ENSGID','PoPS_Score') %in% names(dat))) return(NULL)
+  dat <- dat[, c('ENSGID','PoPS_Score'), with = FALSE]
+  bpath <- paste0(resdir, '/data/biomart/biomart_genes_grch37.tsv')
+  if(file.exists(bpath)){
+    bm <- tryCatch(unique(fread(bpath, select = c('ensembl_gene_id','external_gene_name'))),
+                   error = function(e) NULL)
+    if(!is.null(bm)){
+      dat <- merge(dat, bm, by.x = 'ENSGID', by.y = 'ensembl_gene_id', all.x = TRUE, sort = FALSE)
+      setnames(dat, 'external_gene_name', 'Gene')
+    }
+  }
+  if(!('Gene' %in% names(dat))) dat$Gene <- NA_character_
+  dat <- dat[order(-dat$PoPS_Score), c('ENSGID','Gene','PoPS_Score'), with = FALSE]
+  as.data.frame(dat)
+}
+
+# Credible-set coding annotation: per-cs summary + per-variant long table.
+# NULL when credset_coding_annot is off or no output for this GWAS.
+read_credset_coding <- function(config, gwas){
+  if(read_param(config = config, param = 'credset_coding_annot', return_obj = F) != "T") return(NULL)
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  s <- paste0(outdir, '/results/', gwas, '/finemap/', gwas, '.GW.credset_coding_summary.csv')
+  l <- paste0(outdir, '/results/', gwas, '/finemap/', gwas, '.GW.credset_coding.csv')
+  if(!file.exists(s)) return(NULL)
+  list(summary  = fread(s),
+       variants = if(file.exists(l)) fread(l) else NULL)
+}
+
+# CALDERA per-credible-set gene probabilities. NULL when caldera is off/absent.
+read_caldera <- function(config, gwas){
+  if(read_param(config = config, param = 'caldera', return_obj = F) != "T") return(NULL)
+  outdir <- read_param(config = config, param = 'outdir', return_obj = F)
+  f <- paste0(outdir, '/results/', gwas, '/caldera/', gwas, '.GW.caldera.csv')
+  if(!file.exists(f)) return(NULL)
+  fread(f)
+}

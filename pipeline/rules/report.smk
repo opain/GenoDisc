@@ -18,6 +18,15 @@ if config.get("manc_cojo", "F") == "T":
 if config["finemap"] == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv", gwas=gwas_list_df['name'], outdir={outdir}))
 
+if config.get("credset_coding_annot", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/finemap/{gwas}.GW.credset_coding_summary.csv", gwas=gwas_list_df['name'], outdir={outdir}))
+
+if config.get("pops", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/pops/{gwas}.GW.pops.preds", gwas=gwas_list_df['name'], outdir={outdir}))
+
+if config.get("caldera", "F") == "T":
+    myoutput.append(expand("{outdir}/results/{gwas}/caldera/{gwas}.GW.caldera.csv", gwas=gwas_list_df['name'], outdir={outdir}))
+
 if config.get("sbayesrc", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv", gwas=gwas_list_df_sbrc['name'], outdir={outdir}))
 

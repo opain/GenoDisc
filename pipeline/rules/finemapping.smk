@@ -58,6 +58,33 @@ rule process_finemap:
       --gwas {wildcards.gwas} \
       --config_file {params.config_file} > {log} 2>&1"
 
+#################
+# Per-variant credible-set table (PIP + alleles) for coding annotation / CALDERA
+#################
+# Reads the saved susie_rss fit objects (per-variant PIP, named by rsID) and joins
+# alleles from the cleaned sumstats. Gated so it only runs when a downstream
+# consumer (credible-set coding annotation or CALDERA) needs it.
+
+rule extract_credset_variants:
+  input:
+    "{outdir}/results/{gwas}/checks/finemap_all_chr.done"
+  output:
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.credset_variants.csv"
+  benchmark:
+    "{outdir}/benchmarks/extract_credset_variants_{gwas}.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    config_file=config['config_file'],
+    population= lambda w: gwas_list_df.loc[gwas_list_df['name'] == "{}".format(w.gwas), 'population'].iloc[0]
+  log:
+    "{outdir}/logs/extract_credset_variants-{gwas}.log"
+  shell:
+    "Rscript --vanilla {workflow.basedir}/scripts/extract_credset_variants.R --pipeline_dir {workflow.basedir} \
+      --gwas {wildcards.gwas} \
+      --population {params.population} \
+      --config_file {params.config_file} > {log} 2>&1"
+
 
 
 

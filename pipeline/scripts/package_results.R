@@ -220,6 +220,12 @@ for(gwas_i in gwas_list$name){
 
   mol_assoc$magma<-read_magma_gene(config=opt$config, gwas=gwas_i)
 
+  ######
+  # PoPS gene prioritisation
+  ######
+
+  mol_assoc$pops<-read_pops(config=opt$config, gwas=gwas_i)
+
   # For a non-EUR GWAS the TWAS/PWAS/SMR weights are EUR-trained, so the
   # colocalisation (FUSION COLOC) and heterogeneity (SMR HEIDI) statistics are
   # not valid - NA them out so the viewer/report doesn't present them. The
@@ -361,6 +367,13 @@ for(gwas_i in gwas_list$name){
 
   tissue$specific<-read_magma_tissue(config=opt$config, gwas=gwas_i, type='specific')
 
+  #################
+  # Credible-set coding annotation + CALDERA effector-gene probabilities
+  #################
+
+  credset_coding<-read_credset_coding(config=opt$config, gwas=gwas_i)
+  caldera<-read_caldera(config=opt$config, gwas=gwas_i)
+
   ################
   # Package results
   ################
@@ -369,7 +382,9 @@ for(gwas_i in gwas_list$name){
                           snp_assoc=snp_assoc,
                           mol_assoc=mol_assoc,
                           tx=tx,
-                          tissue=tissue)
+                          tissue=tissue,
+                          credset_coding=credset_coding,
+                          caldera=caldera)
 
 }
 

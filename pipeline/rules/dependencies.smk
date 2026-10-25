@@ -60,6 +60,22 @@ for _cojo_flag in ('cojo', 'manc_cojo'):
         print(f"Error: {_cojo_flag} must be 'T' or 'F' (got {config.get(_cojo_flag)!r}).")
         sys.exit(1)
 
+# Effector-gene / coding-annotation preconditions (fail at parse, not silently).
+# credible-set coding annotation needs SuSiE credible sets.
+if config.get('credset_coding_annot', 'F') == 'T' and config.get('finemap', 'F') != 'T':
+    print("Error: credset_coding_annot is 'T' but finemap is not 'T'; credible-set coding annotation requires fine-mapping - set finemap: 'T'.")
+    sys.exit(1)
+# PoPS needs the MAGMA gene-level step (its own ENSGID MAGMA reuses the gene P-values).
+if config.get('pops', 'F') == 'T' and config.get('magma_gene', 'F') != 'T':
+    print("Error: pops is 'T' but magma_gene is not 'T'; PoPS requires MAGMA gene-level analysis - set magma_gene: 'T'.")
+    sys.exit(1)
+# CALDERA needs BOTH PoPS (gene feature) and SuSiE credible sets.
+if config.get('caldera', 'F') == 'T':
+    _missing = [f for f in ('pops', 'finemap') if config.get(f, 'F') != 'T']
+    if _missing:
+        print(f"Error: caldera is 'T' but {' and '.join(_missing)} {'is' if len(_missing)==1 else 'are'} not 'T'; CALDERA requires both pops: 'T' and finemap: 'T'.")
+        sys.exit(1)
+
 # Pathway enrichment: glob the user's gmt dir at parse time so downstream
 # rules can expand() over pathway_gmts. Empty list is fine — the report/
 # dependencies gates then turn into no-ops.
@@ -1375,6 +1391,144 @@ rule download_smr:
     echo '{params.sha256}  {params.resdir}/software/smr/smr_linux_x86_64' | sha256sum -c -) > {log} 2>&1"
 
 ####
+# Credible-set coding annotation resources (Phase: credset_coding_annot)
+####
+# AlphaMissense hg19 precomputed missense scores (CC BY 4.0; Zenodo record
+# 10813168). Distributed as plain gzip, so re-bgzip and tabix-index for lookups
+# (the hg19 table is chr-prefixed; the annotation script strips 'chr' to join).
+AM_HG19_URL = "https://zenodo.org/records/10813168/files/AlphaMissense_hg19.tsv.gz?download=1"
+
+rule download_alphamissense:
+  output:
+    f"{resdir}/data/alphamissense/AlphaMissense_hg19.bgz",
+    f"{resdir}/data/alphamissense/AlphaMissense_hg19.bgz.tbi"
+  benchmark:
+    f"{resdir}/benchmarks/download_alphamissense.tsv"
+  conda:
+    "../envs/coding_annot.yaml"
+  params:
+    url=AM_HG19_URL, d=f"{resdir}/data/alphamissense"
+  log:
+    f"{resdir}/logs/download_alphamissense.log"
+  shell:
+    "(set -eo pipefail; mkdir -p {params.d}; "
+    "curl -fsSL '{params.url}' -o {params.d}/AlphaMissense_hg19.tsv.gz; "
+    "zcat {params.d}/AlphaMissense_hg19.tsv.gz | bgzip > {params.d}/AlphaMissense_hg19.bgz; "
+    "tabix -s 1 -b 2 -e 2 -S 1 {params.d}/AlphaMissense_hg19.bgz; "
+    "rm -f {params.d}/AlphaMissense_hg19.tsv.gz) > {log} 2>&1"
+
+# Ensembl GRCh37 GFF3 (gene set frozen at release 87) + primary-assembly FASTA
+# for bcftools csq. FASTA is faidx-indexed; both use unprefixed contigs ('1'),
+# matching the 1000G reference / credible-set coordinates.
+CSQ_GFF3_URL  = "https://ftp.ensembl.org/pub/grch37/release-116/gff3/homo_sapiens/Homo_sapiens.GRCh37.87.gff3.gz"
+CSQ_FASTA_URL = "https://ftp.ensembl.org/pub/grch37/release-116/fasta/homo_sapiens/dna/Homo_sapiens.GRCh37.dna.primary_assembly.fa.gz"
+
+rule download_csq_ref:
+  output:
+    gff3=f"{resdir}/data/csq/Homo_sapiens.GRCh37.87.gff3.gz",
+    fasta=f"{resdir}/data/csq/Homo_sapiens.GRCh37.dna.primary_assembly.fa",
+    fai=f"{resdir}/data/csq/Homo_sapiens.GRCh37.dna.primary_assembly.fa.fai"
+  benchmark:
+    f"{resdir}/benchmarks/download_csq_ref.tsv"
+  conda:
+    "../envs/coding_annot.yaml"
+  params:
+    gff=CSQ_GFF3_URL, fa=CSQ_FASTA_URL, d=f"{resdir}/data/csq"
+  log:
+    f"{resdir}/logs/download_csq_ref.log"
+  shell:
+    "(set -eo pipefail; mkdir -p {params.d}; "
+    "curl -fsSL '{params.gff}' -o {params.d}/Homo_sapiens.GRCh37.87.gff3.gz; "
+    "curl -fsSL '{params.fa}' -o {params.d}/fa.gz; "
+    "gunzip -c {params.d}/fa.gz > {params.d}/Homo_sapiens.GRCh37.dna.primary_assembly.fa; "
+    "rm -f {params.d}/fa.gz; "
+    "samtools faidx {params.d}/Homo_sapiens.GRCh37.dna.primary_assembly.fa) > {log} 2>&1"
+
+####
+# PoPS resources (Phase: pops)
+####
+# PoPS runs as cloned scripts + a published, Ensembl-gene-ID-keyed feature matrix.
+# Clone the repo (ships gene_annot_jun10.txt [ENSGID/GRCh37, 18,384 genes],
+# features_jul17_control.txt, and the scripts) and MIRROR the ~7 GB feature matrix
+# locally (the upstream Dropbox host is historically flaky - issue #18).
+POPS_REPO_URL = "https://github.com/FinucaneLab/pops.git"
+POPS_FEATURES_URL = "https://www.dropbox.com/scl/fo/ne7xhxkt4dwhvd52a59ub/AFKkJu7ACaun1uuE99kmTkc/data/PoPS.features.txt.gz?rlkey=ltdbcld1enyr1zefg1lfqm61i&dl=1"
+
+rule download_pops:
+  output:
+    gene_annot=f"{resdir}/software/pops/example/data/utils/gene_annot_jun10.txt",
+    control=f"{resdir}/software/pops/example/data/utils/features_jul17_control.txt",
+    pops_py=f"{resdir}/software/pops/pops.py",
+    munge_py=f"{resdir}/software/pops/munge_feature_directory.py",
+    features=f"{resdir}/data/pops/features_raw/PoPS.features.txt.gz"
+  benchmark:
+    f"{resdir}/benchmarks/download_pops.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    repo=POPS_REPO_URL, feat=POPS_FEATURES_URL, sw=f"{resdir}/software", d=f"{resdir}/data/pops/features_raw"
+  log:
+    f"{resdir}/logs/download_pops.log"
+  shell:
+    "(set -eo pipefail; mkdir -p {params.sw} {params.d}; "
+    "rm -rf {params.sw}/pops; git clone --depth 1 {params.repo} {params.sw}/pops; "
+    "curl -fsSL '{params.feat}' -o {params.d}/PoPS.features.txt.gz) > {log} 2>&1"
+
+# Dedicated MAGMA gene annotation keyed on Ensembl gene IDs (to match the PoPS
+# feature matrix). Built from the PoPS gene_annot_jun10.txt coordinates + the dense
+# 1KG+HGDP EUR bim, like NCBI37.3 (magma_annot) but ENSGID instead of Entrez. PoPS
+# ships no strand, so a symmetric window is used (pops_magma_window, default 10kb).
+rule magma_ensgid_annot:
+  input:
+    rules.download_magma.output,
+    rules.download_pops.output.gene_annot,
+    rules.prep_1kg.output
+  output:
+    annot=f"{resdir}/data/magma/pops_ensgid.genes.annot",
+    geneloc=f"{resdir}/data/magma/pops_ensgid.gene.loc"
+  benchmark:
+    f"{resdir}/benchmarks/magma_ensgid_annot.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    resdir=resdir, win=config.get("pops_magma_window", "10")
+  log:
+    f"{resdir}/logs/magma_ensgid_annot.log"
+  shell:
+    "(set -eo pipefail; "
+    "awk 'NR>1{{print $1\"\\t\"$3\"\\t\"$4\"\\t\"$5\"\\t\"$2}}' "
+    "  {params.resdir}/software/pops/example/data/utils/gene_annot_jun10.txt "
+    "  > {params.resdir}/data/magma/pops_ensgid.gene.loc; "
+    "{params.resdir}/software/magma/magma --annotate window={params.win} "
+    "  --snp-loc {params.resdir}/data/magma_ref/1kg_hgdp_EUR.bim "
+    "  --gene-loc {params.resdir}/data/magma/pops_ensgid.gene.loc "
+    "  --out {params.resdir}/data/magma/pops_ensgid) > {log} 2>&1"
+
+####
+# CALDERA resources (Phase: caldera)
+####
+# CALDERA (Heilbron et al. 2024, MIT) ships its pretrained model + gene locations
+# + coding-SNP list in the repo - no retraining. Clone pinned to a commit for
+# reproducibility (update deliberately).
+CALDERA_REPO_URL = "https://github.com/kheilbron/caldera.git"
+
+rule download_caldera:
+  output:
+    model=f"{resdir}/software/caldera/trained_models/caldera_model_no_covs.rds",
+    entry=f"{resdir}/software/caldera/z_caldera.R"
+  benchmark:
+    f"{resdir}/benchmarks/download_caldera.tsv"
+  conda:
+    "../envs/main.yaml"
+  params:
+    repo=CALDERA_REPO_URL, sw=f"{resdir}/software"
+  log:
+    f"{resdir}/logs/download_caldera.log"
+  shell:
+    "(set -eo pipefail; mkdir -p {params.sw}; "
+    "rm -rf {params.sw}/caldera; git clone --depth 1 {params.repo} {params.sw}/caldera) > {log} 2>&1"
+
+####
 # Format ROSMAP SMR data
 ####
 
@@ -1824,6 +1978,14 @@ if config["gcsc"] == "T":
         rules.download_gcsc_coreg_all_tissue.input,
         rules.download_gcsc_twas_weights_all_tissue.input
     ])
+
+# Effector-gene / coding-annotation resources.
+if config.get("credset_coding_annot", "F") == "T":
+    resource_inputs.extend([rules.download_alphamissense.output, rules.download_csq_ref.output])
+if config.get("pops", "F") == "T":
+    resource_inputs.extend([rules.download_pops.output, rules.magma_ensgid_annot.output])
+if config.get("caldera", "F") == "T":
+    resource_inputs.append(rules.download_caldera.output)
 
 rule prepare_resources:
   input:

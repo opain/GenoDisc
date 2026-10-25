@@ -1,0 +1,22 @@
+name: coding_annot
+# Tools for credible-set coding annotation (Phase: credset_coding_annot):
+#  - samtools faidx   -> resolve the GRCh37 reference base per variant (REF/ALT)
+#  - bcftools csq     -> protein-altering consequence calls from an Ensembl GFF3
+#  - htslib (bgzip/tabix) -> index the AlphaMissense hg19 table + the GFF3
+# R (data.table) orchestrates and does the AlphaMissense join; kept here so the
+# whole annotation step runs in one env.
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  # NOTE: bcftools/htslib 1.17 need gsl>=2.7, which conflicts with the pipeline's
+  # r-base=4.0.2 (gsl 2.6). The annotation R code is base R + data.table/stringr
+  # only (version-agnostic), so this env uses a newer R that coexists with htslib.
+  - bcftools=1.17
+  - samtools=1.17
+  - htslib=1.17
+  - r-base=4.2
+  - r-data.table
+  - r-optparse
+  - r-stringr
+  - r-yaml
