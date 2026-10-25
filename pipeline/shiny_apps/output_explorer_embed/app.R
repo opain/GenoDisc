@@ -600,6 +600,7 @@ ui <- fluidPage(
     h2GencorUI("h2_gencor"),
     snpAssocUI("snp_assoc"),
     molAssocUI("mol_assoc"),
+    effectorUI("effector"),
     enrichmentUI("enrichment"),
     referencesUI("references"),
     configurationUI("configuration")
@@ -613,7 +614,7 @@ server <- function(input, output, session) {
   # only appears once the user selects >= 2 GWAS).
   observeEvent(session$clientData, {
     for (tab in c("Overview", "GWAS QC", "SNP-h² & rG", "SNP Associations",
-                   "Molecular Associations", "Enrichment Analysis",
+                   "Molecular Associations", "Effector genes", "Enrichment Analysis",
                    "References", "Configuration")) {
       hideTab("main_tabs", tab)
     }
@@ -662,6 +663,7 @@ server <- function(input, output, session) {
     toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor, cf$sbayesrc_r, cf$sumher))
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap) || isTRUE(has_manhattan()))
     toggle("Molecular Associations", cf$mol_assoc)
+    toggle("Effector genes", isTRUE(cf$effector))
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma, cf$pathway))
 
     # Release the CSS-level hide of downstream tabs now that Shiny has
@@ -713,6 +715,7 @@ server <- function(input, output, session) {
                     selected_gwas_multi = shared$selected_gwas_multi,
                     comparison_mode     = shared$comparison_mode,
                     comparison_long     = comparison_long)
+  effectorServer("effector", shared$gwas_data, shared$selected_gwas, config_flags)
   referencesServer("references", shared$gwas_data)
   configurationServer("configuration", shared$gwas_data)
 }

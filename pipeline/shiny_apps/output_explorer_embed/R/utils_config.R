@@ -30,6 +30,11 @@ parse_config_flags <- function(config) {
 
   magma_gene <- flag(config, "magma_gene")
 
+  # Effector-gene prioritisation + credible-set coding annotation.
+  pops <- flag(config, "pops")
+  caldera <- flag(config, "caldera")
+  credset_coding_annot <- flag(config, "credset_coding_annot")
+
   twas_panel_psychencode <- flag(config, "twas_panel_psychencode")
   twas_panel_fusion <- flag(config, "twas_panel_fusion")
   twas_panel_fetal_brain <- flag(config, "twas_panel_fetal_brain")
@@ -153,6 +158,10 @@ parse_config_flags <- function(config) {
     expression = expression,
     psychencode = psychencode,
     protein = protein,
-    drug = drug
+    drug = drug,
+    pops = pops,
+    caldera = caldera,
+    credset_coding_annot = credset_coding_annot,
+    effector = any(pops, caldera, credset_coding_annot)
   )
 }
