@@ -11,6 +11,8 @@ navbar:
           href: pipeline_guide.html
         - text: "Technical Details"
           href: pipeline_technical.html
+        - text: "Draft write-up"
+          href: pipeline_guide.html#automated-draft-write-up
   right:
     - text: "Hosted service ↗"
       href: https://genodisc.er.kcl.ac.uk/

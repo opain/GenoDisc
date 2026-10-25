@@ -593,6 +593,10 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
       configuration/
         config.rds
         gwas_list.rds
+      writeup/             # Auto-generated DRAFT write-up (check before use)
+        methods.md         #   methods paragraph per analysis that ran
+        {gwas}/results.md  #   descriptive results per GWAS
+        references.bib     #   cited tools/datasets (+ references.ris)
     bundle.tar.gz          # `package/` tarballed — the portable output the
                            #   Shiny app loads via "Choose a bundle"
 ```
@@ -782,6 +786,44 @@ The Shiny app provides interactive tabs for exploring:
 - **Molecular Associations** - TWAS, SMR, MAGMA, and PWAS gene-level results
 - **Enrichment** - Drug enrichment (Drug Targetor), tissue enrichment, CMap, and — when `magma_pathway: T` and/or `twas_gsea_pathway: T` — a **Pathway** sub-tab with MAGMA and TWAS-GSEA tables sorted by pooled FDR.
 - **Configuration** - Pipeline settings used for the analysis
+- **References** - citations for the software and datasets used, plus a **Draft write-up** panel to download the auto-generated methods, results and reference list (see below)
+
+***
+
+## Automated draft write-up
+
+Each run also produces a **draft methods section, a descriptive results section and a
+matching reference list**, generated from the run's resolved configuration, recorded
+software/reference versions and result objects — i.e. a description of *what actually ran*.
+
+> **These are drafts, not finished text.** They save you re-deriving tool versions,
+> parameters, test counts and significant-result counts by hand, but you must read, check
+> and edit them before using them in a paper. Every file opens with a banner saying so.
+
+**Where to get them.** Download them from the **References** tab of the Output Viewer
+("Draft write-up": Methods `.md`, References `.bib`, and an all-files `.tar.gz`), or read
+them straight from the bundle under `package/writeup/` (`methods.md`,
+`{gwas}/results.md`, `references.bib`, `references.ris`).
+
+**What the numbers mean.**
+
+- *Significant* means the stored Benjamini–Hochberg FDR-adjusted p-value (`P.FDR`) is below
+  0.05 — the same column and threshold the Output Viewer applies, so the counts reconcile
+  with the viewer. For TWAS/PWAS/SMR the text also reports how many FDR-significant features
+  were colocalised (FUSION) or HEIDI-supported (SMR), matching the viewer's "high-confidence"
+  counts.
+- Fine-mapping has no p-value: "significant" means a 95% credible set was resolved.
+- Heritability (LDSC / SBayesRC / SumHer) has no significance test — the estimate and its
+  uncertainty are reported, and the methods differ in model so are not expected to agree.
+- Analyses that were switched off are omitted (never "not performed"); analyses that were
+  requested but produced no output for any GWAS are listed in a *Reconciliation — check
+  before use* footer with the likely reason.
+
+**Known limitations.** The text contains `[CITE: GenoDisc paper]` placeholders to fill in;
+a few `references.bib` entries are flagged `% VERIFY`; MAGMA/SMR versions are read from the
+staged binaries; and the results text is deliberately descriptive — it reports counts and top
+hits only, with no interpretation or causal/novelty claims, which you add yourself. See
+`pipeline/docs/automated_writeup.md` for the full description and the maintainer notes.
 
 ***
 
