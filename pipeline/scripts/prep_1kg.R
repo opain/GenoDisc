@@ -35,6 +35,13 @@ for(pop in pops){
     system(paste0('plink2 --pfile ',ref_dir,'/ref.chr',chr,
                   ' --keep ',ref_dir,'/keep_files/',pop,'.keep',
                   ' --make-bed --out ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr))
+    # PLINK1 allele frequencies for FUSION FeaturePred's --read-freq (TWAS reference-expression
+    # prediction). The shipped freq_files are a different format and are removed below, so
+    # regenerate the plink1 .frq FeaturePred expects; without it --read-freq fails and every
+    # predicted feature comes out all-NA (breaking the TWAS-GSEA correlation matrix).
+    system(paste0('plink --bfile ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr,
+                  ' --freq --keep-allele-order',
+                  ' --out ',output_dir,'/1KG.Phase3.',pop,'.MAF_001.chr',chr))
   }
 }
 
