@@ -98,11 +98,14 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   # matching row is a Placeholder still shows up as an empty facet.
   dt <- data.table::as.data.table(all_func_res)
   if (nrow(dt) == 0) return(NULL)
+  # PoPS/CALDERA carry a `Prio` column (point-size encoding); absent when those
+  # analyses are off, so default it so the select + join below are uniform.
+  if (!"Prio" %in% names(dt)) dt[, Prio := NA_real_]
   slots   <- unique(dt[, .(Panel, Method, Type)])
   all_ids <- unique(dt$ID[dt$ID != 'Placeholder'])
   if (length(all_ids) == 0) return(NULL)
   grid_dt <- slots[, .(ID = all_ids), by = .(Panel, Method, Type)]
-  vals    <- dt[ID != 'Placeholder', .(Panel, Method, ID, Z, Sig, Coloc)]
+  vals    <- dt[ID != 'Placeholder', .(Panel, Method, ID, Z, Sig, Coloc, Prio)]
   all_func_res_all <- vals[grid_dt, on = c("Panel", "Method", "ID")]
   all_func_res_all[is.na(Sig),   Sig   := 0]
   all_func_res_all[is.na(Coloc), Coloc := 0]
@@ -161,8 +164,13 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Coloc == TRUE & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
     ggplot2::geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene', ], ggplot2::aes(colour = Z), size = point_size) +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene' & !(all_func_res_all$Method %in% c('PoPS', 'CALDERA')), ], ggplot2::aes(colour = Z), size = point_size) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
+    # PoPS / CALDERA facets: no Z-score, so encode priority/probability (rescaled
+    # to [0,1] within each method) as point SIZE in a fixed purple, not the Z
+    # colour ramp. The black Sig ring (above) marks the CALDERA rank-1 gene.
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method %in% c('PoPS', 'CALDERA') & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, size = Prio), colour = '#6a3d9a') +
+    ggplot2::scale_size_continuous(range = c(1, point_size), limits = c(0, 1), breaks = c(0.25, 0.5, 0.75, 1), name = "Priority /\nprobability\n(within method)") +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
@@ -921,7 +929,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
           "Black outline" = "The association is FDR-significant in that panel and method.",
           "Black square" = "FDR-significant AND supported by colocalisation.",
-          "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant."
+          "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
+          "PoPS / CALDERA (purple, size)" = "These two facets are effector-gene prioritisers, not association tests: point SIZE shows the priority / causal probability rescaled to 0–1 within each method (bigger = higher), and the black outline marks CALDERA's top-ranked gene at a locus. See the Effector genes tab for the full figures."
         )
         if (identical(input$mol_layout, "locus")) {
           legend_items <- c(list(
