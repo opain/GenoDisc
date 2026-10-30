@@ -110,6 +110,7 @@ build_gencor_plot <- function(tab, sort_choice = "rg", facet_by = NULL,
 # column names in `df`.
 build_enrich_plot <- function(df, est = "Enrich", se = "SD", label = "Annotation",
                                xlab = "Per-SNP h² enrichment",
+                               facet_var = NULL,
                                font_size = 13, theme_fn = ggplot2::theme_bw, title = "") {
   if (is.null(df) || nrow(df) == 0) return(NULL)
   dt <- data.table::as.data.table(df)
@@ -124,9 +125,12 @@ build_enrich_plot <- function(df, est = "Enrich", se = "SD", label = "Annotation
         !is.na(ci_lo) & !is.na(ci_hi) & (ci_lo > 1 | ci_hi < 1),
         "95% CI excludes 1", "Not significant")]
   dt[, sig := factor(sig, levels = c("95% CI excludes 1", "Not significant"))]
-  dt[, annot := factor(annot, levels = annot[order(enr)])]   # largest enrichment at top
+  # Order annotations by MEAN enrichment across GWAS so the shared y-axis is
+  # consistent when faceting multiple traits (largest enrichment at top).
+  ord <- dt[, .(m = mean(enr, na.rm = TRUE)), by = annot][order(m), annot]
+  dt[, annot := factor(annot, levels = ord)]
   sig_cols <- c("95% CI excludes 1" = "#d62728", "Not significant" = "#7f7f7f")
-  ggplot2::ggplot(dt, ggplot2::aes(x = enr, y = annot, colour = sig)) +
+  p <- ggplot2::ggplot(dt, ggplot2::aes(x = enr, y = annot, colour = sig)) +
     ggplot2::geom_vline(xintercept = 1, linetype = "dashed", colour = "grey55") +
     ggplot2::geom_errorbarh(ggplot2::aes(xmin = ci_lo, xmax = ci_hi), height = 0, na.rm = TRUE) +
     ggplot2::geom_point(size = 2.4, na.rm = TRUE) +
@@ -135,6 +139,13 @@ build_enrich_plot <- function(df, est = "Enrich", se = "SD", label = "Annotation
     theme_fn(base_size = font_size) +
     ggplot2::theme(legend.position = "top", panel.grid.minor = ggplot2::element_blank(),
                    plot.title = ggplot2::element_text(hjust = 0.5, face = "bold"))
+  # One forest panel per GWAS when more than one trait is present.
+  if (!is.null(facet_var) && facet_var %in% names(dt) &&
+      length(unique(dt[[facet_var]])) > 1) {
+    p <- p + ggplot2::facet_wrap(stats::as.formula(paste("~", facet_var)),
+                                 nrow = 1, scales = "free_x")
+  }
+  p
 }
 
 # BLD-LDAK annotation labels for SumHer's opaque LDAK category codes (A1..A65 +
@@ -414,28 +425,39 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       ))
     })
 
-    # SBayesRC (R package) functional-annotation h2 enrichment. Per-GWAS and large
-    # (~96 baseline-LD annotations), so read the SINGLE selected GWAS (like the
-    # gencor table), not the stacked h2_gwas_vec(). The Intercept row is dropped.
+    # SBayesRC (R package) functional-annotation h2 enrichment, over every GWAS in
+    # the current selection (h2_gwas_vec), stamped with a GWAS column so the plot
+    # facets one forest panel per trait and the table carries a GWAS column. The
+    # Intercept row is dropped.
     sbayesrc_r_enrich <- reactive({
-      req(gwas_data(), config_flags(), selected_gwas())
+      req(gwas_data(), config_flags(), h2_gwas_vec())
       cf <- config_flags()
       if (!isTRUE(cf$sbayesrc_r)) return(NULL)
-      e <- tryCatch(gd_read(gwas_data(), selected_gwas(), "gwas_qc")$sbayesrc_r_dat$enrich,
-                    error = function(e) NULL)
-      if (is.null(e) || nrow(e) == 0) return(NULL)
-      e <- data.table::as.data.table(e)
-      if (!all(c("Annotation", "Enrich", "SD") %in% names(e))) return(NULL)
-      e[tolower(as.character(Annotation)) != "intercept"]
+      parts <- lapply(h2_gwas_vec(), function(g) {
+        e <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sbayesrc_r_dat$enrich,
+                      error = function(e) NULL)
+        if (is.null(e) || nrow(e) == 0) return(NULL)
+        e <- data.table::as.data.table(e)
+        if (!all(c("Annotation", "Enrich", "SD") %in% names(e))) return(NULL)
+        e <- e[tolower(as.character(Annotation)) != "intercept"]
+        e[, GWAS := g]
+        e
+      })
+      parts <- parts[!vapply(parts, is.null, logical(1))]
+      if (length(parts) == 0) return(NULL)
+      data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
     })
 
     output$sbayesrc_r_enrich_table <- DT::renderDT({
       e <- sbayesrc_r_enrich()
       if (is.null(e) || nrow(e) == 0) return(NULL)
+      multi <- length(unique(e$GWAS)) > 1
+      tab <- if (multi) e[, .(GWAS, Annotation, Enrichment = Enrich, SD)]
+             else        e[, .(Annotation, Enrichment = Enrich, SD)]
+      ord_col <- if (multi) 2 else 1
       dt <- DT::datatable(
-        e[, .(Annotation, Enrichment = Enrich, SD)], selection = "none",
-        rownames = FALSE,
-        options = list(pageLength = 15, order = list(list(1, "desc")))
+        tab, selection = "none", rownames = FALSE,
+        options = list(pageLength = 15, order = list(list(ord_col, "desc")))
       )
       DT::formatRound(dt, c("Enrichment", "SD"), 3)
     })
@@ -444,10 +466,12 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       e <- sbayesrc_r_enrich()
       if (is.null(e) || nrow(e) == 0) return(NULL)
       build_enrich_plot(e, est = "Enrich", se = "SD", label = "Annotation",
-                        xlab = "Per-SNP h² enrichment (SBayesRC, baseline-LD v2.2)")
+                        xlab = "Per-SNP h² enrichment (SBayesRC, baseline-LD v2.2)",
+                        facet_var = "GWAS")
     }, height = function() {
       e <- sbayesrc_r_enrich()
-      max(300, 60 + 16 * (if (is.null(e)) 0 else nrow(e)))
+      n_annot <- if (is.null(e)) 0 else length(unique(e$Annotation))
+      max(300, 60 + 16 * n_annot)
     })
 
     # -------------------------------------------------------------------
@@ -546,29 +570,37 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
     # `Component Share SE Expected Enrichment SE Z` (duplicate SE header), so read the
     # enrichment estimate + its SE BY POSITION (5, 6). The Base row (=1 by def.) is dropped.
     sumher_enrich <- reactive({
-      req(gwas_data(), config_flags(), selected_gwas())
+      req(gwas_data(), config_flags(), h2_gwas_vec())
       cf <- config_flags()
       if (!isTRUE(cf$sumher)) return(NULL)
-      e <- tryCatch(gd_read(gwas_data(), selected_gwas(), "gwas_qc")$sumher_dat$enrich,
-                    error = function(e) NULL)
-      if (is.null(e) || nrow(e) == 0 || ncol(e) < 6) return(NULL)
-      e <- data.table::as.data.table(e)
-      code <- sub("^Enrich_", "", as.character(e[[1]]))
-      lab  <- unname(.sumher_bld_labels[code]); lab[is.na(lab)] <- code[is.na(lab)]
-      out <- data.table::data.table(
-        Annotation = lab,
-        Enrichment = suppressWarnings(as.numeric(e[[5]])),
-        SE         = suppressWarnings(as.numeric(e[[6]])),
-        code       = code)
-      out[code != "Base"]
+      parts <- lapply(h2_gwas_vec(), function(g) {
+        e <- tryCatch(gd_read(gwas_data(), g, "gwas_qc")$sumher_dat$enrich,
+                      error = function(e) NULL)
+        if (is.null(e) || nrow(e) == 0 || ncol(e) < 6) return(NULL)
+        e <- data.table::as.data.table(e)
+        code <- sub("^Enrich_", "", as.character(e[[1]]))
+        lab  <- unname(.sumher_bld_labels[code]); lab[is.na(lab)] <- code[is.na(lab)]
+        out <- data.table::data.table(
+          Annotation = lab,
+          Enrichment = suppressWarnings(as.numeric(e[[5]])),
+          SE         = suppressWarnings(as.numeric(e[[6]])),
+          code       = code, GWAS = g)
+        out[code != "Base"]
+      })
+      parts <- parts[!vapply(parts, is.null, logical(1))]
+      if (length(parts) == 0) return(NULL)
+      data.table::rbindlist(parts, use.names = TRUE, fill = TRUE)
     })
 
     output$sumher_enrich_table <- DT::renderDT({
       e <- sumher_enrich()
       if (is.null(e) || nrow(e) == 0) return(NULL)
-      dt <- DT::datatable(e[, .(Annotation, Enrichment, SE)], rownames = FALSE,
-                          selection = "none",
-                          options = list(pageLength = 15, order = list(list(1, "desc"))))
+      multi <- length(unique(e$GWAS)) > 1
+      tab <- if (multi) e[, .(GWAS, Annotation, Enrichment, SE)]
+             else        e[, .(Annotation, Enrichment, SE)]
+      ord_col <- if (multi) 2 else 1
+      dt <- DT::datatable(tab, rownames = FALSE, selection = "none",
+                          options = list(pageLength = 15, order = list(list(ord_col, "desc"))))
       DT::formatRound(dt, c("Enrichment", "SE"), 3)
     })
 
@@ -576,10 +608,11 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       e <- sumher_enrich()
       if (is.null(e) || nrow(e) == 0) return(NULL)
       build_enrich_plot(e, est = "Enrichment", se = "SE", label = "Annotation",
-                        xlab = "h² enrichment (SumHer, BLD-LDAK)")
+                        xlab = "h² enrichment (SumHer, BLD-LDAK)", facet_var = "GWAS")
     }, height = function() {
       e <- sumher_enrich()
-      max(300, 60 + 16 * (if (is.null(e)) 0 else nrow(e)))
+      n_annot <- if (is.null(e)) 0 else length(unique(e$Annotation))
+      max(300, 60 + 16 * n_annot)
     })
 
     # -------------------------------------------------------------------
