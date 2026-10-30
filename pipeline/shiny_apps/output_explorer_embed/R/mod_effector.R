@@ -19,13 +19,23 @@
 }
 
 # A figure block: a titled plot with a small PNG download button beneath it.
-.eff_figure <- function(ns, plot_id, height = "420px") {
-  tagList(
+# Width is capped (mirrors the Manhattan tab's `max-width` wrapper) so figures
+# don't stretch across very wide screens.
+.eff_figure <- function(ns, plot_id, height = "420px", max_width = 900) {
+  tags$div(
+    style = sprintf("max-width: %dpx;", max_width),
     plotOutput(ns(plot_id), height = height),
     div(style = "margin: 4px 0 2px;",
         downloadButton(ns(paste0(plot_id, "_dl")), "Download PNG",
                        class = "btn btn-default btn-sm"))
   )
+}
+
+# Width-capped wrapper for a table (mirrors the column-width restriction used
+# by the Manhattan / MAGMA result tables).
+.eff_table <- function(ns, table_id, max_width = 900) {
+  tags$div(style = sprintf("max-width: %dpx;", max_width),
+           DT::dataTableOutput(ns(table_id)))
 }
 
 effectorUI <- function(id) {
@@ -48,16 +58,19 @@ effectorUI <- function(id) {
         br(),
         .eff_howto(
           strong("PoPS (Polygenic Priority Score)"), " ranks every gene genome-wide ",
-          "by combining its MAGMA gene association with a large published functional-",
-          "genomics feature matrix. It is a ", strong("genome-wide prioritisation"),
+          "by combining its MAGMA gene association with a large published ",
+          "functional-genomics feature matrix. It is a ", strong("genome-wide prioritisation"),
           ", not a locus-specific or causal call: a high-PoPS gene near a GWAS signal ",
           "is a strong candidate, but PoPS alone does not prove causality or assign a ",
-          "gene to a locus. The track below places each gene at its genomic position; ",
-          "peaks near your associated loci are the ones to follow up."),
-        .eff_figure(ns, "pops_track"),
+          "gene to a locus. Because the score is genome-wide, a gene can rank highly ",
+          "on its overall functional profile without sitting under any GWAS signal — ",
+          "so always read PoPS next to the locus (CALDERA / fine-mapping) evidence. ",
+          "The track below places each gene at its genomic position; peaks near your ",
+          "associated loci are the ones to follow up."),
+        .eff_figure(ns, "pops_track", max_width = 1200),
         uiOutput(ns("pops_track_msg")),
         br(), h4("All genes"),
-        DT::dataTableOutput(ns("pops_table")),
+        .eff_table(ns, "pops_table", max_width = 760),
         uiOutput(ns("pops_msg")), br()
       ),
 
@@ -152,11 +165,14 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
     }
 
     empty_dt <- function() DT::datatable(data.frame(), rownames = FALSE,
+                                         selection = "none",
                                          options = list(dom = "t"))
     msg <- function(text) div(class = "gd-legend", em(text))
+    # selection = "none": these tables are display-only (clicking a row does
+    # nothing), so suppress the misleading row-highlight (feedback item xi).
     show_dt <- function(df, sci_cols = NULL) {
       df <- as.data.frame(df); df[is.na(df)] <- "NA"
-      DT::datatable(df, rownames = FALSE, filter = "top",
+      DT::datatable(df, rownames = FALSE, filter = "top", selection = "none",
                     options = list(pageLength = 15, scrollX = TRUE,
                                    columnDefs = list(list(className = "dt-center",
                                                           targets = seq_len(ncol(df)) - 1))))
@@ -249,8 +265,22 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       d <- pops_data()
       if (is.null(d) || nrow(d) == 0) return(empty_dt())
       d <- as.data.frame(d)
-      if ("PoPS_Score" %in% names(d))
-        d <- d[order(-suppressWarnings(as.numeric(d$PoPS_Score))), ]
+      d$PoPS_Score <- suppressWarnings(as.numeric(d$PoPS_Score))
+      d <- d[order(-d$PoPS_Score), ]
+      d$Rank <- seq_len(nrow(d))
+      # Add a genomic position (GRCh37) from the bundled gene reference so the
+      # table answers "where is this gene" without the figure. The reference
+      # carries a single representative position (CHR/BP), not gene start/stop.
+      pos <- tryCatch(
+        resolve_feature_positions(d$Gene, gwas_data(), selected_gwas(), config_flags()),
+        error = function(e) NULL)
+      if (!is.null(pos) && nrow(pos) > 0) {
+        idx <- match(d$Gene, pos$ID)
+        d$CHR <- pos$CHR[idx]
+        d$Position <- pos$BP[idx]
+      }
+      front <- intersect(c("Rank", "Gene", "ENSGID", "CHR", "Position", "PoPS_Score"), names(d))
+      d <- d[, c(front, setdiff(names(d), front)), drop = FALSE]
       show_dt(d)
     })
     output$pops_msg <- renderUI({
@@ -279,7 +309,9 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       if (nrow(sub) == 0) return(NULL)
       sub$caldera <- suppressWarnings(as.numeric(sub$caldera))
       sub$nearest_gene <- as.logical(sub$nearest_gene)
-      sub$gene <- factor(sub$gene, levels = sub$gene[order(sub$caldera)])
+      # A gene can recur across credible sets at a locus, so dedup the factor
+      # levels (duplicated levels error in factor()); order by probability.
+      sub$gene <- factor(sub$gene, levels = unique(sub$gene[order(sub$caldera)]))
       sub$fill_grp <- ifelse(sub$rank == 1, "Top-ranked", "Other")
       multi_cs <- length(unique(sub$cs)) > 1
       g <- ggplot2::ggplot(sub, ggplot2::aes(x = gene, y = caldera, fill = fill_grp)) +
@@ -447,7 +479,7 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       b <- report_bits(); if (is.null(b)) return(NULL)
       sub <- b$cal
       sub$nearest_gene <- as.logical(sub$nearest_gene)
-      sub$gene <- factor(sub$gene, levels = sub$gene[order(sub$caldera)])
+      sub$gene <- factor(sub$gene, levels = unique(sub$gene[order(sub$caldera)]))
       sub$fill_grp <- ifelse(sub$rank == 1, "Top-ranked", "Other")
       g <- ggplot2::ggplot(sub, ggplot2::aes(x = gene, y = caldera, fill = fill_grp)) +
         ggplot2::geom_col(width = 0.72) +
