@@ -37,9 +37,14 @@ write_empty <- function() fwrite(setNames(data.table(matrix(character(0), ncol =
 cv <- tryCatch(fread(paste0(fm_dir, opt$gwas, ".GW.credset_variants.csv")), error = function(e) NULL)
 if (is.null(cv) || nrow(cv) == 0) { write_empty(); quit(save = "no") }
 
-# CALDERA takes one credible set per "locus"; use L=10 (primary) sets and make a
+# CALDERA takes one credible set per "locus". Use the L=10 (multi-signal) sets
+# where a locus has them, but fall back to its L=1 (single-signal) set otherwise,
+# so EVERY fine-mapped locus is covered — not just the few that produced an L=10
+# decomposition (previously `cv[L == 10]` dropped all L=1-only loci). Make a
 # distinct locus id per (lead, cs).
-cv <- cv[L == 10]
+cv[, .has10 := any(L == 10), by = locus]
+cv <- cv[(.has10 & L == 10) | (!.has10 & L == 1)]
+cv[, .has10 := NULL]
 if (nrow(cv) == 0) { write_empty(); quit(save = "no") }
 cv[, locus_id := paste0(locus, "_cs", cs)]
 cs_dt <- cv[, .(locus = locus_id, chr = CHR, bp = BP, pip = PIP, rsid = SNP)]
