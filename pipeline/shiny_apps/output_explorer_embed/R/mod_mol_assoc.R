@@ -136,6 +136,19 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(gene_order))
     locus_levels <- unique(all_func_res_all$Locus[order(all_func_res_all$locus_order)])
     all_func_res_all$Locus <- factor(all_func_res_all$Locus, levels = locus_levels)
+
+    # Ring the top-PoPS gene within each locus (feedback iii) so the heatmap
+    # marks the strongest PoPS candidate per locus the way the black Sig ring
+    # already marks CALDERA's rank-1 gene. Only in locus mode ("within loci").
+    if ("Prio" %in% names(all_func_res_all)) {
+      pm <- which(all_func_res_all$Method == "PoPS" & !is.na(all_func_res_all$Prio))
+      if (length(pm) > 0) {
+        top <- vapply(split(pm, as.character(all_func_res_all$Locus[pm])),
+                      function(ii) ii[which.max(all_func_res_all$Prio[ii])],
+                      integer(1))
+        data.table::set(all_func_res_all, i = as.integer(top), j = "Sig", value = TRUE)
+      }
+    }
   } else {
     all_func_res_all <- all_func_res_all[order(as.character(all_func_res_all$ID)), ]
     all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
@@ -412,6 +425,13 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$mol_body <- renderUI({
       ns_local <- session$ns
       method_tabs <- .mol_method_tab_panels(ns_local)
+      # Effector-gene prioritisation (PoPS / CALDERA / credible-set coding) is
+      # mounted as a method tab here rather than a top-level tab (feedback x).
+      # effectorUI uses its own absolute "effector" namespace, matched by the
+      # top-level effectorServer("effector", ...) call in app.R; DOM nesting
+      # does not affect that binding. Shown only when effector analyses ran.
+      if (isTRUE(config_flags()$effector))
+        method_tabs <- c(method_tabs, list(effectorUI("effector")))
       panel_info <- .mol_panel_info_tab(ns_local)
       is_multi <- !is.null(selected_gwas_multi) &&
                     length(selected_gwas_multi()) > 1L
@@ -598,7 +618,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       tmp <- gd_read(gwas_data(), .pick_mol_gwas(), "mol_assoc/magma")
 
-      datatable(tmp, rownames = F, options = list(
+      datatable(tmp, rownames = F, selection = "none", options = list(
         rowCallback = JS(js),
         columnDefs = list(list(className = 'dt-center', targets = 0:5))))
     })
@@ -630,7 +650,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (!cross) keep <- c(keep, "COLOC.PP3","COLOC.PP4","High Confidence")
       tmp <- tmp[, keep, with = F]
 
-      datatable(tmp, rownames = F, options = list(
+      datatable(tmp, rownames = F, selection = "none", options = list(
         rowCallback = JS(js),
         columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
@@ -662,7 +682,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (!cross) keep <- c(keep, "COLOC.PP3","COLOC.PP4","High Confidence")
       tmp <- tmp[, keep, with = F]
 
-      datatable(tmp, rownames = F, options = list(
+      datatable(tmp, rownames = F, selection = "none", options = list(
         rowCallback = JS(js),
         columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
@@ -699,7 +719,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       names(tmp)[names(tmp) == 'p_SMR.FDR'] <- 'P.FDR'
       names(tmp)[names(tmp) == 'p_HEIDI'] <- "P (HEIDI)"
 
-      datatable(tmp, rownames = F, options = list(
+      datatable(tmp, rownames = F, selection = "none", options = list(
         rowCallback = JS(js),
         columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
@@ -731,7 +751,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       names(tmp)[names(tmp) == 'p_SMR.FDR'] <- 'P.FDR'
       names(tmp)[names(tmp) == 'p_HEIDI'] <- "P (HEIDI)"
 
-      datatable(tmp, rownames = F, options = list(
+      datatable(tmp, rownames = F, selection = "none", options = list(
         rowCallback = JS(js),
         columnDefs = list(list(className = 'dt-center', targets = 0:(ncol(tmp) - 1)))))
     })
@@ -766,12 +786,21 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         all_panel_info <- rbind(all_panel_info, tmp)
       }
 
+      # No TWAS/PWAS/SMR panels selected (or older bundle with no $panels) leaves
+      # all_panel_info NULL; guard so order()/datatable() don't error (feedback i).
+      if (is.null(all_panel_info) || nrow(all_panel_info) == 0) {
+        return(datatable(
+          data.frame(`Panel information` = "No TWAS / PWAS / SMR reference panels were used in this analysis.",
+                     check.names = FALSE),
+          rownames = FALSE, selection = "none", options = list(dom = "t")))
+      }
+
       all_panel_info <- all_panel_info[order(all_panel_info$Software, all_panel_info$Type, all_panel_info$Panel), ]
 
       names(all_panel_info)[names(all_panel_info) == 'N_indiv'] <- 'N Individuals'
       names(all_panel_info)[names(all_panel_info) == 'N_gene'] <- 'N Genes'
 
-      datatable(all_panel_info, rownames = F, options = list(
+      datatable(all_panel_info, rownames = F, selection = "none", options = list(
         columnDefs = list(list(className = 'dt-center', targets = '_all'))))
     })
 

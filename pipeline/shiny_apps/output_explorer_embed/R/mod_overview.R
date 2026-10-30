@@ -82,7 +82,7 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
       # NA sample-size shows as "NA"; hide it.
       out$N[out$N == "NA"] <- "—"
       DT::datatable(
-        out, rownames = FALSE, escape = FALSE,
+        out, rownames = FALSE, escape = FALSE, selection = "none",
         options = list(dom = "t", paging = FALSE, ordering = FALSE)
       )
     })
@@ -114,7 +114,7 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(
-        out, rownames = FALSE, escape = FALSE,
+        out, rownames = FALSE, escape = FALSE, selection = "none",
         options = list(dom = "t", paging = FALSE, ordering = FALSE)
       )
     })

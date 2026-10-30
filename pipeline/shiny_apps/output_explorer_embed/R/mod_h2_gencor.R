@@ -320,7 +320,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(
-        out, rownames = FALSE, escape = FALSE,
+        out, rownames = FALSE, escape = FALSE, selection = "none",
         options = list(dom = "t", paging = FALSE, ordering = FALSE)
       )
     })
@@ -381,7 +381,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       rows <- Filter(Negate(is.null), rows)
       if (length(rows) == 0) return(NULL)
       DT::datatable(
-        do.call(rbind, rows), rownames = FALSE, escape = FALSE,
+        do.call(rbind, rows), rownames = FALSE, escape = FALSE, selection = "none",
         options = list(dom = "t", paging = FALSE, ordering = FALSE)
       )
     })
@@ -433,7 +433,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       e <- sbayesrc_r_enrich()
       if (is.null(e) || nrow(e) == 0) return(NULL)
       dt <- DT::datatable(
-        e[, .(Annotation, Enrichment = Enrich, SD)],
+        e[, .(Annotation, Enrichment = Enrich, SD)], selection = "none",
         rownames = FALSE,
         options = list(pageLength = 15, order = list(list(1, "desc")))
       )
@@ -505,7 +505,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         )
       })
       DT::datatable(
-        do.call(rbind, rows), rownames = FALSE, escape = FALSE,
+        do.call(rbind, rows), rownames = FALSE, escape = FALSE, selection = "none",
         options = list(dom = "t", paging = FALSE, ordering = FALSE)
       )
     })
@@ -567,6 +567,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
       e <- sumher_enrich()
       if (is.null(e) || nrow(e) == 0) return(NULL)
       dt <- DT::datatable(e[, .(Annotation, Enrichment, SE)], rownames = FALSE,
+                          selection = "none",
                           options = list(pageLength = 15, order = list(list(1, "desc"))))
       DT::formatRound(dt, c("Enrichment", "SE"), 3)
     })
@@ -817,7 +818,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         "}"
       )
       datatable(
-        show, rownames = FALSE,
+        show, rownames = FALSE, selection = "none",
         colnames = c("Secondary trait", "rg", "SE", "p", "FDR p", "N SNPs"),
         options  = list(
           pageLength   = 25,
@@ -1175,7 +1176,7 @@ h2GencorServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags
         check.names = FALSE, stringsAsFactors = FALSE
       )
       DT::datatable(
-        show, rownames = FALSE,
+        show, rownames = FALSE, selection = "none",
         options = list(pageLength = 25, order = list(list(3, "asc")))
       ) %>%
         DT::formatRound(columns = c("rg", "SE"), digits = 3) %>%

@@ -881,7 +881,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$snp_assoc_finemap_table <- renderDataTable({
       df <- snp_assoc_finemap_data()
       req(!finemap_is_empty(df))
-      datatable(df, rownames = F, width = 7, options = list(
+      datatable(df, rownames = F, width = 7, selection = "none", options = list(
         columnDefs = list(list(className = 'dt-center', targets = 0:5))))
     })
   })

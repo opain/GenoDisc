@@ -600,7 +600,6 @@ ui <- fluidPage(
     h2GencorUI("h2_gencor"),
     snpAssocUI("snp_assoc"),
     molAssocUI("mol_assoc"),
-    effectorUI("effector"),
     enrichmentUI("enrichment"),
     referencesUI("references"),
     configurationUI("configuration")
@@ -614,7 +613,7 @@ server <- function(input, output, session) {
   # only appears once the user selects >= 2 GWAS).
   observeEvent(session$clientData, {
     for (tab in c("Overview", "GWAS QC", "SNP-h² & rG", "SNP Associations",
-                   "Molecular Associations", "Effector genes", "Enrichment Analysis",
+                   "Molecular Associations", "Enrichment Analysis",
                    "References", "Configuration")) {
       hideTab("main_tabs", tab)
     }
@@ -662,8 +661,10 @@ server <- function(input, output, session) {
     }
     toggle("SNP-h² & rG", any(cf$ldsc, cf$ldsc_gencor, cf$sbayesrc_r, cf$sumher))
     toggle("SNP Associations", any(cf$clump, cf$cojo, cf$finemap) || isTRUE(has_manhattan()))
-    toggle("Molecular Associations", cf$mol_assoc)
-    toggle("Effector genes", isTRUE(cf$effector))
+    # Effector-gene views now live INSIDE the Molecular Associations tab, so
+    # that tab must also show when only effector analyses ran (e.g. credible-set
+    # coding alone, which needs finemap but not a molecular-association method).
+    toggle("Molecular Associations", cf$mol_assoc || isTRUE(cf$effector))
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma, cf$pathway))
 
     # Release the CSS-level hide of downstream tabs now that Shiny has

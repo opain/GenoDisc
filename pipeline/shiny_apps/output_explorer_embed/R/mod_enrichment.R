@@ -1438,6 +1438,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       datatable(
         df,
         rownames = FALSE,
+        selection = "none",
         options = list(
           rowCallback = JS(js),
           pageLength  = 25,
@@ -1926,7 +1927,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       datatable(
         tmp,
-        rownames = F,
+        rownames = F, selection = "none",
         options = list(# Apply javascript for P value column
           rowCallback = JS(js),
           # Centre column contents and fix width of Pvalue column
@@ -2273,7 +2274,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       datatable(
         tmp,
-        rownames = F,
+        rownames = F, selection = "none",
         options = list(# Apply javascript for P value column
           rowCallback = JS(js),
           # Centre column contents and fix width of Pvalue column
@@ -2733,7 +2734,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       hide_idx <- which(names(d) == 'Reversal_Z') - 1L
       cdefs <- list(list(className = 'dt-center', targets = '_all'))
       if(length(hide_idx) == 1L) cdefs <- c(cdefs, list(list(visible = FALSE, targets = hide_idx)))
-      datatable(d, rownames = FALSE,
+      datatable(d, rownames = FALSE, selection = "none",
                 options = list(scrollX = TRUE, columnDefs = cdefs))
     })
 
@@ -2745,7 +2746,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       hide_idx <- which(names(d) == 'Reversal_Z') - 1L
       cdefs <- list(list(className = 'dt-center', targets = '_all'))
       if(length(hide_idx) == 1L) cdefs <- c(cdefs, list(list(visible = FALSE, targets = hide_idx)))
-      datatable(d, rownames = FALSE,
+      datatable(d, rownames = FALSE, selection = "none",
                 options = list(scrollX = TRUE, columnDefs = cdefs))
     })
 
@@ -2841,7 +2842,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       tmp$SE   <- round(tmp$SE, 3)
       datatable(
         tmp,
-        rownames = FALSE,
+        rownames = FALSE, selection = "none",
         options = list(
           rowCallback = JS(js),
           columnDefs = list(
