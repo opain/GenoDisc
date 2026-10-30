@@ -653,7 +653,10 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       req(snp_assoc_lead)
 
-      snp_assoc_lead <- snp_assoc_lead[, names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","NearestGene"), with = F]
+      # FREQ = effect-allele frequency reported in the GWAS; REF.FREQ = allele
+      # frequency in the ancestry-matched reference panel (both carried through
+      # from the cleaned sumstats, if present). NearestGene kept last.
+      snp_assoc_lead <- snp_assoc_lead[, names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","FREQ","REF.FREQ","NearestGene"), with = F]
 
       snp_assoc_lead$P <- as.numeric(snp_assoc_lead$P)
 
@@ -661,6 +664,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
       snp_assoc_lead$BETA <- round(snp_assoc_lead$BETA, 2)
       snp_assoc_lead$SE <- round(snp_assoc_lead$SE, 2)
+      for (cc in c("FREQ", "REF.FREQ"))
+        if (cc %in% names(snp_assoc_lead))
+          snp_assoc_lead[[cc]] <- round(as.numeric(snp_assoc_lead[[cc]]), 4)
 
       snp_assoc_lead <- snp_assoc_lead[order(snp_assoc_lead$CHR, snp_assoc_lead$BP), ]
 
@@ -743,6 +749,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "CHR / BP" = "Chromosome and base-pair position of the lead variant (genome build as identified on the QC Summary tab).",
         "SNP" = "Variant identifier (rsID).",
         "A1 / A2" = "Effect allele (A1) and other allele (A2); BETA is expressed per copy of A1.",
+        "FREQ" = "A1 (effect-allele) frequency as reported in the GWAS, where available.",
+        "REF.FREQ" = "A1 frequency in the ancestry-matched reference panel used for QC and clumping, where available.",
         "NearestGene" = "Gene nearest to the lead variant (not necessarily the causal gene)."
       )
       if (input$clumping_type == "cojo_analysis") {
@@ -767,20 +775,27 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     output$snp_assoc_lead_table <- renderDataTable({
+      d <- snp_assoc_lead_data()
+      # Column indices are resolved by name (0-indexed) because the column set
+      # differs between clumping (carries FREQ / REF.FREQ) and COJO.
+      p_idx  <- match("P", names(d)) - 1L
+      ng_idx <- match("NearestGene", names(d)) - 1L
+      last   <- ncol(d) - 1L
       js <- c(
         "function(row, data, displayNum, index){",
-        "  var x = data[7];",
-        "  $('td:eq(7)', row).html(x.toExponential(2));",
+        sprintf("  var x = data[%d];", p_idx),
+        sprintf("  if (x !== null && x !== '') $('td:eq(%d)', row).html((+x).toExponential(2));", p_idx),
         "}"
       )
 
-      datatable(snp_assoc_lead_data(), rownames = F, width = 7,
+      datatable(d, rownames = F, width = 7,
         selection = list(mode = 'single', target = 'row'),
         options = list(
           rowCallback = JS(js),
-          columnDefs = list(list(className = 'dt-center', targets = 0:7),
-                            list(width = '60px', targets = 7),
-                            list(width = '600px', targets = 8))))
+          columnDefs = c(
+            list(list(className = 'dt-center', targets = 0:last),
+                 list(width = '60px', targets = p_idx)),
+            if (!is.na(ng_idx)) list(list(width = '600px', targets = ng_idx)))))
     })
 
     output$locus_plot_ui <- renderUI({

@@ -1249,7 +1249,7 @@ build_pathway_summary_multi_gtable <- function(long,
 build_qc_summary_long <- function(gd, gwas_vec, gwas_list = NULL) {
   if (length(gwas_vec) == 0) {
     return(data.table::data.table(
-      gwas = character(0), label = character(0),
+      gwas = character(0), label = character(0), population = character(0),
       n_var_orig = integer(0), build = character(0),
       n_snp_final = integer(0),
       lambda_gc = numeric(0), max_chi2 = numeric(0),
@@ -1269,9 +1269,15 @@ build_qc_summary_long <- function(gd, gwas_vec, gwas_list = NULL) {
       lbl <- gwas_list$label[gwas_list$name == g]
       if (length(lbl) == 0 || is.na(lbl[1L])) g else as.character(lbl[1L])
     } else g
+    population <- if (!is.null(gwas_list) &&
+                      all(c("name", "population") %in% names(gwas_list))) {
+      pop <- gwas_list$population[gwas_list$name == g]
+      if (length(pop) == 0 || is.na(pop[1L])) NA_character_ else as.character(pop[1L])
+    } else NA_character_
     data.table::data.table(
       gwas        = g,
       label       = label,
+      population  = population,
       n_var_orig  = suppressWarnings(as.integer(cv$n_var_orig)),
       build       = build_val,
       n_snp_final = suppressWarnings(as.integer(cv$n_snp_final)),

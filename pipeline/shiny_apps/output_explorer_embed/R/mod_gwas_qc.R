@@ -336,6 +336,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
     # polygenic signal, > 1 suggests confounding.)
     .qc_row_labels <- c(
       "GWAS Label"                         = "label",
+      "Population"                         = "population",
       "N variants pre-QC"                  = "n_var_orig",
       "Identified genome build"            = "build",
       "N variants post-QC"                 = "n_snp_final",
@@ -575,7 +576,7 @@ gwasQcServer <- function(id, gwas_data, selected_gwas, gwas_list, config_flags,
                     "# removed", "# retained (±500kb)",
                     "# retained GW-sig", "Signal lost?")
       dt <- DT::datatable(
-        d, rownames = FALSE, escape = TRUE,
+        d, rownames = FALSE, escape = TRUE, selection = "none",
         options = list(dom = "tp", paging = TRUE, pageLength = 10,
                        order = list(list(3, "asc"))))
       DT::formatStyle(dt, "Signal lost?", target = "row",
