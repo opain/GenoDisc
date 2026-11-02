@@ -122,54 +122,34 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     }
   }
 
-  # PoPS and CALDERA are effector-gene prioritisers, not association tests, so
-  # they carry no Z-score. They ride a separate `Prio` column (priority /
-  # probability, rescaled to [0,1] WITHIN each method) that the heatmap encodes
-  # as point size rather than the signed Z colour ramp. Z is left NA so the
-  # Z-colour geom skips them. Added via rbindlist(fill=TRUE) so existing rows
-  # get Prio = NA without touching every per-method frame above.
-  prio_parts <- list()
-
-  if (isTRUE(cf$pops)) {
-    pops <- gd_read(gd, gwas, "mol_assoc/pops")
-    if (!is.null(pops) && nrow(pops) > 0) {
-      pops <- as.data.frame(pops)
-      sc <- suppressWarnings(as.numeric(pops$PoPS_Score))
-      keep <- is.finite(sc) & !is.na(pops$Gene) & pops$Gene != ""
-      if (any(keep)) {
-        mx <- max(sc[keep]); if (!is.finite(mx) || mx <= 0) mx <- 1
-        prio_parts$pops <- data.frame(
-          Panel = 'PoPS', ID = pops$Gene[keep], Z = NA_real_, Sig = FALSE,
-          Coloc = FALSE, Method = 'PoPS', Type = '',
-          Prio = pmax(sc[keep], 0) / mx, stringsAsFactors = FALSE)
-      }
-    }
-  }
-
+  # CALDERA is an effector-gene prioritiser, not an association test, so it has
+  # no Z-score. It rides a separate `Prio` column (the per-gene causal
+  # probability) that the heatmap encodes with markers — a black circle for the
+  # top-ranked gene (Sig) and a black square when the probability exceeds the
+  # plot-option threshold — rather than the signed-Z colour ramp. Z is left NA
+  # so the Z-colour geom skips it. We use the L=1 (one-signal-per-locus)
+  # credible sets so every fine-mapped locus is represented once.
   if (isTRUE(cf$caldera)) {
     cal <- gd_read(gd, gwas, "caldera")
     if (!is.null(cal) && nrow(cal) > 0) {
       cal <- as.data.frame(cal)
+      if ("L" %in% names(cal))
+        cal <- cal[suppressWarnings(as.integer(cal$L)) == 1L, , drop = FALSE]
       cal$caldera <- suppressWarnings(as.numeric(cal$caldera))
       cal <- cal[is.finite(cal$caldera) & !is.na(cal$gene) & cal$gene != "", , drop = FALSE]
       if (nrow(cal) > 0) {
-        # One row per gene: best (max) probability across its credible sets,
-        # flagged Sig if it is rank-1 in any of them (ring = top-ranked gene).
         agg <- do.call(rbind, lapply(split(cal, cal$gene), function(d) data.frame(
           gene = d$gene[1], prob = max(d$caldera),
           top  = any(d$rank == 1, na.rm = TRUE), stringsAsFactors = FALSE)))
-        prio_parts$caldera <- data.frame(
+        cal_part <- data.frame(
           Panel = 'CALDERA', ID = agg$gene, Z = NA_real_, Sig = agg$top,
           Coloc = FALSE, Method = 'CALDERA', Type = '',
           Prio = pmin(pmax(agg$prob, 0), 1), stringsAsFactors = FALSE)
+        if (!is.null(all_func_res)) all_func_res$Prio <- NA_real_
+        all_func_res <- data.table::rbindlist(list(all_func_res, cal_part),
+                                              use.names = TRUE, fill = TRUE)
       }
     }
-  }
-
-  if (length(prio_parts) > 0) {
-    if (!is.null(all_func_res)) all_func_res$Prio <- NA_real_
-    all_func_res <- data.table::rbindlist(c(list(all_func_res), prio_parts),
-                                          use.names = TRUE, fill = TRUE)
   }
 
   all_func_res

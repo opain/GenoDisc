@@ -11,7 +11,6 @@ make_group_labels <- function(method, type) {
   res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
   res_group[res_group == 'MAGMA\n'] <- 'MAGMA'
   res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
-  res_group[res_group == 'PoPS\n'] <- 'PoPS'
   res_group[res_group == 'CALDERA\n'] <- 'CALDERA'
   res_group
 }
@@ -170,7 +169,7 @@ reserve_legend_space <- function(gt, panel_h_pt) {
 get_group_order <- function() {
   c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice', 'SMR\nExpr.',
     'FUSION\nProtein', 'SMR\nProtein', 'MAGMA', 'Nearest\nGene',
-    'PoPS', 'CALDERA')
+    'CALDERA')
 }
 
 #' Group features into genomic loci by a fixed base-pair window

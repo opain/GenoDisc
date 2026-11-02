@@ -88,7 +88,8 @@ mol_theme_fn <- function(name) {
 build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
                                     font_size = 14, point_size = 4,
                                     theme_fn = ggplot2::theme_bw, title = "",
-                                    panel_h_pt = NULL, left_pad_pt = 0) {
+                                    panel_h_pt = NULL, left_pad_pt = 0,
+                                    caldera_hc_thresh = 0.5) {
   if (is.null(all_func_res) || nrow(all_func_res) == 0) return(NULL)
 
   # Fill missing Panel × Method × ID combos so every facet is present even
@@ -136,19 +137,6 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(gene_order))
     locus_levels <- unique(all_func_res_all$Locus[order(all_func_res_all$locus_order)])
     all_func_res_all$Locus <- factor(all_func_res_all$Locus, levels = locus_levels)
-
-    # Ring the top-PoPS gene within each locus (feedback iii) so the heatmap
-    # marks the strongest PoPS candidate per locus the way the black Sig ring
-    # already marks CALDERA's rank-1 gene. Only in locus mode ("within loci").
-    if ("Prio" %in% names(all_func_res_all)) {
-      pm <- which(all_func_res_all$Method == "PoPS" & !is.na(all_func_res_all$Prio))
-      if (length(pm) > 0) {
-        top <- vapply(split(pm, as.character(all_func_res_all$Locus[pm])),
-                      function(ii) ii[which.max(all_func_res_all$Prio[ii])],
-                      integer(1))
-        data.table::set(all_func_res_all, i = as.integer(top), j = "Sig", value = TRUE)
-      }
-    }
   } else {
     all_func_res_all <- all_func_res_all[order(as.character(all_func_res_all$ID)), ]
     all_func_res_all$ID <- factor(all_func_res_all$ID, levels = rev(unique(as.character(all_func_res_all$ID))))
@@ -177,13 +165,12 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Coloc == TRUE & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
     ggplot2::geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene' & !(all_func_res_all$Method %in% c('PoPS', 'CALDERA')), ], ggplot2::aes(colour = Z), size = point_size) +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene' & all_func_res_all$Method != 'CALDERA', ], ggplot2::aes(colour = Z), size = point_size) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
-    # PoPS / CALDERA facets: no Z-score, so encode priority/probability (rescaled
-    # to [0,1] within each method) as point SIZE in a fixed purple, not the Z
-    # colour ramp. The black Sig ring (above) marks the CALDERA rank-1 gene.
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method %in% c('PoPS', 'CALDERA') & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, size = Prio), colour = '#6a3d9a') +
-    ggplot2::scale_size_continuous(range = c(1, point_size), limits = c(0, 1), breaks = c(0.25, 0.5, 0.75, 1), name = "Priority /\nprobability\n(within method)") +
+    # CALDERA facet: no Z-score. A black SQUARE marks genes whose CALDERA causal
+    # probability exceeds the high-confidence threshold; the black Sig circle
+    # (above) marks the top-ranked gene at the locus.
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), shape = 15, colour = 'black', size = point_size) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
@@ -288,7 +275,10 @@ mol_assoc_single_ui <- function(ns) {
             sliderInput(ns("plot_font_size"), "Font size (pt):",
                         min = 10, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
-                        min = 2, max = 8, value = 4, step = 1)
+                        min = 2, max = 8, value = 4, step = 1),
+            numericInput(ns("caldera_hc_thresh"),
+                         "CALDERA high-confidence threshold:",
+                         value = 0.5, min = 0, max = 1, step = 0.05)
           ),
           column(4,
             selectInput(ns("dl_format"), "Download format:",
@@ -593,8 +583,9 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
       res_group[res_group == 'MAGMA\n']             <- 'MAGMA'
       res_group[res_group == 'Nearest\nGene\n']     <- 'Nearest\nGene'
+      res_group[res_group == 'CALDERA\n']           <- 'CALDERA'
       hc_groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice',
-                     'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein')
+                     'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein', 'CALDERA')
       hc_groups <- hc_groups[hc_groups %in% res_group]
       selectInput(session$ns("selected_group_hc_mol"),
                   "Define 'high-confidence' as significant in any of:",
@@ -843,9 +834,18 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
         res_group[res_group == 'MAGMA\n']             <- 'MAGMA'
         res_group[res_group == 'Nearest\nGene\n']     <- 'Nearest\nGene'
+        res_group[res_group == 'CALDERA\n']           <- 'CALDERA'
+        # A CALDERA gene is high-confidence when its causal probability exceeds
+        # the plot-option threshold (default 0.5); other methods use FDR-sig +
+        # colocalisation (or SuSiE fine-mapping).
+        thr <- input$caldera_hc_thresh %||% 0.5
+        caldera_hc <- if ("Prio" %in% names(all_func_res))
+            all_func_res$Method == 'CALDERA' & !is.na(all_func_res$Prio) &
+              all_func_res$Prio > thr
+          else rep(FALSE, nrow(all_func_res))
         hc_genes <- all_func_res$ID[which(
-          ((all_func_res$Sig == T & all_func_res$Coloc == T) |
-            all_func_res$Panel == "SuSie (L=1)") &
+          (((all_func_res$Sig == T & all_func_res$Coloc == T) |
+            all_func_res$Panel == "SuSie (L=1)") | caldera_hc) &
           res_group %in% input$selected_group_hc_mol)]
       }
 
@@ -939,7 +939,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         theme_fn = mol_theme_fn(input$plot_theme),
         title = input$plot_title %||% "",
         panel_h_pt = plot_dim_mol()[['panel_h_pt']],
-        left_pad_pt = plot_dim_mol()[['left_pad_pt']]
+        left_pad_pt = plot_dim_mol()[['left_pad_pt']],
+        caldera_hc_thresh = input$caldera_hc_thresh %||% 0.5
       )
       if (!is.null(gt)) grid::grid.draw(gt)
     })
@@ -959,7 +960,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           "Black outline" = "The association is FDR-significant in that panel and method.",
           "Black square" = "FDR-significant AND supported by colocalisation.",
           "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
-          "PoPS / CALDERA (purple, size)" = "These two facets are effector-gene prioritisers, not association tests: point SIZE shows the priority / causal probability rescaled to 0–1 within each method (bigger = higher), and the black outline marks CALDERA's top-ranked gene at a locus. See the Effector genes tab for the full figures."
+          "CALDERA" = "Effector-gene prioritiser, not an association test (no Z-score). A black circle marks the top-ranked gene at a locus; a black square marks genes whose CALDERA causal probability exceeds the high-confidence threshold (set in Plot options, default 0.5). See the Effector genes sub-tab for the full per-locus figures."
         )
         if (identical(input$mol_layout, "locus")) {
           legend_items <- c(list(
@@ -1071,7 +1072,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           theme_fn = mol_theme_fn(input$plot_theme),
           title = input$plot_title %||% "",
           panel_h_pt = plot_dim_mol()[['panel_h_pt']],
-          left_pad_pt = plot_dim_mol()[['left_pad_pt']]
+          left_pad_pt = plot_dim_mol()[['left_pad_pt']],
+          caldera_hc_thresh = input$caldera_hc_thresh %||% 0.5
         )
         open_plot_device(file,
           fmt   = input$dl_format %||% "png",
