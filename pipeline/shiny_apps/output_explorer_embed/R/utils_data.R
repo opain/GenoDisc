@@ -21,16 +21,22 @@ safe_access <- function(data, ...) {
 #' @param gwas GWAS name
 #' @param cf Named list of config flags from parse_config_flags()
 #' @return data.frame with columns: Panel, ID, Z, Sig, Coloc, Method, Type
-build_mol_assoc_data <- function(gd, gwas, cf, caldera_L = 1L) {
+build_mol_assoc_data <- function(gd, gwas, cf) {
   all_func_res <- NULL
 
   if (cf$finemap) {
+    # SuSiE L=1 and L=10 are separate selectable methods (toggled via "Include
+    # results from these methods"); both map to the SuSiE facet, distinguished on
+    # the x-axis by the panel label "SuSiE (L=1)" / "SuSiE (L=10)".
     finemap <- gd_read(gd, gwas, "mol_assoc/finemap")
-    finemap_ids <- safe_access(finemap, "L1")
-    if (!is.null(finemap_ids) && length(finemap_ids) > 0) {
-      all_func_res <- rbind(all_func_res, data.frame(
-        Panel = "SuSie (L=1)", ID = finemap_ids, Z = 1, Sig = F, Coloc = F,
-        Method = "SNP\nFine-mapping", Type = ''))
+    for (Lv in c("L1", "L10")) {
+      ids <- safe_access(finemap, Lv)
+      if (!is.null(ids) && length(ids) > 0) {
+        lab <- if (Lv == "L1") "SuSiE (L=1)" else "SuSiE (L=10)"
+        all_func_res <- rbind(all_func_res, data.frame(
+          Panel = lab, ID = ids, Z = 1, Sig = F, Coloc = F,
+          Method = lab, Type = ''))
+      }
     }
   }
 
@@ -124,28 +130,34 @@ build_mol_assoc_data <- function(gd, gwas, cf, caldera_L = 1L) {
 
   # CALDERA is an effector-gene prioritiser, not an association test, so it has
   # no Z-score. It rides a separate `Prio` column (the per-gene causal
-  # probability) that the heatmap encodes with markers — a black circle for the
-  # top-ranked gene (Sig) and a black square when the probability exceeds the
-  # plot-option threshold — rather than the signed-Z colour ramp. Z is left NA
-  # so the Z-colour geom skips it. We use the L=1 (one-signal-per-locus)
-  # credible sets so every fine-mapped locus is represented once.
+  # probability) that the heatmap encodes with markers (purple circle shaded by
+  # probability; black circle for the top-ranked gene; black square when the
+  # probability exceeds the threshold) rather than the signed-Z colour ramp. Z
+  # is left NA so the Z-colour geom skips it. L=1 and L=10 are emitted as
+  # separate selectable methods ("CALDERA (L=1)" / "CALDERA (L=10)"), mirroring
+  # SuSiE, and mapped to the single CALDERA facet.
   if (isTRUE(cf$caldera)) {
     cal <- gd_read(gd, gwas, "caldera")
     if (!is.null(cal) && nrow(cal) > 0) {
       cal <- as.data.frame(cal)
-      if ("L" %in% names(cal))
-        cal <- cal[suppressWarnings(as.integer(cal$L)) == as.integer(caldera_L), , drop = FALSE]
       cal$caldera <- suppressWarnings(as.numeric(cal$caldera))
       cal <- cal[is.finite(cal$caldera) & !is.na(cal$gene) & cal$gene != "", , drop = FALSE]
-      if (nrow(cal) > 0) {
-        agg <- do.call(rbind, lapply(split(cal, cal$gene), function(d) data.frame(
+      Ls <- if ("L" %in% names(cal)) sort(unique(suppressWarnings(as.integer(cal$L)))) else NA_integer_
+      for (Lv in Ls) {
+        sub <- if (is.na(Lv)) cal else cal[suppressWarnings(as.integer(cal$L)) == Lv, , drop = FALSE]
+        if (nrow(sub) == 0) next
+        lab <- if (is.na(Lv)) "CALDERA" else paste0("CALDERA (L=", Lv, ")")
+        # One row per gene: best probability across its credible sets; flagged
+        # Sig if it is rank-1 in any of them.
+        agg <- do.call(rbind, lapply(split(sub, sub$gene), function(d) data.frame(
           gene = d$gene[1], prob = max(d$caldera),
           top  = any(d$rank == 1, na.rm = TRUE), stringsAsFactors = FALSE)))
         cal_part <- data.frame(
-          Panel = 'CALDERA', ID = agg$gene, Z = NA_real_, Sig = agg$top,
-          Coloc = FALSE, Method = 'CALDERA', Type = '',
+          Panel = lab, ID = agg$gene, Z = NA_real_, Sig = agg$top,
+          Coloc = FALSE, Method = lab, Type = '',
           Prio = pmin(pmax(agg$prob, 0), 1), stringsAsFactors = FALSE)
-        if (!is.null(all_func_res)) all_func_res$Prio <- NA_real_
+        if (!is.null(all_func_res) && !("Prio" %in% names(all_func_res)))
+          all_func_res$Prio <- NA_real_
         all_func_res <- data.table::rbindlist(list(all_func_res, cal_part),
                                               use.names = TRUE, fill = TRUE)
       }

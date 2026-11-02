@@ -11,7 +11,10 @@ make_group_labels <- function(method, type) {
   res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
   res_group[res_group == 'MAGMA\n'] <- 'MAGMA'
   res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
-  res_group[res_group == 'CALDERA\n'] <- 'CALDERA'
+  # SuSiE (L=1)/(L=10) and CALDERA (L=1)/(L=10) are separate methods but share
+  # one facet each, distinguished by their x-axis panel label.
+  res_group[grepl('^SuSiE', res_group)] <- 'SuSiE'
+  res_group[grepl('^CALDERA', res_group)] <- 'CALDERA'
   res_group
 }
 

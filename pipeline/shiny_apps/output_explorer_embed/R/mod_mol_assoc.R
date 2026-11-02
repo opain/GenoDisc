@@ -162,18 +162,21 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     # so empty facets (Panel/Method combos with no matching gene data) still
     # show their panel background, x-tick labels, and gridlines.
     ggplot2::geom_blank() +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE & all_func_res_all$Method != 'CALDERA', ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
+    # Solid black circle behind FDR-significant (and CALDERA top-ranked) genes.
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
+    # Solid black square behind genes with colocalisation (+ FDR-sig)...
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Coloc == TRUE & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
-    ggplot2::geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene' & all_func_res_all$Method != 'CALDERA', ], ggplot2::aes(colour = Z), size = point_size) +
+    # ...and behind CALDERA genes whose probability exceeds the HC threshold
+    # (same solid-square-behind treatment as colocalised genes).
+    ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
+    ggplot2::geom_point(data = all_func_res_all[(grepl('^SuSiE', all_func_res_all$Method) | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
+    ggplot2::geom_point(data = all_func_res_all[!grepl('^SuSiE', all_func_res_all$Method) & all_func_res_all$Method != 'Nearest\nGene' & !grepl('^CALDERA', all_func_res_all$Method), ], ggplot2::aes(colour = Z), size = point_size) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
-    # CALDERA facet (no Z-score): a PURPLE circle shaded by the gene's maximum
-    # CALDERA probability; a black ring marks the top-ranked gene in the credible
-    # set; a black square marks genes whose probability exceeds the HC threshold.
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, fill = Prio), shape = 21, colour = 'grey55', stroke = 0.3, size = point_size) +
+    # CALDERA facet: a PURPLE circle shaded by the gene's maximum CALDERA
+    # probability, drawn ON TOP of the black top-gene circle / HC square so those
+    # read as a ring / square behind it (mirrors FDR-sig + coloc TWAS/PWAS).
+    ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, fill = Prio), shape = 21, colour = NA, size = point_size) +
     ggplot2::scale_fill_gradient(low = '#efe6f7', high = '#5b2d91', limits = c(0, 1), na.value = NA, name = "CALDERA\nprobability") +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), shape = 21, fill = NA, colour = 'black', stroke = 1.1, size = point_size + 1.4) +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), shape = 0, colour = 'black', stroke = 1.1, size = point_size + 2.6) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
@@ -254,9 +257,6 @@ mol_assoc_single_ui <- function(ns) {
                          selected = "alphabetical"),
             radioButtons(ns("conf_only_mol"), "Show high-confidence genes only :",
                          choices = c("True" = T, "False" = F), selected = T),
-            radioButtons(ns("mol_caldera_L"), "CALDERA credible sets (L):",
-                         choices = c("L1" = "1", "L10" = "10"), selected = "1",
-                         inline = TRUE),
             numericInput(ns("caldera_hc_thresh"),
                          "CALDERA high-confidence threshold:",
                          value = 0.5, min = 0, max = 1, step = 0.05)
@@ -559,9 +559,12 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$selected_methods_mol_ui <- renderUI({
       req(bundle_mol_summary_data())
       methods <- unique(bundle_mol_summary_data()$Method)
+      # Default to the L=1 SuSiE/CALDERA results; the L=10 variants are available
+      # to add (feedback 2).
+      default <- methods[!methods %in% c("SuSiE (L=10)", "CALDERA (L=10)")]
       selectInput(session$ns("selected_methods_mol"),
                   "Include results from these methods:",
-                  choices = methods, selected = methods, multiple = TRUE)
+                  choices = methods, selected = default, multiple = TRUE)
     })
 
     output$selected_expr_panels_mol_ui <- renderUI({
@@ -585,17 +588,21 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$selected_group_hc_mol_ui <- renderUI({
       req(bundle_mol_summary_data())
       d <- bundle_mol_summary_data()
+      # HC units keep the L distinction for SuSiE/CALDERA (so L=1 vs L=10 can be
+      # chosen separately); FUSION/SMR keep their Method+Type group label.
       res_group <- paste0(d$Method, '\n', d$Type)
-      res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
       res_group[res_group == 'MAGMA\n']             <- 'MAGMA'
       res_group[res_group == 'Nearest\nGene\n']     <- 'Nearest\nGene'
-      res_group[res_group == 'CALDERA\n']           <- 'CALDERA'
-      hc_groups <- c('SuSiE', 'FUSION\nExpr.', 'FUSION\nSplice',
-                     'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein', 'CALDERA')
-      hc_groups <- hc_groups[hc_groups %in% res_group]
+      res_group <- sub('\n$', '', res_group)   # "SuSiE (L=1)\n" -> "SuSiE (L=1)"
+      ord <- c('SuSiE (L=1)', 'SuSiE (L=10)', 'FUSION\nExpr.', 'FUSION\nSplice',
+               'SMR\nExpr.', 'FUSION\nProtein', 'SMR\nProtein',
+               'CALDERA (L=1)', 'CALDERA (L=10)', 'CALDERA')
+      hc_groups <- ord[ord %in% res_group]
+      # Default: L=1 criteria; L=10 variants available to add.
+      default <- setdiff(hc_groups, c('SuSiE (L=10)', 'CALDERA (L=10)'))
       selectInput(session$ns("selected_group_hc_mol"),
                   "Define 'high-confidence' as significant in any of:",
-                  choices = hc_groups, selected = hc_groups, multiple = TRUE)
+                  choices = hc_groups, selected = default, multiple = TRUE)
     })
 
     ########
@@ -807,8 +814,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     mol_assoc_summary_data <- reactive({
       req(gwas_data(), config_flags()); g <- .pick_mol_gwas(); req(g)
-      build_mol_assoc_data(gwas_data(), g, config_flags(),
-                           caldera_L = as.integer(input$mol_caldera_L %||% "1"))
+      build_mol_assoc_data(gwas_data(), g, config_flags())
     })
 
     # Gene -> locus lookup for the per-locus layout. Positions are resolved
@@ -838,21 +844,21 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       hc_genes <- NULL
       if (input$conf_only_mol) {
         res_group <- paste0(all_func_res$Method, '\n', all_func_res$Type)
-        res_group[res_group == 'SNP\nFine-mapping\n'] <- 'SuSiE'
-        res_group[res_group == 'MAGMA\n']             <- 'MAGMA'
-        res_group[res_group == 'Nearest\nGene\n']     <- 'Nearest\nGene'
-        res_group[res_group == 'CALDERA\n']           <- 'CALDERA'
+        res_group[res_group == 'MAGMA\n']         <- 'MAGMA'
+        res_group[res_group == 'Nearest\nGene\n'] <- 'Nearest\nGene'
+        res_group <- sub('\n$', '', res_group)   # keep the SuSiE/CALDERA L label
         # A CALDERA gene is high-confidence when its causal probability exceeds
-        # the plot-option threshold (default 0.5); other methods use FDR-sig +
-        # colocalisation (or SuSiE fine-mapping).
+        # the threshold (default 0.5); SuSiE genes by being in a credible set;
+        # other methods by FDR-significance + colocalisation. The selected HC
+        # groups gate each (carrying the L distinction for SuSiE/CALDERA).
         thr <- input$caldera_hc_thresh %||% 0.5
         caldera_hc <- if ("Prio" %in% names(all_func_res))
-            all_func_res$Method == 'CALDERA' & !is.na(all_func_res$Prio) &
+            grepl('^CALDERA', all_func_res$Method) & !is.na(all_func_res$Prio) &
               all_func_res$Prio > thr
           else rep(FALSE, nrow(all_func_res))
+        susie_hc <- grepl('^SuSiE', all_func_res$Panel)
         hc_genes <- all_func_res$ID[which(
-          (((all_func_res$Sig == T & all_func_res$Coloc == T) |
-            all_func_res$Panel == "SuSie (L=1)") | caldera_hc) &
+          (((all_func_res$Sig == T & all_func_res$Coloc == T) | susie_hc) | caldera_hc) &
           res_group %in% input$selected_group_hc_mol)]
       }
 
@@ -967,7 +973,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           "Black outline" = "The association is FDR-significant in that panel and method.",
           "Black square" = "FDR-significant AND supported by colocalisation.",
           "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
-          "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A black ring marks the top-ranked gene in the credible set; a black square marks genes whose probability exceeds the high-confidence threshold. Both the SuSiE L (L1/L10) and the threshold are set under Filter data. See the Effector genes sub-tab for the full per-locus figures."
+          "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A solid black circle behind it marks the top-ranked gene in the credible set; a solid black square behind it marks genes whose probability exceeds the high-confidence threshold (set under Filter data) — the same convention as FDR-significant / colocalised genes. L=1 and L=10 CALDERA (and SuSiE) are separate columns, added/removed via 'Include results from these methods' (L=1 by default). See the Effector genes sub-tab for the full per-locus figures."
         )
         if (identical(input$mol_layout, "locus")) {
           legend_items <- c(list(

@@ -171,7 +171,12 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
                                          selection = "none", options = list(dom = "t"))
     msg <- function(text) div(class = "gd-legend", em(text))
     show_dt <- function(df, header_tips = NULL) {
-      df <- as.data.frame(df); df[is.na(df)] <- "NA"
+      df <- as.data.frame(df)
+      # Round probability/score columns to 3 dp (CALDERA tables otherwise show
+      # many decimal places). Integer-valued columns (BP, dist) are unaffected.
+      num <- vapply(df, is.numeric, logical(1))
+      df[num] <- lapply(df[num], function(x) round(x, 3))
+      df[is.na(df)] <- "NA"
       opts <- list(pageLength = 15, scrollX = TRUE,
                    columnDefs = list(list(className = "dt-center",
                                           targets = seq_len(ncol(df)) - 1)))
@@ -216,20 +221,23 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       sub$nearest_gene <- as.logical(sub$nearest_gene)
       sub$gene <- factor(sub$gene, levels = unique(sub$gene[order(sub$caldera)]))
       sub$fill_grp <- ifelse(sub$rank == 1, "Top-ranked", "Other")
-      g <- ggplot2::ggplot(sub, ggplot2::aes(x = gene, y = caldera, fill = fill_grp)) +
+      # Horizontal bars (y = gene) so facet_grid(space="free_y") can size each
+      # credible-set panel by its gene count (feedback 3).
+      g <- ggplot2::ggplot(sub, ggplot2::aes(x = caldera, y = gene, fill = fill_grp)) +
         ggplot2::geom_col(width = 0.72) +
         ggplot2::geom_point(data = sub[sub$nearest_gene %in% TRUE, , drop = FALSE],
-                            ggplot2::aes(x = gene, y = caldera),
+                            ggplot2::aes(x = caldera, y = gene),
                             shape = 23, size = 3, fill = "white", colour = "black",
                             inherit.aes = FALSE) +
         ggplot2::scale_fill_manual(values = c("Top-ranked" = "#1a7f5a", "Other" = "#9aa7c7"),
                                    name = NULL) +
-        ggplot2::coord_flip() +
-        ggplot2::labs(x = NULL, y = "CALDERA causal-gene probability",
+        ggplot2::labs(x = "CALDERA causal-gene probability", y = NULL,
                       title = title, subtitle = "◇ = nearest gene (baseline)") +
         ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom")
       if (length(unique(sub$cs)) > 1)
-        g <- g + ggplot2::facet_wrap(~ cs, scales = "free_y", labeller = ggplot2::label_both)
+        g <- g + ggplot2::facet_grid(rows = ggplot2::vars(cs), scales = "free_y",
+                                     space = "free_y", labeller = ggplot2::label_both) +
+                 ggplot2::theme(strip.text.y = ggplot2::element_text(angle = 0))
       g
     }
 
