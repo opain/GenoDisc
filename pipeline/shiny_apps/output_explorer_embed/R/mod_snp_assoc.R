@@ -214,7 +214,9 @@ snpAssocUI <- function(id) {
               "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
               "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
               "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
-              "Gene" = "Nearest gene to the top variant ('None' if unavailable)."
+              "Gene" = "Gene(s) whose body contains all of the variants in the 95% credible set ('None' if no gene spans them).",
+              "CALDERA top gene" = "CALDERA's highest-probability candidate causal gene for this credible set, at the selected L.",
+              "CALDERA prob" = "That gene's CALDERA causal-gene probability (0–1, relative within the credible set)."
             ), heading = "Column guide"),
             width = 6
           )
@@ -869,6 +871,31 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       snp_assoc_finemap$cs_min_r2 <- NULL
       snp_assoc_finemap$TopPIP <- round(snp_assoc_finemap$TopPIP, 2)
 
+      # Append CALDERA's top gene + probability for the SAME L (feedback i.2).
+      # CALDERA is keyed by (locus = lead variant, cs, L); the fine-mapping
+      # table's SNP column is that lead variant, so join on (SNP, cs).
+      cal <- tryCatch(gd_read(gwas_data(), g, "caldera"), error = function(e) NULL)
+      if (!is.null(cal) && nrow(cal) > 0 && "SNP" %in% names(snp_assoc_finemap)) {
+        cal <- as.data.frame(cal)
+        Lval <- if (identical(input$l_param, "L10")) 10L else 1L
+        if ("L" %in% names(cal)) cal <- cal[suppressWarnings(as.integer(cal$L)) == Lval, , drop = FALSE]
+        cal$caldera <- suppressWarnings(as.numeric(cal$caldera))
+        cal <- cal[is.finite(cal$caldera), , drop = FALSE]
+        if (nrow(cal) > 0) {
+          top <- do.call(rbind, lapply(
+            split(cal, list(cal$locus, cal$cs), drop = TRUE), function(x) {
+              r <- x[which.max(x$caldera), , drop = FALSE]
+              data.frame(SNP = as.character(r$locus), cs = as.integer(r$cs),
+                         `CALDERA top gene` = as.character(r$gene),
+                         `CALDERA prob` = round(r$caldera, 3),
+                         check.names = FALSE, stringsAsFactors = FALSE)
+            }))
+          snp_assoc_finemap$cs <- as.integer(snp_assoc_finemap$cs)
+          snp_assoc_finemap <- merge(snp_assoc_finemap, top,
+                                     by = c("SNP", "cs"), all.x = TRUE, sort = FALSE)
+        }
+      }
+
       return(snp_assoc_finemap)
     })
 
@@ -896,8 +923,12 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$snp_assoc_finemap_table <- renderDataTable({
       df <- snp_assoc_finemap_data()
       req(!finemap_is_empty(df))
+      # merge() moves the join keys first; restore a readable column order.
+      ord <- c("CHR", "BP", "SNP", "cs", "NSNP", "TopPIP", "Gene",
+               "CALDERA top gene", "CALDERA prob")
+      df <- df[, c(intersect(ord, names(df)), setdiff(names(df), ord)), drop = FALSE]
       datatable(df, rownames = F, width = 7, selection = "none", options = list(
-        columnDefs = list(list(className = 'dt-center', targets = 0:5))))
+        columnDefs = list(list(className = 'dt-center', targets = "_all"))))
     })
   })
 }
