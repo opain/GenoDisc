@@ -175,8 +175,8 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     # CALDERA facet: a PURPLE circle shaded by the gene's maximum CALDERA
     # probability, drawn ON TOP of the black top-gene circle / HC square so those
     # read as a ring / square behind it (mirrors FDR-sig + coloc TWAS/PWAS).
-    ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, fill = Prio), shape = 21, colour = NA, size = point_size) +
-    ggplot2::scale_fill_gradient(low = '#efe6f7', high = '#5b2d91', limits = c(0, 1), na.value = NA, name = "CALDERA\nprobability") +
+    ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, fill = Prio), shape = 21, colour = 'grey35', stroke = 0.3, size = point_size) +
+    ggplot2::scale_fill_gradient(low = '#efe6f7', high = '#5b2d91', limits = c(0, 1), na.value = 'grey90', name = "CALDERA\nprobability") +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
