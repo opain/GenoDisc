@@ -21,7 +21,7 @@ safe_access <- function(data, ...) {
 #' @param gwas GWAS name
 #' @param cf Named list of config flags from parse_config_flags()
 #' @return data.frame with columns: Panel, ID, Z, Sig, Coloc, Method, Type
-build_mol_assoc_data <- function(gd, gwas, cf) {
+build_mol_assoc_data <- function(gd, gwas, cf, caldera_L = 1L) {
   all_func_res <- NULL
 
   if (cf$finemap) {
@@ -134,7 +134,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     if (!is.null(cal) && nrow(cal) > 0) {
       cal <- as.data.frame(cal)
       if ("L" %in% names(cal))
-        cal <- cal[suppressWarnings(as.integer(cal$L)) == 1L, , drop = FALSE]
+        cal <- cal[suppressWarnings(as.integer(cal$L)) == as.integer(caldera_L), , drop = FALSE]
       cal$caldera <- suppressWarnings(as.numeric(cal$caldera))
       cal <- cal[is.finite(cal$caldera) & !is.na(cal$gene) & cal$gene != "", , drop = FALSE]
       if (nrow(cal) > 0) {

@@ -921,9 +921,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     output$snp_assoc_finemap_table <- renderDataTable({
-      df <- snp_assoc_finemap_data()
+      df <- as.data.frame(snp_assoc_finemap_data())
       req(!finemap_is_empty(df))
       # merge() moves the join keys first; restore a readable column order.
+      # (as.data.frame above: susie blocks are data.tables, where `dt[, c(cols)]`
+      # would return the name vector rather than reordered columns.)
       ord <- c("CHR", "BP", "SNP", "cs", "NSNP", "TopPIP", "Gene",
                "CALDERA top gene", "CALDERA prob")
       df <- df[, c(intersect(ord, names(df)), setdiff(names(df), ord)), drop = FALSE]

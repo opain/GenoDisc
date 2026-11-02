@@ -12,6 +12,7 @@
 .eff_howto <- function(..., title = "How to read this") {
   tags$details(
     class = "gd-details",
+    style = "margin-bottom: 16px;",   # breathing room before the content below
     tags$summary(title),
     tags$div(class = "gd-details-body",
              tags$p(class = "gd-details-intro", ...))

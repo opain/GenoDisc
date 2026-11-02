@@ -162,15 +162,18 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     # so empty facets (Panel/Method combos with no matching gene data) still
     # show their panel background, x-tick labels, and gridlines.
     ggplot2::geom_blank() +
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Sig == TRUE & all_func_res_all$Method != 'CALDERA', ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1) +
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Coloc == TRUE & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
     ggplot2::geom_point(data = all_func_res_all[(all_func_res_all$Method == 'SNP\nFine-mapping' | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
     ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method != 'SNP\nFine-mapping' & all_func_res_all$Method != 'Nearest\nGene' & all_func_res_all$Method != 'CALDERA', ], ggplot2::aes(colour = Z), size = point_size) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
-    # CALDERA facet: no Z-score. A black SQUARE marks genes whose CALDERA causal
-    # probability exceeds the high-confidence threshold; the black Sig circle
-    # (above) marks the top-ranked gene at the locus.
-    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), shape = 15, colour = 'black', size = point_size) +
+    # CALDERA facet (no Z-score): a PURPLE circle shaded by the gene's maximum
+    # CALDERA probability; a black ring marks the top-ranked gene in the credible
+    # set; a black square marks genes whose probability exceeds the HC threshold.
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, fill = Prio), shape = 21, colour = 'grey55', stroke = 0.3, size = point_size) +
+    ggplot2::scale_fill_gradient(low = '#efe6f7', high = '#5b2d91', limits = c(0, 1), na.value = NA, name = "CALDERA\nprobability") +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & all_func_res_all$Sig == TRUE, ], ggplot2::aes(x = Panel, y = ID), shape = 21, fill = NA, colour = 'black', stroke = 1.1, size = point_size + 1.4) +
+    ggplot2::geom_point(data = all_func_res_all[all_func_res_all$Method == 'CALDERA' & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), shape = 0, colour = 'black', stroke = 1.1, size = point_size + 2.6) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                    plot.title = ggplot2::element_text(hjust = 0.5)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
@@ -250,7 +253,13 @@ mol_assoc_single_ui <- function(ns) {
                                      "By locus (genomic position)" = "locus"),
                          selected = "alphabetical"),
             radioButtons(ns("conf_only_mol"), "Show high-confidence genes only :",
-                         choices = c("True" = T, "False" = F), selected = T)
+                         choices = c("True" = T, "False" = F), selected = T),
+            radioButtons(ns("mol_caldera_L"), "CALDERA credible sets (L):",
+                         choices = c("L1" = "1", "L10" = "10"), selected = "1",
+                         inline = TRUE),
+            numericInput(ns("caldera_hc_thresh"),
+                         "CALDERA high-confidence threshold:",
+                         value = 0.5, min = 0, max = 1, step = 0.05)
           )
         )
       )
@@ -275,10 +284,7 @@ mol_assoc_single_ui <- function(ns) {
             sliderInput(ns("plot_font_size"), "Font size (pt):",
                         min = 10, max = 20, value = 14, step = 1),
             sliderInput(ns("plot_point_size"), "Point size:",
-                        min = 2, max = 8, value = 4, step = 1),
-            numericInput(ns("caldera_hc_thresh"),
-                         "CALDERA high-confidence threshold:",
-                         value = 0.5, min = 0, max = 1, step = 0.05)
+                        min = 2, max = 8, value = 4, step = 1)
           ),
           column(4,
             selectInput(ns("dl_format"), "Download format:",
@@ -801,7 +807,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     mol_assoc_summary_data <- reactive({
       req(gwas_data(), config_flags()); g <- .pick_mol_gwas(); req(g)
-      build_mol_assoc_data(gwas_data(), g, config_flags())
+      build_mol_assoc_data(gwas_data(), g, config_flags(),
+                           caldera_L = as.integer(input$mol_caldera_L %||% "1"))
     })
 
     # Gene -> locus lookup for the per-locus layout. Positions are resolved
@@ -960,7 +967,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           "Black outline" = "The association is FDR-significant in that panel and method.",
           "Black square" = "FDR-significant AND supported by colocalisation.",
           "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
-          "CALDERA" = "Effector-gene prioritiser, not an association test (no Z-score). A black circle marks the top-ranked gene at a locus; a black square marks genes whose CALDERA causal probability exceeds the high-confidence threshold (set in Plot options, default 0.5). See the Effector genes sub-tab for the full per-locus figures."
+          "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A black ring marks the top-ranked gene in the credible set; a black square marks genes whose probability exceeds the high-confidence threshold. Both the SuSiE L (L1/L10) and the threshold are set under Filter data. See the Effector genes sub-tab for the full per-locus figures."
         )
         if (identical(input$mol_layout, "locus")) {
           legend_items <- c(list(
