@@ -90,7 +90,7 @@ effectorUI <- function(id) {
           "nearest gene (a broader Ensembl set; may show an older symbol for the same gene)."),
         .eff_L_radio(ns, "caldera_L"),
         h4("All loci — overview"),
-        .eff_table(ns, "caldera_overview", max_width = 1200),
+        DT::dataTableOutput(ns("caldera_overview")),   # full screen width
         uiOutput(ns("caldera_msg")),
         hr(),
         h4("Per-locus gene ranking"),
