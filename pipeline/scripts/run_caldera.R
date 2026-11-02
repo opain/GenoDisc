@@ -30,43 +30,47 @@ cal_dir <- paste0(outdir, "/results/", opt$gwas, "/caldera/")
 dir.create(cal_dir, showWarnings = FALSE, recursive = TRUE)
 out_path <- paste0(cal_dir, opt$gwas, ".GW.caldera.csv")
 
-out_cols <- c("locus", "cs", "ensgid", "gene", "caldera", "multi", "rank",
+out_cols <- c("locus", "cs", "L", "ensgid", "gene", "caldera", "multi", "rank",
               "nearest_gene", "n_genes", "dist", "pops", "coding", "impute_pops")
 write_empty <- function() fwrite(setNames(data.table(matrix(character(0), ncol = length(out_cols))), out_cols), out_path)
 
 cv <- tryCatch(fread(paste0(fm_dir, opt$gwas, ".GW.credset_variants.csv")), error = function(e) NULL)
 if (is.null(cv) || nrow(cv) == 0) { write_empty(); quit(save = "no") }
 
-# CALDERA takes one credible set per "locus". Use the L=10 (multi-signal) sets
-# where a locus has them, but fall back to its L=1 (single-signal) set otherwise,
-# so EVERY fine-mapped locus is covered — not just the few that produced an L=10
-# decomposition (previously `cv[L == 10]` dropped all L=1-only loci). Make a
-# distinct locus id per (lead, cs).
-cv[, .has10 := any(L == 10), by = locus]
-cv <- cv[(.has10 & L == 10) | (!.has10 & L == 1)]
-cv[, .has10 := NULL]
-if (nrow(cv) == 0) { write_empty(); quit(save = "no") }
-cv[, locus_id := paste0(locus, "_cs", cs)]
-cs_dt <- cv[, .(locus = locus_id, chr = CHR, bp = BP, pip = PIP, rsid = SNP)]
-cs_file <- tempfile(fileext = ".tsv")
-fwrite(cs_dt, cs_file, sep = "\t")
-
-# Run CALDERA with the shipped pretrained model (chdir so its relative source()s
-# and data/ + trained_models/ paths resolve).
+# Run CALDERA SEPARATELY for the L=1 (single-signal) and L=10 (multi-signal)
+# SuSiE credible sets, tagging each result with its L so the viewer can switch
+# between them. L=1 covers every fine-mapped locus; L=10 covers only loci that
+# produced a multi-signal decomposition. Source the shipped model once (chdir so
+# its relative source()s + data/ + trained_models/ paths resolve).
 source(file.path(opt$caldera_path, "z_caldera.R"), chdir = TRUE)
-res <- caldera(pops_file = opt$pops_preds, cs_file = cs_file, assembly = 37,
-               caldera_path = opt$caldera_path)
-res <- as.data.table(res)
-if (nrow(res) == 0) { write_empty(); quit(save = "no") }
 
-# Recover lead + cs from the composite locus id.
-res[, cs := as.integer(sub(".*_cs", "", locus))]
-res[, locus := sub("_cs[0-9]+$", "", locus)]
+run_one <- function(cv_L, Lval) {
+  if (is.null(cv_L) || nrow(cv_L) == 0) return(NULL)
+  cv_L <- data.table::copy(cv_L)
+  cv_L[, locus_id := paste0(locus, "_cs", cs)]
+  cs_dt <- cv_L[, .(locus = locus_id, chr = CHR, bp = BP, pip = PIP, rsid = SNP)]
+  cs_file <- tempfile(fileext = ".tsv")
+  fwrite(cs_dt, cs_file, sep = "\t")
+  res <- tryCatch(caldera(pops_file = opt$pops_preds, cs_file = cs_file,
+                          assembly = 37, caldera_path = opt$caldera_path),
+                  error = function(e) NULL)
+  if (is.null(res) || nrow(res) == 0) return(NULL)
+  res <- as.data.table(res)
+  res[, cs := as.integer(sub(".*_cs", "", locus))]
+  res[, locus := sub("_cs[0-9]+$", "", locus)]
+  res[, L := Lval]
+  res
+}
 
-# Rank by CALDERA probability within each credible set; nearest-gene baseline.
-setorder(res, locus, cs, -caldera)
-res[, rank := seq_len(.N), by = .(locus, cs)]
-res[, nearest_gene := dist == min(dist, na.rm = TRUE), by = .(locus, cs)]
+res <- data.table::rbindlist(
+  list(run_one(cv[L == 1], 1L), run_one(cv[L == 10], 10L)),
+  use.names = TRUE, fill = TRUE)
+if (is.null(res) || nrow(res) == 0) { write_empty(); quit(save = "no") }
+
+# Rank by CALDERA probability within each credible set (per L); nearest-gene baseline.
+setorder(res, L, locus, cs, -caldera)
+res[, rank := seq_len(.N), by = .(L, locus, cs)]
+res[, nearest_gene := dist == min(dist, na.rm = TRUE), by = .(L, locus, cs)]
 
 for (cc in setdiff(out_cols, names(res))) res[, (cc) := NA]
 res <- res[, ..out_cols]
@@ -76,12 +80,15 @@ coding_summ <- paste0(fm_dir, opt$gwas, ".GW.credset_coding_summary.csv")
 if (file.exists(coding_summ)) {
   cs_sum <- tryCatch(fread(coding_summ), error = function(e) NULL)
   if (!is.null(cs_sum) && nrow(cs_sum) > 0) {
-    keep <- intersect(c("locus", "cs", "pip_protein_altering", "frac_protein_altering",
+    keep <- intersect(c("locus", "cs", "L", "pip_protein_altering", "frac_protein_altering",
                         "top_coding_gene", "top_coding_consequence", "top_coding_am_class",
                         "flag_protein_altering"), names(cs_sum))
-    res <- merge(res, cs_sum[, ..keep], by = c("locus", "cs"), all.x = TRUE, sort = FALSE)
+    # Key on L too when the coding summary carries it (credible sets differ by L),
+    # else rows cross-join across the two L values.
+    merge_key <- intersect(c("locus", "cs", "L"), keep)
+    res <- merge(res, cs_sum[, ..keep], by = merge_key, all.x = TRUE, sort = FALSE)
   }
 }
 
-setorder(res, locus, cs, rank)
+setorder(res, L, locus, cs, rank)
 fwrite(res, out_path)
