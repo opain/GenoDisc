@@ -33,10 +33,11 @@ long_path <- paste0(fm_dir, opt$gwas, ".GW.credset_coding.csv")
 summ_path <- paste0(fm_dir, opt$gwas, ".GW.credset_coding_summary.csv")
 
 long_cols <- c("locus", "cs", "L", "SNP", "CHR", "BP", "A1", "A2", "REF", "ALT",
-               "PIP", "consequence", "gene", "am_pathogenicity", "am_class", "protein_altering")
+               "PIP", "marginal_pip", "consequence", "gene", "am_pathogenicity", "am_class", "protein_altering")
 summ_cols <- c("locus", "cs", "L", "n_variants", "pip_total", "pip_protein_altering",
                "frac_protein_altering", "top_coding_snp", "top_coding_gene",
-               "top_coding_consequence", "top_coding_am_class", "top_coding_pip", "flag_protein_altering")
+               "top_coding_consequence", "top_coding_am_class", "top_coding_pip",
+               "flag_protein_altering", "coding_flag")
 write_empty <- function() {
   fwrite(setNames(data.table(matrix(character(0), ncol = length(long_cols))), long_cols), long_path)
   fwrite(setNames(data.table(matrix(character(0), ncol = length(summ_cols))), summ_cols), summ_path)
@@ -143,10 +144,12 @@ fwrite(cv[, ..long_cols], long_path)
 
 # --- per-cs summary ---------------------------------------------------------
 cv[, pa_pip := fifelse(protein_altering, PIP, 0)]
+# Group by (locus, cs, L): a credible set is defined per L, so L=1 and L=10 sets
+# that happen to share a cs index must NOT be merged (that double-counts and
+# pushes pip_total above 1).
 summ <- cv[, {
   top <- .SD[protein_altering == TRUE][which.max(PIP)]
-  .(L = L[1],
-    n_variants = .N,
+  .(n_variants = .N,
     pip_total = sum(PIP, na.rm = TRUE),
     pip_protein_altering = sum(pa_pip, na.rm = TRUE),
     frac_protein_altering = ifelse(sum(PIP, na.rm = TRUE) > 0, sum(pa_pip, na.rm = TRUE) / sum(PIP, na.rm = TRUE), 0),
@@ -155,8 +158,13 @@ summ <- cv[, {
     top_coding_consequence = if (nrow(top)) top$consequence else NA_character_,
     top_coding_am_class = if (nrow(top)) top$am_class else NA_character_,
     top_coding_pip = if (nrow(top)) top$PIP else NA_real_)
-}, by = .(locus, cs)]
+}, by = .(locus, cs, L)]
 summ[, flag_protein_altering := pip_protein_altering >= opt$pip_thresh]
+# Graded, honestly-worded flag on the protein-altering PIP SHARE: a 10% share is a
+# "possible" contribution, not a signal "carried by" coding variants.
+summ[, coding_flag := fifelse(frac_protein_altering >= 0.5, "likely coding mechanism",
+                       fifelse(frac_protein_altering >= opt$pip_thresh,
+                               "possible coding contribution", "none"))]
 setcolorder(summ, summ_cols)
-setorder(summ, -pip_protein_altering)
+setorder(summ, -frac_protein_altering)
 fwrite(summ, summ_path)

@@ -29,7 +29,7 @@ source(file.path(opt$pipeline_dir, "scripts", "functions", "utils_functions.R"))
 outdir <- read_param(config = opt$config_file, param = "outdir", return_obj = FALSE)
 resdir <- read_param(config = opt$config_file, param = "resdir", return_obj = FALSE)
 
-out_cols <- c("locus", "cs", "L", "SNP", "CHR", "BP", "A1", "A2", "PIP")
+out_cols <- c("locus", "cs", "L", "SNP", "CHR", "BP", "A1", "A2", "PIP", "marginal_pip")
 empty_out <- function() setNames(data.table(matrix(character(0), ncol = length(out_cols))), out_cols)
 
 fm_dir <- paste0(outdir, "/results/", opt$gwas, "/finemap/")
@@ -60,9 +60,19 @@ for (f in rds_files) {
     idx <- as.numeric(unlist(str_split(cs$variable[j], ",")))
     idx <- idx[!is.na(idx)]
     if (length(idx) == 0) next
+    # PIP = the PER-EFFECT posterior (SuSiE alpha for this credible set's effect),
+    # which sums to the coverage level by construction. The marginal fit$pip
+    # combines evidence across all L effects, so in L=10 a variant shared between
+    # credible sets is counted in each and the per-cs sum can exceed 1; it is kept
+    # only as `marginal_pip` for reference. cs$cs[j] is the effect index = row of
+    # fit$alpha. (For L=1, alpha == pip.)
+    eff <- cs$cs[j]
+    pip_eff <- if (!is.null(fit$alpha) && eff <= nrow(fit$alpha))
+      as.numeric(fit$alpha[eff, idx]) else as.numeric(fit$pip[idx])
     rows[[length(rows) + 1L]] <- data.table(
       locus = meta$lead, cs = cs$cs[j], L = meta$L, CHR = meta$chr,
-      SNP = names(fit$pip)[idx], PIP = as.numeric(fit$pip[idx]))
+      SNP = names(fit$pip)[idx], PIP = pip_eff,
+      marginal_pip = as.numeric(fit$pip[idx]))
   }
 }
 per_var <- rbindlist(rows, use.names = TRUE, fill = TRUE)
