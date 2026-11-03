@@ -20,7 +20,8 @@
 #   by_synonym  external_synonym   -> (ID, CHR, BP)    midpoint, autosomes 1-22
 #   by_ensembl  ensembl_gene_id    -> (ID, CHR, BP)    only (legacy; unchanged)
 #   canonical   one row per ensembl_gene_id:
-#               ensembl_gene_id, symbol, gene_biotype, CHR, BP
+#               ensembl_gene_id, symbol, gene_biotype, CHR, BP (midpoint),
+#               gene_start, gene_end (body bounds on the canonical contig), strand
 #   sym2id      named vector external_gene_name -> ensembl_gene_id
 #   syn2id      named vector external_synonym   -> ensembl_gene_id
 #
@@ -60,6 +61,22 @@ if (all(is.na(bm_full$gene_biotype))) {
   }
 }
 
+# Strand is never in biomart_genes_grch37.tsv; borrow it from gene_locations.tsv
+# (keyed by symbol; lossy on collisions) to orient gene-body arrowheads in the
+# viewer's locus plot. NA when unavailable.
+bm_full[, strand := NA_integer_]
+{
+  loc_path_s <- file.path(dirname(in_tsv), "gene_locations.tsv")
+  if (file.exists(loc_path_s)) {
+    locs <- unique(fread(loc_path_s, select = c("external_gene_name", "strand"),
+                         na.strings = c("", "NA")))
+    locs <- locs[!is.na(external_gene_name) & external_gene_name != "" & !is.na(strand)]
+    locs <- locs[!duplicated(external_gene_name)]
+    st_map <- setNames(as.integer(locs$strand), locs$external_gene_name)
+    bm_full[, strand := st_map[external_gene_name]]
+  }
+}
+
 # ---- Legacy position maps (autosomes 1-22; kept byte-identical) -------------
 bm <- bm_full[chromosome_name %in% as.character(1:22)]
 bm[, CHR := as.integer(chromosome_name)]
@@ -76,7 +93,7 @@ make_map <- function(dt, key_col) {
 # ---- Canonical gene table + resolver maps (full table) ----------------------
 std <- c(as.character(1:22), "X", "Y")
 g <- unique(bm_full[, .(ensembl_gene_id, external_gene_name, external_synonym,
-                        gene_biotype, chromosome_name, start_position, end_position)])
+                        gene_biotype, strand, chromosome_name, start_position, end_position)])
 g[, is_std := chromosome_name %in% std]
 g[, chr_int := suppressWarnings(as.integer(chromosome_name))]   # NA for X/Y/patch
 g[, chr_placed := !is.na(chr_int)]
@@ -85,16 +102,27 @@ g[, pc := !is.na(gene_biotype) & gene_biotype == "protein_coding"]
 
 # One canonical row per ensembl id. symbol/biotype are constant per gene (the
 # row explosion is only the synonym column), so pick the best-ranked contig row.
-gene_rows <- unique(g[, .(ensembl_gene_id, external_gene_name, gene_biotype,
+gene_rows <- unique(g[, .(ensembl_gene_id, external_gene_name, gene_biotype, strand,
                           is_std, chr_placed, pc, chr_int, bp,
-                          chromosome_name, start_position)])
+                          chromosome_name, start_position, end_position)])
 setorder(gene_rows, ensembl_gene_id, -is_std, -chr_placed, -pc,
          chromosome_name, start_position)
-canonical <- gene_rows[, .(symbol       = external_gene_name[1],
-                           gene_biotype = gene_biotype[1],
-                           CHR          = chr_int[1],
-                           BP           = bp[1]),
-                       by = ensembl_gene_id]
+# gene_start/gene_end are the body bounds WITHIN the chosen canonical contig (the
+# first row's chromosome after the ordering above), so a gene present on both a
+# standard contig and a patch does not get a spuriously huge span.
+canonical <- gene_rows[, {
+  cc   <- chromosome_name[1]
+  keep <- chromosome_name == cc
+  gs <- suppressWarnings(min(as.numeric(start_position[keep]), na.rm = TRUE))
+  ge <- suppressWarnings(max(as.numeric(end_position[keep]),   na.rm = TRUE))
+  .(symbol       = external_gene_name[1],
+    gene_biotype = gene_biotype[1],
+    CHR          = chr_int[1],
+    BP           = bp[1],
+    gene_start   = if (is.finite(gs)) gs else NA_real_,
+    gene_end     = if (is.finite(ge)) ge else NA_real_,
+    strand       = strand[1])
+}, by = ensembl_gene_id]
 
 pick_one <- function(key_col) {
   d <- unique(g[!is.na(get(key_col)) & get(key_col) != "",

@@ -77,7 +77,7 @@ dir.create(finemap_dir, recursive = T)
 
 # Remove stale per-lead files for this chromosome so leads dropped from the current
 # clump file do not persist and pollute downstream summaries.
-stale_pattern <- paste0('^', opt$gwas, '\\.chr', opt$chr, '\\..*\\.(rds|png|ld|log|snp_for_ld\\.txt)$')
+stale_pattern <- paste0('^', opt$gwas, '\\.chr', opt$chr, '\\..*\\.(rds|png|ld|log|snp_for_ld\\.txt|ld_to_lead\\.csv)$')
 stale_files <- list.files(finemap_dir, pattern = stale_pattern, full.names = TRUE)
 keep_prefixes <- paste0(opt$gwas, '.chr', opt$chr, '.', lead$SNP, '.')
 if(length(stale_files) > 0){
@@ -101,6 +101,15 @@ for(loc in 1:nrow(lead)){
   
   ld[lower.tri(ld)] <- t(ld)[lower.tri(ld)]
   ld<-ld[match(ss_subset$SNP, rownames(ld)),match(ss_subset$SNP, colnames(ld))]
+
+  # Persist r^2 to the lead variant (reuses the LD matrix already in memory) for
+  # the locus-plot association panel. locus = lead SNP; one row per locus SNP.
+  if(lead$SNP[loc] %in% rownames(ld)){
+    r2_lead<-ld[lead$SNP[loc], ]^2
+    write.csv(data.frame(locus = lead$SNP[loc], SNP = names(r2_lead), r2 = as.numeric(r2_lead)),
+              paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.ld_to_lead.csv'),
+              row.names = FALSE, quote = FALSE)
+  }
 
   skip_to_next<-F
   tryCatch(fitted_rss <- susie_rss(ss_subset$Z, ld, L = 10), error = function(e){skip_to_next <<- TRUE})

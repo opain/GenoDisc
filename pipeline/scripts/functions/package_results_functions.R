@@ -284,6 +284,28 @@ process_susie<-function(outdir, gwas, L){
   return(dat)
 }
 
+# Full-locus per-SNP PIP table for the locus-plot baseline (one row per locus
+# SNP: locus, SNP, CHR, BP, pip, cs, L). NULL on jobs predating process_finemap's
+# locus_pip output, so the viewer falls back to credible-set members only.
+process_susie_locus_pip<-function(outdir, gwas, L){
+  f<-paste0(outdir,'/results/',gwas,'/finemap/',gwas,
+            if(L==1) '.GW.finemap.locus_pip.L1.csv' else '.GW.finemap.locus_pip.csv')
+  if(!file.exists(f)) return(NULL)
+  d<-fread(f)
+  if(nrow(d) == 0 || all(is.na(d$SNP))) return(NULL)
+  d[order(d$CHR, d$BP),]
+}
+
+# Per-locus r^2-to-lead table (locus, SNP, r2) for the association panel's LD
+# colouring. NULL on older jobs.
+process_susie_ld_to_lead<-function(outdir, gwas){
+  f<-paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.ld_to_lead.csv')
+  if(!file.exists(f)) return(NULL)
+  d<-fread(f)
+  if(nrow(d) == 0 || all(is.na(d$SNP))) return(NULL)
+  d
+}
+
 tidy_panel_names<-function(x){
 
   # Mapping from raw panel names to display-friendly labels. Any panel not in

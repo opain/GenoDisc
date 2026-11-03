@@ -44,7 +44,10 @@ rule process_finemap:
     "{outdir}/results/{gwas}/checks/finemap_all_chr.done",
     rules.download_biomart.output
   output:
-    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv"
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv",
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.locus_pip.csv",
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.locus_pip.L1.csv",
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.ld_to_lead.csv"
   benchmark:
     "{outdir}/benchmarks/process_finemap_{gwas}.tsv"
   conda:

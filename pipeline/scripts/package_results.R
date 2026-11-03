@@ -168,6 +168,10 @@ for(gwas_i in gwas_list$name){
     snp_assoc$susie<-list()
     snp_assoc$susie$L10<-process_susie(outdir=outdir, gwas=gwas_i, L=10)
     snp_assoc$susie$L1<-process_susie(outdir=outdir, gwas=gwas_i, L=1)
+    # Locus-plot inputs (NULL on older jobs): full-locus per-SNP PIP + r^2-to-lead.
+    snp_assoc$susie$locus_pip_L10<-process_susie_locus_pip(outdir=outdir, gwas=gwas_i, L=10)
+    snp_assoc$susie$locus_pip_L1<-process_susie_locus_pip(outdir=outdir, gwas=gwas_i, L=1)
+    snp_assoc$susie$ld_to_lead<-process_susie_ld_to_lead(outdir=outdir, gwas=gwas_i)
   } else {
     snp_assoc$susie<-NULL
   }

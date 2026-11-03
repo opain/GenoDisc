@@ -21,6 +21,32 @@ library(susieR)
 library(stringr)
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
 
+# Build a per-SNP PIP table for a whole fine-mapped locus (for the locus-plot
+# baseline). Every SNP in the fit gets its marginal PIP; `cs` is the credible set
+# it most strongly belongs to (largest per-effect alpha), or 0 if in none.
+build_locus_pip <- function(tmp, lead, Lval, ss){
+  pip<-tmp$pip
+  snps<-names(pip)
+  n<-length(pip)
+  cs_assign<-integer(n)
+  best_alpha<-rep(-Inf, n)
+  s<-summary(tmp)$cs
+  if(!is.null(s) && nrow(s) > 0){
+    for(j in 1:nrow(s)){
+      idx<-as.numeric(unlist(str_split(s$variable[j], ',')))
+      idx<-idx[!is.na(idx)]
+      if(length(idx) == 0) next
+      a<-as.numeric(tmp$alpha[s$cs[j], idx])
+      better<-a > best_alpha[idx]
+      cs_assign[idx[better]]<-as.integer(s$cs[j])
+      best_alpha[idx[better]]<-a[better]
+    }
+  }
+  d<-data.table(locus=lead, SNP=snps, pip=as.numeric(pip), cs=cs_assign, L=as.integer(Lval))
+  d<-merge(d, ss[, c('SNP','CHR','BP'), with=FALSE], by='SNP', all.x=TRUE, sort=FALSE)
+  d[, c('locus','SNP','CHR','BP','pip','cs','L'), with=FALSE]
+}
+
 # Read in config file
 config<-readLines(opt$config_file)
 
@@ -180,4 +206,36 @@ if(is.null(finemap_summary)){
 
 # Write out results
 write.csv(finemap_summary, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.L1.csv'), row.names=F, quote=T)
+
+# ---- Per-SNP locus PIP tables (locus-plot association/fine-mapping baseline) ----
+# Separate pass over the same fit files (same stale-lead guard as the summaries).
+build_all_locus_pip <- function(files, Lval){
+  out<-NULL
+  for(f in files){
+    base<-if(Lval == 1) gsub('.L1.rds','',f) else gsub('.rds','',f)
+    lead<-gsub('.*\\.','',base)
+    tmp<-tryCatch(readRDS(f), error=function(e) NULL)
+    if(is.null(tmp) || is.null(summary(tmp)$cs)) next
+    if(length(which(ss$SNP == lead)) != 1) next
+    out<-rbind(out, build_locus_pip(tmp, lead, Lval, ss))
+  }
+  if(is.null(out)) out<-data.table(locus=character(), SNP=character(), CHR=integer(),
+                                   BP=numeric(), pip=numeric(), cs=integer(), L=integer())
+  out
+}
+fwrite(build_all_locus_pip(finemap_files_L10, 10L),
+       paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.locus_pip.csv'))
+fwrite(build_all_locus_pip(finemap_files_L1, 1L),
+       paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.locus_pip.L1.csv'))
+
+# ---- Aggregate per-lead LD-to-lead tables (written by finemap.R) ----
+ld_files<-list.files(path=paste0(outdir,'/results/',opt$gwas,'/finemap/'),
+                     pattern='\\.ld_to_lead\\.csv$', full.names=TRUE)
+ld_to_lead<-NULL
+for(f in ld_files){
+  d<-tryCatch(fread(f), error=function(e) NULL)
+  if(!is.null(d) && nrow(d) > 0) ld_to_lead<-rbind(ld_to_lead, d, fill=TRUE)
+}
+if(is.null(ld_to_lead)) ld_to_lead<-data.table(locus=character(), SNP=character(), r2=numeric())
+fwrite(ld_to_lead, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.ld_to_lead.csv'))
 
