@@ -21,7 +21,7 @@ safe_access <- function(data, ...) {
 #' @param gwas GWAS name
 #' @param cf Named list of config flags from parse_config_flags()
 #' @return data.frame with columns: Panel, ID, Z, Sig, Coloc, Method, Type
-build_mol_assoc_data <- function(gd, gwas, cf) {
+build_mol_assoc_data <- function(gd, gwas, cf, nearest_pc = FALSE) {
   all_func_res <- NULL
 
   # Canonicalise each method's gene label to one display symbol so the same gene
@@ -138,7 +138,12 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
   }
 
   if (cf$clump) {
-    nearest <- safe_access(gd_read(gd, gwas, "mol_assoc/nearest"), "clump")
+    nearest_block <- gd_read(gd, gwas, "mol_assoc/nearest")
+    # Optionally use the protein-coding-only nearest genes (clump_pc) when the
+    # bundle carries them and the caller requests it; else the all-genes list.
+    nearest <- NULL
+    if (isTRUE(nearest_pc)) nearest <- safe_access(nearest_block, "clump_pc")
+    if (is.null(nearest)) nearest <- safe_access(nearest_block, "clump")
     if (!is.null(nearest) && length(nearest) > 0) {
       all_func_res <- rbind(all_func_res, data.frame(
         Panel = 'NearestGene', ID = canon_sym(nearest), Z = 1, Sig = F, Coloc = F,

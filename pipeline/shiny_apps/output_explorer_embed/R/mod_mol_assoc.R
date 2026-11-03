@@ -243,6 +243,7 @@ mol_assoc_single_ui <- function(ns) {
           # are baked in at widget-creation time.
           column(4,
             uiOutput(ns("selected_methods_mol_ui")),
+            uiOutput(ns("mol_nearest_pc_ui")),
             uiOutput(ns("selected_expr_panels_mol_ui")),
             uiOutput(ns("selected_protein_panels_mol_ui"))
           ),
@@ -567,6 +568,19 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                   choices = methods, selected = default, multiple = TRUE)
     })
 
+    # Protein-coding toggle for the Nearest-gene facet — shown only when the
+    # bundle carries the protein-coding nearest list (clump_pc) and the Nearest
+    # facet is present.
+    output$mol_nearest_pc_ui <- renderUI({
+      req(gwas_data())
+      nb <- tryCatch(gd_read(gwas_data(), gd_gwas(gwas_data())[1L], "mol_assoc/nearest"),
+                     error = function(e) NULL)
+      pc <- safe_access(nb, "clump_pc")
+      if (is.null(pc) || length(pc) == 0) return(NULL)
+      checkboxInput(session$ns("mol_nearest_pc"),
+                    "Nearest gene: protein-coding only", value = FALSE)
+    })
+
     output$selected_expr_panels_mol_ui <- renderUI({
       req(bundle_mol_summary_data())
       d <- bundle_mol_summary_data()
@@ -814,7 +828,8 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     mol_assoc_summary_data <- reactive({
       req(gwas_data(), config_flags()); g <- .pick_mol_gwas(); req(g)
-      build_mol_assoc_data(gwas_data(), g, config_flags())
+      build_mol_assoc_data(gwas_data(), g, config_flags(),
+                           nearest_pc = isTRUE(input$mol_nearest_pc))
     })
 
     # Gene -> locus lookup for the per-locus layout. Positions are resolved

@@ -325,12 +325,12 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
                        choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
                        selected = 5e-8),
+          uiOutput(ns("lead_pc_ui")),
           width = 3
         ),
         mainPanel(
           uiOutput(ns("cojo_status_message")),
           uiOutput(ns("lead_status_message")),
-          uiOutput(ns("lead_pc_ui")),
           dataTableOutput(ns("snp_assoc_lead_table")),
           uiOutput(ns("lead_legend")),
           br(),

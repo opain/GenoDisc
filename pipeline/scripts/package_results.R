@@ -251,6 +251,10 @@ for(gwas_i in gwas_list$name){
 
   if(read_param(config = opt$config, param = 'clump', return_obj = F) == "T"){
     mol_assoc$nearest$clump<-identify_nearest(snp_assoc$clump$NearestGene)
+    # Protein-coding-only nearest genes (for the heatmap Nearest-gene facet's
+    # protein-coding toggle); absent in clump CSVs predating the column.
+    if("NearestGeneProteinCoding" %in% names(snp_assoc$clump))
+      mol_assoc$nearest$clump_pc<-identify_nearest(snp_assoc$clump$NearestGeneProteinCoding)
   }
 
   if(read_param(config = opt$config, param = 'cojo', return_obj = F) == "T" && !is.null(snp_assoc$cojo) && nrow(snp_assoc$cojo) > 0){
