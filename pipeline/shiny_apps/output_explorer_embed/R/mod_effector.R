@@ -83,19 +83,53 @@ effectorUI <- function(id) {
           "score, non-synonymous credible-set PIP and the local gene count. ",
           "Probabilities are ", strong("relative within a locus"), " (they sum to 1 per ",
           "credible set), so they rank genes at that locus — they are not an absolute ",
-          "measure of causality. The ", strong("overview"), " table lists every locus; ",
-          "pick one below to drill into its per-gene ranking. The ", strong("nearest gene"),
+          "measure of causality. The ", strong("overview"), " table lists every credible ",
+          "set; click a row to drill into its per-gene ranking. The ", strong("nearest gene"),
           " is a transparency baseline. ", tags$em("Note: "), "CALDERA's nearest gene is ",
           "from a GENCODE protein-coding set, so it can differ from the SNP-Associations ",
           "nearest gene (a broader Ensembl set; may show an older symbol for the same gene)."),
         .eff_L_radio(ns, "caldera_L"),
         h4("All loci — overview"),
+        tags$p(tags$em("Click a row to show that credible set's gene ranking below.")),
         DT::dataTableOutput(ns("caldera_overview")),   # full screen width
         uiOutput(ns("caldera_msg")),
+        gd_legend(list(
+          "locus / cs"           = "Lead variant (locus) and credible-set index.",
+          "top_gene / top_prob"  = "The highest-probability gene in the credible set and its CALDERA probability.",
+          "nearest_gene"         = "Gene nearest the lead variant (transparency baseline).",
+          "nearest_agree"        = "TRUE if the top CALDERA gene is also the nearest gene.",
+          "n_genes"              = "Number of genes CALDERA scored in this credible set.",
+          "flag_protein_altering" = "TRUE if the credible set carries a meaningful share of PIP on protein-altering variants.",
+          "pip_protein_altering / frac_protein_altering" = "Summed / fractional credible-set PIP on protein-altering variants; top_coding_* name the leading coding variant's gene, consequence and AlphaMissense class."
+        ), heading = "Overview columns"),
         hr(),
         h4("Per-locus gene ranking"),
-        uiOutput(ns("caldera_locus_ui")),
-        .eff_figure(ns, "caldera_bar"),
+        uiOutput(ns("caldera_sel_label")),
+        tags$details(class = "gd-details", style = "margin-bottom: 12px;",
+          tags$summary("Plot options"),
+          tags$div(class = "gd-details-body",
+            fluidRow(
+              column(4,
+                sliderInput(ns("cal_font"), "Font size (pt):", min = 8, max = 24,
+                            value = 14, step = 1),
+                selectInput(ns("cal_theme"), "Theme:",
+                            choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                        "Classic" = "classic", "Light" = "light"),
+                            selected = "bw")),
+              column(4,
+                selectInput(ns("cal_dl_format"), "Download format:",
+                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg")),
+                numericInput(ns("cal_dl_dpi"), "Resolution (DPI, PNG only):",
+                             value = 300, min = 72, max = 600, step = 1)),
+              column(4,
+                numericInput(ns("cal_dl_w"), "Width (inches):", value = 9,
+                             min = 2, max = 30, step = 0.5),
+                numericInput(ns("cal_dl_h"), "Height (inches, auto):", value = 6,
+                             min = 1, max = 60, step = 0.5)))
+          )),
+        plotOutput(ns("caldera_bar"), height = "auto"),
+        div(style = "margin: 4px 0 8px;",
+            downloadButton(ns("caldera_bar_dl"), "Download", class = "btn btn-default btn-sm")),
         DT::dataTableOutput(ns("caldera_gene_table")),
         gd_legend(list(
           "caldera"      = "CALDERA causal-gene probability for this gene in this credible set (0–1, sums to 1 per locus).",
@@ -132,25 +166,6 @@ effectorUI <- function(id) {
           "am_pathogenicity"     = "AlphaMissense pathogenicity score (0–1).",
           "consequence"          = "Predicted coding consequence (bcftools csq / AlphaMissense)."
         )), br()
-      ),
-
-      # --------------------------------------------------- Locus report card
-      tabPanel(
-        title = "Locus report card", value = "report",
-        br(),
-        .eff_howto(
-          "For one locus, this pulls the lines of evidence together: CALDERA's gene ",
-          "ranking (with each gene's PoPS score) and whether the credible set carries a ",
-          "protein-altering variant. The ", strong("verdict"), " line summarises whether ",
-          "they converge on a single gene and by what mechanism (coding vs regulatory)."),
-        .eff_L_radio(ns, "report_L"),
-        uiOutput(ns("report_locus_ui")),
-        uiOutput(ns("report_verdict")),
-        .eff_figure(ns, "report_caldera"),
-        uiOutput(ns("report_msg")),
-        br(), h4("Credible-set variants at this locus"),
-        DT::dataTableOutput(ns("report_variants")),
-        br()
       )
     )
   )
@@ -170,7 +185,7 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
     empty_dt <- function() DT::datatable(data.frame(), rownames = FALSE,
                                          selection = "none", options = list(dom = "t"))
     msg <- function(text) div(class = "gd-legend", em(text))
-    show_dt <- function(df, header_tips = NULL) {
+    show_dt <- function(df, header_tips = NULL, selection = "none") {
       df <- as.data.frame(df)
       # Round probability/score columns to 3 dp (CALDERA tables otherwise show
       # many decimal places). Integer-valued columns (BP, dist) are unaffected.
@@ -181,7 +196,7 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
                    columnDefs = list(list(className = "dt-center",
                                           targets = seq_len(ncol(df)) - 1)))
       if (!is.null(header_tips)) opts$headerCallback <- .eff_header_tips(header_tips)
-      DT::datatable(df, rownames = FALSE, filter = "top", selection = "none", options = opts)
+      DT::datatable(df, rownames = FALSE, filter = "top", selection = selection, options = opts)
     }
 
     caldera_data <- reactive(read_block("caldera"))
@@ -201,7 +216,6 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       d
     }
     caldera_L_sel    <- reactive(caldera_at(input$caldera_L %||% "1"))
-    report_L_sel     <- reactive(caldera_at(input$report_L %||% "1"))
 
     reg_download <- function(plot_id, build, w = 10, h = 6) {
       output[[paste0(plot_id, "_dl")]] <- downloadHandler(
@@ -215,15 +229,14 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       )
     }
 
-    # Draw a per-locus CALDERA bar from a gene-level subset `sub`.
-    draw_caldera_bar <- function(sub, title) {
+    # Draw a CALDERA bar from a gene-level subset `sub` (one credible set).
+    draw_caldera_bar <- function(sub, title, font_size = 14,
+                                 theme_fn = ggplot2::theme_bw) {
       if (is.null(sub) || nrow(sub) == 0) return(NULL)
       sub$nearest_gene <- as.logical(sub$nearest_gene)
       sub$gene <- factor(sub$gene, levels = unique(sub$gene[order(sub$caldera)]))
       sub$fill_grp <- ifelse(sub$rank == 1, "Top-ranked", "Other")
-      # Horizontal bars (y = gene) so facet_grid(space="free_y") can size each
-      # credible-set panel by its gene count (feedback 3).
-      g <- ggplot2::ggplot(sub, ggplot2::aes(x = caldera, y = gene, fill = fill_grp)) +
+      ggplot2::ggplot(sub, ggplot2::aes(x = caldera, y = gene, fill = fill_grp)) +
         ggplot2::geom_col(width = 0.72) +
         ggplot2::geom_point(data = sub[sub$nearest_gene %in% TRUE, , drop = FALSE],
                             ggplot2::aes(x = caldera, y = gene),
@@ -233,12 +246,7 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
                                    name = NULL) +
         ggplot2::labs(x = "CALDERA causal-gene probability", y = NULL,
                       title = title, subtitle = "◇ = nearest gene (baseline)") +
-        ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom")
-      if (length(unique(sub$cs)) > 1)
-        g <- g + ggplot2::facet_grid(rows = ggplot2::vars(cs), scales = "free_y",
-                                     space = "free_y", labeller = ggplot2::label_both) +
-                 ggplot2::theme(strip.text.y = ggplot2::element_text(angle = 0))
-      g
+        theme_fn(base_size = font_size) + ggplot2::theme(legend.position = "bottom")
     }
 
     # ======================================================================
@@ -266,14 +274,17 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
         for (cc in cs_cols) row[[cc]] <- g[[cc]][1]
         row
       })
-      do.call(rbind, parts)
+      ov <- do.call(rbind, parts)
+      # Sort here (not in the render) so the row index from a table click maps to
+      # the same row the drill-down uses.
+      ov[order(-ov$top_prob), , drop = FALSE]
     })
 
+    # Single-row-selectable overview: clicking a row drives the drill-down.
     output$caldera_overview <- DT::renderDataTable({
       d <- caldera_overview_data()
       if (is.null(d) || nrow(d) == 0) return(empty_dt())
-      d <- d[order(-d$top_prob), ]
-      show_dt(d, header_tips = list(
+      show_dt(d, selection = "single", header_tips = list(
         "nearest_agree" = "TRUE if CALDERA's top gene is also the nearest gene.",
         "top_prob"      = "CALDERA probability of the top-ranked gene in this credible set.",
         "frac_protein_altering" = "Fraction of credible-set PIP on protein-altering variants."))
@@ -284,33 +295,70 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       NULL
     })
 
-    output$caldera_locus_ui <- renderUI({
-      d <- caldera_L_sel(); if (is.null(d)) return(NULL)
-      loci <- sort(unique(as.character(d$locus)))
-      selectInput(ns("caldera_locus"), "Locus (lead variant):",
-                  choices = loci, selected = loci[1], width = "320px")
+    # The selected overview row (defaults to the first row = highest-probability
+    # credible set when nothing is clicked). Returns one (locus, cs) row or NULL.
+    caldera_sel <- reactive({
+      ov <- caldera_overview_data(); if (is.null(ov) || nrow(ov) == 0) return(NULL)
+      i <- input$caldera_overview_rows_selected
+      if (is.null(i) || length(i) == 0 || i < 1 || i > nrow(ov)) i <- 1L
+      ov[i, , drop = FALSE]
     })
 
+    output$caldera_sel_label <- renderUI({
+      r <- caldera_sel(); if (is.null(r)) return(NULL)
+      div(class = "gd-legend",
+          "Showing credible set: ", tags$strong(as.character(r$locus)),
+          sprintf(" — cs %s (L = %s)", r$cs, input$caldera_L %||% "1"),
+          tags$span(style = "color:#888;", "  (click another overview row to change)"))
+    })
+
+    # One credible set (the selected locus + cs) at a time.
     caldera_locus_sub <- reactive({
-      d <- caldera_L_sel(); if (is.null(d)) return(NULL)
-      loc <- input$caldera_locus %||% sort(unique(as.character(d$locus)))[1]
-      sub <- d[as.character(d$locus) == loc, , drop = FALSE]
+      r <- caldera_sel(); d <- caldera_L_sel()
+      if (is.null(r) || is.null(d)) return(NULL)
+      sub <- d[as.character(d$locus) == as.character(r$locus) & d$cs == r$cs, , drop = FALSE]
       if (nrow(sub) == 0) NULL else sub
     })
+    cal_n_genes  <- reactive({ s <- caldera_locus_sub(); if (is.null(s)) 0L else nrow(s) })
+    # ~26 px/gene (roughly the Molecular-Associations heatmap spacing) + margins.
+    cal_bar_h_px <- reactive(max(220, 96 + 26 * cal_n_genes()))
 
     build_caldera_bar <- function() {
       sub <- caldera_locus_sub(); if (is.null(sub)) return(NULL)
-      draw_caldera_bar(sub, paste0("CALDERA at ", sub$locus[1]))
+      r <- caldera_sel()
+      ttl <- if (!is.null(r)) sprintf("CALDERA at %s (cs %s)", r$locus, r$cs) else "CALDERA"
+      draw_caldera_bar(sub, ttl, font_size = input$cal_font %||% 14,
+                       theme_fn = mol_theme_fn(input$cal_theme %||% "bw"))
     }
-    output$caldera_bar <- renderPlot({ p <- build_caldera_bar(); if (!is.null(p)) p })
-    reg_download("caldera_bar", build_caldera_bar, w = 9, h = 6)
+    output$caldera_bar <- renderPlot({ p <- build_caldera_bar(); if (!is.null(p)) p },
+                                     height = function() cal_bar_h_px())
+
+    # Default the download height to the gene count on each new selection.
+    observeEvent(caldera_locus_sub(), {
+      updateNumericInput(session, "cal_dl_h",
+                         value = round(max(3, 1.6 + 0.3 * cal_n_genes()), 1))
+    })
+    output$caldera_bar_dl <- downloadHandler(
+      filename = function() {
+        r <- caldera_sel()
+        tag <- if (!is.null(r)) paste0(r$locus, "_cs", r$cs) else "plot"
+        sprintf("caldera_%s.%s", tag, input$cal_dl_format %||% "png")
+      },
+      content = function(file) {
+        p <- tryCatch(build_caldera_bar(), error = function(e) NULL)
+        open_plot_device(file, fmt = input$cal_dl_format %||% "png",
+                         w = input$cal_dl_w %||% 9, h = input$cal_dl_h %||% 6,
+                         units = "in", dpi = input$cal_dl_dpi %||% 300)
+        if (!is.null(p)) print(p) else grid::grid.text("No data to plot.")
+        grDevices::dev.off()
+      })
 
     # Gene-level table (credible-set-level coding columns live in the overview).
     output$caldera_gene_table <- DT::renderDataTable({
       sub <- caldera_locus_sub(); if (is.null(sub)) return(empty_dt())
       cols <- intersect(c("locus", "cs", "gene", "ensgid", "caldera", "multi",
                           "rank", "nearest_gene", "pops", "dist", "coding"), names(sub))
-      g <- sub[order(sub$cs, -sub$caldera), cols, drop = FALSE]
+      g <- sub[order(-sub$caldera), cols, drop = FALSE]
       names(g)[names(g) == "multi"] <- "Unnormalised probability"
       show_dt(g, header_tips = list(
         "Unnormalised probability" = "Raw per-gene CALDERA score before normalising to sum to 1 within the credible set.",
@@ -376,82 +424,5 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       NULL
     })
 
-    # ======================================================================
-    # Locus report card
-    # ======================================================================
-    output$report_locus_ui <- renderUI({
-      d <- report_L_sel(); if (is.null(d)) return(NULL)
-      loci <- sort(unique(as.character(d$locus)))
-      selectInput(ns("report_locus"), "Locus (lead variant):",
-                  choices = loci, selected = loci[1], width = "320px")
-    })
-
-    report_bits <- reactive({
-      d <- report_L_sel(); if (is.null(d)) return(NULL)
-      loc <- input$report_locus %||% sort(unique(as.character(d$locus)))[1]
-      cal <- d[as.character(d$locus) == loc, , drop = FALSE]
-      if (nrow(cal) == 0) return(NULL)
-      top <- cal[which.max(cal$caldera), , drop = FALSE]
-      near <- cal[as.logical(cal$nearest_gene) %in% TRUE, , drop = FALSE]
-      near_gene <- if (nrow(near) > 0) near$gene[1] else NA_character_
-      coding_gene <- NA_character_; coding_frac <- NA_real_
-      cd <- coding_data()
-      if (!is.null(cd) && !is.null(cd$summary) && nrow(cd$summary) > 0) {
-        cs <- as.data.frame(cd$summary)
-        cs <- cs[as.character(cs$locus) == loc &
-                   (as.logical(cs$flag_protein_altering) %in% TRUE), , drop = FALSE]
-        if (nrow(cs) > 0) {
-          cs <- cs[order(-suppressWarnings(as.numeric(cs$frac_protein_altering))), ]
-          coding_gene <- cs$top_coding_gene[1]
-          coding_frac <- suppressWarnings(as.numeric(cs$frac_protein_altering[1]))
-        }
-      }
-      list(loc = loc, cal = cal, top_gene = as.character(top$gene[1]),
-           top_prob = top$caldera[1], near_gene = as.character(near_gene),
-           coding_gene = coding_gene, coding_frac = coding_frac)
-    })
-
-    output$report_verdict <- renderUI({
-      b <- report_bits()
-      if (is.null(b)) return(msg("No CALDERA results for this GWAS at the selected L."))
-      if (!is.na(b$coding_gene) && nzchar(b$coding_gene)) {
-        verdict <- sprintf(
-          "Coding mechanism: the credible set carries %.0f%% of its PIP on protein-altering variants in %s. %s is the strongest effector-gene candidate.",
-          100 * (b$coding_frac %||% NA), b$coding_gene,
-          if (identical(b$coding_gene, b$top_gene)) paste0(b$coding_gene, " (also CALDERA-top)") else b$coding_gene)
-      } else if (!is.na(b$near_gene) && identical(b$near_gene, b$top_gene)) {
-        verdict <- sprintf(
-          "CALDERA top-ranks %s (p = %.2f), which is also the nearest gene — consistent prioritisation, with no coding signal (regulatory mechanism likely).",
-          b$top_gene, b$top_prob)
-      } else {
-        verdict <- sprintf(
-          "CALDERA top-ranks %s (p = %.2f) over the nearest gene%s — prioritised on functional grounds rather than proximity; no coding signal.",
-          b$top_gene, b$top_prob,
-          if (!is.na(b$near_gene)) paste0(" (", b$near_gene, ")") else "")
-      }
-      div(class = "gd-legend", tags$strong(paste0("Verdict for ", b$loc, ": ")), verdict)
-    })
-
-    build_report_caldera <- function() {
-      b <- report_bits(); if (is.null(b)) return(NULL)
-      draw_caldera_bar(b$cal, paste0("Gene ranking at ", b$loc))
-    }
-    output$report_caldera <- renderPlot({ p <- build_report_caldera(); if (!is.null(p)) p })
-    reg_download("report_caldera", build_report_caldera, w = 9, h = 6)
-    output$report_msg <- renderUI({
-      if (is.null(report_L_sel()))
-        return(msg("No CALDERA results for this GWAS at the selected L."))
-      NULL
-    })
-
-    output$report_variants <- DT::renderDataTable({
-      b <- report_bits(); cd <- coding_data()
-      if (is.null(b) || is.null(cd) || is.null(cd$variants) || nrow(cd$variants) == 0)
-        return(empty_dt())
-      v <- as.data.frame(cd$variants)
-      v <- v[as.character(v$locus) == b$loc, , drop = FALSE]
-      if (nrow(v) == 0) return(empty_dt())
-      show_dt(v)
-    })
   })
 }
