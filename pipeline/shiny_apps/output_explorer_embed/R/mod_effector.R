@@ -129,7 +129,7 @@ effectorUI <- function(id) {
             downloadButton(ns("caldera_bar_dl"), "Download plot",
                            class = "btn btn-default btn-sm")
           )),
-        tags$div(style = "max-width: 1200px;",
+        tags$div(style = "max-width: 1200px; margin-bottom: 20px;",
                  plotOutput(ns("caldera_bar"), height = "auto")),
         DT::dataTableOutput(ns("caldera_gene_table")),
         gd_legend(list(
