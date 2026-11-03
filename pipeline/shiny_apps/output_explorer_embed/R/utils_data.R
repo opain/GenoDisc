@@ -24,6 +24,24 @@ safe_access <- function(data, ...) {
 build_mol_assoc_data <- function(gd, gwas, cf) {
   all_func_res <- NULL
 
+  # Canonicalise each method's gene label to one display symbol so the same gene
+  # is a single heatmap row across methods (e.g. legacy "C21orf2" and current
+  # "CFAP410" collapse). Resolve via the block's Ensembl id where it has one
+  # (most reliable), else via symbol/synonym. ID stays a plain string, so the
+  # grid/plot/locus code is unchanged; unresolved labels pass through. NOTE this
+  # keys the row on the canonical SYMBOL, so two distinct genes sharing a
+  # canonical symbol (rare: readthroughs/pseudogenes) would merge into one row;
+  # ensembl-keying is deferred to the packaging slice.
+  canon_sym <- function(sym, ens = NULL) {
+    sym <- as.character(sym)
+    key <- if (is.null(ens)) sym else
+      ifelse(!is.na(ens) & ens != "", as.character(ens), sym)
+    out <- harmonise_genes(key)$symbol
+    bad <- is.na(out) | grepl("^ENSG", out)   # never label a row with a bare Ensembl id
+    out[bad] <- sym[bad]
+    out
+  }
+
   if (cf$finemap) {
     # SuSiE L=1 and L=10 are separate selectable methods (toggled via "Include
     # results from these methods"); both map to the SuSiE facet, distinguished on
@@ -34,7 +52,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
       if (!is.null(ids) && length(ids) > 0) {
         lab <- if (Lv == "L1") "SuSiE (L=1)" else "SuSiE (L=10)"
         all_func_res <- rbind(all_func_res, data.frame(
-          Panel = lab, ID = ids, Z = 1, Sig = F, Coloc = F,
+          Panel = lab, ID = canon_sym(ids), Z = 1, Sig = F, Coloc = F,
           Method = lab, Type = ''))
       }
     }
@@ -45,7 +63,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     if (!is.null(fusion_res)) {
       twas_tmp <- data.table(
         Panel = fusion_res$PANEL,
-        ID = fusion_res$`Gene Symbol`,
+        ID = canon_sym(fusion_res$`Gene Symbol`, fusion_res$`Ensembl ID`),
         Z = fusion_res$TWAS.Z,
         Sig = fusion_res$TWAS.P.FDR < 0.05,
         Coloc = fusion_res$COLOC_logical)
@@ -66,7 +84,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
       smr_expr_id <- smr_res$`Gene Symbol`
       smr_expr_id[is.na(smr_expr_id)] <- smr_res$`Ensembl ID`[is.na(smr_expr_id)]
       smr_tmp <- data.table(
-        Panel = smr_res$PANEL, ID = smr_expr_id,
+        Panel = smr_res$PANEL, ID = canon_sym(smr_expr_id, smr_res$`Ensembl ID`),
         Z = smr_res$b_SMR / smr_res$se_SMR,
         Sig = smr_res$p_SMR.FDR < 0.05,
         Coloc = smr_res$p_HEIDI > 0.05)
@@ -80,7 +98,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     pwas_res <- safe_access(gd_read(gd, gwas, "mol_assoc/protein/fusion"), "results")
     if (!is.null(pwas_res)) {
       pwas_tmp <- data.table(
-        Panel = pwas_res$PANEL, ID = pwas_res$`Gene Symbol`,
+        Panel = pwas_res$PANEL, ID = canon_sym(pwas_res$`Gene Symbol`, pwas_res$`Ensembl ID`),
         Z = pwas_res$pwas_all.Z,
         Sig = pwas_res$pwas_all.P.FDR < 0.05,
         Coloc = pwas_res$COLOC_logical)
@@ -96,7 +114,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     smr_prot <- safe_access(gd_read(gd, gwas, "mol_assoc/protein/smr"), "results")
     if (!is.null(smr_prot)) {
       smr_prot_tmp <- data.table(
-        Panel = smr_prot$PANEL, ID = smr_prot$`Gene Symbol`,
+        Panel = smr_prot$PANEL, ID = canon_sym(smr_prot$`Gene Symbol`, smr_prot$`Ensembl ID`),
         Z = smr_prot$b_SMR / smr_prot$se_SMR,
         Sig = smr_prot$p_SMR.FDR < 0.05,
         Coloc = smr_prot$p_HEIDI > 0.05)
@@ -112,7 +130,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     magma <- gd_read(gd, gwas, "mol_assoc/magma")
     if (!is.null(magma)) {
       all_func_res <- rbind(all_func_res, data.frame(
-        Panel = 'MAGMA', ID = magma$ID,
+        Panel = 'MAGMA', ID = canon_sym(magma$ID),
         Z = abs(qnorm(as.numeric(magma$P))),
         Sig = as.numeric(magma$P.FDR) < 0.05,
         Coloc = F, Method = 'MAGMA', Type = ''))
@@ -123,7 +141,7 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
     nearest <- safe_access(gd_read(gd, gwas, "mol_assoc/nearest"), "clump")
     if (!is.null(nearest) && length(nearest) > 0) {
       all_func_res <- rbind(all_func_res, data.frame(
-        Panel = 'NearestGene', ID = nearest, Z = 1, Sig = F, Coloc = F,
+        Panel = 'NearestGene', ID = canon_sym(nearest), Z = 1, Sig = F, Coloc = F,
         Method = 'Nearest\nGene', Type = ''))
     }
   }
@@ -150,10 +168,12 @@ build_mol_assoc_data <- function(gd, gwas, cf) {
         # One row per gene: best probability across its credible sets; flagged
         # Sig if it is rank-1 in any of them.
         agg <- do.call(rbind, lapply(split(sub, sub$gene), function(d) data.frame(
-          gene = d$gene[1], prob = max(d$caldera),
+          gene = d$gene[1],
+          ensgid = if ("ensgid" %in% names(d)) as.character(d$ensgid[1]) else NA_character_,
+          prob = max(d$caldera),
           top  = any(d$rank == 1, na.rm = TRUE), stringsAsFactors = FALSE)))
         cal_part <- data.frame(
-          Panel = lab, ID = agg$gene, Z = NA_real_, Sig = agg$top,
+          Panel = lab, ID = canon_sym(agg$gene, agg$ensgid), Z = NA_real_, Sig = agg$top,
           Coloc = FALSE, Method = lab, Type = '',
           Prio = pmin(pmax(agg$prob, 0), 1), stringsAsFactors = FALSE)
         if (!is.null(all_func_res) && !("Prio" %in% names(all_func_res)))
@@ -248,8 +268,12 @@ build_gene_position_map <- function(gd, gwas, cf) {
 #'
 #' Reads data/gene_positions.rds (built by pipeline/scripts/make_shiny_gene_positions.R) once and
 #' caches it. Returns a list with three symbol-keyed data.frames (ID, CHR, BP):
-#' by_symbol, by_synonym, by_ensembl. Returns NULL if the file is absent, in
-#' which case the app falls back to per-method harvested positions.
+#' by_symbol, by_synonym, by_ensembl; and (newer bundles) the gene-identity
+#' reference $canonical (one row per ensembl id: ensembl_gene_id, symbol,
+#' gene_biotype, CHR, BP) plus $sym2id / $syn2id resolver vectors used by
+#' harmonise_genes(). Returns NULL if the file is absent, in which case the app
+#' falls back to per-method harvested positions and harmonise_genes() passes
+#' labels through unchanged.
 load_gene_positions <- local({
   cache <- NULL
   loaded <- FALSE
@@ -310,6 +334,55 @@ resolve_feature_positions <- function(ids, gd, gwas, cf) {
   }
 
   out[!is.na(out$BP), ]
+}
+
+#' Harmonise gene labels to one canonical identity
+#'
+#' Resolves a mix of gene symbols and Ensembl ids to a single canonical identity
+#' using the bundled reference ($canonical / $sym2id / $syn2id from
+#' load_gene_positions()), so the same physical gene carries one symbol/id
+#' everywhere in the app (e.g. "C21orf2" and the newer HGNC name "CFAP410" both
+#' map to ENSG00000160226 and so to one canonical symbol — whichever the bundled
+#' biomart vintage carries as external_gene_name). Resolution per label: an Ensembl id
+#' (ENSG…, version suffix stripped) is used directly; otherwise the symbol is
+#' looked up in $sym2id then $syn2id. Labels that resolve get the canonical
+#' display symbol + biotype; anything unresolved passes through unchanged
+#' (ensembl_id NA, symbol = input, biotype NA). Pure and vectorised over the
+#' unique inputs. On an older bundle lacking the canonical pieces, every label
+#' passes through unchanged.
+#'
+#' @param x Character vector of gene labels (symbols and/or Ensembl ids)
+#' @return data.frame(input, ensembl_id, symbol, biotype), same length/order as x
+harmonise_genes <- function(x) {
+  x <- as.character(x)
+  out <- data.frame(input = x, ensembl_id = NA_character_,
+                    symbol = x, biotype = NA_character_, stringsAsFactors = FALSE)
+  if (length(x) == 0) return(out)
+
+  ref <- load_gene_positions()
+  canon <- ref$canonical; sym2id <- ref$sym2id; syn2id <- ref$syn2id
+  if (is.null(canon) || is.null(sym2id) || is.null(syn2id)) return(out)  # old bundle
+
+  u <- unique(x)
+  is_ens <- grepl("^ENSG", u)
+  key    <- ifelse(is_ens, sub("\\..*$", "", u), NA_character_)   # ENSG, version stripped
+  sym_hit <- unname(sym2id[u])
+  syn_hit <- unname(syn2id[u])
+  id_u <- ifelse(is_ens, key, ifelse(!is.na(sym_hit), sym_hit, syn_hit))
+
+  ci     <- match(id_u, canon$ensembl_gene_id)
+  can_sym <- canon$symbol[ci]
+  can_bt  <- canon$gene_biotype[ci]
+
+  # ENSG inputs keep their (stripped) id even if absent from the reference.
+  ens_u <- ifelse(is_ens, key, id_u)
+  disp_u <- ifelse(!is.na(can_sym) & can_sym != "", can_sym, u)
+
+  mi <- match(x, u)
+  out$ensembl_id <- ens_u[mi]
+  out$symbol     <- disp_u[mi]
+  out$biotype    <- can_bt[mi]
+  out
 }
 
 #' Build drug enrichment summary data

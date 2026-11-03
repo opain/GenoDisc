@@ -331,19 +331,38 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
                              "top_coding_am_class", "flag_protein_altering"), names(d))
       parts <- lapply(split(d, list(d$locus, d$cs), drop = TRUE), function(g) {
         top  <- g[which.max(g$caldera), , drop = FALSE]
-        near <- g$gene[as.logical(g$nearest_gene) %in% TRUE]
-        near <- if (length(near)) near[1] else NA_character_
+        near_idx <- which(as.logical(g$nearest_gene) %in% TRUE)
+        near <- if (length(near_idx)) as.character(g$gene[near_idx[1]]) else NA_character_
+        # Canonicalise the displayed symbols and decide nearest-agreement on
+        # Ensembl identity (falling back to canonical symbol) so a symbol-vintage
+        # difference between the two does not read as a disagreement.
+        top_ens  <- if ("ensgid" %in% names(g)) as.character(top$ensgid[1]) else NA_character_
+        near_ens <- if (length(near_idx) && "ensgid" %in% names(g))
+          as.character(g$ensgid[near_idx[1]]) else NA_character_
+        h_top  <- harmonise_genes(as.character(top$gene[1]))
+        h_near <- harmonise_genes(near)
+        top_id  <- if (!is.na(top_ens)  && top_ens  != "") top_ens  else h_top$ensembl_id
+        near_id <- if (!is.na(near_ens) && near_ens != "") near_ens else h_near$ensembl_id
+        agree <- (!is.na(top_id) && !is.na(near_id) && top_id == near_id) ||
+                 (!is.na(near) && !is.na(h_top$symbol) && identical(h_top$symbol, h_near$symbol))
+        top_disp  <- if (!is.na(h_top$symbol)  && !grepl("^ENSG", h_top$symbol))  h_top$symbol  else as.character(top$gene[1])
+        near_disp <- if (!is.na(near) && !is.na(h_near$symbol) && !grepl("^ENSG", h_near$symbol)) h_near$symbol else near
         row <- data.frame(
           locus = g$locus[1], cs = g$cs[1],
-          top_gene = as.character(top$gene[1]),
+          top_gene = top_disp,
           top_prob = round(top$caldera[1], 3),
-          nearest_gene = as.character(near),
-          nearest_agree = !is.na(near) && identical(as.character(top$gene[1]), as.character(near)),
+          nearest_gene = near_disp,
+          nearest_agree = isTRUE(agree),
           n_genes = nrow(g), stringsAsFactors = FALSE)
         for (cc in cs_cols) row[[cc]] <- g[[cc]][1]
         row
       })
       ov <- do.call(rbind, parts)
+      if ("top_coding_gene" %in% names(ov)) {
+        h <- harmonise_genes(as.character(ov$top_coding_gene))
+        ov$top_coding_gene <- ifelse(!is.na(h$symbol) & !grepl("^ENSG", h$symbol),
+                                     h$symbol, as.character(ov$top_coding_gene))
+      }
       # Sort here (not in the render) so the row index from a table click maps to
       # the same row the drill-down uses.
       ov[order(-ov$top_prob), , drop = FALSE]
@@ -428,6 +447,13 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       cols <- intersect(c("locus", "cs", "gene", "ensgid", "caldera", "multi",
                           "rank", "nearest_gene", "pops", "dist", "coding"), names(sub))
       g <- sub[order(-sub$caldera), cols, drop = FALSE]
+      if ("gene" %in% names(g)) {
+        key <- if ("ensgid" %in% names(g))
+          ifelse(!is.na(g$ensgid) & g$ensgid != "", as.character(g$ensgid), as.character(g$gene))
+          else as.character(g$gene)
+        h <- harmonise_genes(key)
+        g$gene <- ifelse(!is.na(h$symbol) & !grepl("^ENSG", h$symbol), h$symbol, as.character(g$gene))
+      }
       names(g)[names(g) == "multi"] <- "Unnormalised probability"
       show_dt(g, header_tips = list(
         "Unnormalised probability" = "Raw per-gene CALDERA score before normalising to sum to 1 within the credible set.",
@@ -459,7 +485,9 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       do.call(rbind, lapply(split(d, list(d$locus, d$cs), drop = TRUE), function(x) {
         r <- x[which.max(x$caldera), ]
         data.frame(locus = as.character(r$locus), cs = r$cs,
-                   caldera_gene = as.character(r$gene), stringsAsFactors = FALSE)
+                   caldera_gene = as.character(r$gene),
+                   caldera_ensgid = if ("ensgid" %in% names(r)) as.character(r$ensgid) else NA_character_,
+                   stringsAsFactors = FALSE)
       }))
     })
 
@@ -533,9 +561,30 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       ct <- coding_caldera_top()
       if (!is.null(ct)) {
         i <- match(paste(s$locus, s$cs), paste(ct$locus, ct$cs))
-        s$caldera_gene  <- ct$caldera_gene[i]
-        s$caldera_agree <- !is.na(s$caldera_gene) & nzchar(as.character(s$top_coding_gene)) &
-          (as.character(s$caldera_gene) == as.character(s$top_coding_gene))
+        caldera_gene_raw <- ct$caldera_gene[i]
+        caldera_ensgid   <- ct$caldera_ensgid[i]
+        # Decide agreement on canonical gene identity, not a raw symbol compare,
+        # so a GENCODE-vs-csq symbol-vintage mismatch (e.g. CFAP410 vs C21orf2)
+        # for the same gene still counts as agreement. Prefer the Ensembl id;
+        # fall back to canonical symbol, then the old raw-string compare.
+        h_cal  <- harmonise_genes(caldera_gene_raw)
+        h_code <- harmonise_genes(as.character(s$top_coding_gene))
+        cal_id  <- ifelse(!is.na(caldera_ensgid) & caldera_ensgid != "",
+                          caldera_ensgid, h_cal$ensembl_id)
+        code_id <- h_code$ensembl_id
+        agree_id  <- !is.na(cal_id) & !is.na(code_id) & cal_id == code_id
+        agree_sym <- !is.na(h_cal$symbol) & nzchar(as.character(h_code$symbol)) &
+          h_cal$symbol == h_code$symbol
+        agree_raw <- !is.na(caldera_gene_raw) & nzchar(as.character(s$top_coding_gene)) &
+          (as.character(caldera_gene_raw) == as.character(s$top_coding_gene))
+        agree <- ifelse(!is.na(cal_id) & !is.na(code_id), agree_id, agree_sym | agree_raw)
+        agree[is.na(agree)] <- FALSE
+        # Display canonical symbols on both sides for consistency with other tabs.
+        s$caldera_gene <- ifelse(!is.na(h_cal$symbol) & !grepl("^ENSG", h_cal$symbol),
+                                 h_cal$symbol, caldera_gene_raw)
+        s$top_coding_gene <- ifelse(!is.na(h_code$symbol) & !grepl("^ENSG", h_code$symbol),
+                                    h_code$symbol, as.character(s$top_coding_gene))
+        s$caldera_agree <- agree
       }
       cols <- intersect(c("locus","cs","L","n_variants","pip_total","pip_protein_altering",
                           "frac_protein_altering","coding_flag","top_coding_gene",

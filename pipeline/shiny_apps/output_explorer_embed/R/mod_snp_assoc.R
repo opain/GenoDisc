@@ -777,7 +777,21 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     output$snp_assoc_lead_table <- renderDataTable({
-      d <- snp_assoc_lead_data()
+      d <- as.data.frame(snp_assoc_lead_data())
+      # Surface the nearest gene's biotype so a non-coding nearest gene is
+      # self-explanatory. Only added when the reference carries biotype (i.e.
+      # after the biomart refresh that adds gene_biotype); invisible otherwise.
+      if ("NearestGene" %in% names(d)) {
+        bt <- harmonise_genes(as.character(d$NearestGene))$biotype
+        if (any(!is.na(bt))) {
+          bt[is.na(bt)] <- "—"
+          pos <- match("NearestGene", names(d))
+          d <- data.frame(d[, seq_len(pos), drop = FALSE],
+                          `NearestGene biotype` = bt,
+                          d[, setdiff(seq_len(ncol(d)), seq_len(pos)), drop = FALSE],
+                          check.names = FALSE, stringsAsFactors = FALSE)
+        }
+      }
       # Column indices are resolved by name (0-indexed) because the column set
       # differs between clumping (carries FREQ / REF.FREQ) and COJO.
       p_idx  <- match("P", names(d)) - 1L
@@ -885,8 +899,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           top <- do.call(rbind, lapply(
             split(cal, list(cal$locus, cal$cs), drop = TRUE), function(x) {
               r <- x[which.max(x$caldera), , drop = FALSE]
+              # Canonicalise the CALDERA (GENCODE) symbol so it matches the
+              # biomart-derived Gene column spelling in the same table.
+              ck <- if ("ensgid" %in% names(r) && !is.na(r$ensgid) && r$ensgid != "")
+                as.character(r$ensgid) else as.character(r$gene)
+              ch <- harmonise_genes(ck)
+              cdisp <- if (!is.na(ch$symbol) && !grepl("^ENSG", ch$symbol)) ch$symbol else as.character(r$gene)
               data.frame(SNP = as.character(r$locus), cs = as.integer(r$cs),
-                         `CALDERA top gene` = as.character(r$gene),
+                         `CALDERA top gene` = cdisp,
                          `CALDERA prob` = round(r$caldera, 3),
                          check.names = FALSE, stringsAsFactors = FALSE)
             }))
@@ -929,6 +949,33 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       ord <- c("CHR", "BP", "SNP", "cs", "NSNP", "TopPIP", "Gene",
                "CALDERA top gene", "CALDERA prob")
       df <- df[, c(intersect(ord, names(df)), setdiff(names(df), ord)), drop = FALSE]
+      # Canonicalise each gene in the (possibly comma-separated) biomart Gene
+      # column so its spelling matches the CALDERA top gene column.
+      if ("Gene" %in% names(df)) {
+        gl <- strsplit(as.character(df$Gene), ",\\s*")
+        df$Gene <- vapply(gl, function(parts) {
+          parts <- parts[!is.na(parts) & nzchar(parts)]
+          if (!length(parts)) return(NA_character_)
+          h <- harmonise_genes(parts)
+          disp <- ifelse(!is.na(h$symbol) & !grepl("^ENSG", h$symbol), h$symbol, parts)
+          paste(unique(disp), collapse = ", ")
+        }, character(1))
+        # Parallel biotype column, only when the reference carries biotype.
+        bt <- vapply(gl, function(parts) {
+          parts <- parts[!is.na(parts) & nzchar(parts)]
+          if (!length(parts)) return(NA_character_)
+          b <- harmonise_genes(parts)$biotype
+          if (all(is.na(b))) NA_character_ else paste(unique(b[!is.na(b)]), collapse = ", ")
+        }, character(1))
+        if (any(!is.na(bt))) {
+          bt[is.na(bt)] <- "—"
+          pos <- match("Gene", names(df))
+          df <- data.frame(df[, seq_len(pos), drop = FALSE],
+                           `Gene biotype` = bt,
+                           df[, setdiff(seq_len(ncol(df)), seq_len(pos)), drop = FALSE],
+                           check.names = FALSE, stringsAsFactors = FALSE)
+        }
+      }
       datatable(df, rownames = F, width = 7, selection = "none", options = list(
         columnDefs = list(list(className = 'dt-center', targets = "_all"))))
     })
