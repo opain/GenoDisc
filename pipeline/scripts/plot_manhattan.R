@@ -49,13 +49,23 @@ idx_plot <- NULL
 clump_members <- character(0)
 
 if (has_clump) {
-  idx <- fread(clump_csv, select = c("SNP", "CHR", "BP", "P", "NearestGene"))
+  # NearestGeneProteinCoding is only present in clump CSVs from a pipeline with
+  # the protein-coding annotation; select it only when available.
+  clump_cols <- names(fread(clump_csv, nrows = 0))
+  sel <- intersect(c("SNP", "CHR", "BP", "P", "NearestGene", "NearestGeneProteinCoding"), clump_cols)
+  idx <- fread(clump_csv, select = sel)
   idx <- idx[!is.na(P) & P > 0 & CHR >= 1 & CHR <= 22]
   idx_plot <- merge(idx, chr_lens[, .(CHR, cum_offset)], by = "CHR")
   idx_plot[, cum_bp := BP + cum_offset]
   idx_plot[, neglogP := -log10(P)]
   idx_plot[, label := sub(",.*$", "", NearestGene)]
   idx_plot[label == "None", label := NA_character_]
+  if ("NearestGeneProteinCoding" %in% names(idx_plot)) {
+    idx_plot[, label_pc := sub(",.*$", "", NearestGeneProteinCoding)]
+    idx_plot[is.na(label_pc) | label_pc %in% c("None", "NA", ""), label_pc := NA_character_]
+  } else {
+    idx_plot[, label_pc := NA_character_]
+  }
 
   member_index_map <- data.table(member_snp = character(), index_snp = character())
   clumped_files <- Sys.glob(paste0(outdir, '/results/', opt$gwas, '/clump/', opt$gwas, '_chr*.clumped'))
@@ -150,10 +160,10 @@ manhattan_data <- list(
   data = ss[, .(CHR, BP, SNP, P, chr_colour, cum_bp, neglogP, category, index_snp)],
   offsets = chr_lens[, .(CHR, cum_offset, label_pos, chr_colour)],
   indexes = if (!is.null(idx_plot))
-              idx_plot[, .(SNP, CHR, BP, P, cum_bp, neglogP, label)]
+              idx_plot[, .(SNP, CHR, BP, P, cum_bp, neglogP, label, label_pc)]
             else data.table(SNP = character(), CHR = integer(), BP = numeric(),
                             P = numeric(), cum_bp = numeric(),
-                            neglogP = numeric(), label = character()),
+                            neglogP = numeric(), label = character(), label_pc = character()),
   p_threshold = if (nrow(ss) < 10) 1 else 1e-3
 )
 data_path <- paste0(outdir, '/results/', opt$gwas, '/gwas_sumstat/',

@@ -30,6 +30,7 @@ build_manhattan_plot <- function(md,
                                   highlight_threshold = 5e-8,
                                   label_variants = FALSE,
                                   label_threshold = 5e-8,
+                                  protein_coding_labels = FALSE,
                                   font_size = 14,
                                   point_size = 0.9,
                                   theme_fn = ggplot2::theme_bw,
@@ -112,6 +113,12 @@ build_manhattan_plot <- function(md,
         fill = col_index, colour = "black")
     }
     if (isTRUE(label_variants)) {
+      # Optionally label with the nearest PROTEIN-CODING gene (label_pc) when the
+      # bundle carries it; otherwise fall back to the nearest gene of any biotype.
+      idx <- data.table::copy(idx)
+      if (isTRUE(protein_coding_labels) && "label_pc" %in% names(idx)) {
+        idx[, label := label_pc]
+      }
       idx_lab <- idx[!is.na(label) & P < label_threshold]
       if (nrow(idx_lab) > 0) {
         p <- p + ggrepel::geom_text_repel(
@@ -323,6 +330,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         mainPanel(
           uiOutput(ns("cojo_status_message")),
           uiOutput(ns("lead_status_message")),
+          uiOutput(ns("lead_pc_ui")),
           dataTableOutput(ns("snp_assoc_lead_table")),
           uiOutput(ns("lead_legend")),
           br(),
@@ -455,7 +463,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                   condition = sprintf("input['%s'] == true", ns("mh_label")),
                   textInput(ns("mh_label_threshold"),
                             "Label leads with P < (max 1e-5):", value = "5e-8",
-                            placeholder = "max 1e-5 (the clumping P threshold)")
+                            placeholder = "max 1e-5 (the clumping P threshold)"),
+                  checkboxInput(ns("mh_label_pc"),
+                                "Protein-coding genes only", value = FALSE)
                 )
               ) else NULL
             ),
@@ -568,6 +578,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         label_variants      = isTRUE(input$mh_label),
         # Cap at 1e-5 as above — no labelled index variant exists above it.
         label_threshold     = min(parse_p(input$mh_label_threshold, 5e-8), 1e-5),
+        protein_coding_labels = isTRUE(input$mh_label_pc),
         font_size           = input$mh_font_size  %||% 14,
         point_size          = input$mh_point_size %||% 0.9,
         theme_fn            = mol_theme_fn(input$mh_theme),
@@ -658,7 +669,16 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       # FREQ = effect-allele frequency reported in the GWAS; REF.FREQ = allele
       # frequency in the ancestry-matched reference panel (both carried through
       # from the cleaned sumstats, if present). NearestGene kept last.
-      snp_assoc_lead <- snp_assoc_lead[, names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","FREQ","REF.FREQ","NearestGene"), with = F]
+      snp_assoc_lead <- snp_assoc_lead[, names(snp_assoc_lead) %in% c("CHR","BP","SNP","A1","A2","BETA","SE","P","FREQ","REF.FREQ","NearestGene","NearestGeneProteinCoding"), with = F]
+
+      # Optionally show the nearest PROTEIN-CODING gene instead (companion column
+      # from process_clump.R; absent in older bundles and for COJO). Swap into the
+      # single NearestGene column so the table layout is unchanged, then drop it.
+      if ("NearestGeneProteinCoding" %in% names(snp_assoc_lead)) {
+        if (isTRUE(input$lead_pc_only))
+          snp_assoc_lead[, NearestGene := NearestGeneProteinCoding]
+        snp_assoc_lead[, NearestGeneProteinCoding := NULL]
+      }
 
       snp_assoc_lead$P <- as.numeric(snp_assoc_lead$P)
 
@@ -774,6 +794,21 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                "P" = "Marginal GWAS association p-value of the index variant."))
       }
       gd_legend(items, heading = "Column guide")
+    })
+
+    # Protein-coding toggle for the lead-variant table — shown only for LD
+    # clumping and only when the bundle carries the NearestGeneProteinCoding
+    # column with data (older bundles / COJO have none).
+    output$lead_pc_ui <- renderUI({
+      req(gwas_data(), input$clumping_type)
+      if (input$clumping_type != "ld_clumping") return(NULL)
+      g <- .pick_gwas("lead_gwas"); req(g)
+      cl <- tryCatch(gd_read(gwas_data(), g, "snp_assoc")$clump, error = function(e) NULL)
+      if (is.null(cl) || !("NearestGeneProteinCoding" %in% names(cl))) return(NULL)
+      vals <- as.character(cl$NearestGeneProteinCoding)
+      if (all(is.na(vals) | vals %in% c("", "NA"))) return(NULL)
+      checkboxInput(ns("lead_pc_only"),
+                    "Restrict nearest gene to protein-coding genes", value = FALSE)
     })
 
     output$snp_assoc_lead_table <- renderDataTable({
