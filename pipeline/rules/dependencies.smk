@@ -1534,8 +1534,14 @@ rule download_caldera:
 
 rule format_rosmap_smr_data:
   input:
-    rules.download_smr.output,
-    rules.prep_1kg.output
+    # ancient(): the ROSMAP besd is a pre-provisioned resource whose raw source
+    # (rosmap_smr) is NA, so this rule can never rebuild it from scratch. Without
+    # ancient(), a reference re-prep (newer prep_1kg.output) re-triggers the rule,
+    # it fails on --rosmap NA, and Snakemake deletes the sole declared output
+    # (.besd.epi) - the 2026-11-03 prod k2260822 incident. Ignoring these inputs'
+    # mtimes keeps the provisioned output stable.
+    ancient(rules.download_smr.output),
+    ancient(rules.prep_1kg.output)
   output:
     f"{resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
   benchmark:
