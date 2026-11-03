@@ -213,19 +213,36 @@ snpAssocUI <- function(id) {
           ),
           mainPanel(
             uiOutput(ns("finemap_status_message")),
-            dataTableOutput(ns("snp_assoc_finemap_table")),
-            gd_legend(list(
-              "L parameter" = paste0(
-                "Maximum number of causal signals SuSiE may fit per locus ",
-                "(L1 = single causal variant; L10 = up to ten)."),
-              "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
-              "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
-              "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
-              "Gene" = "Gene(s) whose body contains all of the variants in the 95% credible set ('None' if no gene spans them).",
-              "CALDERA top gene" = "CALDERA's highest-probability candidate causal gene for this credible set, at the selected L.",
-              "CALDERA prob" = "That gene's CALDERA causal-gene probability (0–1, relative within the credible set)."
-            ), heading = "Column guide"),
-            width = 6
+            tabsetPanel(
+              id = ns("finemap_subtab"),
+              tabPanel(
+                "Credible sets (table)",
+                br(),
+                dataTableOutput(ns("snp_assoc_finemap_table")),
+                gd_legend(list(
+                  "L parameter" = paste0(
+                    "Maximum number of causal signals SuSiE may fit per locus ",
+                    "(L1 = single causal variant; L10 = up to ten)."),
+                  "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
+                  "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
+                  "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
+                  "Gene" = "Gene(s) whose body contains all of the variants in the 95% credible set ('None' if no gene spans them).",
+                  "CALDERA top gene" = "CALDERA's highest-probability candidate causal gene for this credible set, at the selected L.",
+                  "CALDERA prob" = "That gene's CALDERA causal-gene probability (0–1, relative within the credible set)."
+                ), heading = "Column guide")
+              ),
+              tabPanel(
+                "Locus plot",
+                value = "locus_plot",
+                br(),
+                uiOutput(ns("lp_controls_ui")),
+                plotOutput(ns("lp_plot"), height = "auto",
+                           hover = hoverOpts(ns("lp_hover"), delay = 150, delayType = "debounce")),
+                tableOutput(ns("lp_hover_info")),
+                uiOutput(ns("lp_legends"))
+              )
+            ),
+            width = 9
           )
         )
       )
@@ -1000,5 +1017,102 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       datatable(df, rownames = F, width = 7, selection = "none", options = list(
         columnDefs = list(list(className = 'dt-center', targets = "_all"))))
     })
+
+    # ======================================================================
+    # Locus plot (enriched fine-mapping dashboard) — builders in mod_locus_plot.R
+    # ======================================================================
+    lp_loci <- reactive({
+      req(gwas_data(), input$l_param)
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
+      st <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie[[input$l_param]] else NULL
+      if (is.null(st) || nrow(st) == 0) return(character(0))
+      sort(unique(as.character(st$SNP[!is.na(st$SNP)])))
+    })
+
+    output$lp_controls_ui <- renderUI({
+      loci <- lp_loci()
+      if (length(loci) == 0)
+        return(div(class = "gd-legend", em("No fine-mapped loci for this GWAS at the selected L.")))
+      tagList(
+        fluidRow(
+          column(4, selectInput(ns("lp_locus_sel"), "Locus (lead variant):", choices = loci, selected = loci[1])),
+          column(4, radioButtons(ns("lp_pip_type"), "PIP shown:",
+                                 choices = c("Marginal" = "marginal", "Per-cs (alpha)" = "alpha"),
+                                 selected = "marginal", inline = TRUE)),
+          column(4, checkboxInput(ns("lp_pc_only"), "Protein-coding genes only", FALSE))),
+        fluidRow(column(12, checkboxGroupInput(ns("lp_hc"), "Mark high-confidence genes:",
+                       choices = c("CALDERA ≥ 0.5" = "caldera", "Coding (alpha ≥ 0.5)" = "coding",
+                                   "Nearest gene" = "nearest"),
+                       selected = c("caldera", "coding"), inline = TRUE))),
+        tags$details(class = "gd-details", style = "margin-top:8px;margin-bottom:10px;",
+          tags$summary("Plot options"),
+          tags$div(class = "gd-details-body",
+            fluidRow(
+              column(4, sliderInput(ns("lp_font"), "Font size (pt):", min = 8, max = 22, value = 14, step = 1),
+                        selectInput(ns("lp_theme"), "Theme:",
+                          choices = c("Black & white"="bw","Minimal"="minimal","Classic"="classic","Light"="light"), selected = "bw")),
+              column(4, selectInput(ns("lp_dl_format"), "Download format:", choices = c("PNG"="png","PDF"="pdf","SVG"="svg")),
+                        numericInput(ns("lp_dl_dpi"), "DPI (PNG):", value = 300, min = 72, max = 600, step = 1)),
+              column(4, numericInput(ns("lp_dl_w"), "Width (in):", value = 10, min = 3, max = 30, step = 0.5),
+                        numericInput(ns("lp_dl_h"), "Height (in):", value = 8, min = 2, max = 60, step = 0.5))),
+            downloadButton(ns("lp_download"), "Download plot", class = "btn btn-default btn-sm")))
+      )
+    })
+
+    lp_data <- reactive({
+      req(gwas_data(), input$l_param, input$lp_locus_sel)
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      lp_build_locus_data(gwas_data(), g, input$lp_locus_sel, input$l_param,
+                          pip_type = input$lp_pip_type %||% "marginal",
+                          pc_only = isTRUE(input$lp_pc_only),
+                          hc_methods = input$lp_hc %||% character(0))
+    })
+
+    lp_nrows <- reactive({ d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
+    lp_h_px  <- reactive(max(420, 450 + 20 * lp_nrows()))
+
+    lp_build <- function() {
+      d <- lp_data(); if (is.null(d)) return(NULL)
+      tf <- mol_theme_fn(input$lp_theme %||% "bw"); fs <- input$lp_font %||% 14
+      pB <- build_locus_finemap_panel(d, font_size = fs, theme_fn = tf)
+      pC <- build_locus_gene_panel(d, font_size = fs, theme_fn = tf)
+      assemble_locus_plot(list(pB, pC), rel_heights = c(1.3, max(0.7, 0.3 + 0.16 * lp_nrows())))
+    }
+
+    output$lp_plot <- renderPlot({
+      p <- lp_build()
+      if (!is.null(p)) p else { grid::grid.newpage(); grid::grid.text("No data for this locus.") }
+    }, height = function() lp_h_px())
+
+    output$lp_hover_info <- renderTable({
+      d <- lp_data(); if (is.null(d) || is.null(d$all_points)) return(NULL)
+      np <- nearPoints(d$all_points, input$lp_hover, xvar = "BP_Mb", yvar = "y", threshold = 12, maxpoints = 6)
+      if (nrow(np) == 0) return(NULL)
+      np[, intersect(c("SNP","cs","pip","consequence","gene"), names(np)), drop = FALSE]
+    })
+
+    output$lp_legends <- renderUI({
+      d <- lp_data(); if (is.null(d)) return(NULL)
+      tagList(
+        if (!isTRUE(d$has_baseline)) div(class = "gd-legend",
+          em("Full-locus baseline unavailable for this bundle - showing credible-set members only (re-run with the current pipeline to add every SNP).")),
+        gd_legend(list(
+          "Credible sets" = "Points coloured by credible set; circle = non-coding, triangle = protein-altering variant.",
+          "Gene bodies"   = "Coloured by biotype (protein_coding dark; lncRNA/antisense blue/teal; pseudogene grey).",
+          "Badges"        = "On high-confidence genes (gold box): C = CALDERA ≥ 0.5, M = coding variant alpha ≥ 0.5, N = nearest gene."
+        ), heading = "Reading the locus plot"))
+    })
+
+    output$lp_download <- downloadHandler(
+      filename = function() sprintf("locus_plot_%s_%s.%s",
+                 input$lp_locus_sel %||% "locus", input$l_param %||% "L", input$lp_dl_format %||% "png"),
+      content = function(file) {
+        p <- tryCatch(lp_build(), error = function(e) NULL)
+        open_plot_device(file, fmt = input$lp_dl_format %||% "png",
+                         w = input$lp_dl_w %||% 10, h = input$lp_dl_h %||% 8, units = "in", dpi = input$lp_dl_dpi %||% 300)
+        if (!is.null(p)) print(p) else grid::grid.text("No data to plot.")
+        grDevices::dev.off()
+      })
   })
 }

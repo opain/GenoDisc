@@ -1,0 +1,306 @@
+#' Enriched per-locus dashboard (fine-mapping) — builders + data assembly.
+#'
+#' Pure functions (no Shiny) so they are unit-testable against an opened bundle.
+#' The UI/server that drive them live in mod_snp_assoc.R (the Fine-mapping tab).
+#' Panels (stacked with cowplot, shared x): A association + LD (Phase 3),
+#' B fine-mapping PIP, C genes-by-biotype. See R/mod_locus_plot.R builders.
+
+# ---- palettes ---------------------------------------------------------------
+
+# Distinct colour per credible set. `levels` are "CS1","CS5",… in display order.
+.lp_cs_palette <- function(levels) {
+  base <- c("#1b9e77","#d95f02","#7570b3","#e7298a","#66a61e","#e6ab02",
+            "#a6761d","#666666","#1f78b4","#b2182b","#35978f","#bf812d")
+  levels <- unique(levels)
+  cols <- base[((seq_along(levels) - 1) %% length(base)) + 1]
+  setNames(cols, levels)
+}
+
+# Biotype -> colour (gene-body track). Unknown biotypes fall back to grey.
+.lp_biotype_palette <- function() {
+  c(protein_coding = "#2b2b2b", lincRNA = "#1f78b4", lncRNA = "#1f78b4",
+    antisense = "#35978f", processed_transcript = "#80cdc1",
+    miRNA = "#33a02c", snRNA = "#6a3d9a", snoRNA = "#6a3d9a",
+    pseudogene = "#9e9e9e", processed_pseudogene = "#9e9e9e",
+    TR_gene = "#b15928", IG_gene = "#b15928")
+}
+.lp_biotype_colour <- function(bt) {
+  pal <- .lp_biotype_palette()
+  out <- unname(pal[as.character(bt)])
+  out[is.na(out)] <- "#c0c0c0"
+  out
+}
+
+.lp_is_true <- function(x) {
+  if (is.logical(x)) return(x %in% TRUE)
+  xc <- tolower(as.character(x))
+  xc %in% c("true","t","1","yes")
+}
+
+# Greedy interval packing: assign each gene the lowest non-overlapping row.
+lp_pack_rows <- function(genes, window) {
+  if (is.null(genes) || nrow(genes) == 0) return(genes)
+  g <- genes[order(genes$gstart_mb), , drop = FALSE]
+  pad <- 0.02 * (window[2] - window[1])
+  row_end <- numeric(0)
+  g$row <- NA_integer_
+  for (i in seq_len(nrow(g))) {
+    free <- which(row_end + pad < g$gstart_mb[i])
+    k <- if (length(free)) free[1] else length(row_end) + 1L
+    g$row[i] <- k
+    row_end[k] <- max(if (is.na(row_end[k])) -Inf else row_end[k], g$gend_mb[i])
+  }
+  g
+}
+
+# ---- data assembly ----------------------------------------------------------
+
+#' Assemble everything a locus plot needs for one lead locus + L.
+#' Returns NULL when there is nothing to draw; else a list with $members,
+#' $baseline, $cs_summary, $genes (packed), $window (Mb), $chr, $cs_palette,
+#' $all_points (for hover), and flags $has_baseline / $has_bodies.
+lp_build_locus_data <- function(gd, gwas, locus, L,
+                                pip_type = "marginal", pc_only = FALSE,
+                                hc_methods = c("caldera","coding","nearest"),
+                                caldera_hc_thr = 0.5, pad_frac = 0.05) {
+  Lval <- as.integer(L)
+  rd <- function(block) tryCatch(gd_read(gd, gwas, block), error = function(e) NULL)
+  sub_locus <- function(df) {
+    if (is.null(df) || nrow(df) == 0) return(NULL)
+    d <- as.data.frame(df)
+    keep <- as.character(d$locus) == as.character(locus)
+    if ("L" %in% names(d)) keep <- keep & (suppressWarnings(as.integer(d$L)) == Lval)
+    d <- d[keep, , drop = FALSE]
+    if (nrow(d) == 0) NULL else d
+  }
+
+  cc <- rd("credset_coding")
+  members <- sub_locus(cc$variants)
+  sa <- rd("snp_assoc")
+  lp <- if (!is.null(sa) && !is.null(sa$susie))
+    sa$susie[[if (Lval == 1) "locus_pip_L1" else "locus_pip_L10"]] else NULL
+  baseline <- NULL
+  if (!is.null(lp) && nrow(lp) > 0) {
+    b <- as.data.frame(lp); b <- b[as.character(b$locus) == as.character(locus), , drop = FALSE]
+    if (nrow(b) > 0) baseline <- b
+  }
+  if (is.null(members) && is.null(baseline)) return(NULL)
+
+  bps <- c(baseline$BP, members$BP)
+  chr <- if (!is.null(members)) members$CHR[1] else baseline$CHR[1]
+  lo <- min(bps, na.rm = TRUE); hi <- max(bps, na.rm = TRUE)
+  pad <- max(1e4, pad_frac * (hi - lo))
+  if (is.null(baseline)) {
+    # No full-locus baseline (bundle predates locus_pip): the members alone give a
+    # tiny span, so widen to a fine-map-sized region (~±250kb) so genes appear.
+    centre <- (lo + hi) / 2; half <- max(2.5e5, (hi - lo) / 2 + pad)
+    window <- c(centre - half, centre + half) / 1e6
+  } else {
+    window <- c(lo - pad, hi + pad) / 1e6
+  }
+
+  if (!is.null(members)) {
+    yv <- if (pip_type == "alpha" && "PIP" %in% names(members))
+      suppressWarnings(as.numeric(members$PIP)) else suppressWarnings(as.numeric(members$marginal_pip))
+    if (all(is.na(yv))) yv <- suppressWarnings(as.numeric(members$PIP))
+    members$y <- yv
+    members$BP_Mb <- members$BP / 1e6
+    members$pa <- if ("protein_altering" %in% names(members)) .lp_is_true(members$protein_altering) else FALSE
+    members$csf <- paste0("CS", members$cs)
+  }
+  cs_levels <- sort(unique(c(members$csf, if (!is.null(baseline)) paste0("CS", baseline$cs[baseline$cs > 0]))))
+  cs_palette <- .lp_cs_palette(cs_levels)
+
+  # Per-CS summary: lead, size, purity (cs_avg_r2), coding share.
+  cs_summary <- NULL
+  st <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie[[if (Lval == 1) "L1" else "L10"]] else NULL
+  if (!is.null(st) && nrow(st) > 0) {
+    st <- as.data.frame(st); st <- st[as.character(st$SNP) == as.character(locus), , drop = FALSE]
+    if (nrow(st) > 0) cs_summary <- data.frame(
+      cs = st$cs, csf = paste0("CS", st$cs),
+      nsnp = if ("NSNP" %in% names(st)) st$NSNP else NA,
+      purity = if ("cs_avg_r2" %in% names(st)) round(as.numeric(st$cs_avg_r2), 2) else NA,
+      stringsAsFactors = FALSE)
+  }
+  csum <- sub_locus(cc$summary)
+  if (!is.null(cs_summary) && !is.null(csum) && "frac_protein_altering" %in% names(csum)) {
+    cs_summary$coding_share <- round(as.numeric(csum$frac_protein_altering[match(cs_summary$cs, csum$cs)]), 2)
+  }
+
+  # Genes overlapping the window, with HC criteria.
+  gp <- tryCatch(load_gene_positions(), error = function(e) NULL)
+  genes <- NULL; has_bodies <- FALSE
+  if (!is.null(gp) && !is.null(gp$canonical)) {
+    cg <- as.data.frame(gp$canonical)
+    cg <- cg[!is.na(cg$CHR) & cg$CHR == chr, , drop = FALSE]
+    has_bodies <- all(c("gene_start","gene_end") %in% names(cg))
+    if (has_bodies) {
+      cg$gstart_mb <- cg$gene_start / 1e6; cg$gend_mb <- cg$gene_end / 1e6
+      cg <- cg[!is.na(cg$gstart_mb) & !is.na(cg$gend_mb) &
+               cg$gend_mb > window[1] & cg$gstart_mb < window[2], , drop = FALSE]
+    } else {
+      cg$gstart_mb <- cg$BP / 1e6; cg$gend_mb <- cg$BP / 1e6
+      cg <- cg[!is.na(cg$BP) & cg$gstart_mb > window[1] & cg$gstart_mb < window[2], , drop = FALSE]
+    }
+    if (isTRUE(pc_only)) cg <- cg[!is.na(cg$gene_biotype) & cg$gene_biotype == "protein_coding", , drop = FALSE]
+    if (nrow(cg) > 0) {
+      cg$body_colour <- .lp_biotype_colour(cg$gene_biotype)
+      cg$hc <- ""
+      cal <- rd("caldera")
+      csym <- harmonise_genes(cg$symbol)$symbol          # canonical symbols for matching
+      add_hc <- function(letters, genes_vec) {
+        if (length(genes_vec) == 0) return(invisible())
+        hit <- unique(harmonise_genes(as.character(genes_vec))$symbol)
+        idx <- csym %in% hit
+        cg$hc[idx] <<- paste0(cg$hc[idx], letters)
+      }
+      if ("caldera" %in% hc_methods && !is.null(cal)) {
+        c2 <- sub_locus(cal)
+        if (!is.null(c2)) add_hc("C", c2$gene[suppressWarnings(as.numeric(c2$caldera)) >= caldera_hc_thr])
+      }
+      if ("coding" %in% hc_methods && !is.null(members)) {
+        pa <- members[members$pa & suppressWarnings(as.numeric(members$PIP)) >= 0.5, , drop = FALSE]
+        add_hc("M", pa$gene)
+      }
+      if ("nearest" %in% hc_methods && !is.null(cal)) {
+        c2 <- sub_locus(cal)
+        if (!is.null(c2) && "nearest_gene" %in% names(c2)) add_hc("N", c2$gene[.lp_is_true(c2$nearest_gene)])
+      }
+      cg$is_hc <- nzchar(cg$hc)
+      cg$gstart_mb <- pmax(cg$gstart_mb, window[1]); cg$gend_mb <- pmin(cg$gend_mb, window[2])
+      genes <- lp_pack_rows(cg, window)
+    }
+  }
+
+  # Points frame for hover (baseline + members).
+  all_points <- NULL
+  if (!is.null(members))
+    all_points <- data.frame(BP_Mb = members$BP_Mb, y = members$y, SNP = members$SNP,
+                             cs = members$csf, pip = round(members$y, 4),
+                             consequence = if ("consequence" %in% names(members)) members$consequence else NA,
+                             gene = if ("gene" %in% names(members)) members$gene else NA,
+                             stringsAsFactors = FALSE)
+
+  list(members = members, baseline = baseline, cs_summary = cs_summary,
+       genes = genes, window = window, chr = chr, cs_palette = cs_palette,
+       all_points = all_points, pip_type = pip_type,
+       has_baseline = !is.null(baseline), has_bodies = has_bodies, locus = locus, L = Lval)
+}
+
+# ---- credible-set shaded bands (shared across panels) -----------------------
+
+.lp_cs_bands <- function(ld) {
+  m <- ld$members
+  if (is.null(m)) return(NULL)
+  sp <- do.call(rbind, lapply(split(m, m$csf), function(d) data.frame(
+    csf = d$csf[1], xmin = min(d$BP_Mb), xmax = max(d$BP_Mb), stringsAsFactors = FALSE)))
+  sp$col <- ld$cs_palette[sp$csf]
+  sp
+}
+
+# ---- Panel B: fine-mapping PIP ---------------------------------------------
+
+build_locus_finemap_panel <- function(ld, font_size = 14, point_size = 1.6,
+                                      theme_fn = ggplot2::theme_bw) {
+  if (is.null(ld) || (is.null(ld$members) && is.null(ld$baseline))) return(NULL)
+  bands <- .lp_cs_bands(ld)
+  p <- ggplot2::ggplot()
+  if (!is.null(bands)) p <- p + ggplot2::geom_rect(
+    data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+    fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
+  if (!is.null(ld$baseline)) {
+    b <- ld$baseline; b <- b[suppressWarnings(as.numeric(b$pip)) > 1e-4, , drop = FALSE]
+    if (nrow(b) > 0) p <- p + ggplot2::geom_point(
+      data = b, ggplot2::aes(x = BP / 1e6, y = pip), colour = "grey70",
+      size = point_size * 0.7, alpha = 0.5)
+  }
+  if (!is.null(ld$members)) {
+    m <- ld$members; m$col <- ld$cs_palette[m$csf]
+    p <- p +
+      ggplot2::geom_point(data = m, ggplot2::aes(x = BP_Mb, y = y, colour = col, shape = pa),
+                          size = point_size + 0.6) +
+      ggplot2::scale_colour_identity() +
+      ggplot2::scale_shape_manual(values = c(`FALSE` = 16, `TRUE` = 17), guide = "none")
+    lab <- do.call(rbind, lapply(split(m, m$csf), function(d) d[which.max(d$y), , drop = FALSE]))
+    lab$txt <- paste0(lab$csf)
+    pa_lab <- m[m$pa, , drop = FALSE]
+    if (nrow(pa_lab) > 0) pa_lab$txt <- paste0(ifelse(!is.na(pa_lab$gene) & nzchar(pa_lab$gene),
+                                                      paste0(pa_lab$consequence, " in ", pa_lab$gene), pa_lab$consequence))
+    labs_all <- rbind(lab[, c("BP_Mb","y","txt")], if (nrow(pa_lab)) pa_lab[, c("BP_Mb","y","txt")] else NULL)
+    p <- p + ggrepel::geom_text_repel(data = labs_all, ggplot2::aes(x = BP_Mb, y = y, label = txt),
+                                      size = font_size * 0.26, min.segment.length = 0,
+                                      max.overlaps = Inf, box.padding = 0.4, segment.size = 0.3)
+  }
+  if (!is.null(ld$cs_summary)) {
+    txt <- apply(ld$cs_summary, 1, function(r) {
+      bits <- c(paste0(r[["csf"]], ": ", r[["nsnp"]], " SNPs"),
+                if (!is.na(r[["purity"]])) paste0("purity ", r[["purity"]]),
+                if ("coding_share" %in% names(r) && !is.na(r[["coding_share"]])) paste0("coding share ", r[["coding_share"]]))
+      paste(bits, collapse = " | ")
+    })
+    lab_df <- data.frame(x = ld$window[1], y = 0.98 - 0.07 * (seq_along(txt) - 1), txt = txt,
+                         col = ld$cs_palette[ld$cs_summary$csf], stringsAsFactors = FALSE)
+    p <- p + ggplot2::geom_text(data = lab_df, ggplot2::aes(x = x, y = y, label = txt),
+                                colour = lab_df$col, hjust = 0, size = font_size * 0.24)
+  }
+  p +
+    ggplot2::scale_y_continuous(limits = c(-0.02, 1.02), breaks = c(0, 0.25, 0.5, 0.75, 1)) +
+    ggplot2::coord_cartesian(xlim = ld$window) +
+    ggplot2::labs(x = NULL, y = "PIP") +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
+                   plot.margin = ggplot2::margin(4, 8, 2, 8))
+}
+
+# ---- Panel C: genes by biotype, HC shading + badges -------------------------
+
+build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme_bw) {
+  g <- ld$genes
+  if (is.null(g) || nrow(g) == 0) return(NULL)
+  g$ymid <- g$row
+  nrows <- max(g$row)
+  lw <- if (isTRUE(ld$has_bodies)) 3 else NA
+  p <- ggplot2::ggplot()
+  hc <- g[g$is_hc, , drop = FALSE]
+  if (nrow(hc) > 0) p <- p + ggplot2::geom_rect(
+    data = hc, ggplot2::aes(xmin = gstart_mb, xmax = gend_mb, ymin = row - 0.34, ymax = row + 0.34),
+    fill = NA, colour = "#f1b24a", linewidth = 0.8, inherit.aes = FALSE)
+  if (isTRUE(ld$has_bodies)) {
+    p <- p + ggplot2::geom_segment(
+      data = g, ggplot2::aes(x = gstart_mb, xend = gend_mb, y = row, yend = row, colour = body_colour),
+      linewidth = 3, lineend = "butt") + ggplot2::scale_colour_identity()
+  } else {
+    p <- p + ggplot2::geom_point(
+      data = g, ggplot2::aes(x = gstart_mb, y = row, colour = body_colour), size = 2.5) +
+      ggplot2::scale_colour_identity()
+  }
+  p <- p + ggplot2::geom_text(
+    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.42,
+                           label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
+    size = font_size * 0.22, vjust = 0)
+  badges <- g[g$is_hc, , drop = FALSE]
+  if (nrow(badges) > 0) p <- p + ggplot2::geom_text(
+    data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.42, label = hc),
+    size = font_size * 0.2, vjust = 1, colour = "#b5651d", fontface = "bold")
+  p +
+    ggplot2::scale_y_continuous(limits = c(0.3, nrows + 0.8), breaks = NULL) +
+    ggplot2::coord_cartesian(xlim = ld$window) +
+    ggplot2::labs(x = paste0("Chromosome ", ld$chr, " position (Mb)"), y = NULL) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(panel.grid = ggplot2::element_blank(),
+                   axis.text.y = ggplot2::element_blank(), axis.ticks.y = ggplot2::element_blank(),
+                   plot.margin = ggplot2::margin(2, 8, 4, 8))
+}
+
+# ---- Assembly ---------------------------------------------------------------
+
+#' Stack the available panels with cowplot (shared x). `panels` is an ordered
+#' list of ggplots (NULLs dropped). Returns a cowplot gtable (printable) or NULL.
+assemble_locus_plot <- function(panels, rel_heights = NULL) {
+  panels <- panels[!vapply(panels, is.null, logical(1))]
+  if (length(panels) == 0) return(NULL)
+  if (length(panels) == 1) return(panels[[1]])
+  if (is.null(rel_heights)) rel_heights <- rep(1, length(panels))
+  cowplot::plot_grid(plotlist = panels, ncol = 1, align = "v", axis = "lr",
+                     rel_heights = rel_heights[seq_along(panels)])
+}
