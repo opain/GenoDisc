@@ -59,6 +59,39 @@
     "}")
 }
 
+# Map a bcftools-csq / AlphaMissense consequence to a broad class (for the
+# stacked PIP-composition plot) and to a tidy per-variant display label.
+.CSQ_CLASS <- c(
+  missense = "Protein-altering", stop_gained = "Protein-altering",
+  stop_lost = "Protein-altering", start_lost = "Protein-altering",
+  frameshift = "Protein-altering", inframe_deletion = "Protein-altering",
+  inframe_insertion = "Protein-altering", splice_acceptor = "Splice region",
+  splice_donor = "Splice region", splice_region = "Splice region",
+  `3_prime_utr` = "UTR", `5_prime_utr` = "UTR", intron = "Intronic",
+  non_coding = "Non-coding transcript", synonymous = "Synonymous")
+.CSQ_LEVELS <- c("Protein-altering", "Splice region", "UTR", "Synonymous",
+                 "Intronic", "Non-coding transcript", "Intergenic / unannotated")
+.CSQ_COLS <- c("Protein-altering" = "#c0392b", "Splice region" = "#e67e22",
+               "UTR" = "#f1c40f", "Synonymous" = "#95a5a6", "Intronic" = "#5dade2",
+               "Non-coding transcript" = "#2980b9", "Intergenic / unannotated" = "#d5dbe3")
+.csq_class <- function(x) {
+  cl <- unname(.CSQ_CLASS[as.character(x)])
+  cl[is.na(cl)] <- "Intergenic / unannotated"   # ".", NA, not_annotated_non_snv
+  factor(cl, levels = .CSQ_LEVELS)
+}
+.csq_tidy <- function(x) {
+  x <- as.character(x); x[is.na(x) | x == "."] <- "intergenic"
+  x[x == "non_coding"] <- "non-coding transcript"
+  x[x == "not_annotated_non_snv"] <- "unannotated (non-SNV)"
+  gsub("_", " ", x)
+}
+# Our AlphaMissense table stores short class labels; show the canonical ones.
+.am_display <- function(x) {
+  m <- c(benign = "likely_benign", pathogenic = "likely_pathogenic",
+         ambiguous = "ambiguous")[as.character(x)]
+  ifelse(is.na(m), as.character(x), m)
+}
+
 effectorUI <- function(id) {
   ns <- NS(id)
   tabPanel(
@@ -146,26 +179,61 @@ effectorUI <- function(id) {
         title = "Credible-set coding", value = "credset_coding",
         br(),
         .eff_howto(
-          "This flags credible sets whose signal is carried by ", strong("protein-altering"),
-          " variants (missense / stop / frameshift / splice). The bar below shows, per ",
-          "credible set, the share of fine-mapping PIP that sits on protein-altering ",
-          "variants. A high share points to a coding mechanism and names the gene directly. ",
-          "Two caveats: the flag measures ", strong("PIP share"), ", not pathogenicity; and ",
-          "AlphaMissense labelling a common missense variant ", strong("\"benign\""),
+          "Each credible-set variant is annotated with its predicted consequence; the plot ",
+          "shows, per credible set, how its fine-mapping PIP is split across consequence classes. ",
+          tags$br(), tags$b("What PIP means here: "), "the per-credible-set posterior (SuSiE alpha), ",
+          "which sums to the coverage level — not the marginal PIP. ",
+          tags$br(), tags$b("What a flag means: "), "coding variants are only ~1–2% of all variants, ",
+          "so even a modest protein-altering share is notable; but low PIP on a missense variant can ",
+          "simply mean it is in LD with a regulatory causal variant. ",
+          tags$br(), tags$b("Link to CALDERA: "), "non-synonymous PIP is one of CALDERA's four features, ",
+          "so a coding flag directly raises that gene's CALDERA score — the two tabs are ",
+          strong("not"), " independent evidence. ",
+          tags$br(), "AlphaMissense calling a common missense variant ", strong("likely_benign"),
           " is expected and does ", strong("not"), " mean it is non-functional."),
-        .eff_figure(ns, "coding_bar"),
+        .eff_L_radio(ns, "coding_L"),
+        h4("PIP composition by consequence class"),
+        tags$details(class = "gd-details", style = "margin-top: 10px; margin-bottom: 12px;",
+          tags$summary("Plot options"),
+          tags$div(class = "gd-details-body",
+            fluidRow(
+              column(4,
+                sliderInput(ns("cod_font"), "Font size (pt):", min = 8, max = 24, value = 14, step = 1),
+                selectInput(ns("cod_theme"), "Theme:",
+                            choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                        "Classic" = "classic", "Light" = "light"), selected = "bw")),
+              column(4,
+                selectInput(ns("cod_dl_format"), "Download format:",
+                            choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg")),
+                numericInput(ns("cod_dl_dpi"), "Resolution (DPI, PNG only):", value = 300, min = 72, max = 600, step = 1)),
+              column(4,
+                numericInput(ns("cod_dl_w"), "Width (inches):", value = 9, min = 2, max = 30, step = 0.5),
+                numericInput(ns("cod_dl_h"), "Height (inches, auto):", value = 7, min = 1, max = 80, step = 0.5))),
+            downloadButton(ns("coding_bar_dl"), "Download plot", class = "btn btn-default btn-sm")
+          )),
+        tags$div(style = "max-width: 1200px; margin-bottom: 20px;",
+                 plotOutput(ns("coding_bar"), height = "auto")),
         uiOutput(ns("coding_bar_msg")),
-        br(), h4("Per credible set"),
+        h4("Per credible set"),
         DT::dataTableOutput(ns("coding_summary_table")),
+        gd_legend(list(
+          "coding_flag" = "Graded call on the protein-altering PIP share: ≥0.5 'likely coding mechanism', 0.1–0.5 'possible coding contribution', else 'none'.",
+          "pip_protein_altering / frac_protein_altering" = "Summed / fractional credible-set PIP on protein-altering variants.",
+          "caldera_gene / caldera_agree" = "CALDERA's top gene for the same credible set (at the selected L) and whether it matches the top coding gene.",
+          "top_coding_am_class / top_coding_am_score" = "AlphaMissense class + pathogenicity score of the top coding variant."
+        ), heading = "Per-credible-set columns"),
         br(), h4("Per variant"),
         DT::dataTableOutput(ns("coding_variants_table")),
+        div(style = "margin: 6px 0;",
+            downloadButton(ns("coding_variants_dl"),
+                           "Download variants (CSV, incl. A1/A2)",
+                           class = "btn btn-default btn-sm")),
         uiOutput(ns("coding_msg")),
         gd_legend(list(
-          "pip_protein_altering" = "Summed PIP on protein-altering (missense/stop/frameshift/splice/…) variants in the credible set.",
-          "frac_protein_altering" = "Fraction of the credible set's total PIP carried by protein-altering variants.",
-          "am_class"             = "AlphaMissense class for a missense variant: likely_benign / ambiguous / likely_pathogenic.",
-          "am_pathogenicity"     = "AlphaMissense pathogenicity score (0–1).",
-          "consequence"          = "Predicted coding consequence (bcftools csq / AlphaMissense)."
+          "PIP (per-cs) / marginal PIP" = "Per-credible-set posterior (SuSiE alpha, used by the summaries above) and the marginal PIP combining all effects.",
+          "consequence"   = "Predicted consequence (bcftools csq / AlphaMissense); '.' is shown as intergenic, 'non_coding' as a non-coding transcript.",
+          "REF / ALT"     = "Genome reference / alternate alleles. The GWAS A1/A2 alleles are included in the download only.",
+          "am_class / am_pathogenicity" = "AlphaMissense class (likely_benign / ambiguous / likely_pathogenic) + score for missense variants."
         )), br()
       )
     )
@@ -369,55 +437,137 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
     # ======================================================================
     # Credible-set coding
     # ======================================================================
-    build_coding_bar <- function() {
-      d <- coding_data()
-      if (is.null(d) || is.null(d$summary) || nrow(d$summary) == 0) return(NULL)
-      s <- as.data.frame(d$summary)
-      for (cc in c("pip_total", "pip_protein_altering", "frac_protein_altering"))
-        if (cc %in% names(s)) s[[cc]] <- suppressWarnings(as.numeric(s[[cc]]))
-      s$label <- paste0(s$locus, " (cs", s$cs, if ("L" %in% names(s)) paste0(", L", s$L) else "", ")")
-      s$other <- pmax(s$pip_total - s$pip_protein_altering, 0)
-      s <- s[order(s$frac_protein_altering, s$pip_protein_altering), ]
-      s$label <- factor(s$label, levels = s$label)
-      long <- rbind(
-        data.frame(label = s$label, part = "Protein-altering", pip = s$pip_protein_altering),
-        data.frame(label = s$label, part = "Other",            pip = s$other))
-      long$part <- factor(long$part, levels = c("Other", "Protein-altering"))
-      gene_lab <- s[as.logical(s$flag_protein_altering) %in% TRUE,
-                    c("label", "pip_total", "top_coding_gene"), drop = FALSE]
-      ggplot2::ggplot(long, ggplot2::aes(x = label, y = pip, fill = part)) +
-        ggplot2::geom_col(width = 0.72) +
-        ggplot2::scale_fill_manual(values = c("Protein-altering" = "#c0392b",
-                                              "Other" = "#cfd6e6"), name = NULL) +
-        { if (nrow(gene_lab) > 0)
-            ggplot2::geom_text(data = gene_lab,
-              ggplot2::aes(x = label, y = pip_total, label = top_coding_gene),
-              hjust = -0.1, size = 3, inherit.aes = FALSE) } +
-        ggplot2::coord_flip() +
-        ggplot2::labs(x = NULL, y = "Credible-set PIP",
-                      title = "Credible-set PIP carried by protein-altering variants",
-                      subtitle = "Red = protein-altering share; labelled sets are flagged") +
-        ggplot2::theme_bw() + ggplot2::theme(legend.position = "bottom")
+    # L-filtered coding summary / variants (coding_L radio).
+    coding_part <- function(which) {
+      d <- coding_data(); if (is.null(d) || is.null(d[[which]])) return(NULL)
+      p <- as.data.frame(d[[which]]); if (nrow(p) == 0) return(NULL)
+      if ("L" %in% names(p))
+        p <- p[suppressWarnings(as.integer(p$L)) == as.integer(input$coding_L %||% "1"), , drop = FALSE]
+      if (nrow(p) == 0) NULL else p
     }
-    output$coding_bar <- renderPlot({ p <- build_coding_bar(); if (!is.null(p)) p })
+    coding_summary  <- reactive(coding_part("summary"))
+    coding_variants <- reactive(coding_part("variants"))
+
+    # CALDERA's top gene per (locus, cs) at the selected L (for the agreement column).
+    coding_caldera_top <- reactive({
+      d <- caldera_data(); if (is.null(d) || nrow(d) == 0) return(NULL)
+      d <- as.data.frame(d)
+      if ("L" %in% names(d))
+        d <- d[suppressWarnings(as.integer(d$L)) == as.integer(input$coding_L %||% "1"), , drop = FALSE]
+      if (nrow(d) == 0) return(NULL)
+      d$caldera <- suppressWarnings(as.numeric(d$caldera))
+      do.call(rbind, lapply(split(d, list(d$locus, d$cs), drop = TRUE), function(x) {
+        r <- x[which.max(x$caldera), ]
+        data.frame(locus = as.character(r$locus), cs = r$cs,
+                   caldera_gene = as.character(r$gene), stringsAsFactors = FALSE)
+      }))
+    })
+
+    # ---- stacked PIP-by-consequence-class bar ----
+    coding_bar_data <- reactive({
+      v <- coding_variants(); if (is.null(v)) return(NULL)
+      v$PIP <- suppressWarnings(as.numeric(v$PIP))
+      v <- v[is.finite(v$PIP), , drop = FALSE]; if (nrow(v) == 0) return(NULL)
+      v$class <- .csq_class(v$consequence)
+      v$label <- paste0(v$locus, " (cs", v$cs, ")")
+      v
+    })
+    cod_n_sets   <- reactive({ v <- coding_bar_data(); if (is.null(v)) 0L else length(unique(v$label)) })
+    cod_bar_h_px <- reactive(max(240, 90 + 22 * cod_n_sets()))
+
+    build_coding_bar <- function() {
+      v <- coding_bar_data(); if (is.null(v)) return(NULL)
+      agg <- aggregate(PIP ~ label + class, data = v, FUN = sum)
+      # Order by protein-altering share. Compute PA-PIP over the full variant set
+      # (zeroing non-PA) so its names align 1:1 with `tot` (subset-indexing can
+      # drop/misalign names and collapse labels into a spurious NA bar).
+      pav <- v$PIP; pav[v$class != "Protein-altering"] <- 0
+      tot <- tapply(v$PIP, v$label, sum)
+      pa  <- tapply(pav,   v$label, sum)
+      frac <- as.numeric(pa) / as.numeric(tot)
+      agg$label <- factor(agg$label, levels = names(tot)[order(frac)])  # highest PA share at top
+      agg <- agg[!is.na(agg$label), , drop = FALSE]
+      ggplot2::ggplot(agg, ggplot2::aes(x = PIP, y = label, fill = class)) +
+        ggplot2::geom_col(width = 0.76) +
+        ggplot2::scale_fill_manual(values = .CSQ_COLS, drop = FALSE, name = "Consequence class") +
+        ggplot2::labs(x = "Credible-set PIP", y = NULL,
+                      title = "PIP composition by consequence class",
+                      subtitle = "One bar per credible set; sorted by protein-altering share (top = highest)") +
+        mol_theme_fn(input$cod_theme %||% "bw")(base_size = input$cod_font %||% 14) +
+        ggplot2::theme(legend.position = "bottom")
+    }
+    output$coding_bar <- renderPlot({ p <- build_coding_bar(); if (!is.null(p)) p },
+                                    height = function() cod_bar_h_px())
     output$coding_bar_msg <- renderUI({
-      d <- coding_data()
-      if (is.null(d) || is.null(d$summary) || nrow(d$summary) == 0)
-        return(msg("No credible-set coding annotation for this GWAS."))
+      if (is.null(coding_summary()))
+        return(msg("No credible-set coding annotation for this GWAS at the selected L."))
       NULL
     })
-    reg_download("coding_bar", build_coding_bar, w = 9, h = 7)
+    observeEvent(coding_bar_data(), {
+      updateNumericInput(session, "cod_dl_h", value = round(max(3, 1.5 + 0.28 * cod_n_sets()), 1))
+    })
+    output$coding_bar_dl <- downloadHandler(
+      filename = function() sprintf("coding_composition_L%s.%s",
+                 input$coding_L %||% "1", input$cod_dl_format %||% "png"),
+      content = function(file) {
+        p <- tryCatch(build_coding_bar(), error = function(e) NULL)
+        open_plot_device(file, fmt = input$cod_dl_format %||% "png",
+                         w = input$cod_dl_w %||% 9, h = input$cod_dl_h %||% 7,
+                         units = "in", dpi = input$cod_dl_dpi %||% 300)
+        if (!is.null(p)) print(p) else grid::grid.text("No data to plot.")
+        grDevices::dev.off()
+      })
 
+    # ---- per-credible-set summary table (graded flag + CALDERA agreement + AM score) ----
     output$coding_summary_table <- DT::renderDataTable({
-      d <- coding_data()
-      if (is.null(d) || is.null(d$summary) || nrow(d$summary) == 0) return(empty_dt())
-      show_dt(d$summary)
+      s <- coding_summary(); if (is.null(s)) return(empty_dt())
+      for (cc in c("pip_total","pip_protein_altering","frac_protein_altering","top_coding_pip"))
+        if (cc %in% names(s)) s[[cc]] <- suppressWarnings(as.numeric(s[[cc]]))
+      v <- coding_variants()
+      if (!is.null(v) && "top_coding_snp" %in% names(s) && "am_pathogenicity" %in% names(v)) {
+        am <- v[!duplicated(v$SNP), c("SNP","am_pathogenicity")]
+        s$top_coding_am_score <- round(suppressWarnings(as.numeric(
+          am$am_pathogenicity[match(s$top_coding_snp, am$SNP)])), 3)
+      }
+      if ("top_coding_am_class" %in% names(s)) s$top_coding_am_class <- .am_display(s$top_coding_am_class)
+      ct <- coding_caldera_top()
+      if (!is.null(ct)) {
+        i <- match(paste(s$locus, s$cs), paste(ct$locus, ct$cs))
+        s$caldera_gene  <- ct$caldera_gene[i]
+        s$caldera_agree <- !is.na(s$caldera_gene) & nzchar(as.character(s$top_coding_gene)) &
+          (as.character(s$caldera_gene) == as.character(s$top_coding_gene))
+      }
+      cols <- intersect(c("locus","cs","L","n_variants","pip_total","pip_protein_altering",
+                          "frac_protein_altering","coding_flag","top_coding_gene",
+                          "caldera_gene","caldera_agree","top_coding_consequence",
+                          "top_coding_am_class","top_coding_am_score","top_coding_snp"), names(s))
+      s <- s[order(-s$frac_protein_altering), cols, drop = FALSE]
+      show_dt(s, header_tips = list(
+        "caldera_agree" = "TRUE if CALDERA's top gene matches the top coding gene for this credible set.",
+        "coding_flag"   = "Graded protein-altering call on the PIP share."))
     })
+
+    # ---- per-variant table (REF/ALT default; per-cs alpha + marginal PIP) ----
     output$coding_variants_table <- DT::renderDataTable({
-      d <- coding_data()
-      if (is.null(d) || is.null(d$variants) || nrow(d$variants) == 0) return(empty_dt())
-      show_dt(d$variants)
+      v <- coding_variants(); if (is.null(v)) return(empty_dt())
+      v$consequence <- .csq_tidy(v$consequence)
+      if ("am_class" %in% names(v)) v$am_class <- .am_display(v$am_class)
+      disp <- intersect(c("locus","cs","SNP","CHR","BP","REF","ALT","PIP","marginal_pip",
+                          "consequence","gene","am_class","am_pathogenicity","protein_altering"), names(v))
+      v2 <- v[order(v$locus, v$cs, -suppressWarnings(as.numeric(v$PIP))), disp, drop = FALSE]
+      names(v2)[names(v2) == "PIP"] <- "PIP (per-cs)"
+      names(v2)[names(v2) == "marginal_pip"] <- "marginal PIP"
+      show_dt(v2, header_tips = list(
+        "PIP (per-cs)" = "Per-credible-set posterior (SuSiE alpha) — the value the summaries use.",
+        "marginal PIP" = "Marginal PIP combining all SuSiE effects (can exceed the per-cs value)."))
     })
+    output$coding_variants_dl <- downloadHandler(
+      filename = function() sprintf("credset_coding_variants_L%s.csv", input$coding_L %||% "1"),
+      content = function(file) {
+        v <- coding_variants()
+        if (is.null(v)) v <- data.frame()
+        utils::write.csv(v, file, row.names = FALSE)   # full columns incl. A1/A2
+      })
     output$coding_msg <- renderUI({
       d <- coding_data()
       if (is.null(d) || (is.null(d$summary) && is.null(d$variants)))
