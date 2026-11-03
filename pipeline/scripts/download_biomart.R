@@ -1,7 +1,7 @@
 #!/usr/bin/Rscript
 # Pre-download BioMart gene annotation data for use by downstream scripts.
 # Saves:
-#   - biomart_genes_grch37.tsv (ensembl_gene_id, external_gene_name, external_synonym, chromosome_name, start_position, end_position)
+#   - biomart_genes_grch37.tsv (ensembl_gene_id, external_gene_name, external_synonym, gene_biotype, chromosome_name, start_position, end_position)
 #   - gene_locations.tsv (chromosome_name, start_position, end_position, strand, external_gene_name, gene_biotype; chrs 1-22, X, Y)
 
 library(biomaRt)
@@ -26,7 +26,7 @@ ensembl37 <- useEnsembl(biomart = "ensembl", dataset = "hsapiens_gene_ensembl", 
 biomartCacheClear()
 genes37 <- getBM(
   attributes = c('ensembl_gene_id', 'external_gene_name', 'external_synonym',
-                  'chromosome_name', 'start_position', 'end_position'),
+                  'gene_biotype', 'chromosome_name', 'start_position', 'end_position'),
   mart = ensembl37
 )
 write.table(genes37, file.path(outdir, "biomart_genes_grch37.tsv"),
