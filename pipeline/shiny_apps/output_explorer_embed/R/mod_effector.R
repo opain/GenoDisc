@@ -105,7 +105,7 @@ effectorUI <- function(id) {
         hr(),
         h4("Per-locus gene ranking"),
         uiOutput(ns("caldera_sel_label")),
-        tags$details(class = "gd-details", style = "margin-bottom: 12px;",
+        tags$details(class = "gd-details", style = "margin-top: 14px; margin-bottom: 12px;",
           tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
             fluidRow(
@@ -125,11 +125,12 @@ effectorUI <- function(id) {
                 numericInput(ns("cal_dl_w"), "Width (inches):", value = 9,
                              min = 2, max = 30, step = 0.5),
                 numericInput(ns("cal_dl_h"), "Height (inches, auto):", value = 6,
-                             min = 1, max = 60, step = 0.5)))
+                             min = 1, max = 60, step = 0.5))),
+            downloadButton(ns("caldera_bar_dl"), "Download plot",
+                           class = "btn btn-default btn-sm")
           )),
-        plotOutput(ns("caldera_bar"), height = "auto"),
-        div(style = "margin: 4px 0 8px;",
-            downloadButton(ns("caldera_bar_dl"), "Download", class = "btn btn-default btn-sm")),
+        tags$div(style = "max-width: 1200px;",
+                 plotOutput(ns("caldera_bar"), height = "auto")),
         DT::dataTableOutput(ns("caldera_gene_table")),
         gd_legend(list(
           "caldera"      = "CALDERA causal-gene probability for this gene in this credible set (0–1, sums to 1 per locus).",
