@@ -198,7 +198,8 @@ writeup_block_flags <- function() {
     "smr_expression_panel_metabrain_hippocampus", "smr_expression_panel_metabrain_spinalcord",
     "smr_expression_panel_eqtlgen", "smr_protein_panel_rosmap",
     "twas_gsea_drugtargetor", "twas_gsea_drugtargetor_nondirectional",
-    "twas_gsea_pathway", "twas_gsea_cmap", "drug_targetor_atc_gls", "gcsc")
+    "twas_gsea_pathway", "twas_gsea_cmap", "drug_targetor_atc_gls", "gcsc",
+    "credset_coding_annot", "pops", "caldera")
 }
 
 writeup_uncovered_flags <- function(pipeline_dir, flags = writeup_block_flags()) {

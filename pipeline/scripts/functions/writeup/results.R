@@ -201,6 +201,45 @@ results_magma_gene <- function(ctx, g, meta) {
               "mol_assoc/magma", "MAGMA tab", "MAGMA gene-level analysis")
 }
 
+# ---- effector-gene prioritisation -------------------------------------------
+
+results_coding <- function(ctx, g, meta) {
+  d <- pluck(g, "credset_coding", "summary"); if (is.null(d)) return(NULL)
+  d <- as.data.frame(d); opt <- ctx$opt
+  n <- nrow(d)
+  if (n == 0) return(gstr("No credible sets were available for coding annotation {.tref('coding', 'credset_coding', 'Effector-genes tab')}."))
+  frac <- suppressWarnings(as.numeric(.col(d, c("frac_protein_altering"))))
+  nflag <- sum(frac >= 0.5, na.rm = TRUE)
+  top <- .top(d, "frac_protein_altering", 1L, decreasing = TRUE)
+  tg <- .col(top, c("top_coding_gene"))
+  tf <- suppressWarnings(as.numeric(.col(top, c("frac_protein_altering"))))
+  gstr(
+    "Credible-set coding annotation covered {fmt_int(n)} credible {pluralise('set', n)}; ",
+    "{fmt_int(nflag)} carried at least half of their posterior inclusion probability on ",
+    "protein-altering variants. The credible set with the greatest protein-altering share ",
+    "({fmt_pct(tf[1], opt)}) implicated {if (!is.null(tg) && nzchar(as.character(tg[1]))) tg[1] else 'an unannotated gene'} ",
+    "{.tref('coding', 'credset_coding', 'Effector-genes tab')}."
+  )
+}
+
+results_caldera <- function(ctx, g, meta) {
+  d <- pluck(g, "caldera"); if (is.null(d)) return(NULL)
+  d <- as.data.frame(d); if (nrow(d) == 0) return(NULL)
+  opt <- ctx$opt
+  d$caldera <- suppressWarnings(as.numeric(d$caldera))
+  d <- d[is.finite(d$caldera), , drop = FALSE]
+  if (nrow(d) == 0) return(gstr("CALDERA produced no scored genes {.tref('caldera', 'caldera', 'Effector-genes tab')}."))
+  ncs <- nrow(unique(d[, intersect(c("locus", "cs", "L"), names(d)), drop = FALSE]))
+  top <- d[which.max(d$caldera), , drop = FALSE]
+  tg <- .col(top, c("gene"))
+  gstr(
+    "CALDERA prioritised candidate causal genes across {fmt_int(ncs)} credible ",
+    "{pluralise('set', ncs)}. The highest single-gene causal probability was ",
+    "{fmt_num(top$caldera[1], opt)} for {if (!is.null(tg)) tg[1] else 'the top-ranked gene'} ",
+    "{.tref('caldera', 'caldera', 'Effector-genes tab')}."
+  )
+}
+
 # ---- enrichment / pathway / tissue ------------------------------------------
 
 .enrich_line <- function(ctx, df, name_col, analysis, block_id) {

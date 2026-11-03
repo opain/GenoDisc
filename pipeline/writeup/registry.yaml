@@ -130,6 +130,28 @@ software:
     used_by: [magma_drugtargetor_gls, drug_targetor_atc_gls]
     notes: "DRUGSETS citation not in the curated in-app table — VERIFY before publication."
 
+  - key: caldera
+    name: CALDERA
+    version: "static binary (sha-pinned in rules/dependencies.smk)"
+    bibkey: [heilbron2024caldera]
+    used_by: [caldera]
+    notes: "Effector-gene model; citation VERIFY (scripts/run_caldera.R attributes Heilbron et al. 2024)."
+
+  - key: pops
+    name: Polygenic Priority Score (PoPS)
+    unpinned: true
+    bibkey: [weeks2023pops]
+    used_by: [pops, caldera]
+    notes: "Gene prioritisation score (ENSGID MAGMA step) that feeds CALDERA; citation VERIFY."
+
+  - key: bcftools_csq
+    name: BCFtools/csq
+    conda_env: coding_annot.yaml
+    conda_pkg: bcftools
+    bibkey: [danecek2017bcftoolscsq]
+    used_by: [credset_coding_annot]
+    notes: "Haplotype-aware variant consequences against the Ensembl GRCh37 GFF3; citation VERIFY."
+
 datasets:
   - key: ref_1kg_hgdp
     name: 1000 Genomes + HGDP reference panel
@@ -198,3 +220,17 @@ datasets:
     bibkey: [liberzon2015msigdb]
     used_by: [magma_pathway, twas_gsea_pathway]
     notes: "Gene sets are user-supplied via pathway_gmt_dir; the MSigDB citation applies only if MSigDB sets were used — VERIFY."
+
+  - key: alphamissense
+    name: AlphaMissense missense pathogenicity predictions
+    version: "AlphaMissense GRCh37 precomputed"
+    bibkey: [cheng2023alphamissense]
+    used_by: [credset_coding_annot]
+    notes: "Missense scores joined to credible-set coding variants; citation VERIFY."
+
+  - key: gencode
+    name: GENCODE protein-coding gene model
+    version: "GENCODE v47 (GRCh37)"
+    bibkey: [frankish2021gencode]
+    used_by: [caldera]
+    notes: "CALDERA's protein-coding gene universe; citation VERIFY."

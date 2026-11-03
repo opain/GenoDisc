@@ -266,6 +266,41 @@ methods_magma_gene <- function(ctx, g, meta) {
   )
 }
 
+# ---- effector-gene prioritisation -------------------------------------------
+
+methods_coding <- function(ctx, g, meta) {
+  d <- pluck(g, "credset_coding")
+  if (is.null(d) || is.null(d$summary)) return(NULL)
+  .ran(ctx, "coding")
+  csq <- writeup_tool(ctx, "bcftools_csq")
+  am  <- writeup_tool(ctx, "alphamissense")
+  gstr(
+    "The protein-altering potential of each 95% credible set was characterised by ",
+    "predicting variant consequences against the Ensembl GRCh37 gene models with ",
+    "{csq} and scoring missense variants with {am}. For each credible set the share ",
+    "of posterior inclusion probability carried by protein-altering variants was ",
+    "summarised to flag a possible coding mechanism."
+  )
+}
+
+methods_caldera <- function(ctx, g, meta) {
+  d <- pluck(g, "caldera")
+  if (is.null(d) || (is.data.frame(d) && nrow(d) == 0)) return(NULL)
+  .ran(ctx, "caldera")
+  cal  <- writeup_tool(ctx, "caldera")
+  pops <- writeup_tool(ctx, "pops")
+  gc   <- writeup_tool(ctx, "gencode")
+  gstr(
+    "Candidate causal (effector) genes were prioritised within each 95% credible set ",
+    "with {cal}, a pretrained model that scores every nearby protein-coding gene ",
+    "({gc}) from its distance to the credible set, its gene-level polygenic priority ",
+    "score ({pops}), the credible-set posterior inclusion probability on ",
+    "non-synonymous variants in the gene, and the local gene density. Scores are ",
+    "normalised to sum to one within a credible set, giving each gene a probability ",
+    "of being the causal gene relative to the others at that locus."
+  )
+}
+
 # ---- drug / gene-set / pathway enrichment -----------------------------------
 
 methods_enrichment <- function(ctx, g, meta) {
