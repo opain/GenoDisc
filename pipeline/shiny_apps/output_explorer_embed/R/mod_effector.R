@@ -339,8 +339,11 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
         top_ens  <- if ("ensgid" %in% names(g)) as.character(top$ensgid[1]) else NA_character_
         near_ens <- if (length(near_idx) && "ensgid" %in% names(g))
           as.character(g$ensgid[near_idx[1]]) else NA_character_
-        h_top  <- harmonise_genes(as.character(top$gene[1]))
-        h_near <- harmonise_genes(near)
+        # Resolve the DISPLAY symbol via the Ensembl id where present: CALDERA's
+        # GENCODE-v47 names can be newer than this biomart vintage (e.g. CFAP410),
+        # so the symbol path alone would leave them un-harmonised vs other tabs.
+        h_top  <- harmonise_genes(if (!is.na(top_ens)  && top_ens  != "") top_ens  else as.character(top$gene[1]))
+        h_near <- harmonise_genes(if (!is.na(near_ens) && near_ens != "") near_ens else near)
         top_id  <- if (!is.na(top_ens)  && top_ens  != "") top_ens  else h_top$ensembl_id
         near_id <- if (!is.na(near_ens) && near_ens != "") near_ens else h_near$ensembl_id
         agree <- (!is.na(top_id) && !is.na(near_id) && top_id == near_id) ||
@@ -405,7 +408,17 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       r <- caldera_sel(); d <- caldera_L_sel()
       if (is.null(r) || is.null(d)) return(NULL)
       sub <- d[as.character(d$locus) == as.character(r$locus) & d$cs == r$cs, , drop = FALSE]
-      if (nrow(sub) == 0) NULL else sub
+      if (nrow(sub) == 0) return(NULL)
+      # Canonicalise the gene label once (via Ensembl id) so the bar plot, gene
+      # table and selection all show the same symbol as the other tabs.
+      if ("gene" %in% names(sub)) {
+        key <- if ("ensgid" %in% names(sub))
+          ifelse(!is.na(sub$ensgid) & sub$ensgid != "", as.character(sub$ensgid), as.character(sub$gene))
+          else as.character(sub$gene)
+        h <- harmonise_genes(key)
+        sub$gene <- ifelse(!is.na(h$symbol) & !grepl("^ENSG", h$symbol), h$symbol, as.character(sub$gene))
+      }
+      sub
     })
     cal_n_genes  <- reactive({ s <- caldera_locus_sub(); if (is.null(s)) 0L else nrow(s) })
     # ~26 px/gene (roughly the Molecular-Associations heatmap spacing) + margins.
@@ -446,14 +459,7 @@ effectorServer <- function(id, gwas_data, selected_gwas, config_flags) {
       sub <- caldera_locus_sub(); if (is.null(sub)) return(empty_dt())
       cols <- intersect(c("locus", "cs", "gene", "ensgid", "caldera", "multi",
                           "rank", "nearest_gene", "pops", "dist", "coding"), names(sub))
-      g <- sub[order(-sub$caldera), cols, drop = FALSE]
-      if ("gene" %in% names(g)) {
-        key <- if ("ensgid" %in% names(g))
-          ifelse(!is.na(g$ensgid) & g$ensgid != "", as.character(g$ensgid), as.character(g$gene))
-          else as.character(g$gene)
-        h <- harmonise_genes(key)
-        g$gene <- ifelse(!is.na(h$symbol) & !grepl("^ENSG", h$symbol), h$symbol, as.character(g$gene))
-      }
+      g <- sub[order(-sub$caldera), cols, drop = FALSE]   # gene already canonicalised in caldera_locus_sub
       names(g)[names(g) == "multi"] <- "Unnormalised probability"
       show_dt(g, header_tips = list(
         "Unnormalised probability" = "Raw per-gene CALDERA score before normalising to sum to 1 within the credible set.",

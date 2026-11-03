@@ -777,21 +777,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     output$snp_assoc_lead_table <- renderDataTable({
-      d <- as.data.frame(snp_assoc_lead_data())
-      # Surface the nearest gene's biotype so a non-coding nearest gene is
-      # self-explanatory. Only added when the reference carries biotype (i.e.
-      # after the biomart refresh that adds gene_biotype); invisible otherwise.
-      if ("NearestGene" %in% names(d)) {
-        bt <- harmonise_genes(as.character(d$NearestGene))$biotype
-        if (any(!is.na(bt))) {
-          bt[is.na(bt)] <- "—"
-          pos <- match("NearestGene", names(d))
-          d <- data.frame(d[, seq_len(pos), drop = FALSE],
-                          `NearestGene biotype` = bt,
-                          d[, setdiff(seq_len(ncol(d)), seq_len(pos)), drop = FALSE],
-                          check.names = FALSE, stringsAsFactors = FALSE)
-        }
-      }
+      d <- snp_assoc_lead_data()
       # Column indices are resolved by name (0-indexed) because the column set
       # differs between clumping (carries FREQ / REF.FREQ) and COJO.
       p_idx  <- match("P", names(d)) - 1L
