@@ -345,6 +345,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           tags$h5("Gene association summary (genes in positional order)"),
           uiOutput(ns("lp_grid_controls_ui")),
           uiOutput(ns("lp_grid_ui")),
+          uiOutput(ns("lp_grid_legend")),
           tags$div(style = "height: 350px;"),   # space so the figure can scroll to the bottom
           width = 9
         )
@@ -1065,16 +1066,22 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       lo <- suppressWarnings(as.numeric(input$lp_lo)); hi <- suppressWarnings(as.numeric(input$lp_hi))
       if (is.na(lo) || is.na(hi) || hi <= lo) NULL else c(lo, hi)
     }), 800)
-    # Validate the (debounced) region against the current locus's natural window,
-    # NOT debounced: a region left over from a previously-selected locus won't
-    # overlap the new locus, so switching locus drops it immediately (falls back
-    # to the natural window) instead of flashing an out-of-range (black) plot
-    # during the debounce interval before the inputs are reset.
-    lp_win_override <- reactive({
-      v <- lp_win_raw(); if (is.null(v)) return(NULL)
+    # The applied region override, kept in a de-duped reactiveVal so a no-op
+    # change doesn't re-run lp_data (which would fade/redraw the plot for no
+    # reason). It is NULL when there is no meaningful override — either the
+    # region matches the locus's natural window (e.g. just after a locus switch
+    # resets the inputs), or the region is stale from a previously-selected
+    # locus (doesn't overlap the new window) — so switching locus renders the
+    # natural window exactly once, with no second redraw.
+    lp_override_rv <- reactiveVal(NULL)
+    observe({
+      v  <- lp_win_raw()
       nw <- lp_natural_window()
-      if (!is.null(nw) && (v[2] < nw[1] || v[1] > nw[2])) return(NULL)
-      v
+      newval <- if (is.null(v)) NULL
+                else if (!is.null(nw) && (v[2] < nw[1] || v[1] > nw[2])) NULL
+                else if (!is.null(nw) && isTRUE(all.equal(round(v, 3), round(nw, 3)))) NULL
+                else v
+      if (!identical(isolate(lp_override_rv()), newval)) lp_override_rv(newval)
     })
     lp_data <- reactive({
       g <- .pick_gwas("lead_gwas"); req(gwas_data(), g, lp_valid_locus())
@@ -1082,7 +1089,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                           pip_type = input$lp_pip_type %||% "marginal",
                           pc_only = isTRUE(input$lp_pc_only),
                           hc_methods = input$lp_hc %||% character(0),
-                          win_override = lp_win_override())
+                          win_override = lp_override_rv())
     })
     .lp_set_region <- function() {
       nw <- lp_natural_window(); if (is.null(nw)) return()
@@ -1149,7 +1156,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       # Default to L=1 variants (L=10 available to add), like the mol-assoc summary.
       m_default <- o$methods[!o$methods %in% c("SuSiE (L=10)", "CALDERA (L=10)")]
       tagList(
-        tags$details(class = "gd-details", open = NA, style = "margin-bottom:6px;",
+        tags$details(class = "gd-details", style = "margin-bottom:6px;",
           tags$summary("Filter data"),
           tags$div(class = "gd-details-body",
             fluidRow(
@@ -1201,6 +1208,18 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (!is.null(p)) p else { grid::grid.newpage()
         grid::grid.text("No molecular-association results for the selected methods/panels in this window.") }
     })
+    # Legend beneath the grid, mirroring the Molecular Associations summary plot.
+    output$lp_grid_legend <- renderUI({
+      if (length(lp_grid_opts()$methods) == 0) return(NULL)
+      gd_legend(list(
+        "Rows / columns" = "Each column is a gene (in genomic-position order); each row is a reference panel, grouped by method in the facet headers.",
+        "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white ≈ no association.",
+        "Black circle" = "The association is FDR-significant in that panel and method.",
+        "Black square" = "FDR-significant AND supported by colocalisation.",
+        "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
+        "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is shaded by its maximum CALDERA causal probability; a black square behind it marks genes above the high-confidence threshold."
+      ), heading = "How to read this plot")
+    })
     output$lpg_download <- downloadHandler(
       filename = function() sprintf("locus_gene_summary_%s_%s.%s",
                  lp_valid_locus() %||% "locus", input$lp_l %||% "L", input$lpg_dl_format %||% "png"),
@@ -1218,10 +1237,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         if (!isTRUE(d$has_baseline)) div(class = "gd-legend",
           em("Full-locus baseline unavailable for this bundle - showing credible-set members only (re-run with the current pipeline to add every SNP).")),
         gd_legend(list(
-          "Panel A (association)" = "Each SNP's -log10(P); colour = LD r² to the lead (blue low → red high); purple diamond = lead; red line p < 5e-8, blue dashed p < 1e-5; light-blue line (right axis) = recombination rate (cM/Mb). Shaded bands = credible-set spans.",
-          "Panel B (fine-mapping)" = "Per-SNP posterior (PIP); points coloured by credible set; circle = non-coding, triangle = protein-altering variant.",
-          "Panel C (genes)" = "Gene bodies coloured by biotype (protein_coding dark; lncRNA/antisense blue/teal; pseudogene grey). Gold box = high-confidence; badges C = CALDERA ≥ 0.5, M = coding variant alpha ≥ 0.5, N = nearest gene.",
-          "Panel D (gene × method)" = "Dot per gene×method; colour = association Z (blue–red) for TWAS/SMR/PWAS/MAGMA, green = SuSiE/nearest presence, purple = CALDERA probability; open circle = FDR-significant; open square = colocalised."
+          "Association (top panel)" = "Each SNP's -log10(P); colour = LD r² to the lead (blue low → red high); purple diamond = lead; red line p < 5e-8, blue dashed p < 1e-5; light-blue line (right axis) = recombination rate (cM/Mb). Shaded bands = credible-set spans.",
+          "Fine-mapping (middle panel)" = "Per-SNP posterior (PIP); points coloured by credible set; circle = non-coding, triangle = protein-altering variant. Per-set text gives SNP count, purity and coding share.",
+          "Genes (bottom panel)" = paste0(
+            "Gene bodies coloured by biotype (protein_coding dark; lncRNA / antisense blue / teal; ",
+            "pseudogene grey), with a strand-direction arrow. A gold box marks a high-confidence gene; ",
+            "the letter badges beneath it are C = CALDERA ≥ 0.5, M = coding variant (alpha ≥ 0.5), ",
+            "N = nearest gene, and E / S / P = colocalised (FDR-significant and colocalised) expression / ",
+            "splicing / protein.")
         ), heading = "Reading the locus plot"))
     })
 

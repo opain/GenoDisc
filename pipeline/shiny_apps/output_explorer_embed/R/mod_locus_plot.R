@@ -403,10 +403,12 @@ build_locus_finemap_panel <- function(ld, font_size = 14, point_size = 1.6,
                 if ("coding_share" %in% names(r) && !is.na(r[["coding_share"]])) paste0("coding share ", r[["coding_share"]]))
       paste(bits, collapse = " | ")
     })
-    lab_df <- data.frame(x = ld$window[1], y = 0.98 - 0.07 * (seq_along(txt) - 1), txt = txt,
-                         col = ld$cs_palette[ld$cs_summary$csf], stringsAsFactors = FALSE)
+    xin <- (ld$window[2] - ld$window[1]) * 0.012   # inset from the y-axis
+    lab_df <- data.frame(x = ld$window[1] + xin, y = 0.98 - 0.08 * (seq_along(txt) - 1), txt = txt,
+                         col = .lp_darken(ld$cs_palette[ld$cs_summary$csf], 0.35),
+                         stringsAsFactors = FALSE)
     p <- p + ggplot2::geom_text(data = lab_df, ggplot2::aes(x = x, y = y, label = txt),
-                                colour = lab_df$col, hjust = 0, size = font_size * 0.24)
+                                colour = lab_df$col, hjust = 0, size = font_size * 0.28)
   }
   p +
     ggplot2::scale_x_continuous(expand = c(0, 0)) +
@@ -489,6 +491,10 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   zc <- pmax(-lim, pmin(lim, z)) / (2 * lim) + 0.5
   m <- grDevices::colorRamp(c("#2166ac", "#f7f7f7", "#b2182b"))(zc)
   grDevices::rgb(m[, 1], m[, 2], m[, 3], maxColorValue = 255)
+}
+.lp_darken <- function(hex, f = 0.35) {
+  m <- grDevices::col2rgb(hex)
+  grDevices::rgb(t(m * (1 - f)), maxColorValue = 255)
 }
 .lp_prio_hex <- function(p) {
   p <- suppressWarnings(as.numeric(p)); p[is.na(p)] <- 0; p <- pmax(0, pmin(1, p))
