@@ -360,9 +360,13 @@ resolve_feature_positions <- function(ids, gd, gwas, cf) {
 #' @return data.frame(input, ensembl_id, symbol, biotype), same length/order as x
 harmonise_genes <- function(x) {
   x <- as.character(x)
+  # Guard the empty case BEFORE building the frame (recycling NA_character_
+  # against a length-0 column would otherwise error).
+  if (length(x) == 0)
+    return(data.frame(input = character(0), ensembl_id = character(0),
+                      symbol = character(0), biotype = character(0), stringsAsFactors = FALSE))
   out <- data.frame(input = x, ensembl_id = NA_character_,
                     symbol = x, biotype = NA_character_, stringsAsFactors = FALSE)
-  if (length(x) == 0) return(out)
 
   ref <- load_gene_positions()
   canon <- ref$canonical; sym2id <- ref$sym2id; syn2id <- ref$syn2id
