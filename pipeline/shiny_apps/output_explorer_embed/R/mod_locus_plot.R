@@ -435,10 +435,9 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   grDevices::rgb(m[, 1], m[, 2], m[, 3], maxColorValue = 255)
 }
 
-#' Positional gene x method dot-grid for the locus window. Reuses
-#' build_mol_assoc_data() + resolve_feature_positions(). Returns NULL if no
-#' molecular-association method has a gene in the window.
-build_locus_assoc_grid <- function(gd, gwas, cf, ld, font_size = 14, theme_fn = ggplot2::theme_bw) {
+#' build_mol_assoc_data for the locus window, with the method-facet Group label
+#' and positional gene order attached. Shared by the grid builder + its controls.
+.lp_grid_data <- function(gd, gwas, cf, ld) {
   dat <- tryCatch(build_mol_assoc_data(gd, gwas, cf), error = function(e) NULL)
   if (is.null(dat) || nrow(dat) == 0) return(NULL)
   dat <- as.data.frame(dat)
@@ -447,18 +446,34 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, font_size = 14, theme_fn = 
   pos <- pos[!is.na(pos$CHR) & pos$CHR == ld$chr &
              pos$BP / 1e6 >= ld$window[1] & pos$BP / 1e6 <= ld$window[2], , drop = FALSE]
   if (nrow(pos) == 0) return(NULL)
-  gene_order <- pos$ID[order(pos$BP)]
-  dat <- dat[as.character(dat$ID) %in% gene_order, , drop = FALSE]
+  dat <- dat[as.character(dat$ID) %in% pos$ID, , drop = FALSE]
+  if (nrow(dat) == 0) return(NULL)
+  dat$Group <- make_group_labels(dat$Method, dat$Type)
+  attr(dat, "gene_order") <- pos$ID[order(pos$BP)]
+  dat
+}
+
+# Methods (Groups) + panels present in the window, for the grid's selectors.
+lp_grid_options <- function(gd, gwas, cf, ld) {
+  dat <- .lp_grid_data(gd, gwas, cf, ld)
+  if (is.null(dat)) return(list(groups = character(0), panels = character(0)))
+  list(groups = intersect(get_group_order(), unique(dat$Group)),
+       panels = sort(unique(as.character(dat$Panel))))
+}
+
+#' Positional gene x method association grid, FACETED by method (like the
+#' Molecular Associations summary), filterable by method + panel. Returns NULL
+#' if nothing in the window after filtering.
+build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL,
+                                   font_size = 14, theme_fn = ggplot2::theme_bw) {
+  dat <- .lp_grid_data(gd, gwas, cf, ld)
+  if (is.null(dat)) return(NULL)
+  gene_order <- attr(dat, "gene_order")
+  if (!is.null(methods)) dat <- dat[dat$Group %in% methods, , drop = FALSE]
+  if (!is.null(panels))  dat <- dat[as.character(dat$Panel) %in% panels, , drop = FALSE]
   if (nrow(dat) == 0) return(NULL)
   dat$ID <- factor(as.character(dat$ID), levels = gene_order)
-
-  dat$row <- ifelse(nzchar(as.character(dat$Panel)) & as.character(dat$Panel) != as.character(dat$Method),
-                    paste0(as.character(dat$Method), ": ", as.character(dat$Panel)), as.character(dat$Method))
-  method_pri <- c("SuSiE (L=1)" = 1, "SuSiE (L=10)" = 1, "FUSION" = 2, "SMR" = 3,
-                  "PWAS" = 4, "MAGMA" = 5, "Nearest\nGene" = 6, "CALDERA (L=1)" = 7, "CALDERA (L=10)" = 7)
-  dat$mp <- method_pri[as.character(dat$Method)]; dat$mp[is.na(dat$mp)] <- 9
-  row_ord <- unique(dat$row[order(dat$mp, dat$row)])
-  dat$row <- factor(dat$row, levels = rev(row_ord))
+  dat$Group <- factor(dat$Group, levels = intersect(get_group_order(), unique(dat$Group)))
 
   has_prio <- "Prio" %in% names(dat)
   cls <- ifelse(grepl("^CALDERA", dat$Method), "caldera",
@@ -468,18 +483,32 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, font_size = 14, theme_fn = 
   dat$fill[cls == "presence"] <- "#2ca25f"
   if (has_prio) dat$fill[cls == "caldera"] <- .lp_prio_hex(dat$Prio[cls == "caldera"])
 
-  p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = row)) +
-    ggplot2::geom_point(colour = dat$fill, size = 4)
+  p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = Panel)) +
+    ggplot2::geom_point(colour = dat$fill, size = 3.3)
   sig <- dat[dat$Sig %in% TRUE, , drop = FALSE]
-  if (nrow(sig)) p <- p + ggplot2::geom_point(data = sig, shape = 1, size = 5.2, colour = "black", stroke = 0.7)
+  if (nrow(sig)) p <- p + ggplot2::geom_point(data = sig, shape = 1, size = 4.4, colour = "black", stroke = 0.7)
   clc <- dat[dat$Coloc %in% TRUE, , drop = FALSE]
-  if (nrow(clc)) p <- p + ggplot2::geom_point(data = clc, shape = 0, size = 5.8, colour = "black", stroke = 0.7)
+  if (nrow(clc)) p <- p + ggplot2::geom_point(data = clc, shape = 0, size = 5.0, colour = "black", stroke = 0.7)
   p +
+    ggplot2::facet_grid(rows = ggplot2::vars(Group), scales = "free_y", space = "free_y", switch = "y") +
     ggplot2::labs(x = NULL, y = NULL) +
     theme_fn(base_size = font_size) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   strip.placement = "outside",
+                   strip.text.y.left = ggplot2::element_text(angle = 0, size = font_size * 0.7),
                    panel.grid.major = ggplot2::element_line(colour = "grey92"),
-                   panel.grid.minor = ggplot2::element_blank())
+                   panel.grid.minor = ggplot2::element_blank(),
+                   panel.spacing = ggplot2::unit(2, "pt"))
+}
+
+# Facet-row count (for dynamic plot height).
+lp_grid_nrows <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL) {
+  dat <- .lp_grid_data(gd, gwas, cf, ld)
+  if (is.null(dat)) return(0L)
+  if (!is.null(methods)) dat <- dat[dat$Group %in% methods, , drop = FALSE]
+  if (!is.null(panels))  dat <- dat[as.character(dat$Panel) %in% panels, , drop = FALSE]
+  if (nrow(dat) == 0) return(0L)
+  length(unique(paste(dat$Group, dat$Panel)))
 }
 
 # ---- Assembly ---------------------------------------------------------------

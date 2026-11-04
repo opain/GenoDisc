@@ -237,7 +237,11 @@ snpAssocUI <- function(id) {
                 br(),
                 uiOutput(ns("lp_controls_ui")),
                 plotOutput(ns("lp_plot"), height = "auto"),
-                uiOutput(ns("lp_legends"))
+                uiOutput(ns("lp_legends")),
+                tags$hr(),
+                tags$h5("Gene association summary (genes in positional order)"),
+                uiOutput(ns("lp_grid_controls_ui")),
+                plotOutput(ns("lp_grid"), height = "auto")
               )
             ),
             width = 9
@@ -1044,9 +1048,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                                    "Nearest gene" = "nearest"),
                        selected = c("caldera", "coding"), inline = TRUE))),
         fluidRow(column(12, checkboxGroupInput(ns("lp_panels"), "Panels to show:",
-                       choices = c("Association (Manhattan)" = "A", "Fine-mapping" = "B",
-                                   "Genes" = "C", "Gene association summary" = "D"),
-                       selected = c("A", "B", "C", "D"), inline = TRUE))),
+                       choices = c("Association (Manhattan)" = "A", "Fine-mapping" = "B", "Genes" = "C"),
+                       selected = c("A", "B", "C"), inline = TRUE))),
         tags$details(class = "gd-details", style = "margin-top:8px;margin-bottom:10px;",
           tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
@@ -1072,20 +1075,19 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     lp_nrows <- reactive({ d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
-    lp_panels_sel <- reactive({ s <- input$lp_panels; if (is.null(s)) c("A","B","C","D") else s })
+    lp_panels_sel <- reactive({ s <- input$lp_panels; if (is.null(s)) c("A","B","C") else s })
 
     lp_h_px <- reactive({
-      d <- lp_data(); sel <- lp_panels_sel(); h <- 0
+      sel <- lp_panels_sel(); h <- 0
       if ("A" %in% sel) h <- h + 240
       if ("B" %in% sel) h <- h + 240
       if ("C" %in% sel) h <- h + 120 + 20 * lp_nrows()
-      if ("D" %in% sel) h <- h + 360
-      max(300, h + 30)
+      max(280, h + 30)
     })
 
-    # One combined image: continuous-x panels (A/B/C) share the position axis via
-    # cowplot align="v"; the categorical gene x method grid (D) is appended below.
-    # Drives both the on-screen plot and the download (so the download is one image).
+    # Locus plot image = the continuous-x panels A/B/C (shared position axis via
+    # cowplot). The gene x method summary grid (D) is a SEPARATE image below with
+    # its own controls + download.
     lp_build <- function() {
       d <- lp_data(); if (is.null(d)) return(NULL)
       sel <- lp_panels_sel()
@@ -1098,25 +1100,76 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                           if (!is.null(pB)) { cont <- c(cont, list(pB)); rh <- c(rh, 1.0) } }
       if ("C" %in% sel) { pC <- build_locus_gene_panel(d, font_size = fs, theme_fn = tf)
                           if (!is.null(pC)) { cont <- c(cont, list(pC)); rh <- c(rh, gene_h) } }
-      top <- if (length(cont) == 1) cont[[1]] else if (length(cont) > 1)
-        cowplot::plot_grid(plotlist = cont, ncol = 1, align = "v", axis = "lr", rel_heights = rh) else NULL
-      pD <- if ("D" %in% sel) {
-        g <- .pick_gwas("finemap_gwas")
-        tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d, font_size = fs, theme_fn = tf),
-                 error = function(e) NULL)
-      } else NULL
-      parts <- list(); ph <- numeric(0)
-      if (!is.null(top)) { parts <- c(parts, list(top)); ph <- c(ph, max(2, sum(rh))) }
-      if (!is.null(pD))  { parts <- c(parts, list(pD));  ph <- c(ph, 2.2) }
-      if (length(parts) == 0) return(NULL)
-      if (length(parts) == 1) return(parts[[1]])
-      cowplot::plot_grid(plotlist = parts, ncol = 1, align = "none", rel_heights = ph)
+      assemble_locus_plot(cont, rel_heights = rh)
     }
 
     output$lp_plot <- renderPlot({
       p <- lp_build()
       if (!is.null(p)) p else { grid::grid.newpage(); grid::grid.text("No data for this locus.") }
     }, height = function() lp_h_px())
+
+    # ---- Gene association summary grid (panel D) — separate, own controls ----
+    lp_grid_opts <- reactive({
+      d <- lp_data(); if (is.null(d)) return(list(groups = character(0), panels = character(0)))
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      tryCatch(lp_grid_options(gwas_data(), g, config_flags(), d),
+               error = function(e) list(groups = character(0), panels = character(0)))
+    })
+    output$lp_grid_controls_ui <- renderUI({
+      o <- lp_grid_opts()
+      if (length(o$groups) == 0)
+        return(div(class = "gd-legend", em("No molecular-association results with a gene in this window.")))
+      grp_labels <- gsub("\n", " ", o$groups)
+      tagList(
+        fluidRow(
+          column(6, selectInput(ns("lpg_methods"), "Methods (facets):",
+                                choices = setNames(o$groups, grp_labels), selected = o$groups, multiple = TRUE)),
+          column(6, selectInput(ns("lpg_panels"), "Panels / tissues:",
+                                choices = o$panels, selected = o$panels, multiple = TRUE))),
+        tags$details(class = "gd-details", style = "margin-top:6px;margin-bottom:8px;",
+          tags$summary("Plot options (gene association summary)"),
+          tags$div(class = "gd-details-body",
+            fluidRow(
+              column(4, sliderInput(ns("lpg_font"), "Font size (pt):", min = 8, max = 22, value = 13, step = 1),
+                        selectInput(ns("lpg_theme"), "Theme:",
+                          choices = c("Black & white"="bw","Minimal"="minimal","Classic"="classic","Light"="light"), selected = "bw")),
+              column(4, selectInput(ns("lpg_dl_format"), "Download format:", choices = c("PNG"="png","PDF"="pdf","SVG"="svg")),
+                        numericInput(ns("lpg_dl_dpi"), "DPI (PNG):", value = 300, min = 72, max = 600, step = 1)),
+              column(4, numericInput(ns("lpg_dl_w"), "Width (in):", value = 11, min = 3, max = 30, step = 0.5),
+                        numericInput(ns("lpg_dl_h"), "Height (in):", value = 5, min = 2, max = 60, step = 0.5))),
+            downloadButton(ns("lpg_download"), "Download summary", class = "btn btn-default btn-sm")))
+      )
+    })
+    lp_grid_build <- function() {
+      d <- lp_data(); if (is.null(d)) return(NULL)
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d,
+               methods = input$lpg_methods, panels = input$lpg_panels,
+               font_size = input$lpg_font %||% 13, theme_fn = mol_theme_fn(input$lpg_theme %||% "bw")),
+               error = function(e) NULL)
+    }
+    lpg_h_px <- reactive({
+      d <- lp_data(); if (is.null(d)) return(300)
+      g <- .pick_gwas("finemap_gwas")
+      nr <- tryCatch(lp_grid_nrows(gwas_data(), g, config_flags(), d, input$lpg_methods, input$lpg_panels),
+                     error = function(e) 6)
+      max(220, 70 + 22 * nr)
+    })
+    output$lp_grid <- renderPlot({
+      p <- lp_grid_build()
+      if (!is.null(p)) p else { grid::grid.newpage()
+        grid::grid.text("No molecular-association results for the selected methods/panels in this window.") }
+    }, height = function() lpg_h_px())
+    output$lpg_download <- downloadHandler(
+      filename = function() sprintf("locus_gene_summary_%s_%s.%s",
+                 input$lp_locus_sel %||% "locus", input$l_param %||% "L", input$lpg_dl_format %||% "png"),
+      content = function(file) {
+        p <- tryCatch(lp_grid_build(), error = function(e) NULL)
+        open_plot_device(file, fmt = input$lpg_dl_format %||% "png",
+                         w = input$lpg_dl_w %||% 11, h = input$lpg_dl_h %||% 5, units = "in", dpi = input$lpg_dl_dpi %||% 300)
+        if (!is.null(p)) print(p) else grid::grid.text("No data to plot.")
+        grDevices::dev.off()
+      })
 
     output$lp_legends <- renderUI({
       d <- lp_data(); if (is.null(d)) return(NULL)
