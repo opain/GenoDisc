@@ -239,6 +239,8 @@ snpAssocUI <- function(id) {
                 plotOutput(ns("lp_plot"), height = "auto",
                            hover = hoverOpts(ns("lp_hover"), delay = 150, delayType = "debounce")),
                 tableOutput(ns("lp_hover_info")),
+                tags$h5("Gene association summary (genes in positional order)"),
+                plotOutput(ns("lp_grid"), height = "340px"),
                 uiOutput(ns("lp_legends"))
               )
             ),
@@ -1070,20 +1072,41 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     lp_nrows <- reactive({ d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
-    lp_h_px  <- reactive(max(420, 450 + 20 * lp_nrows()))
+    lp_h_px  <- reactive({ d <- lp_data(); a <- if (!is.null(d) && isTRUE(d$has_assoc)) 230 else 0
+                           max(420, 230 + a + 20 * lp_nrows() + 120) })
 
     lp_build <- function() {
       d <- lp_data(); if (is.null(d)) return(NULL)
       tf <- mol_theme_fn(input$lp_theme %||% "bw"); fs <- input$lp_font %||% 14
+      pA <- build_locus_assoc_panel(d, font_size = fs, theme_fn = tf)
       pB <- build_locus_finemap_panel(d, font_size = fs, theme_fn = tf)
       pC <- build_locus_gene_panel(d, font_size = fs, theme_fn = tf)
-      assemble_locus_plot(list(pB, pC), rel_heights = c(1.3, max(0.7, 0.3 + 0.16 * lp_nrows())))
+      gene_h <- max(0.7, 0.3 + 0.16 * lp_nrows())
+      panels <- list(); rh <- numeric(0)
+      if (!is.null(pA)) { panels <- c(panels, list(pA)); rh <- c(rh, 1.0) }
+      if (!is.null(pB)) { panels <- c(panels, list(pB)); rh <- c(rh, 1.3) }
+      if (!is.null(pC)) { panels <- c(panels, list(pC)); rh <- c(rh, gene_h) }
+      assemble_locus_plot(panels, rel_heights = rh)
     }
 
     output$lp_plot <- renderPlot({
       p <- lp_build()
       if (!is.null(p)) p else { grid::grid.newpage(); grid::grid.text("No data for this locus.") }
     }, height = function() lp_h_px())
+
+    # Panel D: positional gene x method association grid (separate — categorical x).
+    lp_grid_build <- function() {
+      d <- lp_data(); if (is.null(d)) return(NULL)
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d,
+               font_size = input$lp_font %||% 14, theme_fn = mol_theme_fn(input$lp_theme %||% "bw")),
+               error = function(e) NULL)
+    }
+    output$lp_grid <- renderPlot({
+      p <- lp_grid_build()
+      if (!is.null(p)) p else { grid::grid.newpage()
+        grid::grid.text("No molecular-association results with a gene in this window.") }
+    }, height = 340)
 
     output$lp_hover_info <- renderTable({
       d <- lp_data(); if (is.null(d) || is.null(d$all_points)) return(NULL)
@@ -1098,9 +1121,10 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         if (!isTRUE(d$has_baseline)) div(class = "gd-legend",
           em("Full-locus baseline unavailable for this bundle - showing credible-set members only (re-run with the current pipeline to add every SNP).")),
         gd_legend(list(
-          "Credible sets" = "Points coloured by credible set; circle = non-coding, triangle = protein-altering variant.",
-          "Gene bodies"   = "Coloured by biotype (protein_coding dark; lncRNA/antisense blue/teal; pseudogene grey).",
-          "Badges"        = "On high-confidence genes (gold box): C = CALDERA ≥ 0.5, M = coding variant alpha ≥ 0.5, N = nearest gene."
+          "Panel A (association)" = "Each SNP's -log10(P); colour = LD r² to the lead (blue <0.2 → red 0.8-1); purple diamond = lead; red dashed line = p < 5e-8. Shaded bands = credible-set spans.",
+          "Panel B (fine-mapping)" = "Per-SNP posterior (PIP); points coloured by credible set; circle = non-coding, triangle = protein-altering variant.",
+          "Panel C (genes)" = "Gene bodies coloured by biotype (protein_coding dark; lncRNA/antisense blue/teal; pseudogene grey). Gold box = high-confidence; badges C = CALDERA ≥ 0.5, M = coding variant alpha ≥ 0.5, N = nearest gene.",
+          "Panel D (gene × method)" = "Dot per gene×method; colour = association Z (blue–red) for TWAS/SMR/PWAS/MAGMA, green = SuSiE/nearest presence, purple = CALDERA probability; open circle = FDR-significant; open square = colocalised."
         ), heading = "Reading the locus plot"))
     })
 

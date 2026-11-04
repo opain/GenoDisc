@@ -43,8 +43,10 @@ build_locus_pip <- function(tmp, lead, Lval, ss){
     }
   }
   d<-data.table(locus=lead, SNP=snps, pip=as.numeric(pip), cs=cs_assign, L=as.integer(Lval))
-  d<-merge(d, ss[, c('SNP','CHR','BP'), with=FALSE], by='SNP', all.x=TRUE, sort=FALSE)
-  d[, c('locus','SNP','CHR','BP','pip','cs','L'), with=FALSE]
+  join_cols<-intersect(c('SNP','CHR','BP','P'), names(ss))
+  d<-merge(d, ss[, join_cols, with=FALSE], by='SNP', all.x=TRUE, sort=FALSE)
+  out_cols<-intersect(c('locus','SNP','CHR','BP','pip','cs','L','P'), names(d))
+  d[, out_cols, with=FALSE]
 }
 
 # Read in config file
@@ -220,7 +222,7 @@ build_all_locus_pip <- function(files, Lval){
     out<-rbind(out, build_locus_pip(tmp, lead, Lval, ss))
   }
   if(is.null(out)) out<-data.table(locus=character(), SNP=character(), CHR=integer(),
-                                   BP=numeric(), pip=numeric(), cs=integer(), L=integer())
+                                   BP=numeric(), pip=numeric(), cs=integer(), L=integer(), P=numeric())
   out
 }
 fwrite(build_all_locus_pip(finemap_files_L10, 10L),

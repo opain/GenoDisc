@@ -172,6 +172,35 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
     }
   }
 
+  # Panel A: association (-log10 P) over the window, coloured by r^2-to-lead.
+  # Prefer the full-locus baseline (every SNP, with P) for a dense scatter; fall
+  # back to the (p<1e-3-thinned) manhattan_data on bundles without locus_pip.
+  assoc <- NULL
+  if (!is.null(baseline) && "P" %in% names(baseline)) {
+    a <- baseline; a$neglogP <- -log10(suppressWarnings(as.numeric(a$P)))
+    a <- a[is.finite(a$neglogP), , drop = FALSE]
+    if (nrow(a) > 0) assoc <- a[, c("SNP","CHR","BP","neglogP")]
+  }
+  if (is.null(assoc)) {
+    gq <- rd("gwas_qc")
+    md <- if (!is.null(gq)) gq$manhattan_data else NULL
+    if (!is.null(md) && !is.null(md$data)) {
+      a <- as.data.frame(md$data)
+      a <- a[!is.na(a$CHR) & a$CHR == chr &
+             a$BP / 1e6 >= window[1] & a$BP / 1e6 <= window[2], , drop = FALSE]
+      if (nrow(a) > 0) assoc <- a
+    }
+  }
+  ld2 <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie$ld_to_lead else NULL
+  r2map <- NULL
+  if (!is.null(ld2) && nrow(ld2) > 0) {
+    l2 <- as.data.frame(ld2); l2 <- l2[as.character(l2$locus) == as.character(locus), , drop = FALSE]
+    if (nrow(l2) > 0) r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$SNP))
+  }
+  lead_bp <- NA_real_
+  if (!is.null(assoc) && as.character(locus) %in% assoc$SNP) lead_bp <- assoc$BP[assoc$SNP == as.character(locus)][1]
+  if (is.na(lead_bp) && !is.null(st) && nrow(st) > 0) lead_bp <- suppressWarnings(as.numeric(st$BP[1]))
+
   # Points frame for hover (baseline + members).
   all_points <- NULL
   if (!is.null(members))
@@ -184,7 +213,9 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   list(members = members, baseline = baseline, cs_summary = cs_summary,
        genes = genes, window = window, chr = chr, cs_palette = cs_palette,
        all_points = all_points, pip_type = pip_type,
-       has_baseline = !is.null(baseline), has_bodies = has_bodies, locus = locus, L = Lval)
+       assoc = assoc, r2map = r2map, lead_bp = lead_bp,
+       has_baseline = !is.null(baseline), has_bodies = has_bodies,
+       has_assoc = !is.null(assoc), has_ld = !is.null(r2map), locus = locus, L = Lval)
 }
 
 # ---- credible-set shaded bands (shared across panels) -----------------------
@@ -196,6 +227,43 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
     csf = d$csf[1], xmin = min(d$BP_Mb), xmax = max(d$BP_Mb), stringsAsFactors = FALSE)))
   sp$col <- ld$cs_palette[sp$csf]
   sp
+}
+
+# ---- Panel A: association (-log10 P) coloured by LD r^2 to lead --------------
+
+.lp_ld_palette <- function() c("<0.2"="#313695","0.2-0.4"="#74add1","0.4-0.6"="#66bd63",
+                               "0.6-0.8"="#fdae61","0.8-1"="#d73027")
+
+build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
+                                    theme_fn = ggplot2::theme_bw) {
+  a <- ld$assoc
+  if (is.null(a) || nrow(a) == 0) return(NULL)
+  a$BP_Mb <- a$BP / 1e6
+  a$neglogP <- if ("neglogP" %in% names(a)) suppressWarnings(as.numeric(a$neglogP)) else -log10(suppressWarnings(as.numeric(a$P)))
+  r2 <- if (!is.null(ld$r2map)) unname(ld$r2map[as.character(a$SNP)]) else rep(NA_real_, nrow(a))
+  pal <- .lp_ld_palette()
+  bins <- cut(r2, breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
+              labels = names(pal), right = FALSE)
+  a$col <- unname(pal[as.character(bins)]); a$col[is.na(a$col)] <- "#9aa0b0"
+  bands <- .lp_cs_bands(ld)
+  p <- ggplot2::ggplot()
+  if (!is.null(bands)) p <- p + ggplot2::geom_rect(
+    data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+    fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
+  p <- p +
+    ggplot2::geom_point(data = a, ggplot2::aes(x = BP_Mb, y = neglogP), colour = a$col, size = point_size) +
+    ggplot2::geom_hline(yintercept = -log10(5e-8), colour = "red", linetype = "dashed", linewidth = 0.3)
+  lead_row <- a[a$SNP == as.character(ld$locus), , drop = FALSE]
+  if (nrow(lead_row) == 0 && !is.na(ld$lead_bp)) lead_row <- a[which.min(abs(a$BP - ld$lead_bp)), , drop = FALSE]
+  if (nrow(lead_row) > 0) p <- p + ggplot2::geom_point(
+    data = lead_row, ggplot2::aes(x = BP_Mb, y = neglogP),
+    shape = 23, size = point_size * 3.2, fill = "#7b3294", colour = "black")
+  p +
+    ggplot2::coord_cartesian(xlim = ld$window) +
+    ggplot2::labs(x = NULL, y = expression(-log[10](italic(P)))) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
+                   plot.margin = ggplot2::margin(4, 8, 2, 8))
 }
 
 # ---- Panel B: fine-mapping PIP ---------------------------------------------
@@ -290,6 +358,67 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
     ggplot2::theme(panel.grid = ggplot2::element_blank(),
                    axis.text.y = ggplot2::element_blank(), axis.ticks.y = ggplot2::element_blank(),
                    plot.margin = ggplot2::margin(2, 8, 4, 8))
+}
+
+# ---- Panel D: gene x method association grid (positional) -------------------
+
+.lp_z_hex <- function(z, lim = 6) {
+  z <- suppressWarnings(as.numeric(z)); z[is.na(z)] <- 0
+  zc <- pmax(-lim, pmin(lim, z)) / (2 * lim) + 0.5
+  m <- grDevices::colorRamp(c("#2166ac", "#f7f7f7", "#b2182b"))(zc)
+  grDevices::rgb(m[, 1], m[, 2], m[, 3], maxColorValue = 255)
+}
+.lp_prio_hex <- function(p) {
+  p <- suppressWarnings(as.numeric(p)); p[is.na(p)] <- 0; p <- pmax(0, pmin(1, p))
+  m <- grDevices::colorRamp(c("#f2f0f7", "#54278f"))(p)
+  grDevices::rgb(m[, 1], m[, 2], m[, 3], maxColorValue = 255)
+}
+
+#' Positional gene x method dot-grid for the locus window. Reuses
+#' build_mol_assoc_data() + resolve_feature_positions(). Returns NULL if no
+#' molecular-association method has a gene in the window.
+build_locus_assoc_grid <- function(gd, gwas, cf, ld, font_size = 14, theme_fn = ggplot2::theme_bw) {
+  dat <- tryCatch(build_mol_assoc_data(gd, gwas, cf), error = function(e) NULL)
+  if (is.null(dat) || nrow(dat) == 0) return(NULL)
+  dat <- as.data.frame(dat)
+  pos <- tryCatch(resolve_feature_positions(unique(as.character(dat$ID)), gd, gwas, cf), error = function(e) NULL)
+  if (is.null(pos) || nrow(pos) == 0) return(NULL)
+  pos <- pos[!is.na(pos$CHR) & pos$CHR == ld$chr &
+             pos$BP / 1e6 >= ld$window[1] & pos$BP / 1e6 <= ld$window[2], , drop = FALSE]
+  if (nrow(pos) == 0) return(NULL)
+  gene_order <- pos$ID[order(pos$BP)]
+  dat <- dat[as.character(dat$ID) %in% gene_order, , drop = FALSE]
+  if (nrow(dat) == 0) return(NULL)
+  dat$ID <- factor(as.character(dat$ID), levels = gene_order)
+
+  dat$row <- ifelse(nzchar(as.character(dat$Panel)) & as.character(dat$Panel) != as.character(dat$Method),
+                    paste0(as.character(dat$Method), ": ", as.character(dat$Panel)), as.character(dat$Method))
+  method_pri <- c("SuSiE (L=1)" = 1, "SuSiE (L=10)" = 1, "FUSION" = 2, "SMR" = 3,
+                  "PWAS" = 4, "MAGMA" = 5, "Nearest\nGene" = 6, "CALDERA (L=1)" = 7, "CALDERA (L=10)" = 7)
+  dat$mp <- method_pri[as.character(dat$Method)]; dat$mp[is.na(dat$mp)] <- 9
+  row_ord <- unique(dat$row[order(dat$mp, dat$row)])
+  dat$row <- factor(dat$row, levels = rev(row_ord))
+
+  has_prio <- "Prio" %in% names(dat)
+  cls <- ifelse(grepl("^CALDERA", dat$Method), "caldera",
+         ifelse(grepl("^SuSiE", dat$Method) | dat$Method == "Nearest\nGene", "presence", "assoc"))
+  dat$fill <- "#dddddd"
+  dat$fill[cls == "assoc"] <- .lp_z_hex(dat$Z[cls == "assoc"])
+  dat$fill[cls == "presence"] <- "#2ca25f"
+  if (has_prio) dat$fill[cls == "caldera"] <- .lp_prio_hex(dat$Prio[cls == "caldera"])
+
+  p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = row)) +
+    ggplot2::geom_point(colour = dat$fill, size = 4)
+  sig <- dat[dat$Sig %in% TRUE, , drop = FALSE]
+  if (nrow(sig)) p <- p + ggplot2::geom_point(data = sig, shape = 1, size = 5.2, colour = "black", stroke = 0.7)
+  clc <- dat[dat$Coloc %in% TRUE, , drop = FALSE]
+  if (nrow(clc)) p <- p + ggplot2::geom_point(data = clc, shape = 0, size = 5.8, colour = "black", stroke = 0.7)
+  p +
+    ggplot2::labs(x = NULL, y = NULL) +
+    theme_fn(base_size = font_size) +
+    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+                   panel.grid.major = ggplot2::element_line(colour = "grey92"),
+                   panel.grid.minor = ggplot2::element_blank())
 }
 
 # ---- Assembly ---------------------------------------------------------------
