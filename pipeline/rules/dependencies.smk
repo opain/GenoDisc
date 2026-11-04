@@ -1243,7 +1243,13 @@ if "CMC.BRAIN.HERV" in weights_nosplice:
 def feature_pred_input(wildcards):
     inputs = [
         f"{resdir}/software/Predicting-TWAS-features/",
-        f"{resdir}/software/pigz/pigz/pigz"
+        f"{resdir}/software/pigz/pigz/pigz",
+        # Reference-derived: FeaturePred predicts expression into the EUR subset of
+        # the reference (shell --PLINK_prefix_chr/--ref_ld_chr/--ref_maf all use
+        # 1KG.Phase3.EUR.MAF_001.chr*), so declare prep_1kg - a reference change
+        # must rebuild the predicted-expression panels. Declared, NOT ancient()
+        # (this is rebuildable), same rationale as format_psychencode.
+        f"{resdir}/data/1kg_hgdp/prep_1kg.done",
     ]
     w = wildcards.weight
     if w == "psychencode":
