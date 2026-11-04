@@ -1052,8 +1052,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                     actionButton(ns("lp_reset_region"), "Reset to locus", class = "btn btn-default btn-sm")))),
         fluidRow(column(12, checkboxGroupInput(ns("lp_hc"), "Mark high-confidence genes:",
                        choices = c("CALDERA ≥ 0.5" = "caldera", "Coding (alpha ≥ 0.5)" = "coding",
-                                   "Nearest gene" = "nearest"),
-                       selected = c("caldera", "coding"), inline = TRUE))),
+                                   "Nearest gene" = "nearest", "Colocalised (E/S/P)" = "coloc"),
+                       selected = c("caldera", "coding", "coloc"), inline = TRUE))),
         fluidRow(column(12, checkboxGroupInput(ns("lp_panels"), "Panels to show:",
                        choices = c("Association (Manhattan)" = "A", "Fine-mapping" = "B", "Genes" = "C"),
                        selected = c("A", "B", "C"), inline = TRUE))),
@@ -1072,10 +1072,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
-    lp_win_override <- reactive({
+    # Debounced so typing a region bound doesn't redraw on every keystroke.
+    lp_win_override <- shiny::debounce(reactive({
       lo <- suppressWarnings(as.numeric(input$lp_lo)); hi <- suppressWarnings(as.numeric(input$lp_hi))
       if (is.na(lo) || is.na(hi) || hi <= lo) NULL else c(lo, hi)
-    })
+    }), 800)
     lp_data <- reactive({
       req(gwas_data(), input$l_param, input$lp_locus_sel)
       g <- .pick_gwas("finemap_gwas"); req(g)
@@ -1187,16 +1188,17 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                error = function(e) NULL)
     }
     lpg_dims <- reactive({
-      d <- lp_data(); if (is.null(d)) return(list(nrows = 6L, ngenes = 10L))
+      d <- lp_data(); if (is.null(d)) return(list(nrows = 6L, ngenes = 10L, nlegends = 2L))
       g <- .pick_gwas("finemap_gwas")
       tryCatch(lp_grid_dims(gwas_data(), g, config_flags(), d, input$lpg_methods, lpg_panels_sel()),
-               error = function(e) list(nrows = 6L, ngenes = 10L))
+               error = function(e) list(nrows = 6L, ngenes = 10L, nlegends = 2L))
     })
     # Size adapts to genes (width) + methods/panels (height), like the mol-assoc plot.
+    # Height floors on the legend stack (each colourbar ~150px) so legends never crowd.
     output$lp_grid_ui <- renderUI({
       dm <- lpg_dims()
       w <- max(560, 240 + 26 * dm$ngenes)   # + legends/label margin
-      h <- max(220, 90 + 24 * dm$nrows)
+      h <- max(220, 90 + 24 * dm$nrows, 60 + 150 * (dm$nlegends %||% 0))
       tags$div(style = "overflow-x: auto;",
         plotOutput(ns("lp_grid"), width = paste0(w, "px"), height = paste0(h, "px")))
     })

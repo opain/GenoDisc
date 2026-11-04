@@ -220,6 +220,18 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
         nr <- .lp_is_true(c2$nearest_gene)
         if ("ensgid" %in% names(c2)) add_by_ensgid("N", c2$ensgid[nr]) else add_by_symbol("N", c2$gene[nr])
       }
+      # Colocalisation badges from TWAS/SMR/PWAS: E=expression, S=splicing,
+      # P=protein (FDR-significant AND colocalised).
+      if ("coloc" %in% hc_methods) {
+        md <- tryCatch(build_mol_assoc_data(gd, gwas, parse_config_flags(gd_config(gd)$flags_raw)),
+                       error = function(e) NULL)
+        if (!is.null(md) && nrow(md) > 0) {
+          md <- as.data.frame(md); md <- md[md$Sig %in% TRUE & md$Coloc %in% TRUE, , drop = FALSE]
+          add_by_symbol("E", md$ID[md$Type == "Expr."])
+          add_by_symbol("S", md$ID[md$Type == "Splice"])
+          add_by_symbol("P", md$ID[md$Type == "Protein"])
+        }
+      }
       cg$is_hc <- nzchar(cg$hc)
       cg$gstart_mb <- pmax(cg$gstart_mb, window[1]); cg$gend_mb <- pmin(cg$gend_mb, window[2])
       genes <- lp_pack_rows(cg, window)
@@ -331,6 +343,7 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
     data = lead_row, ggplot2::aes(x = BP_Mb, y = neglogP),
     shape = 23, size = point_size * 3.2, fill = .lp_index_colour, colour = "black")
   p +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
     ggplot2::scale_y_continuous(
       name = expression(-log[10](italic(P))),
       sec.axis = ggplot2::sec_axis(~ . / sf, name = "Recomb. (cM/Mb)",
@@ -388,6 +401,7 @@ build_locus_finemap_panel <- function(ld, font_size = 14, point_size = 1.6,
                                 colour = lab_df$col, hjust = 0, size = font_size * 0.24)
   }
   p +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
     ggplot2::scale_y_continuous(limits = c(-0.02, 1.02), breaks = c(0, 0.25, 0.5, 0.75, 1)) +
     ggplot2::coord_cartesian(xlim = ld$window) +
     ggplot2::labs(x = NULL, y = "PIP") +
@@ -412,10 +426,10 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   # small gene is clearly flagged).
   hc <- g[g$is_hc, , drop = FALSE]
   if (nrow(hc) > 0) {
-    xpad <- (w[2] - w[1]) * 0.004
+    xpad <- (w[2] - w[1]) * 0.002
     hc$bx1 <- hc$gstart_mb - xpad; hc$bx2 <- hc$gend_mb + xpad
     p <- p + ggplot2::geom_rect(
-      data = hc, ggplot2::aes(xmin = bx1, xmax = bx2, ymin = row - 0.33, ymax = row + 0.33),
+      data = hc, ggplot2::aes(xmin = bx1, xmax = bx2, ymin = row - 0.22, ymax = row + 0.22),
       fill = "#fdecc9", colour = "#e39a2e", linewidth = 1.0, inherit.aes = FALSE)
   }
   if (isTRUE(ld$has_bodies)) {
@@ -431,8 +445,8 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
       ga$axe <- ifelse(ga$strand == 1, pmin(ga$gend_mb + ext, w[2]), pmax(ga$gstart_mb - ext, w[1]))
       p <- p + ggplot2::geom_segment(
         data = ga, ggplot2::aes(x = ax, xend = axe, y = row, yend = row),
-        arrow = grid::arrow(length = grid::unit(0.06, "cm"), type = "closed"),
-        colour = "grey25", linewidth = 0.3)
+        arrow = grid::arrow(length = grid::unit(0.11, "cm"), type = "closed"),
+        colour = "grey25", linewidth = 0.4)
     }
   } else {
     p <- p + ggplot2::geom_point(
@@ -442,14 +456,15 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   # Label every gene — the label-width-aware packing keeps names from colliding.
   # Label font ~ axis tick-label size (base_size * 0.8, converted pt -> mm).
   p <- p + ggplot2::geom_text(
-    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.44,
+    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.32,
                            label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
     size = font_size * 0.28, colour = "grey15", vjust = 0)
   badges <- g[g$is_hc, , drop = FALSE]
   if (nrow(badges) > 0) p <- p + ggplot2::geom_text(
-    data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.44, label = hc),
+    data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.32, label = hc),
     size = font_size * 0.24, vjust = 1, colour = "#b5651d", fontface = "bold")
   p +
+    ggplot2::scale_x_continuous(expand = c(0, 0)) +
     ggplot2::scale_y_continuous(limits = c(0.3, nrows + 0.9), breaks = NULL) +
     ggplot2::coord_cartesian(xlim = w) +
     ggplot2::labs(x = paste0("Chromosome ", ld$chr, " position (Mb)"), y = NULL) +
@@ -545,25 +560,29 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
   # behind FDR-significant; black square behind colocalised (+ FDR-sig) and
   # CALDERA HC; green = SuSiE/Nearest presence; Z gradient for assoc methods;
   # purple fill = CALDERA probability. Gives native Z + CALDERA legends.
-  has_prio <- "Prio" %in% names(dat)
-  zmax <- suppressWarnings(max(abs(dat$Z), na.rm = TRUE)); if (!is.finite(zmax) || zmax == 0) zmax <- 1
+  # Only add a scale/legend when rows that use it actually survive the filter.
+  has_caldera <- "Prio" %in% names(dat) && any(grepl("^CALDERA", dat$Method))
+  has_assoc <- any(!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method))
+  zmax <- suppressWarnings(max(abs(dat$Z[!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method)]), na.rm = TRUE))
+  if (!is.finite(zmax) || zmax == 0) zmax <- 1
   xv <- c(-zmax, 0, zmax); xv <- (xv - min(xv)) / (max(xv) - min(xv))
   ps <- 3
   p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = Panel)) + theme_fn(base_size = font_size) +
     ggplot2::geom_blank() +
     ggplot2::geom_point(data = dat[Sig %in% TRUE], colour = "black", size = ps + 1) +
     ggplot2::geom_point(data = dat[Coloc %in% TRUE & Sig %in% TRUE], colour = "black", shape = 15, size = ps + 2)
-  if (has_prio) p <- p + ggplot2::geom_point(
+  if (has_caldera) p <- p + ggplot2::geom_point(
     data = dat[grepl("^CALDERA", Method) & !is.na(Prio) & Prio > caldera_hc_thresh],
     colour = "black", shape = 15, size = ps + 2)
   p <- p +
     ggplot2::geom_point(data = dat[(grepl("^SuSiE", Method) | Method == "Nearest\nGene") & !is.na(Z)],
-                        colour = "#00FF00", size = ps + 1) +
+                        colour = "#00FF00", size = ps + 1)
+  if (has_assoc) p <- p +
     ggplot2::geom_point(data = dat[!grepl("^SuSiE", Method) & Method != "Nearest\nGene" & !grepl("^CALDERA", Method)],
                         ggplot2::aes(colour = Z), size = ps) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"),
                                     na.value = NA, name = "Z-score", limits = c(-zmax, zmax), values = xv)
-  if (has_prio) p <- p +
+  if (has_caldera) p <- p +
     ggplot2::geom_point(data = dat[grepl("^CALDERA", Method) & !is.na(Prio)],
                         ggplot2::aes(fill = Prio), shape = 21, colour = "grey35", stroke = 0.3, size = ps) +
     ggplot2::scale_fill_gradient(low = "#efe6f7", high = "#5b2d91", limits = c(0, 1),
@@ -588,9 +607,12 @@ lp_grid_dims <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL) {
   if (!is.null(methods)) dat <- dat[dat$Method %in% methods, , drop = FALSE]
   if (!is.null(panels))  dat <- dat[!(as.character(dat$Panel) %in% tissue) |
                                      as.character(dat$Panel) %in% panels, , drop = FALSE]
-  if (nrow(dat) == 0) return(list(nrows = 0L, ngenes = 0L))
+  if (nrow(dat) == 0) return(list(nrows = 0L, ngenes = 0L, nlegends = 0L))
+  has_caldera <- "Prio" %in% names(dat) && any(grepl("^CALDERA", dat$Method))
+  has_assoc <- any(!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method))
   list(nrows = length(unique(paste(dat$Group, dat$Panel))),
-       ngenes = length(unique(as.character(dat$ID))))
+       ngenes = length(unique(as.character(dat$ID))),
+       nlegends = as.integer(has_caldera) + as.integer(has_assoc))
 }
 
 # ---- Assembly ---------------------------------------------------------------
