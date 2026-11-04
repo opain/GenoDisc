@@ -43,7 +43,7 @@
 lp_pack_rows <- function(genes, window) {
   if (is.null(genes) || nrow(genes) == 0) return(genes)
   win_w <- window[2] - window[1]
-  chars_per_window <- 90; pad <- 1.3
+  chars_per_window <- 56; pad <- 1.4
   mid <- (genes$gstart_mb + genes$gend_mb) / 2
   lab_half <- nchar(as.character(genes$symbol)) * (win_w / chars_per_window) / 2 * pad
   genes$eff_start <- pmin(genes$gstart_mb, mid - lab_half)
@@ -274,7 +274,7 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
   rc <- ld$recomb
   if (!is.null(rc) && nrow(rc) >= 2) p <- p + ggplot2::geom_line(
     data = rc, ggplot2::aes(x = BP / 1e6, y = rate * sf),
-    colour = "#90CAF9", linewidth = 0.4, alpha = 0.8)
+    colour = "#6BAED6", linewidth = 0.7, alpha = 0.95)
   p <- p +
     ggplot2::geom_point(data = a, ggplot2::aes(x = BP_Mb, y = neglogP), colour = a$col, size = point_size) +
     ggplot2::geom_hline(yintercept = -log10(5e-8), colour = "red", linetype = "solid", linewidth = 0.3) +
@@ -362,11 +362,16 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   if (!is.null(bands)) p <- p + ggplot2::geom_rect(
     data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
     fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
-  # High-confidence highlight box behind the gene body.
+  # High-confidence highlight box behind the gene body (filled + padded so even a
+  # small gene is clearly flagged).
   hc <- g[g$is_hc, , drop = FALSE]
-  if (nrow(hc) > 0) p <- p + ggplot2::geom_rect(
-    data = hc, ggplot2::aes(xmin = gstart_mb, xmax = gend_mb, ymin = row - 0.26, ymax = row + 0.26),
-    fill = NA, colour = "#f1b24a", linewidth = 0.8, inherit.aes = FALSE)
+  if (nrow(hc) > 0) {
+    xpad <- (w[2] - w[1]) * 0.004
+    hc$bx1 <- hc$gstart_mb - xpad; hc$bx2 <- hc$gend_mb + xpad
+    p <- p + ggplot2::geom_rect(
+      data = hc, ggplot2::aes(xmin = bx1, xmax = bx2, ymin = row - 0.33, ymax = row + 0.33),
+      fill = "#fdecc9", colour = "#e39a2e", linewidth = 1.0, inherit.aes = FALSE)
+  }
   if (isTRUE(ld$has_bodies)) {
     # Gene body as a filled bar coloured by biotype, with a strand-direction arrow.
     p <- p + ggplot2::geom_rect(
@@ -389,14 +394,15 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
       ggplot2::scale_colour_identity()
   }
   # Label every gene — the label-width-aware packing keeps names from colliding.
+  # Label font ~ axis tick-label size (base_size * 0.8, converted pt -> mm).
   p <- p + ggplot2::geom_text(
-    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.42,
+    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.44,
                            label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
-    size = font_size * 0.2, colour = "grey15", vjust = 0)
+    size = font_size * 0.28, colour = "grey15", vjust = 0)
   badges <- g[g$is_hc, , drop = FALSE]
   if (nrow(badges) > 0) p <- p + ggplot2::geom_text(
-    data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.42, label = hc),
-    size = font_size * 0.18, vjust = 1, colour = "#b5651d", fontface = "bold")
+    data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.44, label = hc),
+    size = font_size * 0.24, vjust = 1, colour = "#b5651d", fontface = "bold")
   p +
     ggplot2::scale_y_continuous(limits = c(0.3, nrows + 0.9), breaks = NULL) +
     ggplot2::coord_cartesian(xlim = w) +

@@ -237,8 +237,6 @@ snpAssocUI <- function(id) {
                 br(),
                 uiOutput(ns("lp_controls_ui")),
                 plotOutput(ns("lp_plot"), height = "auto"),
-                tags$h5("Gene association summary (genes in positional order)"),
-                plotOutput(ns("lp_grid"), height = "340px"),
                 uiOutput(ns("lp_legends"))
               )
             ),
@@ -1045,6 +1043,10 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                        choices = c("CALDERA ≥ 0.5" = "caldera", "Coding (alpha ≥ 0.5)" = "coding",
                                    "Nearest gene" = "nearest"),
                        selected = c("caldera", "coding"), inline = TRUE))),
+        fluidRow(column(12, checkboxGroupInput(ns("lp_panels"), "Panels to show:",
+                       choices = c("Association (Manhattan)" = "A", "Fine-mapping" = "B",
+                                   "Genes" = "C", "Gene association summary" = "D"),
+                       selected = c("A", "B", "C", "D"), inline = TRUE))),
         tags$details(class = "gd-details", style = "margin-top:8px;margin-bottom:10px;",
           tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
@@ -1070,41 +1072,51 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     lp_nrows <- reactive({ d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
-    lp_h_px  <- reactive({ d <- lp_data(); a <- if (!is.null(d) && isTRUE(d$has_assoc)) 230 else 0
-                           max(420, 230 + a + 20 * lp_nrows() + 120) })
+    lp_panels_sel <- reactive({ s <- input$lp_panels; if (is.null(s)) c("A","B","C","D") else s })
 
+    lp_h_px <- reactive({
+      d <- lp_data(); sel <- lp_panels_sel(); h <- 0
+      if ("A" %in% sel) h <- h + 240
+      if ("B" %in% sel) h <- h + 240
+      if ("C" %in% sel) h <- h + 120 + 20 * lp_nrows()
+      if ("D" %in% sel) h <- h + 360
+      max(300, h + 30)
+    })
+
+    # One combined image: continuous-x panels (A/B/C) share the position axis via
+    # cowplot align="v"; the categorical gene x method grid (D) is appended below.
+    # Drives both the on-screen plot and the download (so the download is one image).
     lp_build <- function() {
       d <- lp_data(); if (is.null(d)) return(NULL)
+      sel <- lp_panels_sel()
       tf <- mol_theme_fn(input$lp_theme %||% "bw"); fs <- input$lp_font %||% 14
-      pA <- build_locus_assoc_panel(d, font_size = fs, theme_fn = tf)
-      pB <- build_locus_finemap_panel(d, font_size = fs, theme_fn = tf)
-      pC <- build_locus_gene_panel(d, font_size = fs, theme_fn = tf)
-      gene_h <- max(0.7, 0.3 + 0.16 * lp_nrows())
-      panels <- list(); rh <- numeric(0)
-      if (!is.null(pA)) { panels <- c(panels, list(pA)); rh <- c(rh, 1.0) }
-      if (!is.null(pB)) { panels <- c(panels, list(pB)); rh <- c(rh, 1.3) }
-      if (!is.null(pC)) { panels <- c(panels, list(pC)); rh <- c(rh, gene_h) }
-      assemble_locus_plot(panels, rel_heights = rh)
+      gene_h <- max(0.9, 0.3 + 0.16 * lp_nrows())
+      cont <- list(); rh <- numeric(0)
+      if ("A" %in% sel) { pA <- build_locus_assoc_panel(d, font_size = fs, theme_fn = tf)
+                          if (!is.null(pA)) { cont <- c(cont, list(pA)); rh <- c(rh, 1.0) } }
+      if ("B" %in% sel) { pB <- build_locus_finemap_panel(d, font_size = fs, theme_fn = tf)
+                          if (!is.null(pB)) { cont <- c(cont, list(pB)); rh <- c(rh, 1.0) } }
+      if ("C" %in% sel) { pC <- build_locus_gene_panel(d, font_size = fs, theme_fn = tf)
+                          if (!is.null(pC)) { cont <- c(cont, list(pC)); rh <- c(rh, gene_h) } }
+      top <- if (length(cont) == 1) cont[[1]] else if (length(cont) > 1)
+        cowplot::plot_grid(plotlist = cont, ncol = 1, align = "v", axis = "lr", rel_heights = rh) else NULL
+      pD <- if ("D" %in% sel) {
+        g <- .pick_gwas("finemap_gwas")
+        tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d, font_size = fs, theme_fn = tf),
+                 error = function(e) NULL)
+      } else NULL
+      parts <- list(); ph <- numeric(0)
+      if (!is.null(top)) { parts <- c(parts, list(top)); ph <- c(ph, max(2, sum(rh))) }
+      if (!is.null(pD))  { parts <- c(parts, list(pD));  ph <- c(ph, 2.2) }
+      if (length(parts) == 0) return(NULL)
+      if (length(parts) == 1) return(parts[[1]])
+      cowplot::plot_grid(plotlist = parts, ncol = 1, align = "none", rel_heights = ph)
     }
 
     output$lp_plot <- renderPlot({
       p <- lp_build()
       if (!is.null(p)) p else { grid::grid.newpage(); grid::grid.text("No data for this locus.") }
     }, height = function() lp_h_px())
-
-    # Panel D: positional gene x method association grid (separate — categorical x).
-    lp_grid_build <- function() {
-      d <- lp_data(); if (is.null(d)) return(NULL)
-      g <- .pick_gwas("finemap_gwas"); req(g)
-      tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d,
-               font_size = input$lp_font %||% 14, theme_fn = mol_theme_fn(input$lp_theme %||% "bw")),
-               error = function(e) NULL)
-    }
-    output$lp_grid <- renderPlot({
-      p <- lp_grid_build()
-      if (!is.null(p)) p else { grid::grid.newpage()
-        grid::grid.text("No molecular-association results with a gene in this window.") }
-    }, height = 340)
 
     output$lp_legends <- renderUI({
       d <- lp_data(); if (is.null(d)) return(NULL)
