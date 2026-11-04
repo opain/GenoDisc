@@ -279,11 +279,18 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
       if (nrow(a) > 0) assoc <- a
     }
   }
-  ld2 <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie$ld_to_lead else NULL
+  # LD r^2-to-lead: prefer the fine-mapping map (fine-mapped loci), else the
+  # clump-level map (written for every plotted clump lead, so the association
+  # panel is LD-coloured even on clumping-only jobs).
   r2map <- NULL
-  if (!is.null(ld2) && nrow(ld2) > 0) {
-    l2 <- as.data.frame(ld2); l2 <- l2[as.character(l2$locus) == as.character(locus), , drop = FALSE]
-    if (nrow(l2) > 0) r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$SNP))
+  for (ld2 in list(if (!is.null(sa)) sa$susie$ld_to_lead else NULL,
+                   if (!is.null(sa)) sa$ld_to_lead else NULL)) {
+    if (!is.null(ld2) && nrow(ld2) > 0) {
+      l2 <- as.data.frame(ld2); l2 <- l2[as.character(l2$locus) == as.character(locus), , drop = FALSE]
+      if (nrow(l2) > 0) {
+        r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$SNP)); break
+      }
+    }
   }
   lead_bp <- NA_real_
   if (!is.null(assoc) && as.character(locus) %in% assoc$SNP) lead_bp <- assoc$BP[assoc$SNP == as.character(locus)][1]

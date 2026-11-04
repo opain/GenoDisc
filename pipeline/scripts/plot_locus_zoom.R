@@ -179,6 +179,13 @@ make_plot <- function(idx_row) {
   setnames(ld, c("SNP", "R2"))
 
   win <- merge(win, ld, by = "SNP", all.x = TRUE, sort = FALSE)
+
+  # Accumulate r^2-to-lead so the viewer's interactive locus plot can colour the
+  # association panel by LD even when only clumping was run (fine-mapping, which
+  # otherwise supplies this, may not have been selected). Restricted to GWAS
+  # variants in the window (what the viewer plots) to keep the packaged table small.
+  ld_acc <- win[!is.na(R2), .(locus = snp_id, SNP = SNP, r2 = R2)]
+  if (nrow(ld_acc) > 0) ld_to_lead_acc[[snp_id]] <<- ld_acc
   win[, neglogP := -log10(P)]
   win[, ld_bin := cut(R2, breaks = r2_breaks, labels = r2_labels, right = FALSE, include.lowest = TRUE)]
   win[, ld_bin := as.character(ld_bin)]
@@ -289,9 +296,16 @@ make_plot <- function(idx_row) {
   invisible(out_png)
 }
 
+ld_to_lead_acc <- list()
 for (i in seq_len(nrow(idx))) {
   tryCatch(make_plot(idx[i]),
            error = function(e) warning(sprintf("Locus %s: %s", idx$SNP[i], conditionMessage(e))))
+}
+
+# Combined r^2-to-lead for every plotted lead, for the viewer's locus dashboard.
+if (length(ld_to_lead_acc) > 0) {
+  ld_to_lead_csv <- paste0(outdir, '/results/', opt$gwas, '/clump/', opt$gwas, '.GW.clump.ld_to_lead.csv')
+  fwrite(data.table::rbindlist(ld_to_lead_acc), ld_to_lead_csv)
 }
 
 file.create(sentinel)
