@@ -133,19 +133,33 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
     b <- as.data.frame(lp); b <- b[as.character(b$locus) == as.character(locus), , drop = FALSE]
     if (nrow(b) > 0) baseline <- b
   }
-  if (is.null(members) && is.null(baseline)) return(NULL)
-
-  bps <- c(baseline$BP, members$BP)
-  chr <- if (!is.null(members)) members$CHR[1] else baseline$CHR[1]
-  lo <- min(bps, na.rm = TRUE); hi <- max(bps, na.rm = TRUE)
-  pad <- max(1e4, pad_frac * (hi - lo))
-  if (is.null(baseline)) {
-    # No full-locus baseline (bundle predates locus_pip): the members alone give a
-    # tiny span, so widen to a fine-map-sized region (~±250kb) so genes appear.
-    centre <- (lo + hi) / 2; half <- max(2.5e5, (hi - lo) / 2 + pad)
-    window <- c(centre - half, centre + half) / 1e6
+  has_finemap <- !is.null(members) || !is.null(baseline)
+  if (has_finemap) {
+    bps <- c(baseline$BP, members$BP)
+    chr <- if (!is.null(members)) members$CHR[1] else baseline$CHR[1]
+    lo <- min(bps, na.rm = TRUE); hi <- max(bps, na.rm = TRUE)
+    pad <- max(1e4, pad_frac * (hi - lo))
+    if (is.null(baseline)) {
+      # No full-locus baseline (bundle predates locus_pip): the members alone give a
+      # tiny span, so widen to a fine-map-sized region (~±250kb) so genes appear.
+      centre <- (lo + hi) / 2; half <- max(2.5e5, (hi - lo) / 2 + pad)
+      window <- c(centre - half, centre + half) / 1e6
+    } else {
+      window <- c(lo - pad, hi + pad) / 1e6
+    }
   } else {
-    window <- c(lo - pad, hi + pad) / 1e6
+    # No fine-mapping for this lead (e.g. a clumping-only job): centre the window
+    # on the clump / COJO lead and show the association + gene panels only (no
+    # fine-mapping panel, no credible-set bands).
+    lt <- if (!is.null(sa$clump)) as.data.frame(sa$clump) else NULL
+    if ((is.null(lt) || !(as.character(locus) %in% lt$SNP)) && !is.null(sa$cojo))
+      lt <- as.data.frame(sa$cojo)
+    if (is.null(lt) || !(as.character(locus) %in% lt$SNP)) return(NULL)
+    lr <- lt[match(as.character(locus), lt$SNP), , drop = FALSE]
+    chr <- suppressWarnings(as.integer(lr$CHR[1]))
+    centre <- suppressWarnings(as.numeric(lr$BP[1]))
+    if (is.na(chr) || is.na(centre)) return(NULL)
+    window <- c(centre - 5e5, centre + 5e5) / 1e6
   }
   # User BP-limit override (Mb) — controls the plotted region for all panels.
   if (!is.null(win_override) && length(win_override) == 2 &&
@@ -274,6 +288,7 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   lead_bp <- NA_real_
   if (!is.null(assoc) && as.character(locus) %in% assoc$SNP) lead_bp <- assoc$BP[assoc$SNP == as.character(locus)][1]
   if (is.na(lead_bp) && !is.null(st) && nrow(st) > 0) lead_bp <- suppressWarnings(as.numeric(st$BP[1]))
+  if (is.na(lead_bp) && !has_finemap) lead_bp <- mean(window) * 1e6   # clumping-only: lead sits at window centre
   # Recombination-rate track for the locus (BP, rate), when packaged.
   rcb <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie$recomb else NULL
   recomb <- NULL
@@ -295,7 +310,7 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
        genes = genes, window = window, chr = chr, cs_palette = cs_palette,
        all_points = all_points, pip_type = pip_type,
        assoc = assoc, r2map = r2map, lead_bp = lead_bp, recomb = recomb,
-       has_baseline = !is.null(baseline), has_bodies = has_bodies,
+       has_baseline = !is.null(baseline), has_bodies = has_bodies, has_finemap = has_finemap,
        has_assoc = !is.null(assoc), has_ld = !is.null(r2map), locus = locus, L = Lval)
 }
 
@@ -350,12 +365,15 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
   if (nrow(lead_row) > 0) p <- p + ggplot2::geom_point(
     data = lead_row, ggplot2::aes(x = BP_Mb, y = neglogP),
     shape = 23, size = point_size * 3.2, fill = .lp_index_colour, colour = "black")
+  # Only show the recombination secondary axis when there is a line to label.
+  yscale <- if (!is.null(rc) && nrow(rc) >= 2)
+    ggplot2::scale_y_continuous(name = expression(-log[10](italic(P))),
+      sec.axis = ggplot2::sec_axis(~ . / sf, name = "Recomb. (cM/Mb)",
+                                   breaks = c(0, 20, 40, 60, 80, 100)))
+    else ggplot2::scale_y_continuous(name = expression(-log[10](italic(P))))
   p +
     ggplot2::scale_x_continuous(expand = c(0, 0)) +
-    ggplot2::scale_y_continuous(
-      name = expression(-log[10](italic(P))),
-      sec.axis = ggplot2::sec_axis(~ . / sf, name = "Recomb. (cM/Mb)",
-                                   breaks = c(0, 20, 40, 60, 80, 100))) +
+    yscale +
     ggplot2::coord_cartesian(xlim = ld$window, ylim = c(0, ymax)) +
     ggplot2::labs(x = NULL) +
     theme_fn(base_size = font_size) +

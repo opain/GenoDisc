@@ -110,6 +110,12 @@ for(gwas_i in gwas_list$name){
   if(read_param(config = opt$config, param = 'clump', return_obj = F) == "T"){
     snp_assoc$clump<-fread(paste0(outdir,'/results/',gwas_i,'/clump/',gwas_i,'.GW.clump.clean.csv'))
 
+    # Marks a bundle packaged by a pipeline that supports the interactive locus
+    # dashboard in the viewer (clumping is the only hard requirement; fine-mapping
+    # / CALDERA / coloc panels degrade gracefully when not run). Absent on older
+    # bundles, which fall back to the static locus-plot PNGs below.
+    snp_assoc$locus_plot_v2 <- TRUE
+
     locus_plots_dir <- paste0(outdir, '/results/', gwas_i, '/locus_plots/')
     if (dir.exists(locus_plots_dir)) {
       locus_pngs <- list.files(locus_plots_dir, pattern = '\\.png$', full.names = TRUE)

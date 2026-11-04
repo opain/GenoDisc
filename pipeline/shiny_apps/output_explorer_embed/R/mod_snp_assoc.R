@@ -336,17 +336,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           uiOutput(ns("lead_legend")),
           tags$hr(),
           tags$h4("Locus plot"),
-          uiOutput(ns("lp_status")),
-          uiOutput(ns("lp_controls_ui")),
-          tags$div(style = "max-width: 1100px;",
-                   plotOutput(ns("lp_plot"), height = "auto")),
-          uiOutput(ns("lp_legends")),
-          tags$hr(),
-          tags$h5("Gene association summary (genes in positional order)"),
-          uiOutput(ns("lp_grid_controls_ui")),
-          uiOutput(ns("lp_grid_ui")),
-          uiOutput(ns("lp_grid_legend")),
-          tags$div(style = "height: 350px;"),   # space so the figure can scroll to the bottom
+          uiOutput(ns("lp_section")),   # dynamic dashboard, or static PNG on older bundles
           width = 9
         )
       )
@@ -974,16 +964,31 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (is.null(st) || nrow(st) == 0) return(character(0))
       sort(unique(as.character(st$SNP[!is.na(st$SNP)])))
     })
-    # Any fine-mapped locus across both L — governs whether the dashboard shows.
-    lp_any_finemap <- reactive({
-      req(gwas_data())
-      g <- .pick_gwas("lead_gwas"); req(g)
+    # Does this bundle support the interactive dashboard? True when the pipeline
+    # marked it (clump ran under a dashboard-aware pipeline) OR it carries the
+    # new per-locus fine-mapping data (older fine-mapped bundles predating the
+    # marker). Older bundles without either fall back to static locus PNGs.
+    lp_dashboard_supported <- reactive({
+      g <- .pick_gwas("lead_gwas"); req(gwas_data(), g)
+      sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
+      if (is.null(sa)) return(FALSE)
+      isTRUE(sa$locus_plot_v2) ||
+        (!is.null(sa$susie) && (!is.null(sa$susie$locus_pip_L1) ||
+                                !is.null(sa$susie$locus_pip_L10) ||
+                                !is.null(sa$susie$ld_to_lead)))
+    })
+    # Does ANY fine-mapping (SuSiE credible set) exist in this bundle? Governs the
+    # "no credible set at this L" note (not whether the dashboard shows at all).
+    lp_fm_any <- reactive({
+      g <- .pick_gwas("lead_gwas"); req(gwas_data(), g)
       sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
       su <- if (!is.null(sa)) sa$susie else NULL
       if (is.null(su)) return(FALSE)
       length(c(su$L1$SNP, su$L10$SNP)) > 0
     })
-    # Locus = lead variant of the clicked row in the lead-variant table.
+    # Locus = lead variant of the clicked row in the lead-variant table. The
+    # dashboard keys off clump/COJO leads (clumping is the hard requirement);
+    # fine-mapping-dependent panels degrade when a lead isn't fine-mapped.
     lp_selected_locus <- reactive({
       sel <- input$snp_assoc_lead_table_rows_selected
       if (is.null(sel) || !length(sel)) return(NULL)
@@ -991,33 +996,74 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (sel > nrow(tbl)) return(NULL)
       as.character(tbl[sel, "SNP"][[1]])
     })
-    # Non-NULL only when the clicked locus actually has a credible set at this L.
-    lp_valid_locus <- reactive({
-      sel <- lp_selected_locus(); if (is.null(sel)) return(NULL)
-      if (sel %in% lp_loci()) sel else NULL
-    })
+    lp_valid_locus <- reactive(lp_selected_locus())
 
     # Status / prompt line above the plot.
     output$lp_status <- renderUI({
-      if (!isTRUE(lp_any_finemap()))
-        return(div(class = "gd-legend", em("No fine-mapped loci (credible sets) in this GWAS.")))
+      leads <- tryCatch(nrow(snp_assoc_lead_data()), error = function(e) 0L)
+      if (is.null(leads) || leads == 0)
+        return(div(class = "gd-legend", em("No lead variants for the selected method.")))
       sel <- lp_selected_locus()
       if (is.null(sel))
         return(div(class = "gd-legend", em("Select a lead-variant row above to view its locus plot.")))
-      if (!(sel %in% lp_loci())) {
-        l_now <- input$lp_l %||% "L1"; other <- if (l_now == "L1") "L10" else "L1"
+      # Fine-mapping ran, but not for this lead at the current L: the fine-mapping
+      # panel and credible-set bands are omitted; the rest of the plot still shows.
+      if (isTRUE(lp_fm_any()) && !(sel %in% lp_loci())) {
+        l_now <- input$lp_l %||% "L1"
         return(div(class = "gd-legend", em(sprintf(
-          "%s has no credible set at %s — try %s, or select a fine-mapped lead variant.",
-          sel, l_now, other))))
+          "%s has no credible set at %s — showing the association and gene panels only.",
+          sel, l_now))))
       }
       NULL
     })
 
-    # Controls render once fine-mapping exists (not per-locus, so a row click
-    # doesn't rebuild them and reset the user's panel/HC choices). The region
-    # inputs are synced per locus by updateNumericInput, below.
+    # The locus-plot area: the interactive dashboard on supported bundles, or the
+    # static locuszoom PNGs (old behaviour) on bundles that predate it.
+    output$lp_section <- renderUI({
+      if (isTRUE(lp_dashboard_supported())) {
+        tagList(
+          uiOutput(ns("lp_status")),
+          uiOutput(ns("lp_controls_ui")),
+          tags$div(style = "max-width: 1100px;",
+                   plotOutput(ns("lp_plot"), height = "auto")),
+          uiOutput(ns("lp_legends")),
+          tags$hr(),
+          tags$h5("Gene association summary (genes in positional order)"),
+          uiOutput(ns("lp_grid_controls_ui")),
+          uiOutput(ns("lp_grid_ui")),
+          uiOutput(ns("lp_grid_legend")),
+          tags$div(style = "height: 350px;")   # space so the figure can scroll to the bottom
+        )
+      } else {
+        uiOutput(ns("lp_static_ui"))
+      }
+    })
+
+    # Static locus-plot PNG for older bundles (row-click selected), restoring the
+    # pre-dashboard behaviour.
+    output$lp_static_ui <- renderUI({
+      req(gwas_data()); g <- .pick_gwas("lead_gwas"); req(g)
+      locus_plots <- tryCatch(gd_read(gwas_data(), g, "snp_assoc")$locus_plots, error = function(e) NULL)
+      msg <- function(txt) div(style = "padding: 20px; color: #6c757d; font-style: italic;", txt)
+      if (is.null(locus_plots) || length(locus_plots) == 0)
+        return(msg("No locus plots are available for this submission."))
+      sel <- input$snp_assoc_lead_table_rows_selected
+      if (is.null(sel) || !length(sel))
+        return(msg("Select a variant from the table above to view its locus plot."))
+      tbl <- snp_assoc_lead_data(); if (sel > nrow(tbl)) return(NULL)
+      snp_id <- as.character(tbl[sel, "SNP"][[1]])
+      b64 <- locus_plots[[snp_id]]
+      if (is.null(b64))
+        return(msg(paste0("No locus plot available for ", snp_id,
+                          " (variant may be outside the top 50 loci by p-value).")))
+      tags$img(src = paste0("data:image/png;base64,", b64), style = "max-width: 100%; height: auto;")
+    })
+
+    # Controls render once per bundle (not per-locus, so a row click doesn't
+    # rebuild them and reset the user's panel/HC choices). The region inputs are
+    # synced per locus by updateNumericInput, below.
     output$lp_controls_ui <- renderUI({
-      if (!isTRUE(lp_any_finemap())) return(NULL)
+      if (!isTRUE(lp_dashboard_supported())) return(NULL)
       tagList(
         fluidRow(
           column(3, radioButtons(ns("lp_l"), "L parameter:",
