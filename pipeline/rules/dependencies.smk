@@ -968,7 +968,18 @@ rule format_psychencode:
   input:
     psychencode_data=rules.download_psychENCODE_weights.output,
     weights_pipe=rules.install_snp_weight_pipe.output,
-    biomart=rules.download_biomart.output
+    biomart=rules.download_biomart.output,
+    # format_psychENCODE.R re-maps the PsychENCODE weight SNP IDs against the
+    # reference .bim (data/1kg_hgdp/1KG.Phase3.EUR.MAF_001.chr*.bim, R line 51),
+    # so its output is reference-derived. This was previously undeclared, so a
+    # reference change did not rebuild it (silent staleness). Declaring prep_1kg
+    # makes the dependency explicit. NOT ancient() (unlike format_rosmap_smr_data):
+    # this rule CAN rebuild from the always-present downloaded weights, so it
+    # SHOULD re-run when the reference changes. Caveat: the R script remaps the
+    # weights in place and is not re-run idempotent, so a reference-triggered
+    # rebuild must start from freshly extracted weights - which holds in the
+    # per-epoch resource model (each epoch provisions download->format once).
+    reference=rules.prep_1kg.output
   output:
     f"{resdir}/data/format_psychencode.done"
   benchmark:
