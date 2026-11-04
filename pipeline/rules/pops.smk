@@ -42,14 +42,14 @@ rule pops_magma:
     "{outdir}/logs/pops_magma-{gwas}.log"
   shell:
     "(set -eo pipefail; mkdir -p {outdir}/results/{wildcards.gwas}/pops; "
-    "gzip -f -d -c {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz > {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned; "
+    "gzip -f -d -c {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz > {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.pops_magma; "
     "{params.resdir}/software/magma/magma "
     "  --bfile {params.resdir}/data/magma_ref/1kg_hgdp_{params.population} "
-    "  --pval {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned use=SNP,P ncol=N "
+    "  --pval {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.pops_magma use=SNP,P ncol=N "
     "  --gene-model snp-wise=mean "
     "  --gene-annot {params.resdir}/data/magma/pops_ensgid.genes.annot "
     "  --out {outdir}/results/{wildcards.gwas}/pops/{wildcards.gwas}.pops_magma; "
-    "rm -f {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1"
+    "rm -f {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.pops_magma) > {log} 2>&1"
 
 # One-off feature munge (cached under resdir; independent of any GWAS).
 rule pops_munge:

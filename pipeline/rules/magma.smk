@@ -23,12 +23,12 @@ rule magma_gene_level:
   log:
     "{outdir}/logs/magma_gene_level-{gwas}.log"
   shell:
-    "(gzip -f -d -c {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz > {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned; \
+    "(gzip -f -d -c {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.gz > {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.magma_gene; \
     {params.resdir}/software/magma/magma \
       --bfile {params.resdir}/data/magma_ref/1kg_hgdp_{params.population} \
-      --pval {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned use=SNP,P ncol=N \
+      --pval {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.magma_gene use=SNP,P ncol=N \
       --gene-annot {params.resdir}/data/magma/NCBI37.3.genes.annot \
-      --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned) > {log} 2>&1"
+      --out {outdir}/results/{wildcards.gwas}/magma/magma_gene_level; rm -f {outdir}/results/{wildcards.gwas}/gwas_sumstat/{wildcards.gwas}.cleaned.magma_gene) > {log} 2>&1"
 
 # Format the MAGMA gene results
 rule format_magma_gene_results:
