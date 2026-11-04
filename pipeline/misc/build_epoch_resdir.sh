@@ -393,6 +393,10 @@ else
 fi
 
 say ""
-say "Done (mode=$MODE). Next: once resources/{common,v-dense,v-legacy} all exist,"
-say "the web app (modules/resource_paths) auto-switches jobs to v-<epoch>."
+say "Done (mode=$MODE)."
+say "ARM (go live) only AFTER the Step-4 build succeeds and you have verified the"
+say "view - the web app switches a job to v-<epoch> only when BOTH markers exist:"
+say "  touch $COMMON/.ready        # arms the shared common store"
+say "  touch $VIEW/.ready          # arms epoch '$EPOCH'"
+say "ROLLBACK at any time: rm $VIEW/.ready  (jobs fall back to pipeline_resources)."
 [[ "$MODE" == "dry-run" ]] && say "This was a DRY RUN — nothing changed. Re-run with --mode link|move|copy to apply."
