@@ -225,10 +225,40 @@ build_all_locus_pip <- function(files, Lval){
                                    BP=numeric(), pip=numeric(), cs=integer(), L=integer(), P=numeric())
   out
 }
-fwrite(build_all_locus_pip(finemap_files_L10, 10L),
+lp10<-build_all_locus_pip(finemap_files_L10, 10L)
+fwrite(lp10,
        paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.locus_pip.csv'))
 fwrite(build_all_locus_pip(finemap_files_L1, 1L),
        paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.locus_pip.L1.csv'))
+
+# ---- Per-locus recombination-rate track (locus-plot association panel) ----
+# Reads the per-chr interpolated genetic map, restricts to each locus window and
+# computes cM/Mb, thinned to ~500 points per locus to keep the package small.
+recomb_cache<-new.env(parent=emptyenv())
+get_recomb<-function(chr_i){
+  key<-as.character(chr_i); hit<-recomb_cache[[key]]
+  if(!is.null(hit)) return(if(is.data.table(hit)) hit else NULL)
+  path<-sprintf("%s/data/recomb_maps/chr%s.interpolated_genetic_map.gz", resdir, chr_i)
+  m<-tryCatch(fread(path, header=FALSE, col.names=c("SNP","BP","cM")), error=function(e) NULL)
+  if(is.null(m) || nrow(m)<2){ assign(key, list(), envir=recomb_cache); return(NULL) }
+  m<-m[order(BP)]; m[, rate:=c(diff(cM)/diff(BP)*1e6, NA_real_)]; m<-m[is.finite(rate)]
+  assign(key, m, envir=recomb_cache); m
+}
+recomb_out<-NULL
+if(nrow(lp10) > 0){
+  for(loc in unique(lp10$locus)){
+    sub<-lp10[locus==loc]
+    chr_i<-sub$CHR[1]; lo<-min(sub$BP, na.rm=TRUE); hi<-max(sub$BP, na.rm=TRUE)
+    rm_map<-get_recomb(chr_i); if(is.null(rm_map)) next
+    rw<-rm_map[BP>=lo & BP<=hi, .(BP, rate)]
+    if(nrow(rw) < 2) next
+    if(nrow(rw) > 500) rw<-rw[seq(1, nrow(rw), length.out=500)]
+    rw[, locus:=loc]
+    recomb_out<-rbind(recomb_out, rw[, .(locus, BP, rate)])
+  }
+}
+if(is.null(recomb_out)) recomb_out<-data.table(locus=character(), BP=numeric(), rate=numeric())
+fwrite(recomb_out, paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.recomb.csv'))
 
 # ---- Aggregate per-lead LD-to-lead tables (written by finemap.R) ----
 ld_files<-list.files(path=paste0(outdir,'/results/',opt$gwas,'/finemap/'),

@@ -47,7 +47,8 @@ rule process_finemap:
     "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.L1.csv",
     "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.locus_pip.csv",
     "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.locus_pip.L1.csv",
-    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.ld_to_lead.csv"
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.ld_to_lead.csv",
+    "{outdir}/results/{gwas}/finemap/{gwas}.GW.finemap.recomb.csv"
   benchmark:
     "{outdir}/benchmarks/process_finemap_{gwas}.tsv"
   conda:

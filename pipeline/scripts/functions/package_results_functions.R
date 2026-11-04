@@ -306,6 +306,15 @@ process_susie_ld_to_lead<-function(outdir, gwas){
   d
 }
 
+# Per-locus recombination-rate track (locus, BP, rate) for the association panel.
+process_susie_recomb<-function(outdir, gwas){
+  f<-paste0(outdir,'/results/',gwas,'/finemap/',gwas,'.GW.finemap.recomb.csv')
+  if(!file.exists(f)) return(NULL)
+  d<-fread(f)
+  if(nrow(d) == 0 || all(is.na(d$BP))) return(NULL)
+  d
+}
+
 tidy_panel_names<-function(x){
 
   # Mapping from raw panel names to display-friendly labels. Any panel not in

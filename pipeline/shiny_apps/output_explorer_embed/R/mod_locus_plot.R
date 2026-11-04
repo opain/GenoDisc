@@ -208,6 +208,13 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   lead_bp <- NA_real_
   if (!is.null(assoc) && as.character(locus) %in% assoc$SNP) lead_bp <- assoc$BP[assoc$SNP == as.character(locus)][1]
   if (is.na(lead_bp) && !is.null(st) && nrow(st) > 0) lead_bp <- suppressWarnings(as.numeric(st$BP[1]))
+  # Recombination-rate track for the locus (BP, rate), when packaged.
+  rcb <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie$recomb else NULL
+  recomb <- NULL
+  if (!is.null(rcb) && nrow(rcb) > 0) {
+    r <- as.data.frame(rcb); r <- r[as.character(r$locus) == as.character(locus), c("BP","rate")]
+    if (nrow(r) >= 2) recomb <- r[order(r$BP), ]
+  }
 
   # Points frame for hover (baseline + members).
   all_points <- NULL
@@ -221,7 +228,7 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   list(members = members, baseline = baseline, cs_summary = cs_summary,
        genes = genes, window = window, chr = chr, cs_palette = cs_palette,
        all_points = all_points, pip_type = pip_type,
-       assoc = assoc, r2map = r2map, lead_bp = lead_bp,
+       assoc = assoc, r2map = r2map, lead_bp = lead_bp, recomb = recomb,
        has_baseline = !is.null(baseline), has_bodies = has_bodies,
        has_assoc = !is.null(assoc), has_ld = !is.null(r2map), locus = locus, L = Lval)
 }

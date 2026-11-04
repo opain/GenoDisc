@@ -172,6 +172,7 @@ for(gwas_i in gwas_list$name){
     snp_assoc$susie$locus_pip_L10<-process_susie_locus_pip(outdir=outdir, gwas=gwas_i, L=10)
     snp_assoc$susie$locus_pip_L1<-process_susie_locus_pip(outdir=outdir, gwas=gwas_i, L=1)
     snp_assoc$susie$ld_to_lead<-process_susie_ld_to_lead(outdir=outdir, gwas=gwas_i)
+    snp_assoc$susie$recomb<-process_susie_recomb(outdir=outdir, gwas=gwas_i)
   } else {
     snp_assoc$susie<-NULL
   }
