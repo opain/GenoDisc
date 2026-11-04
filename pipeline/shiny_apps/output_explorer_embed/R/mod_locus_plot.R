@@ -329,6 +329,10 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   nrows <- max(g$row)
   lw <- if (isTRUE(ld$has_bodies)) 3 else NA
   p <- ggplot2::ggplot()
+  bands <- .lp_cs_bands(ld)
+  if (!is.null(bands)) p <- p + ggplot2::geom_rect(
+    data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+    fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
   hc <- g[g$is_hc, , drop = FALSE]
   if (nrow(hc) > 0) p <- p + ggplot2::geom_rect(
     data = hc, ggplot2::aes(xmin = gstart_mb, xmax = gend_mb, ymin = row - 0.34, ymax = row + 0.34),
@@ -342,10 +346,16 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
       data = g, ggplot2::aes(x = gstart_mb, y = row, colour = body_colour), size = 2.5) +
       ggplot2::scale_colour_identity()
   }
-  p <- p + ggplot2::geom_text(
-    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.42,
-                           label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
-    size = font_size * 0.22, vjust = 0)
+  # Label only protein-coding + high-confidence genes when the window is busy, so
+  # dense clusters of pseudogenes/ncRNAs don't make the track unreadable.
+  glab <- if (nrow(g) <= 20) g else
+    g[g$is_hc | (!is.na(g$gene_biotype) & g$gene_biotype == "protein_coding"), , drop = FALSE]
+  if (nrow(glab) > 0) p <- p + ggrepel::geom_text_repel(
+    data = glab, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row,
+                              label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
+    size = font_size * 0.2, max.overlaps = Inf, min.segment.length = 0,
+    segment.size = 0.2, segment.colour = "grey70", box.padding = 0.25,
+    direction = "both", seed = 1)
   badges <- g[g$is_hc, , drop = FALSE]
   if (nrow(badges) > 0) p <- p + ggplot2::geom_text(
     data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.42, label = hc),
