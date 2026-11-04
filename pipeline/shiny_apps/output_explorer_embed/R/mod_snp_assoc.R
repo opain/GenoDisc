@@ -1064,7 +1064,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # every keystroke.
     lp_win_raw <- shiny::debounce(reactive({
       lo <- suppressWarnings(as.numeric(input$lp_lo)); hi <- suppressWarnings(as.numeric(input$lp_hi))
-      if (is.na(lo) || is.na(hi) || hi <= lo) NULL else c(lo, hi)
+      # length guards first: before the inputs are created as.numeric(NULL) is
+      # numeric(0), and is.na(numeric(0)) || ... errors ("missing value").
+      if (length(lo) != 1 || length(hi) != 1 || is.na(lo) || is.na(hi) || hi <= lo) NULL else c(lo, hi)
     }), 800)
     # The applied region override, kept in a de-duped reactiveVal so a no-op
     # change doesn't re-run lp_data (which would fade/redraw the plot for no
@@ -1075,12 +1077,13 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # natural window exactly once, with no second redraw.
     lp_override_rv <- reactiveVal(NULL)
     observe({
-      v  <- lp_win_raw()
-      nw <- lp_natural_window()
-      newval <- if (is.null(v)) NULL
-                else if (!is.null(nw) && (v[2] < nw[1] || v[1] > nw[2])) NULL
-                else if (!is.null(nw) && isTRUE(all.equal(round(v, 3), round(nw, 3)))) NULL
-                else v
+      v <- lp_win_raw()
+      newval <- if (is.null(v)) NULL else {
+        nw <- lp_natural_window()   # only evaluated once a region is set (avoids a startup req-halt)
+        if (!is.null(nw) && (v[2] < nw[1] || v[1] > nw[2])) NULL
+        else if (!is.null(nw) && isTRUE(all.equal(round(v, 3), round(nw, 3)))) NULL
+        else v
+      }
       if (!identical(isolate(lp_override_rv()), newval)) lp_override_rv(newval)
     })
     lp_data <- reactive({
