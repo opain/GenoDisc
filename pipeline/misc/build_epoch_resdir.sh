@@ -57,6 +57,11 @@ SRC=""
 ROOT=""
 EPOCH=""
 MODE="dry-run"
+RUN_BUILD=0
+BUILD_CORES=4
+# Pipeline dir used for the Step-4 build command. Defaults to this script's own
+# pipeline (it lives in <pipeline>/misc/); override per epoch with --pipeline.
+PIPE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd || echo "$GD/repo/current/pipeline")"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -65,6 +70,9 @@ while [[ $# -gt 0 ]]; do
     --src)   SRC="$2"; shift 2;;
     --root)  ROOT="$2"; shift 2;;
     --mode)  MODE="$2"; shift 2;;
+    --pipeline) PIPE="$2"; shift 2;;
+    --cores) BUILD_CORES="$2"; shift 2;;
+    --run-build) RUN_BUILD=1; shift;;
     -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//'; exit 0;;
     *) echo "ERROR: unknown argument: $1" >&2; exit 2;;
   esac
@@ -106,10 +114,20 @@ REF_DATA_FLAGS=(
   format_psychencode.done
 )
 
-# Reference-epoch SOURCE artifacts (dense-only raw tarballs).
-REF_DATA_FILES=(
-  genopred_dense_1kg_hgdp.tar.gz
-  genopred_dense_incl_ambig_1kg_hgdp.tar.gz
+# Reference-derived resources to BUILD FRESH rather than relocate: these are
+# produced by the resource DAG and can be STALE/WRONG in --src after a reference
+# change (e.g. rosmap_smr's besd .esi was left at the 2024 EUR-reference values
+# when the v1.3.6 dense migration's rebuild failed - the k2260822 incident). For
+# each, the script creates an empty real dir and emits a snakemake command
+# (Step 4) that rebuilds it into the view against this epoch's reference + the raw
+# sources in common/. Other REF resources (the 36G 1kg_hgdp reference itself,
+# magma, predicted_expression, ...) were built correctly by the migration and are
+# relocated as-is - rebuilding them would needlessly re-download/recompute. Extend
+# this list for a fuller clean-room rebuild (add e.g. magma magma_ref
+# predicted_expression; note psychencode lives under the fusion_snp_weights mixed
+# dir, handled separately).
+REBUILD_REF=(
+  rosmap_smr
 )
 
 # Shared data/ subdirectories (symlink to common/).
@@ -118,11 +136,13 @@ SHARED_DATA=(
   eqtlgen glist-hg19 gtex ld_scores ldsc liftover msigdb pops psychencode_smr
   recomb_maps rosmap_twas sbayesrc_annot sbayesrc_r_ref sbayesrc_ref
   secondary_gwas sumher_tagging
-  # Raw external source datasets (inputs to the reference-derived build rules).
-  # Epoch-INDEPENDENT (the raw ROSMAP/Banner data is the same regardless of the
-  # reference), so they live once in common/ and the build rules read them via
-  # resdir; the reference-derived PRODUCTS (rosmap_smr besd) are per-epoch.
+  # Raw external source datasets (INPUTS to the reference-derived build rules):
+  # the ROSMAP/Banner panels and the raw dense-reference tarballs. Reference-
+  # INDEPENDENT - they are the inputs FROM which resources are built, not derived
+  # from the reference - so they live once in common/ and the build rules read
+  # them via resdir; the reference-derived PRODUCTS (rosmap_smr besd) are per-epoch.
   ROSMAP_pQTL ROSMAP-PWAS Banner-PWAS
+  genopred_dense_1kg_hgdp.tar.gz genopred_dense_incl_ambig_1kg_hgdp.tar.gz
 )
 
 # A shared subdir that contains ONE reference-derived child: fusion_snp_weights
@@ -208,7 +228,7 @@ say "  view   = $VIEW"
 say "=============================================================="
 
 UNCLASSIFIED=()
-declare -A PLAN_DATA   # name -> SHARED|REF|SHARED_MIXED|SHARED_FLAG|REF_FLAG|REF_FILE
+declare -A PLAN_DATA   # name -> SHARED|REF|SHARED_MIXED|SHARED_FLAG|REF_FLAG
 
 for entry in "$SRC"/data/*; do
   [[ -e "$entry" || -L "$entry" ]] || continue
@@ -217,7 +237,6 @@ for entry in "$SRC"/data/*; do
   elif is_in "$n" "${SHARED_DATA[@]}";      then PLAN_DATA[$n]=SHARED
   elif is_in "$n" "${REF_DATA[@]}";         then PLAN_DATA[$n]=REF
   elif is_in "$n" "${REF_DATA_FLAGS[@]}";   then PLAN_DATA[$n]=REF_FLAG
-  elif is_in "$n" "${REF_DATA_FILES[@]}";   then PLAN_DATA[$n]=REF_FILE
   elif matches_shared_flag "$n";            then PLAN_DATA[$n]=SHARED_FLAG
   else UNCLASSIFIED+=("data/$n")
   fi
@@ -286,10 +305,19 @@ for n in "${!PLAN_DATA[@]}"; do
 done
 for s in "${SOFT_ENTRIES[@]}"; do symlink_rel "$COMMON/software/$s" "$VIEW/software/$s"; done
 
-# 3b. Reference-derived data/ -> real per-epoch (relocated from --src).
+# 3b. Reference-derived data/ -> real per-epoch. Entries listed in REBUILD_REF are
+#     created EMPTY to be rebuilt fresh by Step 4 (they can be stale in --src); the
+#     rest are relocated as-is (already correct; cheaper than recomputing).
 for n in "${!PLAN_DATA[@]}"; do
   case "${PLAN_DATA[$n]}" in
-    REF|REF_FLAG|REF_FILE) relocate "$SRC/data/$n" "$VIEW/data/$n";;
+    REF|REF_FLAG)
+      if is_in "$n" "${REBUILD_REF[@]}"; then
+        say "  [rebuild] data/$n -> empty real dir (built by Step 4, not relocated)"
+        run mkdir -p "$VIEW/data/$n"
+      else
+        relocate "$SRC/data/$n" "$VIEW/data/$n"
+      fi
+      ;;
   esac
 done
 
@@ -331,13 +359,40 @@ if [[ "$MODE" != "dry-run" ]]; then
   say "  OK: all symlinks in $VIEW resolve."
   say "  Reference-derived (real) data dirs present:"
   for n in "${!PLAN_DATA[@]}"; do
-    case "${PLAN_DATA[$n]}" in REF|REF_FLAG|REF_FILE)
+    case "${PLAN_DATA[$n]}" in REF|REF_FLAG)
       [[ -e "$VIEW/data/$n" && ! -L "$VIEW/data/$n" ]] && printf '    %s\n' "data/$n";;
     esac
   done
 fi
 
+# ---------------------------------------------------------------------------
+# 5. Build step: (re)build the REBUILD_REF resources into the view from source.
+#    Only the empty REBUILD_REF dirs (and anything else missing) are produced -
+#    relocated REF resources and common/ symlinks are already present so the DAG
+#    skips them. The raw sources (ROSMAP/Banner) resolve via resdir -> common/.
+# ---------------------------------------------------------------------------
+BUILD_CMD=(snakemake prepare_resources
+  --snakefile "$PIPE/Snakefile"
+  --configfile "$PIPE/prepare_resources.yaml"
+  --config "resdir=$VIEW"
+  --use-conda -c"$BUILD_CORES")
 say ""
-say "Done (mode=$MODE). Next: set the job's resdir to $VIEW for epoch '$EPOCH'"
-say "(Django: resource_epoch_for_version() -> resdir=<root>/v-<epoch>; see the plan)."
+say "--- Step 4: build reference-derived resources  (REBUILD_REF: ${REBUILD_REF[*]}) ---"
+say "Run on the cluster (dry-run FIRST to confirm only the intended rebuilds fire):"
+say "  source $GD/bin/activate_genodisc.sh"
+say "  ${BUILD_CMD[*]} -n      # review the plan"
+say "  ${BUILD_CMD[*]}         # build"
+if [[ "$RUN_BUILD" == "1" && "$MODE" != "dry-run" ]]; then
+  say "  [--run-build] activating env and building now..."
+  # shellcheck disable=SC1090
+  source "$GD/bin/activate_genodisc.sh"
+  "${BUILD_CMD[@]}"
+else
+  say "  (pass --run-build to invoke it from here; omitted by default so the"
+  say "   heavy build runs in a deliberate, supervised window.)"
+fi
+
+say ""
+say "Done (mode=$MODE). Next: once resources/{common,v-dense,v-legacy} all exist,"
+say "the web app (modules/resource_paths) auto-switches jobs to v-<epoch>."
 [[ "$MODE" == "dry-run" ]] && say "This was a DRY RUN — nothing changed. Re-run with --mode link|move|copy to apply."
