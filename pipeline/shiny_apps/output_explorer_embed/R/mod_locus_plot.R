@@ -155,24 +155,32 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
       cg$body_colour <- .lp_biotype_colour(cg$gene_biotype)
       cg$hc <- ""
       cal <- rd("caldera")
-      csym <- harmonise_genes(cg$symbol)$symbol          # canonical symbols for matching
-      add_hc <- function(letters, genes_vec) {
-        if (length(genes_vec) == 0) return(invisible())
-        hit <- unique(harmonise_genes(as.character(genes_vec))$symbol)
-        idx <- csym %in% hit
+      c2 <- if (!is.null(cal)) sub_locus(cal) else NULL
+      # Match on Ensembl id where available (CALDERA uses GENCODE symbols like
+      # CFAP410 that the older biomart can't resolve, so a symbol match misses
+      # genes the biomart knows as e.g. C21orf2); fall back to canonical symbol.
+      add_by_ensgid <- function(letters, ens) {
+        ens <- unique(ens[!is.na(ens) & nzchar(as.character(ens))])
+        if (!length(ens)) return(invisible())
+        idx <- cg$ensembl_gene_id %in% ens
         cg$hc[idx] <<- paste0(cg$hc[idx], letters)
       }
-      if ("caldera" %in% hc_methods && !is.null(cal)) {
-        c2 <- sub_locus(cal)
-        if (!is.null(c2)) add_hc("C", c2$gene[suppressWarnings(as.numeric(c2$caldera)) >= caldera_hc_thr])
+      add_by_symbol <- function(letters, syms) {
+        syms <- unique(harmonise_genes(as.character(syms))$symbol)
+        idx <- cg$symbol %in% syms
+        cg$hc[idx] <<- paste0(cg$hc[idx], letters)
+      }
+      if ("caldera" %in% hc_methods && !is.null(c2)) {
+        hit <- suppressWarnings(as.numeric(c2$caldera)) >= caldera_hc_thr
+        if ("ensgid" %in% names(c2)) add_by_ensgid("C", c2$ensgid[hit]) else add_by_symbol("C", c2$gene[hit])
       }
       if ("coding" %in% hc_methods && !is.null(members)) {
         pa <- members[members$pa & suppressWarnings(as.numeric(members$PIP)) >= 0.5, , drop = FALSE]
-        add_hc("M", pa$gene)
+        add_by_symbol("M", pa$gene)
       }
-      if ("nearest" %in% hc_methods && !is.null(cal)) {
-        c2 <- sub_locus(cal)
-        if (!is.null(c2) && "nearest_gene" %in% names(c2)) add_hc("N", c2$gene[.lp_is_true(c2$nearest_gene)])
+      if ("nearest" %in% hc_methods && !is.null(c2) && "nearest_gene" %in% names(c2)) {
+        nr <- .lp_is_true(c2$nearest_gene)
+        if ("ensgid" %in% names(c2)) add_by_ensgid("N", c2$ensgid[nr]) else add_by_symbol("N", c2$gene[nr])
       }
       cg$is_hc <- nzchar(cg$hc)
       cg$gstart_mb <- pmax(cg$gstart_mb, window[1]); cg$gend_mb <- pmin(cg$gend_mb, window[2])
@@ -267,18 +275,18 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
   if (!is.null(bands)) p <- p + ggplot2::geom_rect(
     data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
     fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
-  # Recombination-rate line on a secondary axis (when packaged), scaled to the
-  # -log10(P) range, matching the LocusZoom look.
   ymax <- max(c(a$neglogP, -log10(5e-9)), na.rm = TRUE) + 0.5
   sf <- ymax / 100
   rc <- ld$recomb
-  if (!is.null(rc) && nrow(rc) >= 2) p <- p + ggplot2::geom_line(
-    data = rc, ggplot2::aes(x = BP / 1e6, y = rate * sf),
-    colour = "#6BAED6", linewidth = 0.7, alpha = 0.95)
   p <- p +
     ggplot2::geom_point(data = a, ggplot2::aes(x = BP_Mb, y = neglogP), colour = a$col, size = point_size) +
     ggplot2::geom_hline(yintercept = -log10(5e-8), colour = "red", linetype = "solid", linewidth = 0.3) +
     ggplot2::geom_hline(yintercept = -log10(1e-5), colour = "blue", linetype = "dashed", linewidth = 0.3)
+  # Recombination-rate line (secondary axis) drawn ON TOP of the dense scatter so
+  # it stays visible; scaled to the -log10(P) range, LocusZoom-style.
+  if (!is.null(rc) && nrow(rc) >= 2) p <- p + ggplot2::geom_line(
+    data = rc, ggplot2::aes(x = BP / 1e6, y = rate * sf),
+    colour = "#2B7BBA", linewidth = 0.8, alpha = 0.85)
   lead_row <- a[a$SNP == as.character(ld$locus), , drop = FALSE]
   if (nrow(lead_row) == 0 && !is.na(ld$lead_bp)) lead_row <- a[which.min(abs(a$BP - ld$lead_bp)), , drop = FALSE]
   if (nrow(lead_row) > 0) p <- p + ggplot2::geom_point(
