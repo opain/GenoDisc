@@ -236,9 +236,7 @@ snpAssocUI <- function(id) {
                 value = "locus_plot",
                 br(),
                 uiOutput(ns("lp_controls_ui")),
-                plotOutput(ns("lp_plot"), height = "auto",
-                           hover = hoverOpts(ns("lp_hover"), delay = 150, delayType = "debounce")),
-                tableOutput(ns("lp_hover_info")),
+                plotOutput(ns("lp_plot"), height = "auto"),
                 tags$h5("Gene association summary (genes in positional order)"),
                 plotOutput(ns("lp_grid"), height = "340px"),
                 uiOutput(ns("lp_legends"))
@@ -1108,20 +1106,13 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         grid::grid.text("No molecular-association results with a gene in this window.") }
     }, height = 340)
 
-    output$lp_hover_info <- renderTable({
-      d <- lp_data(); if (is.null(d) || is.null(d$all_points)) return(NULL)
-      np <- nearPoints(d$all_points, input$lp_hover, xvar = "BP_Mb", yvar = "y", threshold = 12, maxpoints = 6)
-      if (nrow(np) == 0) return(NULL)
-      np[, intersect(c("SNP","cs","pip","consequence","gene"), names(np)), drop = FALSE]
-    })
-
     output$lp_legends <- renderUI({
       d <- lp_data(); if (is.null(d)) return(NULL)
       tagList(
         if (!isTRUE(d$has_baseline)) div(class = "gd-legend",
           em("Full-locus baseline unavailable for this bundle - showing credible-set members only (re-run with the current pipeline to add every SNP).")),
         gd_legend(list(
-          "Panel A (association)" = "Each SNP's -log10(P); colour = LD r² to the lead (blue <0.2 → red 0.8-1); purple diamond = lead; red dashed line = p < 5e-8. Shaded bands = credible-set spans.",
+          "Panel A (association)" = "Each SNP's -log10(P); colour = LD r² to the lead (blue low → red high); purple diamond = lead; red line p < 5e-8, blue dashed p < 1e-5; light-blue line (right axis) = recombination rate (cM/Mb). Shaded bands = credible-set spans.",
           "Panel B (fine-mapping)" = "Per-SNP posterior (PIP); points coloured by credible set; circle = non-coding, triangle = protein-altering variant.",
           "Panel C (genes)" = "Gene bodies coloured by biotype (protein_coding dark; lncRNA/antisense blue/teal; pseudogene grey). Gold box = high-confidence; badges C = CALDERA ≥ 0.5, M = coding variant alpha ≥ 0.5, N = nearest gene.",
           "Panel D (gene × method)" = "Dot per gene×method; colour = association Z (blue–red) for TWAS/SMR/PWAS/MAGMA, green = SuSiE/nearest presence, purple = CALDERA probability; open circle = FDR-significant; open square = colocalised."

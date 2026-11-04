@@ -37,18 +37,24 @@
   xc %in% c("true","t","1","yes")
 }
 
-# Greedy interval packing: assign each gene the lowest non-overlapping row.
+# Label-width-aware greedy packing (ported from scripts/plot_locus_zoom.R): each
+# gene's effective footprint is widened to include its label text so gene names
+# in the track never collide. Assigns each gene the lowest free row.
 lp_pack_rows <- function(genes, window) {
   if (is.null(genes) || nrow(genes) == 0) return(genes)
-  g <- genes[order(genes$gstart_mb), , drop = FALSE]
-  pad <- 0.02 * (window[2] - window[1])
-  row_end <- numeric(0)
-  g$row <- NA_integer_
+  win_w <- window[2] - window[1]
+  chars_per_window <- 90; pad <- 1.3
+  mid <- (genes$gstart_mb + genes$gend_mb) / 2
+  lab_half <- nchar(as.character(genes$symbol)) * (win_w / chars_per_window) / 2 * pad
+  genes$eff_start <- pmin(genes$gstart_mb, mid - lab_half)
+  genes$eff_end   <- pmax(genes$gend_mb,   mid + lab_half)
+  g <- genes[order(genes$eff_start), , drop = FALSE]
+  row_end <- numeric(0); g$row <- NA_integer_
   for (i in seq_len(nrow(g))) {
-    free <- which(row_end + pad < g$gstart_mb[i])
+    free <- which(g$eff_start[i] > row_end)
     k <- if (length(free)) free[1] else length(row_end) + 1L
     g$row[i] <- k
-    row_end[k] <- max(if (is.na(row_end[k])) -Inf else row_end[k], g$gend_mb[i])
+    row_end[k] <- g$eff_end[i]
   }
   g
 }
@@ -233,8 +239,10 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
 
 # ---- Panel A: association (-log10 P) coloured by LD r^2 to lead --------------
 
-.lp_ld_palette <- function() c("<0.2"="#313695","0.2-0.4"="#74add1","0.4-0.6"="#66bd63",
-                               "0.6-0.8"="#fdae61","0.8-1"="#d73027")
+# LocusZoom-style r^2 palette (matches scripts/plot_locus_zoom.R).
+.lp_ld_palette <- function() c("<0.2"="#357EBD","0.2-0.4"="#46B8DA","0.4-0.6"="#5CB85C",
+                               "0.6-0.8"="#F0AD4E","0.8-1"="#D43F3A")
+.lp_index_colour <- "#9632B8"
 
 build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
                                     theme_fn = ggplot2::theme_bw) {
@@ -246,23 +254,36 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
   pal <- .lp_ld_palette()
   bins <- cut(r2, breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
               labels = names(pal), right = FALSE)
-  a$col <- unname(pal[as.character(bins)]); a$col[is.na(a$col)] <- "#9aa0b0"
+  a$col <- unname(pal[as.character(bins)]); a$col[is.na(a$col)] <- "grey70"
   bands <- .lp_cs_bands(ld)
   p <- ggplot2::ggplot()
   if (!is.null(bands)) p <- p + ggplot2::geom_rect(
     data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
     fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
+  # Recombination-rate line on a secondary axis (when packaged), scaled to the
+  # -log10(P) range, matching the LocusZoom look.
+  ymax <- max(c(a$neglogP, -log10(5e-9)), na.rm = TRUE) + 0.5
+  sf <- ymax / 100
+  rc <- ld$recomb
+  if (!is.null(rc) && nrow(rc) >= 2) p <- p + ggplot2::geom_line(
+    data = rc, ggplot2::aes(x = BP / 1e6, y = rate * sf),
+    colour = "#90CAF9", linewidth = 0.4, alpha = 0.8)
   p <- p +
     ggplot2::geom_point(data = a, ggplot2::aes(x = BP_Mb, y = neglogP), colour = a$col, size = point_size) +
-    ggplot2::geom_hline(yintercept = -log10(5e-8), colour = "red", linetype = "dashed", linewidth = 0.3)
+    ggplot2::geom_hline(yintercept = -log10(5e-8), colour = "red", linetype = "solid", linewidth = 0.3) +
+    ggplot2::geom_hline(yintercept = -log10(1e-5), colour = "blue", linetype = "dashed", linewidth = 0.3)
   lead_row <- a[a$SNP == as.character(ld$locus), , drop = FALSE]
   if (nrow(lead_row) == 0 && !is.na(ld$lead_bp)) lead_row <- a[which.min(abs(a$BP - ld$lead_bp)), , drop = FALSE]
   if (nrow(lead_row) > 0) p <- p + ggplot2::geom_point(
     data = lead_row, ggplot2::aes(x = BP_Mb, y = neglogP),
-    shape = 23, size = point_size * 3.2, fill = "#7b3294", colour = "black")
+    shape = 23, size = point_size * 3.2, fill = .lp_index_colour, colour = "black")
   p +
-    ggplot2::coord_cartesian(xlim = ld$window) +
-    ggplot2::labs(x = NULL, y = expression(-log[10](italic(P)))) +
+    ggplot2::scale_y_continuous(
+      name = expression(-log[10](italic(P))),
+      sec.axis = ggplot2::sec_axis(~ . / sf, name = "Recomb. (cM/Mb)",
+                                   breaks = c(0, 20, 40, 60, 80, 100))) +
+    ggplot2::coord_cartesian(xlim = ld$window, ylim = c(0, ymax)) +
+    ggplot2::labs(x = NULL) +
     theme_fn(base_size = font_size) +
     ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
                    plot.margin = ggplot2::margin(4, 8, 2, 8))
@@ -327,44 +348,51 @@ build_locus_finemap_panel <- function(ld, font_size = 14, point_size = 1.6,
 build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme_bw) {
   g <- ld$genes
   if (is.null(g) || nrow(g) == 0) return(NULL)
-  g$ymid <- g$row
   nrows <- max(g$row)
-  lw <- if (isTRUE(ld$has_bodies)) 3 else NA
+  w <- ld$window
   p <- ggplot2::ggplot()
   bands <- .lp_cs_bands(ld)
   if (!is.null(bands)) p <- p + ggplot2::geom_rect(
     data = bands, ggplot2::aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
     fill = bands$col, alpha = 0.12, inherit.aes = FALSE)
+  # High-confidence highlight box behind the gene body.
   hc <- g[g$is_hc, , drop = FALSE]
   if (nrow(hc) > 0) p <- p + ggplot2::geom_rect(
-    data = hc, ggplot2::aes(xmin = gstart_mb, xmax = gend_mb, ymin = row - 0.34, ymax = row + 0.34),
+    data = hc, ggplot2::aes(xmin = gstart_mb, xmax = gend_mb, ymin = row - 0.26, ymax = row + 0.26),
     fill = NA, colour = "#f1b24a", linewidth = 0.8, inherit.aes = FALSE)
   if (isTRUE(ld$has_bodies)) {
-    p <- p + ggplot2::geom_segment(
-      data = g, ggplot2::aes(x = gstart_mb, xend = gend_mb, y = row, yend = row, colour = body_colour),
-      linewidth = 3, lineend = "butt") + ggplot2::scale_colour_identity()
+    # Gene body as a filled bar coloured by biotype, with a strand-direction arrow.
+    p <- p + ggplot2::geom_rect(
+      data = g, ggplot2::aes(xmin = gstart_mb, xmax = gend_mb, ymin = row - 0.12, ymax = row + 0.12,
+                             fill = body_colour), colour = NA) +
+      ggplot2::scale_fill_identity()
+    ga <- g[!is.na(g$strand), , drop = FALSE]
+    if (nrow(ga) > 0) {
+      ext <- (w[2] - w[1]) * 0.012
+      ga$ax  <- ifelse(ga$strand == 1, ga$gend_mb, ga$gstart_mb)
+      ga$axe <- ifelse(ga$strand == 1, pmin(ga$gend_mb + ext, w[2]), pmax(ga$gstart_mb - ext, w[1]))
+      p <- p + ggplot2::geom_segment(
+        data = ga, ggplot2::aes(x = ax, xend = axe, y = row, yend = row),
+        arrow = grid::arrow(length = grid::unit(0.06, "cm"), type = "closed"),
+        colour = "grey25", linewidth = 0.3)
+    }
   } else {
     p <- p + ggplot2::geom_point(
       data = g, ggplot2::aes(x = gstart_mb, y = row, colour = body_colour), size = 2.5) +
       ggplot2::scale_colour_identity()
   }
-  # Label only protein-coding + high-confidence genes when the window is busy, so
-  # dense clusters of pseudogenes/ncRNAs don't make the track unreadable.
-  glab <- if (nrow(g) <= 20) g else
-    g[g$is_hc | (!is.na(g$gene_biotype) & g$gene_biotype == "protein_coding"), , drop = FALSE]
-  if (nrow(glab) > 0) p <- p + ggrepel::geom_text_repel(
-    data = glab, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row,
-                              label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
-    size = font_size * 0.2, max.overlaps = Inf, min.segment.length = 0,
-    segment.size = 0.2, segment.colour = "grey70", box.padding = 0.25,
-    direction = "both", seed = 1)
+  # Label every gene — the label-width-aware packing keeps names from colliding.
+  p <- p + ggplot2::geom_text(
+    data = g, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row + 0.42,
+                           label = symbol, fontface = ifelse(is_hc, "bold", "plain")),
+    size = font_size * 0.2, colour = "grey15", vjust = 0)
   badges <- g[g$is_hc, , drop = FALSE]
   if (nrow(badges) > 0) p <- p + ggplot2::geom_text(
     data = badges, ggplot2::aes(x = (gstart_mb + gend_mb) / 2, y = row - 0.42, label = hc),
-    size = font_size * 0.2, vjust = 1, colour = "#b5651d", fontface = "bold")
+    size = font_size * 0.18, vjust = 1, colour = "#b5651d", fontface = "bold")
   p +
-    ggplot2::scale_y_continuous(limits = c(0.3, nrows + 0.8), breaks = NULL) +
-    ggplot2::coord_cartesian(xlim = ld$window) +
+    ggplot2::scale_y_continuous(limits = c(0.3, nrows + 0.9), breaks = NULL) +
+    ggplot2::coord_cartesian(xlim = w) +
     ggplot2::labs(x = paste0("Chromosome ", ld$chr, " position (Mb)"), y = NULL) +
     theme_fn(base_size = font_size) +
     ggplot2::theme(panel.grid = ggplot2::element_blank(),
