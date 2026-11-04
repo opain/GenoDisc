@@ -236,12 +236,13 @@ snpAssocUI <- function(id) {
                 value = "locus_plot",
                 br(),
                 uiOutput(ns("lp_controls_ui")),
-                plotOutput(ns("lp_plot"), height = "auto"),
+                tags$div(style = "max-width: 1100px;",
+                         plotOutput(ns("lp_plot"), height = "auto")),
                 uiOutput(ns("lp_legends")),
                 tags$hr(),
                 tags$h5("Gene association summary (genes in positional order)"),
                 uiOutput(ns("lp_grid_controls_ui")),
-                plotOutput(ns("lp_grid"), height = "auto")
+                uiOutput(ns("lp_grid_ui"))
               )
             ),
             width = 9
@@ -1100,7 +1101,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                           if (!is.null(pB)) { cont <- c(cont, list(pB)); rh <- c(rh, 1.0) } }
       if ("C" %in% sel) { pC <- build_locus_gene_panel(d, font_size = fs, theme_fn = tf)
                           if (!is.null(pC)) { cont <- c(cont, list(pC)); rh <- c(rh, gene_h) } }
-      assemble_locus_plot(cont, rel_heights = rh)
+      stack <- assemble_locus_plot(cont, rel_heights = rh)
+      if (is.null(stack) || !("A" %in% sel) || is.null(d$assoc)) return(stack)
+      # LD r² colour legend beside the association panel (top of the stack).
+      leg_col <- cowplot::plot_grid(lp_ld_legend(fs), NULL, ncol = 1, rel_heights = c(1, 2.2))
+      cowplot::plot_grid(stack, leg_col, ncol = 2, rel_widths = c(1, 0.12))
     }
 
     output$lp_plot <- renderPlot({
@@ -1110,24 +1115,30 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     # ---- Gene association summary grid (panel D) — separate, own controls ----
     lp_grid_opts <- reactive({
-      d <- lp_data(); if (is.null(d)) return(list(groups = character(0), panels = character(0)))
+      d <- lp_data(); if (is.null(d)) return(list(groups = character(0), expr = character(0), protein = character(0)))
       g <- .pick_gwas("finemap_gwas"); req(g)
       tryCatch(lp_grid_options(gwas_data(), g, config_flags(), d),
-               error = function(e) list(groups = character(0), panels = character(0)))
+               error = function(e) list(groups = character(0), expr = character(0), protein = character(0)))
     })
+    lpg_panels_sel <- reactive(unique(c(input$lpg_expr, input$lpg_protein)))
     output$lp_grid_controls_ui <- renderUI({
       o <- lp_grid_opts()
       if (length(o$groups) == 0)
         return(div(class = "gd-legend", em("No molecular-association results with a gene in this window.")))
       grp_labels <- gsub("\n", " ", o$groups)
       tagList(
-        fluidRow(
-          column(6, selectInput(ns("lpg_methods"), "Methods (facets):",
-                                choices = setNames(o$groups, grp_labels), selected = o$groups, multiple = TRUE)),
-          column(6, selectInput(ns("lpg_panels"), "Panels / tissues:",
-                                choices = o$panels, selected = o$panels, multiple = TRUE))),
-        tags$details(class = "gd-details", style = "margin-top:6px;margin-bottom:8px;",
-          tags$summary("Plot options (gene association summary)"),
+        tags$details(class = "gd-details", open = NA, style = "margin-bottom:6px;",
+          tags$summary("Filter data"),
+          tags$div(class = "gd-details-body",
+            fluidRow(
+              column(4, selectInput(ns("lpg_methods"), "Include results from these methods:",
+                                    choices = setNames(o$groups, grp_labels), selected = o$groups, multiple = TRUE)),
+              column(4, selectInput(ns("lpg_expr"), "Include expression / splicing panels:",
+                                    choices = o$expr, selected = o$expr, multiple = TRUE)),
+              column(4, selectInput(ns("lpg_protein"), "Include protein panels:",
+                                    choices = o$protein, selected = o$protein, multiple = TRUE))))),
+        tags$details(class = "gd-details", style = "margin-bottom:8px;",
+          tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
             fluidRow(
               column(4, sliderInput(ns("lpg_font"), "Font size (pt):", min = 8, max = 22, value = 13, step = 1),
@@ -1135,7 +1146,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                           choices = c("Black & white"="bw","Minimal"="minimal","Classic"="classic","Light"="light"), selected = "bw")),
               column(4, selectInput(ns("lpg_dl_format"), "Download format:", choices = c("PNG"="png","PDF"="pdf","SVG"="svg")),
                         numericInput(ns("lpg_dl_dpi"), "DPI (PNG):", value = 300, min = 72, max = 600, step = 1)),
-              column(4, numericInput(ns("lpg_dl_w"), "Width (in):", value = 11, min = 3, max = 30, step = 0.5),
+              column(4, numericInput(ns("lpg_dl_w"), "Width (in):", value = 12, min = 3, max = 40, step = 0.5),
                         numericInput(ns("lpg_dl_h"), "Height (in):", value = 5, min = 2, max = 60, step = 0.5))),
             downloadButton(ns("lpg_download"), "Download summary", class = "btn btn-default btn-sm")))
       )
@@ -1144,22 +1155,29 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       d <- lp_data(); if (is.null(d)) return(NULL)
       g <- .pick_gwas("finemap_gwas"); req(g)
       tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d,
-               methods = input$lpg_methods, panels = input$lpg_panels,
+               methods = input$lpg_methods, panels = lpg_panels_sel(),
                font_size = input$lpg_font %||% 13, theme_fn = mol_theme_fn(input$lpg_theme %||% "bw")),
                error = function(e) NULL)
     }
-    lpg_h_px <- reactive({
-      d <- lp_data(); if (is.null(d)) return(300)
+    lpg_dims <- reactive({
+      d <- lp_data(); if (is.null(d)) return(list(nrows = 6L, ngenes = 10L))
       g <- .pick_gwas("finemap_gwas")
-      nr <- tryCatch(lp_grid_nrows(gwas_data(), g, config_flags(), d, input$lpg_methods, input$lpg_panels),
-                     error = function(e) 6)
-      max(220, 70 + 22 * nr)
+      tryCatch(lp_grid_dims(gwas_data(), g, config_flags(), d, input$lpg_methods, lpg_panels_sel()),
+               error = function(e) list(nrows = 6L, ngenes = 10L))
+    })
+    # Size adapts to genes (width) + methods/panels (height), like the mol-assoc plot.
+    output$lp_grid_ui <- renderUI({
+      dm <- lpg_dims()
+      w <- max(560, 240 + 26 * dm$ngenes)   # + legends/label margin
+      h <- max(220, 90 + 24 * dm$nrows)
+      tags$div(style = "overflow-x: auto;",
+        plotOutput(ns("lp_grid"), width = paste0(w, "px"), height = paste0(h, "px")))
     })
     output$lp_grid <- renderPlot({
       p <- lp_grid_build()
       if (!is.null(p)) p else { grid::grid.newpage()
         grid::grid.text("No molecular-association results for the selected methods/panels in this window.") }
-    }, height = function() lpg_h_px())
+    })
     output$lpg_download <- downloadHandler(
       filename = function() sprintf("locus_gene_summary_%s_%s.%s",
                  input$lp_locus_sel %||% "locus", input$l_param %||% "L", input$lpg_dl_format %||% "png"),

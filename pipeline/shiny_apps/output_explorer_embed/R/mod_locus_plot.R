@@ -37,6 +37,33 @@
   xc %in% c("true","t","1","yes")
 }
 
+# ---- legend grobs (extracted via a dummy plot with the real scale) ----------
+.lp_legend_from <- function(g) cowplot::get_legend(
+  g + ggplot2::theme(legend.position = "right",
+                     legend.key.size = grid::unit(0.8, "lines"),
+                     legend.margin = ggplot2::margin(2, 2, 2, 2)))
+
+lp_ld_legend <- function(font_size = 11) {
+  pal <- .lp_ld_palette()
+  d <- data.frame(x = 1, y = seq_along(pal), b = factor(names(pal), levels = names(pal)))
+  .lp_legend_from(ggplot2::ggplot(d, ggplot2::aes(x, y, colour = b)) + ggplot2::geom_point() +
+    ggplot2::scale_colour_manual(expression(r^2 * " to lead"), values = pal) +
+    ggplot2::theme_void(base_size = font_size))
+}
+lp_z_legend <- function(font_size = 11) {
+  d <- data.frame(x = 1, y = 1, z = 0)
+  .lp_legend_from(ggplot2::ggplot(d, ggplot2::aes(x, y, colour = z)) + ggplot2::geom_point() +
+    ggplot2::scale_colour_gradient2("Z-score", low = "#2166ac", mid = "#f7f7f7",
+                                    high = "#b2182b", midpoint = 0, limits = c(-6, 6)) +
+    ggplot2::theme_void(base_size = font_size))
+}
+lp_prio_legend <- function(font_size = 11) {
+  d <- data.frame(x = 1, y = 1, p = 0.5)
+  .lp_legend_from(ggplot2::ggplot(d, ggplot2::aes(x, y, colour = p)) + ggplot2::geom_point() +
+    ggplot2::scale_colour_gradient("CALDERA prob.", low = "#f2f0f7", high = "#54278f", limits = c(0, 1)) +
+    ggplot2::theme_void(base_size = font_size))
+}
+
 # Label-width-aware greedy packing (ported from scripts/plot_locus_zoom.R): each
 # gene's effective footprint is widened to include its label text so gene names
 # in the track never collide. Assigns each gene the lowest free row.
@@ -453,12 +480,14 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   dat
 }
 
-# Methods (Groups) + panels present in the window, for the grid's selectors.
+# Methods (Groups) + expression/splicing + protein panels in the window, for the
+# grid's selectors (mirrors the Molecular Associations summary controls).
 lp_grid_options <- function(gd, gwas, cf, ld) {
   dat <- .lp_grid_data(gd, gwas, cf, ld)
-  if (is.null(dat)) return(list(groups = character(0), panels = character(0)))
-  list(groups = intersect(get_group_order(), unique(dat$Group)),
-       panels = sort(unique(as.character(dat$Panel))))
+  if (is.null(dat)) return(list(groups = character(0), expr = character(0), protein = character(0)))
+  list(groups  = intersect(get_group_order(), unique(dat$Group)),
+       expr    = sort(unique(as.character(dat$Panel[dat$Type %in% c("Expr.", "Splice")]))),
+       protein = sort(unique(as.character(dat$Panel[dat$Type == "Protein"]))))
 }
 
 #' Positional gene x method association grid, FACETED by method (like the
@@ -469,8 +498,12 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
   dat <- .lp_grid_data(gd, gwas, cf, ld)
   if (is.null(dat)) return(NULL)
   gene_order <- attr(dat, "gene_order")
+  # `panels` filters only the tissue panels (TWAS/SMR/PWAS); method-level rows
+  # (SuSiE/MAGMA/Nearest/CALDERA) are kept whenever their method is selected.
+  tissue <- unique(as.character(dat$Panel[dat$Type %in% c("Expr.", "Splice", "Protein")]))
   if (!is.null(methods)) dat <- dat[dat$Group %in% methods, , drop = FALSE]
-  if (!is.null(panels))  dat <- dat[as.character(dat$Panel) %in% panels, , drop = FALSE]
+  if (!is.null(panels))  dat <- dat[!(as.character(dat$Panel) %in% tissue) |
+                                     as.character(dat$Panel) %in% panels, , drop = FALSE]
   if (nrow(dat) == 0) return(NULL)
   dat$ID <- factor(as.character(dat$ID), levels = gene_order)
   dat$Group <- factor(dat$Group, levels = intersect(get_group_order(), unique(dat$Group)))
@@ -489,8 +522,9 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
   if (nrow(sig)) p <- p + ggplot2::geom_point(data = sig, shape = 1, size = 4.4, colour = "black", stroke = 0.7)
   clc <- dat[dat$Coloc %in% TRUE, , drop = FALSE]
   if (nrow(clc)) p <- p + ggplot2::geom_point(data = clc, shape = 0, size = 5.0, colour = "black", stroke = 0.7)
-  p +
+  p <- p +
     ggplot2::facet_grid(rows = ggplot2::vars(Group), scales = "free_y", space = "free_y", switch = "y") +
+    ggplot2::scale_y_discrete(position = "right") +   # panel/tissue labels on the right
     ggplot2::labs(x = NULL, y = NULL) +
     theme_fn(base_size = font_size) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
@@ -499,16 +533,23 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
                    panel.grid.major = ggplot2::element_line(colour = "grey92"),
                    panel.grid.minor = ggplot2::element_blank(),
                    panel.spacing = ggplot2::unit(2, "pt"))
+  # Z-score + CALDERA-probability legends to the right of the grid.
+  legs <- cowplot::plot_grid(lp_z_legend(font_size), if (has_prio) lp_prio_legend(font_size) else NULL,
+                             ncol = 1, align = "v")
+  cowplot::plot_grid(p, legs, ncol = 2, rel_widths = c(1, 0.16))
 }
 
-# Facet-row count (for dynamic plot height).
-lp_grid_nrows <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL) {
+# Facet-row + gene counts (for dynamic plot height/width), tissue-aware filter.
+lp_grid_dims <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL) {
   dat <- .lp_grid_data(gd, gwas, cf, ld)
-  if (is.null(dat)) return(0L)
+  if (is.null(dat)) return(list(nrows = 0L, ngenes = 0L))
+  tissue <- unique(as.character(dat$Panel[dat$Type %in% c("Expr.", "Splice", "Protein")]))
   if (!is.null(methods)) dat <- dat[dat$Group %in% methods, , drop = FALSE]
-  if (!is.null(panels))  dat <- dat[as.character(dat$Panel) %in% panels, , drop = FALSE]
-  if (nrow(dat) == 0) return(0L)
-  length(unique(paste(dat$Group, dat$Panel)))
+  if (!is.null(panels))  dat <- dat[!(as.character(dat$Panel) %in% tissue) |
+                                     as.character(dat$Panel) %in% panels, , drop = FALSE]
+  if (nrow(dat) == 0) return(list(nrows = 0L, ngenes = 0L))
+  list(nrows = length(unique(paste(dat$Group, dat$Panel))),
+       ngenes = length(unique(as.character(dat$ID))))
 }
 
 # ---- Assembly ---------------------------------------------------------------
