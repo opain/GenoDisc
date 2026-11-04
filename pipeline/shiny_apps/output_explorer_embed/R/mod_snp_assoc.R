@@ -242,7 +242,8 @@ snpAssocUI <- function(id) {
                 tags$hr(),
                 tags$h5("Gene association summary (genes in positional order)"),
                 uiOutput(ns("lp_grid_controls_ui")),
-                uiOutput(ns("lp_grid_ui"))
+                uiOutput(ns("lp_grid_ui")),
+                tags$div(style = "height: 350px;")   # empty space so the figure can scroll to the bottom
               )
             ),
             width = 9
@@ -1044,6 +1045,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                                  choices = c("Marginal" = "marginal", "Per-cs (alpha)" = "alpha"),
                                  selected = "marginal", inline = TRUE)),
           column(4, checkboxInput(ns("lp_pc_only"), "Protein-coding genes only", FALSE))),
+        fluidRow(
+          column(4, numericInput(ns("lp_lo"), "Region start (Mb):", value = NA, step = 0.05)),
+          column(4, numericInput(ns("lp_hi"), "Region end (Mb):", value = NA, step = 0.05)),
+          column(4, tags$div(style = "margin-top:25px;",
+                    actionButton(ns("lp_reset_region"), "Reset to locus", class = "btn btn-default btn-sm")))),
         fluidRow(column(12, checkboxGroupInput(ns("lp_hc"), "Mark high-confidence genes:",
                        choices = c("CALDERA ≥ 0.5" = "caldera", "Coding (alpha ≥ 0.5)" = "coding",
                                    "Nearest gene" = "nearest"),
@@ -1066,14 +1072,33 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
+    lp_win_override <- reactive({
+      lo <- suppressWarnings(as.numeric(input$lp_lo)); hi <- suppressWarnings(as.numeric(input$lp_hi))
+      if (is.na(lo) || is.na(hi) || hi <= lo) NULL else c(lo, hi)
+    })
     lp_data <- reactive({
       req(gwas_data(), input$l_param, input$lp_locus_sel)
       g <- .pick_gwas("finemap_gwas"); req(g)
       lp_build_locus_data(gwas_data(), g, input$lp_locus_sel, input$l_param,
                           pip_type = input$lp_pip_type %||% "marginal",
                           pc_only = isTRUE(input$lp_pc_only),
-                          hc_methods = input$lp_hc %||% character(0))
+                          hc_methods = input$lp_hc %||% character(0),
+                          win_override = lp_win_override())
     })
+    # Natural window (no override) for defaulting / resetting the BP-limit inputs.
+    lp_natural_window <- reactive({
+      req(gwas_data(), input$l_param, input$lp_locus_sel)
+      g <- .pick_gwas("finemap_gwas"); req(g)
+      d <- lp_build_locus_data(gwas_data(), g, input$lp_locus_sel, input$l_param, win_override = NULL)
+      if (is.null(d)) NULL else d$window
+    })
+    .lp_set_region <- function() {
+      nw <- lp_natural_window(); if (is.null(nw)) return()
+      updateNumericInput(session, "lp_lo", value = round(nw[1], 3))
+      updateNumericInput(session, "lp_hi", value = round(nw[2], 3))
+    }
+    observeEvent(list(input$lp_locus_sel, input$l_param), .lp_set_region())
+    observeEvent(input$lp_reset_region, .lp_set_region())
 
     lp_nrows <- reactive({ d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
     lp_panels_sel <- reactive({ s <- input$lp_panels; if (is.null(s)) c("A","B","C") else s })
@@ -1103,9 +1128,9 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                           if (!is.null(pC)) { cont <- c(cont, list(pC)); rh <- c(rh, gene_h) } }
       stack <- assemble_locus_plot(cont, rel_heights = rh)
       if (is.null(stack) || !("A" %in% sel) || is.null(d$assoc)) return(stack)
-      # LD r² colour legend beside the association panel (top of the stack).
-      leg_col <- cowplot::plot_grid(lp_ld_legend(fs), NULL, ncol = 1, rel_heights = c(1, 2.2))
-      cowplot::plot_grid(stack, leg_col, ncol = 2, rel_widths = c(1, 0.12))
+      # Horizontal LD r² legend above the association (Manhattan) panel.
+      cowplot::plot_grid(lp_ld_legend(fs, horizontal = TRUE), stack,
+                         ncol = 1, rel_heights = c(0.05, 1))
     }
 
     output$lp_plot <- renderPlot({
@@ -1115,24 +1140,26 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     # ---- Gene association summary grid (panel D) — separate, own controls ----
     lp_grid_opts <- reactive({
-      d <- lp_data(); if (is.null(d)) return(list(groups = character(0), expr = character(0), protein = character(0)))
+      d <- lp_data(); if (is.null(d)) return(list(methods = character(0), expr = character(0), protein = character(0)))
       g <- .pick_gwas("finemap_gwas"); req(g)
       tryCatch(lp_grid_options(gwas_data(), g, config_flags(), d),
-               error = function(e) list(groups = character(0), expr = character(0), protein = character(0)))
+               error = function(e) list(methods = character(0), expr = character(0), protein = character(0)))
     })
     lpg_panels_sel <- reactive(unique(c(input$lpg_expr, input$lpg_protein)))
     output$lp_grid_controls_ui <- renderUI({
       o <- lp_grid_opts()
-      if (length(o$groups) == 0)
+      if (length(o$methods) == 0)
         return(div(class = "gd-legend", em("No molecular-association results with a gene in this window.")))
-      grp_labels <- gsub("\n", " ", o$groups)
+      m_labels <- gsub("\n", " ", o$methods)
+      # Default to L=1 variants (L=10 available to add), like the mol-assoc summary.
+      m_default <- o$methods[!o$methods %in% c("SuSiE (L=10)", "CALDERA (L=10)")]
       tagList(
         tags$details(class = "gd-details", open = NA, style = "margin-bottom:6px;",
           tags$summary("Filter data"),
           tags$div(class = "gd-details-body",
             fluidRow(
               column(4, selectInput(ns("lpg_methods"), "Include results from these methods:",
-                                    choices = setNames(o$groups, grp_labels), selected = o$groups, multiple = TRUE)),
+                                    choices = setNames(o$methods, m_labels), selected = m_default, multiple = TRUE)),
               column(4, selectInput(ns("lpg_expr"), "Include expression / splicing panels:",
                                     choices = o$expr, selected = o$expr, multiple = TRUE)),
               column(4, selectInput(ns("lpg_protein"), "Include protein panels:",
@@ -1141,7 +1168,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           tags$summary("Plot options"),
           tags$div(class = "gd-details-body",
             fluidRow(
-              column(4, sliderInput(ns("lpg_font"), "Font size (pt):", min = 8, max = 22, value = 13, step = 1),
+              column(4, sliderInput(ns("lpg_font"), "Font size (pt):", min = 8, max = 22, value = 14, step = 1),
                         selectInput(ns("lpg_theme"), "Theme:",
                           choices = c("Black & white"="bw","Minimal"="minimal","Classic"="classic","Light"="light"), selected = "bw")),
               column(4, selectInput(ns("lpg_dl_format"), "Download format:", choices = c("PNG"="png","PDF"="pdf","SVG"="svg")),
@@ -1156,7 +1183,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       g <- .pick_gwas("finemap_gwas"); req(g)
       tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d,
                methods = input$lpg_methods, panels = lpg_panels_sel(),
-               font_size = input$lpg_font %||% 13, theme_fn = mol_theme_fn(input$lpg_theme %||% "bw")),
+               font_size = input$lpg_font %||% 14, theme_fn = mol_theme_fn(input$lpg_theme %||% "bw")),
                error = function(e) NULL)
     }
     lpg_dims <- reactive({

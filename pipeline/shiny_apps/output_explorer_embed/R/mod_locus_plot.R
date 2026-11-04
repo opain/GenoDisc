@@ -43,12 +43,17 @@
                      legend.key.size = grid::unit(0.8, "lines"),
                      legend.margin = ggplot2::margin(2, 2, 2, 2)))
 
-lp_ld_legend <- function(font_size = 11) {
+lp_ld_legend <- function(font_size = 11, horizontal = FALSE) {
   pal <- .lp_ld_palette()
   d <- data.frame(x = 1, y = seq_along(pal), b = factor(names(pal), levels = names(pal)))
-  .lp_legend_from(ggplot2::ggplot(d, ggplot2::aes(x, y, colour = b)) + ggplot2::geom_point() +
+  g <- ggplot2::ggplot(d, ggplot2::aes(x, y, colour = b)) + ggplot2::geom_point() +
     ggplot2::scale_colour_manual(expression(r^2 * " to lead"), values = pal) +
-    ggplot2::theme_void(base_size = font_size))
+    ggplot2::theme_void(base_size = font_size)
+  if (horizontal)
+    return(cowplot::get_legend(g + ggplot2::theme(legend.position = "bottom",
+      legend.direction = "horizontal", legend.key.size = grid::unit(0.8, "lines")) +
+      ggplot2::guides(colour = ggplot2::guide_legend(nrow = 1))))
+  .lp_legend_from(g)
 }
 lp_z_legend <- function(font_size = 11) {
   d <- data.frame(x = 1, y = 1, z = 0)
@@ -95,7 +100,8 @@ lp_pack_rows <- function(genes, window) {
 lp_build_locus_data <- function(gd, gwas, locus, L,
                                 pip_type = "marginal", pc_only = FALSE,
                                 hc_methods = c("caldera","coding","nearest"),
-                                caldera_hc_thr = 0.5, pad_frac = 0.05) {
+                                caldera_hc_thr = 0.5, pad_frac = 0.05,
+                                win_override = NULL) {
   # Accept L as 1/10 or the UI radio values "L1"/"L10".
   Lval <- suppressWarnings(as.integer(gsub("[^0-9]", "", as.character(L))))
   if (length(Lval) == 0 || is.na(Lval)) Lval <- 10L
@@ -132,6 +138,11 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
     window <- c(centre - half, centre + half) / 1e6
   } else {
     window <- c(lo - pad, hi + pad) / 1e6
+  }
+  # User BP-limit override (Mb) — controls the plotted region for all panels.
+  if (!is.null(win_override) && length(win_override) == 2 &&
+      all(is.finite(win_override)) && win_override[2] > win_override[1]) {
+    window <- sort(as.numeric(win_override))
   }
 
   if (!is.null(members)) {
@@ -468,15 +479,31 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
   dat <- tryCatch(build_mol_assoc_data(gd, gwas, cf), error = function(e) NULL)
   if (is.null(dat) || nrow(dat) == 0) return(NULL)
   dat <- as.data.frame(dat)
-  pos <- tryCatch(resolve_feature_positions(unique(as.character(dat$ID)), gd, gwas, cf), error = function(e) NULL)
-  if (is.null(pos) || nrow(pos) == 0) return(NULL)
-  pos <- pos[!is.na(pos$CHR) & pos$CHR == ld$chr &
-             pos$BP / 1e6 >= ld$window[1] & pos$BP / 1e6 <= ld$window[2], , drop = FALSE]
-  if (nrow(pos) == 0) return(NULL)
-  dat <- dat[as.character(dat$ID) %in% pos$ID, , drop = FALSE]
+  ids <- unique(as.character(dat$ID))
+  # Keep genes whose BODY overlaps the window (so edge-crossing genes are
+  # included, matching the gene panel); order by midpoint. Uses canonical
+  # gene_start/end where available, else resolve_feature_positions (midpoint).
+  canon <- tryCatch(load_gene_positions()$canonical, error = function(e) NULL)
+  if (!is.null(canon) && all(c("gene_start", "gene_end") %in% names(canon))) {
+    h <- harmonise_genes(ids)
+    ci <- match(h$ensembl_id, canon$ensembl_gene_id)
+    cs <- match(h$symbol, canon$symbol); ci[is.na(ci)] <- cs[is.na(ci)]
+    gpos <- data.frame(ID = ids, CHR = canon$CHR[ci], gs = canon$gene_start[ci],
+                       ge = canon$gene_end[ci], mid = canon$BP[ci], stringsAsFactors = FALSE)
+    gpos <- gpos[!is.na(gpos$CHR) & gpos$CHR == ld$chr & !is.na(gpos$gs) & !is.na(gpos$ge) &
+                 gpos$ge / 1e6 > ld$window[1] & gpos$gs / 1e6 < ld$window[2], , drop = FALSE]
+  } else {
+    pos <- tryCatch(resolve_feature_positions(ids, gd, gwas, cf), error = function(e) NULL)
+    if (is.null(pos) || nrow(pos) == 0) return(NULL)
+    pos <- pos[!is.na(pos$CHR) & pos$CHR == ld$chr &
+               pos$BP / 1e6 >= ld$window[1] & pos$BP / 1e6 <= ld$window[2], , drop = FALSE]
+    gpos <- data.frame(ID = pos$ID, mid = pos$BP, stringsAsFactors = FALSE)
+  }
+  if (nrow(gpos) == 0) return(NULL)
+  dat <- dat[as.character(dat$ID) %in% gpos$ID, , drop = FALSE]
   if (nrow(dat) == 0) return(NULL)
   dat$Group <- make_group_labels(dat$Method, dat$Type)
-  attr(dat, "gene_order") <- pos$ID[order(pos$BP)]
+  attr(dat, "gene_order") <- gpos$ID[order(gpos$mid)]
   dat
 }
 
@@ -484,8 +511,12 @@ build_locus_gene_panel <- function(ld, font_size = 14, theme_fn = ggplot2::theme
 # grid's selectors (mirrors the Molecular Associations summary controls).
 lp_grid_options <- function(gd, gwas, cf, ld) {
   dat <- .lp_grid_data(gd, gwas, cf, ld)
-  if (is.null(dat)) return(list(groups = character(0), expr = character(0), protein = character(0)))
-  list(groups  = intersect(get_group_order(), unique(dat$Group)),
+  if (is.null(dat)) return(list(methods = character(0), expr = character(0), protein = character(0)))
+  # Methods in roughly group order (SuSiE/CALDERA L=1 vs L=10 kept distinct).
+  m <- unique(as.character(dat$Method))
+  grp <- make_group_labels(dat$Method, dat$Type)
+  ord <- order(match(grp[match(m, dat$Method)], get_group_order()), m)
+  list(methods = m[ord],
        expr    = sort(unique(as.character(dat$Panel[dat$Type %in% c("Expr.", "Splice")]))),
        protein = sort(unique(as.character(dat$Panel[dat$Type == "Protein"]))))
 }
@@ -494,49 +525,59 @@ lp_grid_options <- function(gd, gwas, cf, ld) {
 #' Molecular Associations summary), filterable by method + panel. Returns NULL
 #' if nothing in the window after filtering.
 build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL,
-                                   font_size = 14, theme_fn = ggplot2::theme_bw) {
+                                   caldera_hc_thresh = 0.5, font_size = 14, theme_fn = ggplot2::theme_bw) {
   dat <- .lp_grid_data(gd, gwas, cf, ld)
   if (is.null(dat)) return(NULL)
   gene_order <- attr(dat, "gene_order")
-  # `panels` filters only the tissue panels (TWAS/SMR/PWAS); method-level rows
-  # (SuSiE/MAGMA/Nearest/CALDERA) are kept whenever their method is selected.
+  # Filter on Method (so SuSiE/CALDERA L=1 vs L=10 are selectable separately,
+  # like the Molecular Associations summary). `panels` filters only the tissue
+  # panels; method-level rows are kept whenever their method is selected.
   tissue <- unique(as.character(dat$Panel[dat$Type %in% c("Expr.", "Splice", "Protein")]))
-  if (!is.null(methods)) dat <- dat[dat$Group %in% methods, , drop = FALSE]
+  if (!is.null(methods)) dat <- dat[dat$Method %in% methods, , drop = FALSE]
   if (!is.null(panels))  dat <- dat[!(as.character(dat$Panel) %in% tissue) |
                                      as.character(dat$Panel) %in% panels, , drop = FALSE]
   if (nrow(dat) == 0) return(NULL)
   dat$ID <- factor(as.character(dat$ID), levels = gene_order)
   dat$Group <- factor(dat$Group, levels = intersect(get_group_order(), unique(dat$Group)))
+  dat <- data.table::data.table(dat)
 
+  # Encoding mirrors build_mol_assoc_gtable() for consistency: black circle
+  # behind FDR-significant; black square behind colocalised (+ FDR-sig) and
+  # CALDERA HC; green = SuSiE/Nearest presence; Z gradient for assoc methods;
+  # purple fill = CALDERA probability. Gives native Z + CALDERA legends.
   has_prio <- "Prio" %in% names(dat)
-  cls <- ifelse(grepl("^CALDERA", dat$Method), "caldera",
-         ifelse(grepl("^SuSiE", dat$Method) | dat$Method == "Nearest\nGene", "presence", "assoc"))
-  dat$fill <- "#dddddd"
-  dat$fill[cls == "assoc"] <- .lp_z_hex(dat$Z[cls == "assoc"])
-  dat$fill[cls == "presence"] <- "#2ca25f"
-  if (has_prio) dat$fill[cls == "caldera"] <- .lp_prio_hex(dat$Prio[cls == "caldera"])
-
-  p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = Panel)) +
-    ggplot2::geom_point(colour = dat$fill, size = 3.3)
-  sig <- dat[dat$Sig %in% TRUE, , drop = FALSE]
-  if (nrow(sig)) p <- p + ggplot2::geom_point(data = sig, shape = 1, size = 4.4, colour = "black", stroke = 0.7)
-  clc <- dat[dat$Coloc %in% TRUE, , drop = FALSE]
-  if (nrow(clc)) p <- p + ggplot2::geom_point(data = clc, shape = 0, size = 5.0, colour = "black", stroke = 0.7)
+  zmax <- suppressWarnings(max(abs(dat$Z), na.rm = TRUE)); if (!is.finite(zmax) || zmax == 0) zmax <- 1
+  xv <- c(-zmax, 0, zmax); xv <- (xv - min(xv)) / (max(xv) - min(xv))
+  ps <- 3
+  p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = Panel)) + theme_fn(base_size = font_size) +
+    ggplot2::geom_blank() +
+    ggplot2::geom_point(data = dat[Sig %in% TRUE], colour = "black", size = ps + 1) +
+    ggplot2::geom_point(data = dat[Coloc %in% TRUE & Sig %in% TRUE], colour = "black", shape = 15, size = ps + 2)
+  if (has_prio) p <- p + ggplot2::geom_point(
+    data = dat[grepl("^CALDERA", Method) & !is.na(Prio) & Prio > caldera_hc_thresh],
+    colour = "black", shape = 15, size = ps + 2)
   p <- p +
+    ggplot2::geom_point(data = dat[(grepl("^SuSiE", Method) | Method == "Nearest\nGene") & !is.na(Z)],
+                        colour = "#00FF00", size = ps + 1) +
+    ggplot2::geom_point(data = dat[!grepl("^SuSiE", Method) & Method != "Nearest\nGene" & !grepl("^CALDERA", Method)],
+                        ggplot2::aes(colour = Z), size = ps) +
+    ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"),
+                                    na.value = NA, name = "Z-score", limits = c(-zmax, zmax), values = xv)
+  if (has_prio) p <- p +
+    ggplot2::geom_point(data = dat[grepl("^CALDERA", Method) & !is.na(Prio)],
+                        ggplot2::aes(fill = Prio), shape = 21, colour = "grey35", stroke = 0.3, size = ps) +
+    ggplot2::scale_fill_gradient(low = "#efe6f7", high = "#5b2d91", limits = c(0, 1),
+                                 na.value = "grey90", name = "CALDERA\nprobability")
+  p +
     ggplot2::facet_grid(rows = ggplot2::vars(Group), scales = "free_y", space = "free_y", switch = "y") +
     ggplot2::scale_y_discrete(position = "right") +   # panel/tissue labels on the right
     ggplot2::labs(x = NULL, y = NULL) +
-    theme_fn(base_size = font_size) +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
                    strip.placement = "outside",
                    strip.text.y.left = ggplot2::element_text(angle = 0, size = font_size * 0.7),
                    panel.grid.major = ggplot2::element_line(colour = "grey92"),
                    panel.grid.minor = ggplot2::element_blank(),
                    panel.spacing = ggplot2::unit(2, "pt"))
-  # Z-score + CALDERA-probability legends to the right of the grid.
-  legs <- cowplot::plot_grid(lp_z_legend(font_size), if (has_prio) lp_prio_legend(font_size) else NULL,
-                             ncol = 1, align = "v")
-  cowplot::plot_grid(p, legs, ncol = 2, rel_widths = c(1, 0.16))
 }
 
 # Facet-row + gene counts (for dynamic plot height/width), tissue-aware filter.
@@ -544,7 +585,7 @@ lp_grid_dims <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL) {
   dat <- .lp_grid_data(gd, gwas, cf, ld)
   if (is.null(dat)) return(list(nrows = 0L, ngenes = 0L))
   tissue <- unique(as.character(dat$Panel[dat$Type %in% c("Expr.", "Splice", "Protein")]))
-  if (!is.null(methods)) dat <- dat[dat$Group %in% methods, , drop = FALSE]
+  if (!is.null(methods)) dat <- dat[dat$Method %in% methods, , drop = FALSE]
   if (!is.null(panels))  dat <- dat[!(as.character(dat$Panel) %in% tissue) |
                                      as.character(dat$Panel) %in% panels, , drop = FALSE]
   if (nrow(dat) == 0) return(list(nrows = 0L, ngenes = 0L))
