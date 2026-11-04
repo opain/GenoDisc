@@ -1341,8 +1341,11 @@ rule format_pwas_data:
   conda:
     "../envs/main.yaml"
   params:
-    rosmap_fusion= config["rosmap_fusion"],
-    banner_fusion= config["banner_fusion"],
+    # Raw FUSION weight sources: config override if set, else the in-tree staged
+    # copies (resolved via resdir). format_pwas_data.R only unzips + inserts N
+    # (no reference use), so these are reference-independent.
+    rosmap_fusion= config["rosmap_fusion"] if str(config.get("rosmap_fusion", "NA")) not in ("NA", "None", "") else f"{resdir}/data/ROSMAP-PWAS/ROSMAP.n376.fusion.WEIGHTS.zip",
+    banner_fusion= config["banner_fusion"] if str(config.get("banner_fusion", "NA")) not in ("NA", "None", "") else f"{resdir}/data/Banner-PWAS/Banner.n152.fusion.WEIGHTS.zip",
     resdir=resdir
   log:
     f"{resdir}/logs/format_pwas_data.log"
@@ -1545,14 +1548,13 @@ rule download_caldera:
 
 rule format_rosmap_smr_data:
   input:
-    # ancient(): the ROSMAP besd is a pre-provisioned resource whose raw source
-    # (rosmap_smr) is NA, so this rule can never rebuild it from scratch. Without
-    # ancient(), a reference re-prep (newer prep_1kg.output) re-triggers the rule,
-    # it fails on --rosmap NA, and Snakemake deletes the sole declared output
-    # (.besd.epi) - the 2026-11-03 prod k2260822 incident. Ignoring these inputs'
-    # mtimes keeps the provisioned output stable.
-    ancient(rules.download_smr.output),
-    ancient(rules.prep_1kg.output)
+    # Reference-derived: format_rosmap_smr_data.R rebuilds the ROSMAP besd and
+    # takes allele frequencies from the EUR subset of the reference (ROSMAP is a
+    # EUR panel), so the besd MUST be rebuilt when the reference changes - inputs
+    # are tracked normally, NOT ancient(). The raw pQTL source is resolved in
+    # params (config override, else the in-tree staged copy); see there.
+    rules.download_smr.output,
+    rules.prep_1kg.output
   output:
     f"{resdir}/data/rosmap_smr/ROSMAP.n376.pQTL.MatrixQTL.txt.besd.epi"
   benchmark:
@@ -1560,7 +1562,11 @@ rule format_rosmap_smr_data:
   conda:
     "../envs/main.yaml"
   params:
-    rosmap_smr= config["rosmap_smr"],
+    # Raw ROSMAP pQTL source: config override if set (e.g. tests/config_test.yaml),
+    # else the copy staged in-tree at data/ROSMAP_pQTL/ (resolved via resdir so it
+    # follows the per-epoch resource view). NA now falls back to the staged source
+    # rather than meaning "unbuildable", so the rule rebuilds instead of failing.
+    rosmap_smr= config["rosmap_smr"] if str(config.get("rosmap_smr", "NA")) not in ("NA", "None", "") else f"{resdir}/data/ROSMAP_pQTL/ROSMAP.n376.pQTL.txt",
     resdir=resdir
   log:
     f"{resdir}/logs/format_rosmap_smr_data.log"

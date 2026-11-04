@@ -118,6 +118,11 @@ SHARED_DATA=(
   eqtlgen glist-hg19 gtex ld_scores ldsc liftover msigdb pops psychencode_smr
   recomb_maps rosmap_twas sbayesrc_annot sbayesrc_r_ref sbayesrc_ref
   secondary_gwas sumher_tagging
+  # Raw external source datasets (inputs to the reference-derived build rules).
+  # Epoch-INDEPENDENT (the raw ROSMAP/Banner data is the same regardless of the
+  # reference), so they live once in common/ and the build rules read them via
+  # resdir; the reference-derived PRODUCTS (rosmap_smr besd) are per-epoch.
+  ROSMAP_pQTL ROSMAP-PWAS Banner-PWAS
 )
 
 # A shared subdir that contains ONE reference-derived child: fusion_snp_weights
