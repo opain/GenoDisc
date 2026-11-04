@@ -63,7 +63,9 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
                                 pip_type = "marginal", pc_only = FALSE,
                                 hc_methods = c("caldera","coding","nearest"),
                                 caldera_hc_thr = 0.5, pad_frac = 0.05) {
-  Lval <- as.integer(L)
+  # Accept L as 1/10 or the UI radio values "L1"/"L10".
+  Lval <- suppressWarnings(as.integer(gsub("[^0-9]", "", as.character(L))))
+  if (length(Lval) == 0 || is.na(Lval)) Lval <- 10L
   rd <- function(block) tryCatch(gd_read(gd, gwas, block), error = function(e) NULL)
   sub_locus <- function(df) {
     if (is.null(df) || nrow(df) == 0) return(NULL)
