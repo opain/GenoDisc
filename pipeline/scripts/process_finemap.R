@@ -226,9 +226,10 @@ build_all_locus_pip <- function(files, Lval){
   out
 }
 lp10<-build_all_locus_pip(finemap_files_L10, 10L)
+lp1<-build_all_locus_pip(finemap_files_L1, 1L)
 fwrite(lp10,
        paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.locus_pip.csv'))
-fwrite(build_all_locus_pip(finemap_files_L1, 1L),
+fwrite(lp1,
        paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.GW.finemap.locus_pip.L1.csv'))
 
 # ---- Per-locus recombination-rate track (locus-plot association panel) ----
@@ -244,10 +245,13 @@ get_recomb<-function(chr_i){
   m<-m[order(BP)]; m[, rate:=c(diff(cM)/diff(BP)*1e6, NA_real_)]; m<-m[is.finite(rate)]
   assign(key, m, envir=recomb_cache); m
 }
+# Cover EVERY fine-mapped lead (union of L10 + L1 loci, combined BP range), so
+# L1-only loci get a recombination track too.
+lp_all<-rbind(lp10, lp1, fill=TRUE)
 recomb_out<-NULL
-if(nrow(lp10) > 0){
-  for(loc in unique(lp10$locus)){
-    sub<-lp10[locus==loc]
+if(nrow(lp_all) > 0){
+  for(loc in unique(lp_all$locus)){
+    sub<-lp_all[locus==loc]
     chr_i<-sub$CHR[1]; lo<-min(sub$BP, na.rm=TRUE); hi<-max(sub$BP, na.rm=TRUE)
     rm_map<-get_recomb(chr_i); if(is.null(rm_map)) next
     rw<-rm_map[BP>=lo & BP<=hi, .(BP, rate)]
