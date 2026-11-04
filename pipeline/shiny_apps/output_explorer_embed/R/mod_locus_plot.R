@@ -78,8 +78,16 @@ lp_pack_rows <- function(genes, window) {
   chars_per_window <- 56; pad <- 1.4
   mid <- (genes$gstart_mb + genes$gend_mb) / 2
   lab_half <- nchar(as.character(genes$symbol)) * (win_w / chars_per_window) / 2 * pad
-  genes$eff_start <- pmin(genes$gstart_mb, mid - lab_half)
-  genes$eff_end   <- pmax(genes$gend_mb,   mid + lab_half)
+  # Reserve room for the strand-direction arrow (drawn beyond the gene body on
+  # its strand side, arrow_ext below) plus a small gap, so arrowheads never butt
+  # up against the neighbouring gene on the same row.
+  arrow_ext <- win_w * 0.012; gap <- win_w * 0.006
+  has_arrow <- !is.na(genes$strand)
+  str <- ifelse(is.na(genes$strand), 1, genes$strand)
+  ext_end   <- ifelse(has_arrow & str ==  1, arrow_ext, 0) + gap
+  ext_start <- ifelse(has_arrow & str == -1, arrow_ext, 0) + gap
+  genes$eff_start <- pmin(genes$gstart_mb, mid - lab_half) - ext_start
+  genes$eff_end   <- pmax(genes$gend_mb,   mid + lab_half) + ext_end
   g <- genes[order(genes$eff_start), , drop = FALSE]
   row_end <- numeric(0); g$row <- NA_integer_
   for (i in seq_len(nrow(g))) {

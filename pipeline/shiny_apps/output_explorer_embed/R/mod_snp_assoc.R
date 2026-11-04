@@ -213,39 +213,19 @@ snpAssocUI <- function(id) {
           ),
           mainPanel(
             uiOutput(ns("finemap_status_message")),
-            tabsetPanel(
-              id = ns("finemap_subtab"),
-              tabPanel(
-                "Credible sets (table)",
-                br(),
-                dataTableOutput(ns("snp_assoc_finemap_table")),
-                gd_legend(list(
-                  "L parameter" = paste0(
-                    "Maximum number of causal signals SuSiE may fit per locus ",
-                    "(L1 = single causal variant; L10 = up to ten)."),
-                  "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
-                  "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
-                  "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
-                  "Gene" = "Gene(s) whose body contains all of the variants in the 95% credible set ('None' if no gene spans them).",
-                  "CALDERA top gene" = "CALDERA's highest-probability candidate causal gene for this credible set, at the selected L.",
-                  "CALDERA prob" = "That gene's CALDERA causal-gene probability (0–1, relative within the credible set)."
-                ), heading = "Column guide")
-              ),
-              tabPanel(
-                "Locus plot",
-                value = "locus_plot",
-                br(),
-                uiOutput(ns("lp_controls_ui")),
-                tags$div(style = "max-width: 1100px;",
-                         plotOutput(ns("lp_plot"), height = "auto")),
-                uiOutput(ns("lp_legends")),
-                tags$hr(),
-                tags$h5("Gene association summary (genes in positional order)"),
-                uiOutput(ns("lp_grid_controls_ui")),
-                uiOutput(ns("lp_grid_ui")),
-                tags$div(style = "height: 350px;")   # empty space so the figure can scroll to the bottom
-              )
-            ),
+            br(),
+            dataTableOutput(ns("snp_assoc_finemap_table")),
+            gd_legend(list(
+              "L parameter" = paste0(
+                "Maximum number of causal signals SuSiE may fit per locus ",
+                "(L1 = single causal variant; L10 = up to ten)."),
+              "cs" = "Credible-set identifier: a set of variants that jointly capture one causal signal.",
+              "NSNP" = "Number of variants in the credible set (smaller = better resolved).",
+              "TopPIP" = "Highest posterior inclusion probability in the set (closer to 1 = more confident).",
+              "Gene" = "Gene(s) whose body contains all of the variants in the 95% credible set ('None' if no gene spans them).",
+              "CALDERA top gene" = "CALDERA's highest-probability candidate causal gene for this credible set, at the selected L.",
+              "CALDERA prob" = "That gene's CALDERA causal-gene probability (0–1, relative within the credible set)."
+            ), heading = "Column guide"),
             width = 9
           )
         )
@@ -354,8 +334,18 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           uiOutput(ns("lead_status_message")),
           dataTableOutput(ns("snp_assoc_lead_table")),
           uiOutput(ns("lead_legend")),
-          br(),
-          uiOutput(ns("locus_plot_ui")),
+          tags$hr(),
+          tags$h4("Locus plot"),
+          uiOutput(ns("lp_status")),
+          uiOutput(ns("lp_controls_ui")),
+          tags$div(style = "max-width: 1100px;",
+                   plotOutput(ns("lp_plot"), height = "auto")),
+          uiOutput(ns("lp_legends")),
+          tags$hr(),
+          tags$h5("Gene association summary (genes in positional order)"),
+          uiOutput(ns("lp_grid_controls_ui")),
+          uiOutput(ns("lp_grid_ui")),
+          tags$div(style = "height: 350px;"),   # space so the figure can scroll to the bottom
           width = 9
         )
       )
@@ -856,57 +846,6 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
             if (!is.na(ng_idx)) list(list(width = '600px', targets = ng_idx)))))
     })
 
-    output$locus_plot_ui <- renderUI({
-      req(gwas_data(), input$clumping_type)
-      g <- .pick_gwas("lead_gwas"); req(g)
-
-      if (input$clumping_type != "ld_clumping") {
-        return(div(
-          style = "padding: 20px; text-align: center; color: #6c757d; font-style: italic;",
-          "Locus plots are available for LD-based clumping results only."
-        ))
-      }
-
-      locus_plots <- gd_read(gwas_data(), g, "snp_assoc")$locus_plots
-
-      if (is.null(locus_plots) || length(locus_plots) == 0) {
-        return(div(
-          style = "background-color: #e9ecef; border-radius: 8px; padding: 30px 20px; text-align: center; color: #6c757d;",
-          icon("chart-area", style = "font-size: 1.5em;"),
-          br(), br(),
-          tags$strong("No locus plots available"),
-          br(),
-          "Locus plots are generated for index variants with p < 1e-5 (top 50 by p-value)."
-        ))
-      }
-
-      selected_row <- input$snp_assoc_lead_table_rows_selected
-      if (is.null(selected_row) || length(selected_row) == 0) {
-        return(div(
-          style = "padding: 20px; text-align: center; color: #6c757d; font-style: italic;",
-          "Select a variant from the table above to view its locus plot."
-        ))
-      }
-
-      tbl <- snp_assoc_lead_data()
-      if (selected_row > nrow(tbl)) return(NULL)
-      snp_id <- as.character(tbl[selected_row, "SNP"][[1]])
-
-      b64 <- locus_plots[[snp_id]]
-      if (is.null(b64)) {
-        return(div(
-          style = "padding: 20px; text-align: center; color: #6c757d; font-style: italic;",
-          paste0("No locus plot available for ", snp_id,
-                 " (variant may be outside the top 50 loci by p-value).")
-        ))
-      }
-
-      tags$img(
-        src = paste0("data:image/png;base64,", b64),
-        style = "max-width: 100%; height: auto;"
-      )
-    })
-
     snp_assoc_finemap_data <- reactive({
       req(gwas_data(), input$l_param)
       g <- .pick_gwas("finemap_gwas"); req(g)
@@ -1025,26 +964,68 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # ======================================================================
     # Locus plot (enriched fine-mapping dashboard) — builders in mod_locus_plot.R
     # ======================================================================
+    # Fine-mapped loci (SuSiE leads) at the currently-selected dashboard L.
     lp_loci <- reactive({
-      req(gwas_data(), input$l_param)
-      g <- .pick_gwas("finemap_gwas"); req(g)
+      req(gwas_data())
+      g <- .pick_gwas("lead_gwas"); req(g)
       sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
-      st <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie[[input$l_param]] else NULL
+      st <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie[[input$lp_l %||% "L1"]] else NULL
       if (is.null(st) || nrow(st) == 0) return(character(0))
       sort(unique(as.character(st$SNP[!is.na(st$SNP)])))
     })
+    # Any fine-mapped locus across both L — governs whether the dashboard shows.
+    lp_any_finemap <- reactive({
+      req(gwas_data())
+      g <- .pick_gwas("lead_gwas"); req(g)
+      sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
+      su <- if (!is.null(sa)) sa$susie else NULL
+      if (is.null(su)) return(FALSE)
+      length(c(su$L1$SNP, su$L10$SNP)) > 0
+    })
+    # Locus = lead variant of the clicked row in the lead-variant table.
+    lp_selected_locus <- reactive({
+      sel <- input$snp_assoc_lead_table_rows_selected
+      if (is.null(sel) || !length(sel)) return(NULL)
+      tbl <- snp_assoc_lead_data()
+      if (sel > nrow(tbl)) return(NULL)
+      as.character(tbl[sel, "SNP"][[1]])
+    })
+    # Non-NULL only when the clicked locus actually has a credible set at this L.
+    lp_valid_locus <- reactive({
+      sel <- lp_selected_locus(); if (is.null(sel)) return(NULL)
+      if (sel %in% lp_loci()) sel else NULL
+    })
 
+    # Status / prompt line above the plot.
+    output$lp_status <- renderUI({
+      if (!isTRUE(lp_any_finemap()))
+        return(div(class = "gd-legend", em("No fine-mapped loci (credible sets) in this GWAS.")))
+      sel <- lp_selected_locus()
+      if (is.null(sel))
+        return(div(class = "gd-legend", em("Select a lead-variant row above to view its locus plot.")))
+      if (!(sel %in% lp_loci())) {
+        l_now <- input$lp_l %||% "L1"; other <- if (l_now == "L1") "L10" else "L1"
+        return(div(class = "gd-legend", em(sprintf(
+          "%s has no credible set at %s — try %s, or select a fine-mapped lead variant.",
+          sel, l_now, other))))
+      }
+      NULL
+    })
+
+    # Controls render once fine-mapping exists (not per-locus, so a row click
+    # doesn't rebuild them and reset the user's panel/HC choices). The region
+    # inputs are synced per locus by updateNumericInput, below.
     output$lp_controls_ui <- renderUI({
-      loci <- lp_loci()
-      if (length(loci) == 0)
-        return(div(class = "gd-legend", em("No fine-mapped loci for this GWAS at the selected L.")))
+      if (!isTRUE(lp_any_finemap())) return(NULL)
       tagList(
         fluidRow(
-          column(4, selectInput(ns("lp_locus_sel"), "Locus (lead variant):", choices = loci, selected = loci[1])),
-          column(4, radioButtons(ns("lp_pip_type"), "PIP shown:",
+          column(3, radioButtons(ns("lp_l"), "L parameter:",
+                                 choices = c("L1" = "L1", "L10" = "L10"),
+                                 selected = isolate(input$lp_l) %||% "L1", inline = TRUE)),
+          column(3, radioButtons(ns("lp_pip_type"), "PIP shown:",
                                  choices = c("Marginal" = "marginal", "Per-cs (alpha)" = "alpha"),
                                  selected = "marginal", inline = TRUE)),
-          column(4, checkboxInput(ns("lp_pc_only"), "Protein-coding genes only", FALSE))),
+          column(3, checkboxInput(ns("lp_pc_only"), "Protein-coding genes only", FALSE))),
         fluidRow(
           column(4, numericInput(ns("lp_lo"), "Region start (Mb):", value = NA, step = 0.05)),
           column(4, numericInput(ns("lp_hi"), "Region end (Mb):", value = NA, step = 0.05)),
@@ -1072,36 +1053,49 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
     })
 
-    # Debounced so typing a region bound doesn't redraw on every keystroke.
-    lp_win_override <- shiny::debounce(reactive({
+    # Natural window (no override) for defaulting / resetting the BP-limit inputs.
+    lp_natural_window <- reactive({
+      g <- .pick_gwas("lead_gwas"); req(gwas_data(), g, lp_valid_locus())
+      d <- lp_build_locus_data(gwas_data(), g, lp_valid_locus(), input$lp_l %||% "L1", win_override = NULL)
+      if (is.null(d)) NULL else d$window
+    })
+    # Debounce only the typing of the region bounds, so a redraw doesn't fire on
+    # every keystroke.
+    lp_win_raw <- shiny::debounce(reactive({
       lo <- suppressWarnings(as.numeric(input$lp_lo)); hi <- suppressWarnings(as.numeric(input$lp_hi))
       if (is.na(lo) || is.na(hi) || hi <= lo) NULL else c(lo, hi)
     }), 800)
+    # Validate the (debounced) region against the current locus's natural window,
+    # NOT debounced: a region left over from a previously-selected locus won't
+    # overlap the new locus, so switching locus drops it immediately (falls back
+    # to the natural window) instead of flashing an out-of-range (black) plot
+    # during the debounce interval before the inputs are reset.
+    lp_win_override <- reactive({
+      v <- lp_win_raw(); if (is.null(v)) return(NULL)
+      nw <- lp_natural_window()
+      if (!is.null(nw) && (v[2] < nw[1] || v[1] > nw[2])) return(NULL)
+      v
+    })
     lp_data <- reactive({
-      req(gwas_data(), input$l_param, input$lp_locus_sel)
-      g <- .pick_gwas("finemap_gwas"); req(g)
-      lp_build_locus_data(gwas_data(), g, input$lp_locus_sel, input$l_param,
+      g <- .pick_gwas("lead_gwas"); req(gwas_data(), g, lp_valid_locus())
+      lp_build_locus_data(gwas_data(), g, lp_valid_locus(), input$lp_l %||% "L1",
                           pip_type = input$lp_pip_type %||% "marginal",
                           pc_only = isTRUE(input$lp_pc_only),
                           hc_methods = input$lp_hc %||% character(0),
                           win_override = lp_win_override())
-    })
-    # Natural window (no override) for defaulting / resetting the BP-limit inputs.
-    lp_natural_window <- reactive({
-      req(gwas_data(), input$l_param, input$lp_locus_sel)
-      g <- .pick_gwas("finemap_gwas"); req(g)
-      d <- lp_build_locus_data(gwas_data(), g, input$lp_locus_sel, input$l_param, win_override = NULL)
-      if (is.null(d)) NULL else d$window
     })
     .lp_set_region <- function() {
       nw <- lp_natural_window(); if (is.null(nw)) return()
       updateNumericInput(session, "lp_lo", value = round(nw[1], 3))
       updateNumericInput(session, "lp_hi", value = round(nw[2], 3))
     }
-    observeEvent(list(input$lp_locus_sel, input$l_param), .lp_set_region())
+    # Reset the region whenever the locus (clicked row) or L changes.
+    observeEvent(list(lp_valid_locus(), input$lp_l), .lp_set_region())
     observeEvent(input$lp_reset_region, .lp_set_region())
 
-    lp_nrows <- reactive({ d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
+    lp_nrows <- reactive({
+      if (is.null(lp_valid_locus())) return(1L)   # keep the plot-height fn from erroring when nothing is selected
+      d <- lp_data(); if (is.null(d) || is.null(d$genes)) 1L else max(d$genes$row) })
     lp_panels_sel <- reactive({ s <- input$lp_panels; if (is.null(s)) c("A","B","C") else s })
 
     lp_h_px <- reactive({
@@ -1142,7 +1136,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # ---- Gene association summary grid (panel D) — separate, own controls ----
     lp_grid_opts <- reactive({
       d <- lp_data(); if (is.null(d)) return(list(methods = character(0), expr = character(0), protein = character(0)))
-      g <- .pick_gwas("finemap_gwas"); req(g)
+      g <- .pick_gwas("lead_gwas"); req(g)
       tryCatch(lp_grid_options(gwas_data(), g, config_flags(), d),
                error = function(e) list(methods = character(0), expr = character(0), protein = character(0)))
     })
@@ -1181,7 +1175,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
     lp_grid_build <- function() {
       d <- lp_data(); if (is.null(d)) return(NULL)
-      g <- .pick_gwas("finemap_gwas"); req(g)
+      g <- .pick_gwas("lead_gwas"); req(g)
       tryCatch(build_locus_assoc_grid(gwas_data(), g, config_flags(), d,
                methods = input$lpg_methods, panels = lpg_panels_sel(),
                font_size = input$lpg_font %||% 14, theme_fn = mol_theme_fn(input$lpg_theme %||% "bw")),
@@ -1189,7 +1183,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     }
     lpg_dims <- reactive({
       d <- lp_data(); if (is.null(d)) return(list(nrows = 6L, ngenes = 10L, nlegends = 2L))
-      g <- .pick_gwas("finemap_gwas")
+      g <- .pick_gwas("lead_gwas")
       tryCatch(lp_grid_dims(gwas_data(), g, config_flags(), d, input$lpg_methods, lpg_panels_sel()),
                error = function(e) list(nrows = 6L, ngenes = 10L, nlegends = 2L))
     })
@@ -1209,7 +1203,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
     output$lpg_download <- downloadHandler(
       filename = function() sprintf("locus_gene_summary_%s_%s.%s",
-                 input$lp_locus_sel %||% "locus", input$l_param %||% "L", input$lpg_dl_format %||% "png"),
+                 lp_valid_locus() %||% "locus", input$lp_l %||% "L", input$lpg_dl_format %||% "png"),
       content = function(file) {
         p <- tryCatch(lp_grid_build(), error = function(e) NULL)
         open_plot_device(file, fmt = input$lpg_dl_format %||% "png",
@@ -1233,7 +1227,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     output$lp_download <- downloadHandler(
       filename = function() sprintf("locus_plot_%s_%s.%s",
-                 input$lp_locus_sel %||% "locus", input$l_param %||% "L", input$lp_dl_format %||% "png"),
+                 lp_valid_locus() %||% "locus", input$lp_l %||% "L", input$lp_dl_format %||% "png"),
       content = function(file) {
         p <- tryCatch(lp_build(), error = function(e) NULL)
         open_plot_device(file, fmt = input$lp_dl_format %||% "png",
