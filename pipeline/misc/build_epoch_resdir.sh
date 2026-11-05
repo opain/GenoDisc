@@ -57,6 +57,7 @@ SRC=""
 ROOT=""
 EPOCH=""
 MODE="dry-run"
+SHARED_STORE="copy"   # copy = build a real common/ store; src = symlink shared straight to --src
 RUN_BUILD=0
 BUILD_CORES=4
 # Pipeline dir used for the Step-4 build command. Defaults to this script's own
@@ -70,6 +71,7 @@ while [[ $# -gt 0 ]]; do
     --src)   SRC="$2"; shift 2;;
     --root)  ROOT="$2"; shift 2;;
     --mode)  MODE="$2"; shift 2;;
+    --shared-store) SHARED_STORE="$2"; shift 2;;
     --pipeline) PIPE="$2"; shift 2;;
     --cores) BUILD_CORES="$2"; shift 2;;
     --run-build) RUN_BUILD=1; shift;;
@@ -80,11 +82,18 @@ done
 
 SRC="${SRC:-$GD/pipeline_resources}"
 ROOT="${ROOT:-$GD/resources}"
-COMMON="$ROOT/common"
 VIEW="$ROOT/v-$EPOCH"
+# Where shared (reference-independent) resources live that the view symlinks to:
+#   copy -> a real <root>/common store populated from --src (Step 1).
+#   src  -> --src itself (pipeline_resources); shared entries symlink straight
+#           there, Step 1 is skipped. Avoids copying the huge small-file trees
+#           (GCSC/twas_weights, fusion_snp_weights) that make cp pathologically
+#           slow on cephfs; pipeline_resources stays as the shared backing store.
+if [[ "$SHARED_STORE" == "src" ]]; then COMMON="$SRC"; else COMMON="$ROOT/common"; fi
 
 case "$EPOCH" in dense|legacy) ;; *) echo "ERROR: --epoch must be 'dense' or 'legacy'" >&2; exit 2;; esac
 case "$MODE" in dry-run|link|move|copy) ;; *) echo "ERROR: --mode must be dry-run|link|move|copy" >&2; exit 2;; esac
+case "$SHARED_STORE" in copy|src) ;; *) echo "ERROR: --shared-store must be copy|src" >&2; exit 2;; esac
 [[ -d "$SRC" ]] || { echo "ERROR: --src not a directory: $SRC" >&2; exit 2; }
 
 # ---------------------------------------------------------------------------
@@ -268,6 +277,9 @@ say ""
 # ---------------------------------------------------------------------------
 # 2. Populate common/ (shared, reference-independent)  [from --src]
 # ---------------------------------------------------------------------------
+if [[ "$SHARED_STORE" == "src" ]]; then
+  say "--- Step 1: SKIPPED (shared-store=src: shared resources stay in $SRC; the view symlinks straight to them) ---"
+else
 say "--- Step 1: populate common store ($COMMON) ---"
 run mkdir -p "$COMMON/data" "$COMMON/software"
 
@@ -289,6 +301,7 @@ for n in "${!PLAN_DATA[@]}"; do
   esac
 done
 for s in "${SOFT_ENTRIES[@]}"; do relocate "$SRC/software/$s" "$COMMON/software/$s"; done
+fi
 
 # ---------------------------------------------------------------------------
 # 3. Build the per-epoch view (real reference-derived + symlinks to common)
@@ -394,9 +407,11 @@ fi
 
 say ""
 say "Done (mode=$MODE)."
-say "ARM (go live) only AFTER the Step-4 build succeeds and you have verified the"
-say "view - the web app switches a job to v-<epoch> only when BOTH markers exist:"
-say "  touch $COMMON/.ready        # arms the shared common store"
+say "ARM (go live) only AFTER the Step-4 build succeeds and you have verified the view."
+say "The web app switches a job to v-<epoch> once its marker exists:"
 say "  touch $VIEW/.ready          # arms epoch '$EPOCH'"
+if [[ "$SHARED_STORE" == "copy" ]]; then
+  say "  touch $COMMON/.ready        # arms the shared common store (copy mode only)"
+fi
 say "ROLLBACK at any time: rm $VIEW/.ready  (jobs fall back to pipeline_resources)."
 [[ "$MODE" == "dry-run" ]] && say "This was a DRY RUN — nothing changed. Re-run with --mode link|move|copy to apply."
