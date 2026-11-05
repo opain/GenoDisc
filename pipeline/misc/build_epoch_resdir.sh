@@ -321,7 +321,14 @@ for s in "${SOFT_ENTRIES[@]}"; do symlink_rel "$COMMON/software/$s" "$VIEW/softw
 # 3b. Reference-derived data/ -> real per-epoch. Entries listed in REBUILD_REF are
 #     created EMPTY to be rebuilt fresh by Step 4 (they can be stale in --src); the
 #     rest are relocated as-is (already correct; cheaper than recomputing).
+# The two epochs use DISTINCT reference-panel dirs (dense=1kg_hgdp, legacy=1kg) -
+# include only this epoch's, so the dense view doesn't carry the 24G legacy panel
+# (and vice-versa). Other reference-derived dirs (magma, magma_ref,
+# predicted_expression) share a path across epochs: dense copies the current ones;
+# legacy lists them in REBUILD_REF to rebuild from the old reference.
+case "$EPOCH" in dense) _other_panel="1kg" ;; legacy) _other_panel="1kg_hgdp" ;; esac
 for n in "${!PLAN_DATA[@]}"; do
+  [[ "$n" == "$_other_panel" ]] && continue   # skip the other epoch's reference panel
   case "${PLAN_DATA[$n]}" in
     REF|REF_FLAG)
       if is_in "$n" "${REBUILD_REF[@]}"; then
