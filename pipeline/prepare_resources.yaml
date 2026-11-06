@@ -1,6 +1,11 @@
 ############
-# Config for: snakemake --configfile prepare_resources.yaml prepare_resources
-# Downloads and processes all resources without running any analysis.
+# Config for building ALL pipeline resources (no analysis run). LAYER IT ON TOP
+# of config.yaml so parameter defaults (repos/paths/thresholds) and any FUTURE
+# config keys come from there automatically - this file only overrides the
+# resource-enabling toggles + the dummy outdir/gwas_list:
+#   snakemake --configfile config.yaml prepare_resources.yaml prepare_resources
+# Using this file ALONE will KeyError on keys added to config.yaml since it was
+# last updated - which is exactly why it is layered now.
 ############
 
 # Required parameters (not used by prepare_resources, but needed at parse time)
@@ -23,6 +28,21 @@ finemap: T
 sbayesrc: T
 sumher: T
 ldsc: T
+
+# Newer features whose resources are DOWNLOADED/BUILT (default F in config.yaml;
+# enabled here so prepare_resources fetches their resources too). Parameter
+# defaults (repos/paths/thresholds) come from config.yaml via the layered
+# --configfile above. NOTE: only toggles that gate a RESOURCE rule are enabled -
+# analysis-only toggles (magma_pathway, twas_gsea_pathway/_cmap,
+# *_drugtargetor_gls, magma_interaction) are left at their config.yaml default,
+# since they gate per-job analysis (and some require per-job config like
+# pathway_gmt_dir), not resource provisioning.
+sbayesrc_r: T                 # -> download_sbayesrc_r_ref + install_sbayesrc_rpkg
+pops: T                       # -> download_pops
+caldera: T                    # -> download_caldera
+credset_coding_annot: T       # -> download_alphamissense + bcftools csq refs
+twas_panel_fetal_brain: T     # -> fetal-brain FUSION weights
+twas_panel_herv: T            # -> HERV FUSION weights
 
 # MAGMA
 magma_gene: T

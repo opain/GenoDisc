@@ -393,9 +393,9 @@ fi
 # ---------------------------------------------------------------------------
 BUILD_CMD=(snakemake prepare_resources
   --snakefile "$PIPE/Snakefile"
-  --configfile "$PIPE/prepare_resources.yaml"
+  --configfile "$PIPE/config.yaml" "$PIPE/prepare_resources.yaml"
   --config "resdir=$VIEW"
-  --use-conda -c"$BUILD_CORES")
+  --use-conda --conda-prefix "$GD/conda-envs" -c"$BUILD_CORES")
 say ""
 say "--- Step 4: build reference-derived resources  (REBUILD_REF: ${REBUILD_REF[*]}) ---"
 say "Run on the cluster (dry-run FIRST to confirm only the intended rebuilds fire):"
