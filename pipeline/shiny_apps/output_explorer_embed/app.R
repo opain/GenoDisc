@@ -34,6 +34,31 @@ ui <- fluidPage(
 
   shinyjs::useShinyjs(),
 
+  # Preload feedback: when the viewer is opened from the dashboard with a
+  # ?job=<token> preload link, flag <html data-preloading> at parse time (before
+  # the body paints) so the loading overlay (see CSS + #gd-loading-overlay below)
+  # shows immediately — long before the resolve+open round-trip finishes — and
+  # masks the brief tab settling. Cleared when the bundle is ready
+  # (data-app-ready) or on a preload failure. A failsafe timeout drops it so the
+  # overlay can never stick forever.
+  tags$head(tags$script(HTML(paste(
+    "(function(){try{",
+    "  function arm(msg){",
+    "    var t=document.querySelector('#gd-loading-overlay .gd-loading-text');",
+    "    if (t && msg) t.textContent = msg;",
+    "    document.documentElement.setAttribute('data-preloading','1');",
+    "    setTimeout(function(){document.documentElement.removeAttribute('data-preloading');}, 60000);",
+    "  }",
+    "  if (new URLSearchParams(location.search).get('job')) { arm(); }",
+    "  // Clicking 'Use example data' has a few-seconds wait with no native",
+    "  // progress bar, so show the same overlay immediately for feedback.",
+    "  document.addEventListener('click', function(e){",
+    "    if (e.target.closest('#data_input-loadExample')) arm('Loading example data…');",
+    "  });",
+    "}catch(e){}})();",
+    sep = "\n"
+  )))),
+
   # Utility class: hide the nav-tabs header row of an inner tabsetPanel
   # when only one tab is meaningful (e.g. Multi-GWAS hidden on single-
   # GWAS bundles). Applied via shinyjs::addClass from each module's
@@ -537,6 +562,28 @@ ui <- fluidPage(
       display: none !important;
     }
 
+    /* ===== Preload loading overlay =====
+       Full-screen while a dashboard preload (?job=) is resolving + opening, so the
+       user gets immediate feedback and the tab settling is hidden behind it. Shown
+       by the parse-time data-preloading flag; removed when data-app-ready is set
+       (bundle ready) or data-preloading is cleared (preload failed / failsafe). */
+    #gd-loading-overlay { display: none; }
+    html[data-preloading]:not([data-app-ready]) #gd-loading-overlay {
+      display: flex;
+      position: fixed; inset: 0; z-index: 2000;
+      flex-direction: column; align-items: center; justify-content: center;
+      background: var(--gd-bg);
+    }
+    #gd-loading-overlay .gd-spinner {
+      width: 42px; height: 42px; border: 4px solid var(--gd-border);
+      border-top-color: var(--gd-accent); border-radius: 50%;
+      animation: gd-spin 0.8s linear infinite;
+    }
+    #gd-loading-overlay .gd-loading-text {
+      margin-top: 16px; color: var(--gd-text); font-size: 15px;
+    }
+    @keyframes gd-spin { to { transform: rotate(360deg); } }
+
     /* ===== Plot outputs =====
        Round the corners of every plotOutput visually via overflow:hidden on
        the wrapper. The underlying <img> stays rectangular, so right-click →
@@ -593,6 +640,12 @@ ui <- fluidPage(
     )
   ),
 
+  tags$div(
+    id = "gd-loading-overlay",
+    tags$div(class = "gd-spinner"),
+    tags$div(class = "gd-loading-text", "Loading your results…")
+  ),
+
   tabsetPanel(id = "main_tabs",
     dataInputUI("data_input"),
     overviewUI("overview"),
@@ -608,6 +661,10 @@ ui <- fluidPage(
 
 # Define server logic
 server <- function(input, output, session) {
+
+  # Set once the downstream tabs are first revealed (see the config_flags
+  # observer), so the reveal + overlay-release happens exactly once on initial load.
+  app_revealed <- reactiveVal(FALSE)
 
   # Hide all downstream tabs on startup (including the new Overview tab, which
   # only appears once the user selects >= 2 GWAS).
@@ -667,9 +724,20 @@ server <- function(input, output, session) {
     toggle("Molecular Associations", cf$mol_assoc || isTRUE(cf$effector))
     toggle("Enrichment Analysis", any(cf$magma_drugtargetor, cf$gcsc, cf$twas_gsea_drugtargetor, cf$twas_gsea_drugtargetor_nondirectional, cf$tissue_magma, cf$pathway))
 
-    # Release the CSS-level hide of downstream tabs now that Shiny has
-    # decided which of them should be visible for the loaded bundle.
-    shinyjs::runjs("document.documentElement.setAttribute('data-app-ready', '1');")
+    # Release the CSS-level hide of downstream tabs (and the preload overlay,
+    # which keys off data-app-ready) only AFTER the showTab/hideTab messages from
+    # this flush have reached and been applied by the client. showTab/hideTab and
+    # this shinyjs call travel on different channels, so setting the flag inline
+    # lets the guard lift before the hides land — flashing every tab in, then
+    # dropping some. session$onFlushed fires after the current flush is sent, so
+    # the reveal goes out in the NEXT flush, strictly after the tab visibility is
+    # applied. Guarded to run only on the first (initial-load) resolution.
+    if (!app_revealed()) {
+      app_revealed(TRUE)
+      session$onFlushed(function() {
+        shinyjs::runjs("requestAnimationFrame(function(){document.documentElement.setAttribute('data-app-ready','1');});")
+      }, once = TRUE)
+    }
   })
 
   # ---- Comparison mode plumbing ----

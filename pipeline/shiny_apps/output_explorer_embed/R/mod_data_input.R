@@ -76,6 +76,8 @@ dataInputServer <- function(id) {
         source_label(list(kind = "example", text = "Example data (ALS)"))
         rds_path(normalizePath(hit, winslash = "/"))
       } else {
+        # The client showed the loading overlay on click; clear it on failure.
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
         showNotification("Example data file not found (looked for data/als_bundle.tar.gz).", type = "error")
       }
     })
@@ -89,7 +91,12 @@ dataInputServer <- function(id) {
     observeEvent(session$clientData$url_search, once = TRUE, {
       q <- parseQueryString(session$clientData$url_search)
       token <- q[["job"]]; src <- q[["src"]]
-      if (is.null(token) || !nzchar(token) || is.null(src) || !nzchar(src)) return()
+      if (is.null(token) || !nzchar(token) || is.null(src) || !nzchar(src)) {
+        # A malformed preload link (job without a usable src) still set the
+        # parse-time overlay flag; clear it so the overlay doesn't hang.
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
+        return()
+      }
 
       # The web app is behind Portal SSO on its public host, so it hands us an
       # INTERNAL localhost base to call back on (dev :6000, prod :5000). Only
@@ -101,6 +108,7 @@ dataInputServer <- function(id) {
       )
       src <- sub("/+$", "", src)
       if (!(src %in% allow)) {
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
         showNotification("This preview link is from an unrecognised source and was not opened.", type = "error")
         return()
       }
@@ -116,12 +124,11 @@ dataInputServer <- function(id) {
           "your GenoDisc dashboard"
         }
         source_label(list(kind = "job", text = lbl))
-        showNotification(
-          paste0("Loaded results from ", lbl, " — showing them now."),
-          type = "message", duration = 6
-        )
+        # No toast: the loading overlay already signals progress and the
+        # "Currently loaded" banner confirms success once the tabs appear.
         rds_path(path)
       } else {
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
         showNotification(
           "This preview link has expired. Please reopen it from your GenoDisc dashboard.",
           type = "error", duration = NULL
@@ -139,11 +146,13 @@ dataInputServer <- function(id) {
       prev_extract_dir(NULL)
 
       gd <- tryCatch(gd_open(path), error = function(e) {
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
         showNotification(paste0("Could not open file: ", conditionMessage(e)), type = "error")
         NULL
       })
       if (is.null(gd)) req(FALSE)
       if (length(gd_gwas(gd)) == 0L) {
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
         showNotification("Results package contains no GWAS.", type = "error")
         req(FALSE)
       }
@@ -162,6 +171,7 @@ dataInputServer <- function(id) {
         s
       }
       if (total_bytes > max_bytes) {
+        shinyjs::runjs("document.documentElement.removeAttribute('data-preloading')")
         showNotification(sprintf(
           "Bundle too large for this instance: %.0f MB of block data (limit: %.0f MB). Split the bundle or upload a smaller one.",
           total_bytes / 1024^2, max_bytes / 1024^2),
