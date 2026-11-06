@@ -1472,6 +1472,10 @@ rule download_csq_ref:
 # features_jul17_control.txt, and the scripts) and MIRROR the ~7 GB feature matrix
 # locally (the upstream Dropbox host is historically flaky - issue #18).
 POPS_REPO_URL = "https://github.com/FinucaneLab/pops.git"
+# Pin the clone to a specific commit for reproducibility (upstream ships no tags,
+# so an unpinned `git clone` would silently drift). This SHA is what the write-up
+# generator records as the PoPS version (writeup/registry.yaml).
+POPS_COMMIT = "76eb86cba10254490003c8f4dc7ff5ce492d3667"
 POPS_FEATURES_URL = "https://www.dropbox.com/scl/fo/ne7xhxkt4dwhvd52a59ub/AFKkJu7ACaun1uuE99kmTkc/data/PoPS.features.txt.gz?rlkey=ltdbcld1enyr1zefg1lfqm61i&dl=1"
 
 rule download_pops:
@@ -1486,12 +1490,13 @@ rule download_pops:
   conda:
     "../envs/main.yaml"
   params:
-    repo=POPS_REPO_URL, feat=POPS_FEATURES_URL, sw=f"{resdir}/software", d=f"{resdir}/data/pops/features_raw"
+    repo=POPS_REPO_URL, commit=POPS_COMMIT, feat=POPS_FEATURES_URL, sw=f"{resdir}/software", d=f"{resdir}/data/pops/features_raw"
   log:
     f"{resdir}/logs/download_pops.log"
   shell:
     "(set -eo pipefail; mkdir -p {params.sw} {params.d}; "
-    "rm -rf {params.sw}/pops; git clone --depth 1 {params.repo} {params.sw}/pops; "
+    "rm -rf {params.sw}/pops; git clone {params.repo} {params.sw}/pops; "
+    "git -C {params.sw}/pops checkout -q {params.commit}; "
     "curl -fsSL '{params.feat}' -o {params.d}/PoPS.features.txt.gz) > {log} 2>&1"
 
 # Dedicated MAGMA gene annotation keyed on Ensembl gene IDs (to match the PoPS

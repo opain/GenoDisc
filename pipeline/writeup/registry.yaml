@@ -135,14 +135,14 @@ software:
     version: "static binary (sha-pinned in rules/dependencies.smk)"
     bibkey: [heilbron2024caldera]
     used_by: [caldera]
-    notes: "Effector-gene model; citation VERIFY (scripts/run_caldera.R attributes Heilbron et al. 2024)."
+    notes: "Effector-gene model from fine-mapped credible sets (Schipper, Ulirsch, Posthuma, Ripke & Heilbron 2026, PLOS Genetics; scripts/run_caldera.R)."
 
   - key: pops
     name: Polygenic Priority Score (PoPS)
-    unpinned: true
+    version: "FinucaneLab/pops @ 76eb86c (pinned in rules/dependencies.smk)"
     bibkey: [weeks2023pops]
     used_by: [pops, caldera]
-    notes: "Gene prioritisation score (ENSGID MAGMA step) that feeds CALDERA; citation VERIFY."
+    notes: "Gene prioritisation score (ENSGID MAGMA step) that feeds CALDERA."
 
   - key: bcftools_csq
     name: BCFtools/csq
@@ -150,7 +150,7 @@ software:
     conda_pkg: bcftools
     bibkey: [danecek2017bcftoolscsq]
     used_by: [credset_coding_annot]
-    notes: "Haplotype-aware variant consequences against the Ensembl GRCh37 GFF3; citation VERIFY."
+    notes: "Haplotype-aware variant consequences against the Ensembl GRCh37 GFF3."
 
 datasets:
   - key: ref_1kg_hgdp
@@ -226,11 +226,11 @@ datasets:
     version: "AlphaMissense GRCh37 precomputed"
     bibkey: [cheng2023alphamissense]
     used_by: [credset_coding_annot]
-    notes: "Missense scores joined to credible-set coding variants; citation VERIFY."
+    notes: "Missense scores joined to credible-set coding variants."
 
   - key: gencode
     name: GENCODE protein-coding gene model
     version: "GENCODE v47 (GRCh37)"
     bibkey: [frankish2021gencode]
     used_by: [caldera]
-    notes: "CALDERA's protein-coding gene universe; citation VERIFY."
+    notes: "CALDERA's protein-coding gene universe."

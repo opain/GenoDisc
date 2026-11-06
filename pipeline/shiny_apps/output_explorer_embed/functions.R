@@ -165,6 +165,28 @@ gwas_choices <- function(gd, name_vec) {
   setNames(as.character(name_vec), gwas_label_of(gd, name_vec))
 }
 
+# Render pipeline-generated write-up markdown (methods.md / results.md) to safe
+# HTML for in-app preview. The text can contain user-supplied strings (GWAS/trait
+# labels are interpolated straight into headings by the pipeline), so raw HTML
+# must be neutralised. commonmark renders in unsafe mode with no safe flag, and
+# shiny::markdown() lets raw tags such as <img onerror> through. Recipe:
+#   1. escape '<' -> '&lt;'  (neutralises every raw HTML tag; a tag needs '<'.
+#      '>' is left intact so markdown blockquotes — the draft banner starts with
+#      one — still render; citation keys [@k] and '&' are untouched);
+#   2. render with commonmark (extensions on, for tables);
+#   3. disarm dangerous URL schemes in generated <a>/<img> (a malicious label
+#      could inject [text](javascript:...)).
+# commonmark is already present as a `shiny` dependency, so this adds nothing.
+render_markdown_safe <- function(text) {
+  if (is.null(text) || !length(text)) return(shiny::HTML(""))
+  md  <- paste(text, collapse = "\n")
+  esc <- gsub("<", "&lt;", md, fixed = TRUE)
+  html <- commonmark::markdown_html(esc, extensions = TRUE)
+  html <- gsub("(href|src)=\"\\s*(javascript|data|vbscript):[^\"]*\"",
+               "\\1=\"#\"", html, ignore.case = TRUE, perl = TRUE)
+  shiny::HTML(html)
+}
+
 # Display-only remap of the Direction column so language works for
 # non-disease traits. Underlying data still uses "Matches disease" /
 # "Opposes disease" so downstream string comparisons are unchanged.
