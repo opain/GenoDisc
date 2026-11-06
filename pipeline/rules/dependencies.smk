@@ -1268,7 +1268,14 @@ def feature_pred_input(wildcards):
 rule feature_pred:
   resources:
     mem_mb=50000,
-    cpus=5
+    cpus=5,
+    # feature_pred predicts expression gene-by-gene into the 1KG reference; for
+    # the largest panels (Whole_Blood, Thyroid, Lung, Nerve_Tibial, ...) this
+    # exceeds the profile's 480-min default and the job is SLURM-killed with
+    # TIMEOUT. The profile's auto-derived per-rule runtimes never covered
+    # feature_pred, so set a generous one here (36h; well under neurohack_cpu's
+    # 90-day cap and cpu's 2-day cap).
+    runtime=2160
   input:
     feature_pred_input
   output:
