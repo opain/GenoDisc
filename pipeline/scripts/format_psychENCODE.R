@@ -57,7 +57,17 @@ for(i in 1:22){
   for(k in 1:dim(pos_i)[1]){
     print(k)
     load(paste0(opt$resdir, '/data/fusion_snp_weights/psychencode/',pos_i$WGT[k]))
-    
+
+    # Idempotency guard: this remap rewrites each weight file IN PLACE and is
+    # NOT re-run safe. The merge below maps the chr:pos SNP IDs that PsychENCODE
+    # ships in snps$V2 onto reference RSIDs. If a weight has already been
+    # remapped (V2 are RSIDs, i.e. no ':') a second run matches nothing and
+    # would overwrite it with empty snps/wgt.matrix tables - exactly what a
+    # reference-change-triggered rebuild on already-formatted weights did. Skip
+    # already-remapped (or empty) weights so re-running this rule cannot wipe
+    # them; a genuine rebuild must start from freshly extracted raw weights.
+    if(nrow(snps) == 0 || !any(grepl(':', snps$V2, fixed=TRUE))) next
+
     ref_i_k<-ref_i[ref_i$V4 > (pos_i$P0[k] - 5e6) & ref_i$V4 < (pos_i$P1[k] + 5e6),]
     
     snps<-data.table(snps)
