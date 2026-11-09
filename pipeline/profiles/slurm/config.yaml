@@ -63,52 +63,52 @@ default-resources:
 # more jobs accrue. Derived 2026-09-23 from 17219 benchmark files (chr22-only
 # test-mode runs excluded). The trailing comments are n=samples, max=observed max.
 set-resources:
-  - clump:runtime=10    # n=687, max=39s
+  - clump:runtime=60    # n=687, max=39s
   - cojo:runtime=216    # n=176, max=8604s
-  - combine_twas_res:runtime=10    # checkpoint; n=38, max=31s
-  - convert_pathway_gmt:runtime=10    # n=10, max=43s
+  - combine_twas_res:runtime=180    # checkpoint; n=38, max=31s
+  - convert_pathway_gmt:runtime=60    # n=10, max=43s
   - finemap:runtime=11    # n=220, max=422s
-  - format_eqtlgen_smr:runtime=10    # n=6, max=3s
-  - format_magma_gene_results:runtime=10    # n=28, max=20s
-  - format_magma_pathway_results:runtime=10    # n=28, max=8s
-  - format_magma_results:runtime=10    # n=26, max=96s
-  - format_metabrain_smr:runtime=10    # n=17, max=9s
-  - format_sumstats_smr:runtime=10    # n=24, max=95s
-  - format_twas_gsea_drugtargetor_nondirectional_results:runtime=10    # n=339, max=52s
-  - format_twas_gsea_drugtargetor_results:runtime=10    # n=363, max=88s
-  - format_twas_gsea_pathway_results:runtime=10    # n=446, max=13s
-  - ldsc:runtime=10    # n=40, max=197s
+  - format_eqtlgen_smr:runtime=60    # n=6, max=3s
+  - format_magma_gene_results:runtime=60    # n=28, max=20s
+  - format_magma_pathway_results:runtime=60    # n=28, max=8s
+  - format_magma_results:runtime=60    # n=26, max=96s
+  - format_metabrain_smr:runtime=60    # n=17, max=9s
+  - format_sumstats_smr:runtime=60    # n=24, max=95s
+  - format_twas_gsea_drugtargetor_nondirectional_results:runtime=60    # n=339, max=52s
+  - format_twas_gsea_drugtargetor_results:runtime=60    # n=363, max=88s
+  - format_twas_gsea_pathway_results:runtime=60    # n=446, max=13s
+  - ldsc:runtime=60    # n=40, max=197s
   # ldsc_gencor is intentionally NOT set here: its runtime scales with the number
   # of reference GWAS and is set adaptively in the rule (ldsc_gencor_runtime in
   # rules/sumstat_qc.smk). A set-resources value here would override that.
   - ldsc_gencor_within:runtime=15    # whole-rule (loops over pairs); bounded by the 5-GWAS submission cap; max=78s
-  - locus_plots:runtime=10    # n=28, max=214s
-  - magma_drug_targetor:runtime=10    # n=26, max=32s
+  - locus_plots:runtime=60    # n=28, max=214s
+  - magma_drug_targetor:runtime=60    # n=26, max=32s
   - magma_gene_level:runtime=441    # n=30, max=17625s
-  - magma_pathway:runtime=10    # n=28, max=26s
-  - magma_tissue_conditional:runtime=10    # n=26, max=36s
-  - magma_tissue_spec:runtime=10    # n=26, max=26s
-  - manhattan_plot:runtime=10    # n=60, max=82s
-  - package_results:runtime=10    # n=45, max=122s
-  - process_clump:runtime=10    # n=29, max=85s
-  - process_cojo:runtime=10    # n=8, max=33s
+  - magma_pathway:runtime=60    # n=28, max=26s
+  - magma_tissue_conditional:runtime=60    # n=26, max=36s
+  - magma_tissue_spec:runtime=60    # n=26, max=26s
+  - manhattan_plot:runtime=60    # n=60, max=82s
+  - package_results:runtime=60    # n=45, max=122s
+  - process_clump:runtime=60    # n=29, max=85s
+  - process_cojo:runtime=60    # n=8, max=33s
   - process_finemap:runtime=130    # n=10, max=5175s
-  - process_ldsc_gencor:runtime=10    # n=24, max=10s
-  - process_ldsc_gencor_within:runtime=10    # n=16, max=7s
-  - process_rosmap_smr:runtime=10    # n=18, max=28s
-  - qq_plot:runtime=10    # n=63, max=117s
-  - retrieve_N:runtime=10    # n=34, max=56s
-  - run_banner_pwas:runtime=10    # n=463, max=92s
+  - process_ldsc_gencor:runtime=60    # n=24, max=10s
+  - process_ldsc_gencor_within:runtime=60    # n=16, max=7s
+  - process_rosmap_smr:runtime=60    # n=18, max=28s
+  - qq_plot:runtime=60    # n=63, max=117s
+  - retrieve_N:runtime=60    # n=34, max=56s
+  - run_banner_pwas:runtime=60    # n=463, max=92s
   - run_eqtlgen_smr:runtime=19    # n=132, max=757s
-  - run_psychencode_smr:runtime=10    # n=396, max=224s
-  - run_rosmap_pwas:runtime=10    # n=513, max=104s
-  - run_rosmap_smr:runtime=10    # n=396, max=97s
+  - run_psychencode_smr:runtime=60    # n=396, max=224s
+  - run_rosmap_pwas:runtime=60    # n=513, max=104s
+  - run_rosmap_smr:runtime=60    # n=396, max=97s
   - run_twas:runtime=33    # n=9248, max=1319s
-  - run_twas_gsea_drug_targetor:runtime=10    # n=363, max=60s
-  - run_twas_gsea_drug_targetor_nondirectional:runtime=10    # n=339, max=32s
-  - smr_analysis_MetaBrain:runtime=10    # n=1933, max=357s
+  - run_twas_gsea_drug_targetor:runtime=60    # n=363, max=60s
+  - run_twas_gsea_drug_targetor_nondirectional:runtime=60    # n=339, max=32s
+  - smr_analysis_MetaBrain:runtime=60    # n=1933, max=357s
   - sumstat_prep_i:runtime=19    # n=67, max=759s
-  - twas_gsea_pathway_nondirectional:runtime=10    # n=446, max=102s
+  - twas_gsea_pathway_nondirectional:runtime=60    # n=446, max=102s
 
 jobs: 40
 latency-wait: 90
