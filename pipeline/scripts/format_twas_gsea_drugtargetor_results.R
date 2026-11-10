@@ -106,7 +106,13 @@ atc$Name<-tolower(atc$Name)
 # Test for enrichment for each ATC L3 class, over UNIQUE drugs (canonical membership; threshold >= 5).
 drug_cls3 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 4)))
 cls3      <- sort(unique(unlist(drug_cls3))); cls3 <- cls3[nchar(cls3) == 4]
-atc_enrich<-NULL
+# A gene-level panel with few testable drug sets (e.g. FETAL.BRAIN.RNASEQ on a
+# single chromosome) can leave no ATC class clearing the >=5-unique-drug
+# threshold below, so the loop appends nothing. Start from an empty typed frame
+# (not NULL) so the merge() with atc_labels and the downstream direction columns
+# operate on a valid 0-row table and emit a well-formed empty CSV, instead of
+# merge(NULL, ...) erroring with "'by' must specify a uniquely valid column".
+atc_enrich<-data.frame(ATC=character(), Estimate=numeric(), Class_Median=numeric(), Non_Class_Median=numeric(), P=numeric(), N=numeric())
 for(cat in cls3){
   class_bin <- as.numeric(vapply(drug_cls3, function(x) cat %in% x, logical(1)))
 
@@ -163,7 +169,8 @@ write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twa
 # Test for enrichment for each level 4 ATC class, over UNIQUE drugs (canonical membership; threshold >= 5).
 drug_cls4 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 5)))
 cls4      <- sort(unique(unlist(drug_cls4))); cls4 <- cls4[nchar(cls4) == 5]
-atc_enrich_2<-NULL
+# Same empty-panel guard as atc_enrich above (see note there).
+atc_enrich_2<-data.frame(ATC=character(), Estimate=numeric(), Class_Median=numeric(), Non_Class_Median=numeric(), P=numeric(), N=numeric())
 for(cat in cls4){
   class_bin <- as.numeric(vapply(drug_cls4, function(x) cat %in% x, logical(1)))
 
