@@ -85,10 +85,21 @@ for (lv in levels) {
                Direction = ifelse(g$B > 0, 'Matches disease', ifelse(g$B < 0, 'Opposes disease', NA_character_)),
                Reversal_Z = -g$T)   # heatmap convention: positive = opposes disease
   }))
-  out[, FDR := p.adjust(P, method = 'fdr')]
-  out <- merge(out, atc[nchar(Code) == k, ], by = 'Code', all.x = TRUE)
-  out <- out[order(P)]
   keep <- c('Code','Name','N_Drugs','Estimate','SE','CI_lo','CI_hi','T','P','FDR','Direction','Reversal_Z')
+  if (nrow(out) == 0) {
+    # No ATC class at this level cleared the >=5-drug threshold (e.g. a gene-level
+    # panel like FETAL.BRAIN.RNASEQ with few CID-aligned drugs): rbindlist() of
+    # all-NULL returns a 0-column table, so p.adjust(P) / merge(by='Code') below
+    # would error ("object 'P' not found"). Emit a well-formed empty result.
+    out <- data.table(Code=character(), Name=character(), N_Drugs=integer(),
+                      Estimate=numeric(), SE=numeric(), CI_lo=numeric(), CI_hi=numeric(),
+                      T=numeric(), P=numeric(), FDR=numeric(),
+                      Direction=character(), Reversal_Z=numeric())
+  } else {
+    out[, FDR := p.adjust(P, method = 'fdr')]
+    out <- merge(out, atc[nchar(Code) == k, ], by = 'Code', all.x = TRUE)
+    out <- out[order(P)]
+  }
   fwrite(out[, ..keep], paste0(ddir, '/twas_gsea_drugtargetor_vif_', lv, '_', opt$panel, '_res.csv'))
   cat(sprintf("%s %s: %d classes tested (VIF-OLS, %d drugs aligned by CID)\n",
               opt$panel, lv, nrow(out), N))
