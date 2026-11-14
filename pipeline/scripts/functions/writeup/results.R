@@ -250,12 +250,42 @@ results_caldera <- function(ctx, g, meta) {
   gstr("{analysis} tested {fmt_int(n)} sets, {fmt_int(nsig)} FDR-significant (top: {if (!is.null(lab)) lab[1] else 'NA'}, P.FDR = {fmt_p(top$P.FDR[1], ctx$opt)}).")
 }
 
+# One summary line for ATC-class enrichment, across the competitive Wilcoxon blocks
+# (under tx/atc) and the model-based VIF-OLS / GLS blocks. Counts FDR-significant class
+# results across all of them and names the tests that ran.
+.atc_results_line <- function(ctx, g) {
+  blocks <- Filter(function(d) !is.null(d) && nrow(d) > 0, list(
+    pluck(g, "tx", "atc", "magma"), pluck(g, "tx", "atc", "twas_gsea"),
+    pluck(g, "tx", "atc", "twas_gsea_nondir"), pluck(g, "tx", "atc", "gcsc"),
+    pluck(g, "tx", "atc_vif"), pluck(g, "tx", "atc_vif_magma"),
+    pluck(g, "tx", "atc_gls"), pluck(g, "tx", "atc_gls_magma")))
+  if (length(blocks) == 0) return(NULL)
+  methods <- "Wilcoxon"
+  if (!is.null(pluck(g, "tx", "atc_vif")) || !is.null(pluck(g, "tx", "atc_vif_magma")) ||
+      !is.null(pluck(g, "tx", "atc_gls")) || !is.null(pluck(g, "tx", "atc_gls_magma")))
+    methods <- c(methods, "VIF-OLS", "GLS")
+  mstr <- paste(methods, collapse = ", ")
+  nsig <- sum(vapply(blocks, function(d)
+    as.numeric(if ("P.FDR" %in% names(d)) count_below(d, "P.FDR", ALPHA(ctx)) else 0), numeric(1)))
+  if (nsig == 0)
+    return(gstr("ATC-class enrichment ({mstr}) found no FDR-significant classes."))
+  tops <- Filter(function(t) !is.null(t) && nrow(t) > 0, lapply(blocks, function(d)
+    if ("P" %in% names(d) && "P.FDR" %in% names(d)) .top(d, "P", 1L) else NULL))
+  if (length(tops) == 0)
+    return(gstr("ATC-class enrichment ({mstr}) found {fmt_int(nsig)} FDR-significant class result(s)."))
+  best <- tops[[ which.min(vapply(tops, function(t) as.numeric(t$P[1]), numeric(1))) ]]
+  lab  <- .col(best, "Name")
+  gstr("ATC-class enrichment ({mstr}) found {fmt_int(nsig)} FDR-significant class result(s) ",
+       "(top: {if (!is.null(lab)) lab[1] else 'NA'}, P.FDR = {fmt_p(best$P.FDR[1], ctx$opt)}).")
+}
+
 results_enrichment <- function(ctx, g, meta) {
   lines <- character(0)
   md <- pluck(g, "tx", "drug", "magma"); if (!is.null(md)) lines <- c(lines, .enrich_line(ctx, md, c("Name"), "MAGMA drug enrichment", "tx/drug/magma"))
   gd <- pluck(g, "tx", "drug", "twas_gsea"); if (!is.null(gd)) lines <- c(lines, .enrich_line(ctx, gd, c("Name"), "TWAS-GSEA drug enrichment", "tx/drug/twas_gsea"))
   cd <- pluck(g, "tx", "drug", "gcsc"); if (!is.null(cd)) lines <- c(lines, .enrich_line(ctx, cd, c("Name"), "GCSC drug enrichment", "tx/drug/gcsc"))
   cm <- pluck(g, "tx", "cmap", "drug"); if (!is.null(cm)) lines <- c(lines, .enrich_line(ctx, cm, c("Name"), "CMAP signature enrichment", "tx/cmap/drug"))
+  atc <- .atc_results_line(ctx, g); if (!is.null(atc)) lines <- c(lines, atc)
   if (length(lines) == 0) return(NULL)
   paste0(paste(lines, collapse = " "),
          gstr(" (see the Drug enrichment tab of the Output Viewer.)"))}

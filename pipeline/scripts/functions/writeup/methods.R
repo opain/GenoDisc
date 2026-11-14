@@ -332,14 +332,23 @@ methods_enrichment <- function(ctx, g, meta) {
     sentences <- c(sentences, gstr(
       "TWAS associations were also tested against {writeup_tool(ctx, 'cmap')} drug signatures."))
   }
-  # ATC-class model-based enrichment (GLS / VIF-OLS), if run.
-  if (!is.null(pluck(g, "tx", "atc_gls")) || !is.null(pluck(g, "tx", "atc_gls_magma")) ||
-      !is.null(pluck(g, "tx", "atc_vif")) || !is.null(pluck(g, "tx", "atc_vif_magma"))) {
+  # ATC-class enrichment. The same question (are a class's drugs more associated than
+  # other drugs?) is scored up to three ways: a competitive Wilcoxon rank-sum of the
+  # per-drug statistics (produced by the base DrugTargetor analyses above) and, when the
+  # *_gls flags are set, two correlation-aware model-based contrasts (VIF-OLS, GLS).
+  atc_wilcox <- !is.null(magma_drug) || !is.null(gsea_drug) || !is.null(gcsc_drug)
+  atc_model  <- !is.null(pluck(g, "tx", "atc_gls")) || !is.null(pluck(g, "tx", "atc_gls_magma")) ||
+                !is.null(pluck(g, "tx", "atc_vif")) || !is.null(pluck(g, "tx", "atc_vif_magma"))
+  if (atc_model) {
     sentences <- c(sentences, gstr(
-      "Model-based ATC-class enrichment was additionally tested using correlation-aware ",
-      "VIF-OLS ({writeup_tool(ctx, 'atc_enrichment_vif')}) and GLS ",
-      "({writeup_tool(ctx, 'atc_enrichment_gls')}) contrasts, with FDR correction applied ",
-      "within each ATC level."))
+      "The drugs in each ATC class were tested for enrichment three ways — a competitive ",
+      "Wilcoxon rank-sum of the per-drug statistics, and two correlation-aware model-based ",
+      "contrasts, {writeup_tool(ctx, 'atc_enrichment_vif')} and ",
+      "{writeup_tool(ctx, 'atc_enrichment_gls')} — with FDR correction applied within each ATC level."))
+  } else if (atc_wilcox) {
+    sentences <- c(sentences, gstr(
+      "The drugs in each ATC class were tested for enrichment with a competitive Wilcoxon ",
+      "rank-sum of the per-drug statistics, with FDR correction applied within each ATC level."))
   }
   paste0("Drug-repurposing enrichment analyses were performed as follows. ",
          paste(sentences, collapse = " "),
