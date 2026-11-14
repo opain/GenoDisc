@@ -1,354 +1,381 @@
+/* ===========================================================================
+   GenoDisc documentation theme.
+   Reskinned to match the GenoDisc web app (genodisc.er.kcl.ac.uk). Tokens are
+   copied verbatim from the app's _design_system.html. Dark is the default;
+   light is opt-in via <html data-theme="light">, set by header.html from
+   localStorage['genodisc_theme'] (same mechanism and key as the app).
+   These rules load after the Bootstrap 3 (cosmo) theme, so they win.
+   =========================================================================== */
+
+:root {
+  --bg:        #0c0f14;
+  --bg-2:      #11151c;
+  --panel:     #161b24;
+  --panel-2:   #1c2330;
+  --border:    #242b3a;
+  --border-2:  #2e3647;
+  --text:      #e8ecf2;
+  --text-dim:  #c9d1e1;
+  --text-mute: #c9d1e1;
+  --accent:    #7df0c4;   /* mint - signature */
+  --accent-2:  #f3c969;   /* amber */
+  --accent-3:  #9eb6ff;   /* periwinkle */
+  --danger:    #ff8985;
+
+  --r-sm: 6px;
+  --r:    10px;
+  --r-lg: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4);
+  --shadow:    0 8px 24px rgba(0,0,0,.35);
+
+  --font-display: 'Montserrat', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body:    'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* accent hover (theme-specific; overridden for light below) */
+  --accent-hover: #6ddfb4;
+}
+
+:root[data-theme="light"] {
+  --bg:        #f6f7f9;
+  --bg-2:      #eceef2;
+  --panel:     #ffffff;
+  --panel-2:   #f1f3f7;
+  --border:    #dce0e7;
+  --border-2:  #c4cad5;
+  --text:      #1b2029;
+  --text-dim:  #454c5a;
+  --text-mute: #626a78;
+  --accent:    #0f766e;   /* mint -> teal (AA on white) */
+  --accent-2:  #a16207;
+  --accent-3:  #4f46e5;   /* periwinkle -> indigo */
+  --danger:    #dc2626;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow:    0 8px 24px rgba(0,0,0,.10);
+  --accent-hover: #0c655e;
+}
+
+/* --------------------------------- Base --------------------------------- */
+body {
+  font-family: var(--font-body);
+  background:
+    radial-gradient(1100px 600px at 90% -10%, rgba(125,240,196,.06), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(158,182,255,.05), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+h1.title { font-size: 32px; font-weight: 600; }
+h1 { font-size: 26px; font-weight: 600; }
+h2 { font-size: 22px; font-weight: 600; }
+h3 { font-size: 18px; font-weight: 600; }
+h4 { font-size: 16px; font-weight: 500; }
+
+p, li { font-weight: 400; color: var(--text); }
+
+a { color: var(--accent-3); text-decoration: none; }
+a:hover, a:focus { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+hr { border-top: 1px solid var(--border); }
+
+/* ------------------------------- Navbar --------------------------------- */
+/* Map Bootstrap's .navbar-default onto the app's .nav. The navbar is pinned to
+   the dark palette in BOTH themes (like the app) so the mint logo stays visible. */
 .navbar-default {
-    background-color: #1e2b38;
-    border-color: #121212;
+  --text:#e8ecf2; --text-dim:#c9d1e1; --text-mute:#c9d1e1;
+  --panel:#161b24; --panel-2:#1c2330; --border:#242b3a; --border-2:#2e3647;
+  --accent:#7df0c4; --accent-2:#f3c969; --accent-3:#9eb6ff;
+  background: rgba(12,15,20,.85);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 58px;
   padding: 10px 15px;
-  height: 60px;
+}
+.navbar-brand img.brand-mark { width: 30px; height: 30px; display: block; }
+.navbar-brand .brand-word {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  color: var(--text);
 }
 
-.navbar-nav>li {
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.navbar-nav > li { height: 58px; display: flex; align-items: center; }
+.navbar-nav > li > a {
+  height: 58px; display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+}
+.navbar-default .navbar-nav > li > a {
+  color: var(--text-dim);
+  background: transparent;
+  transition: .15s;
+}
+.navbar-default .navbar-nav > li > a:hover,
+.navbar-default .navbar-nav > li > a:focus {
+  color: var(--text);
+  background: var(--panel);
+}
+.navbar-default .navbar-nav > .open > a,
+.navbar-default .navbar-nav > .open > a:hover,
+.navbar-default .navbar-nav > .open > a:focus,
+.navbar-default .navbar-nav > .active > a,
+.navbar-default .navbar-nav > .active > a:hover,
+.navbar-default .navbar-nav > .active > a:focus {
+  color: var(--accent);
+  background: var(--panel);
 }
 
-.navbar-nav>li>a {
-  height: 60px;
-  display: flex;
-  align-items: center;
-  font-size: 18px;
-}
-
-.navbar-default .navbar-nav>li>a {
-    color: #ffffff;
-    width: 120px;
-    justify-content: center;
-}
-
-.navbar-default .navbar-nav>.open>a,
-.navbar-default .navbar-nav>.open>a:hover,
-.navbar-default .navbar-nav>.open>a:focus, 
-.navbar-default .navbar-nav>.active>a,
-.navbar-default .navbar-nav>.active>a:hover,
-.navbar-default .navbar-nav>.active>a:focus, 
-.navbar-default .navbar-nav>li>a:hover,
-.navbar-default .navbar-nav>li>a:focus {
-  color: #449cff;
-  background-color: transparent;
-  transition: .2s;
-}
-
+/* Dropdown (the "Pipeline" menu) */
 .dropdown-menu {
-  background-color: #f9f9f9; /* Light background for the dropdown */
-  border-radius: 4px; /* Rounded corners */
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow);
+}
+.navbar .dropdown-menu { position: absolute; left: 50%; width: 250px; transform: translateX(-50%); top: 100%; }
+.navbar .dropdown-menu .dropdown-item { text-align: center; white-space: normal; }
+.dropdown-menu > li > a {
+  color: var(--text-dim);
+  text-align: center; display: block; width: 250px;
+  padding: 10px 20px; white-space: normal;
+}
+.dropdown-menu > li > a:hover,
+.dropdown-menu > li > a:focus {
+  color: var(--accent);
+  background: var(--panel-2);
+  text-decoration: none;
 }
 
-.navbar .dropdown-menu {
-  position: absolute;
-  left: 50%; /* Move to 50% of its parent width */
-  width: 250px;
-  transform: translateX(-50%); /* Shift it back by 50% of its own width */
-  top: 100%; /* Position it just below the toggle element */
-}
+.navbar-toggle { margin-top: 12px; margin-bottom: 0; height: 34px; border-color: var(--border); }
+.navbar-default .navbar-toggle .icon-bar { background: var(--text-dim); }
+.navbar-default .navbar-toggle:hover, .navbar-default .navbar-toggle:focus { background: var(--panel); }
 
-/* Center and wrap text within dropdown menu items */
-.navbar .dropdown-menu .dropdown-item {
-  text-align: center; /* Center the text */
-  white-space: normal; /* Ensure text wraps */
-}
-
-/* Dropdown Links */
-.dropdown-menu>li>a {
-  color: #fff; /* Dark text for contrast */
-  text-align: center; /* Centers text horizontally */
-  display: block;
-  width: 250px;
-  padding: 10px 20px; /* Adjust padding as needed */
-  white-space: normal; /* Allows text to wrap */
-  overflow: hidden; /* Prevents text from overflowing the container */
-  text-overflow: ellipsis; /* Adds an ellipsis to text that's too long */
-}
-
-/* Hover State for Dropdown Links */
-.dropdown-menu>li>a:hover, .dropdown-menu>li>a:focus {
-  color: #2780e3; /* Light text on hover/focus */
-  background-color: transparent; /* Highlight color */
-  text-decoration: none; /* No underline */
-  transition: .2s;
-}
-
-.navbar-toggle {
-    margin-top: 0px;
-    margin-bottom: 0px;
-    height: 60px;
-}
-
-.navbar-default .navbar-nav .open .dropdown-menu {
-  position: absolute;
-  left: 50%; /* Start at the middle of the parent */
-  transform: translateX(-50%); /* Adjust back by half of its own width */
-  background-color: #233240;
-  top: 100%; /* Adjust if needed, depending on your layout */
-}
-
-.navbar-default .navbar-nav .open .dropdown-menu>li>a:hover, 
-.navbar-nav .open .dropdown-menu>li>a:focus {
-    color: #2780e3;
-    background-color: transparent;
-    transition: .2s;
-}
-
-.navbar-default .navbar-nav .open .dropdown-menu>li>a {
-    padding: 5px 15px 5px 15px;
-}
-
-/* Basic switch styling */
-.switch {
-  position: absolute;
-  top: 70px;
-  right: 10px;
-  z-index: 1000;
-  display: inline-block;
-  width: 60px; /* Adjusted for clear visibility of emojis */
-  height: 30px;
-}
-
-/* Hide the default checkbox */
-.switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-/* Slider styling */
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: transparent; /* No background color */
-  border: 2px solid #ccc; /* Grey edge */    
-  transition: .2s;
-  border-radius: 34px;
-}
-
-.slider::before, .slider::after {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 18px; /* Adjust size as needed */
-}
-
-/* Moon emoji */
-.slider::before {
-  content: '🌜';
-  left: 0px; /* Adjust as needed */
-  height: 26px;
-  opacity: 0; /* Hide initially */
-}
-
-/* Sun emoji */
-.slider::after {
-  content: '🌞';
-  right: 0px; /* Adjust as needed */
-  height: 26px;
-  opacity: 1; /* Show initially */
-}
-
-/* Toggle circle styling */
-.slider span {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: #ccc; /* No background color */
-  transition: .2s;
-  border-radius: 50%;
-}
-
-/* Adjust emoji visibility on toggle */
-input:checked + .slider::before {
-  opacity: 1; /* Show moon emoji */
-}
-
-input:checked + .slider::after {
-  opacity: 0; /* Hide sun emoji */
-}
-
-input:checked + .slider span {
-  transform: translateX(26px); /* Move toggle circle */
-}
-
-h1.title {
-  font-size: 32px;
-  font-weight: 700;
-}
-
-h1 {
-  font-size: 26px;
-  font-weight: 700;
-}
-
-h2 {
-  font-size: 22px;
-  font-weight: 500;
-}
-
-h3 {
-  font-size: 18px;
-  font-weight: 500;
-}
-
-h4 {
-  font-size: 16px;
-  font-weight: 500;
-}
-
-p {
-  font-weight: 400;
-}
-
-li {
-  font-weight: 400;
-}
-
-/* Styling for code blocks */
-pre, code {
-    border-radius: 5px; /* Optional: rounded corners for aesthetic */
-}
-
-pre {
-    padding: 10px;
-    overflow-x: auto; /* Makes code blocks scrollable horizontally if needed */
-}
-
-/* Styling for inline code */
-p code {
-    padding: 2px 4px;
-    border-radius: 5px;
-    border: 1px solid #cccccc;
-}
-
-.tocify .list-group-item {
-  background-color: transparent !important;
-}
-
-.list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
-  background-color: #2780e3 !important;
-}
-
-.note-box {
-  border: 1px solid #2780e3;
-  padding: 10px;
-  margin: 20px 0;
-  background-color: #f0f9ff;
-  border-radius: 5px;
-}
-
-.note-box p {
-  margin-bottom: 0px; /* Adjusts the bottom margin of paragraphs */
-}
-
-.note-box strong, .note-box b {
-  color: #2780e3; /* Gold color for bold text */
-}
-
-.flex-container {
-    display: flex;
-    justify-content: space-around; /* Adjusts the spacing between the buttons */
-    align-items: center; /* Aligns the buttons vertically in the center, if they have different heights */
-}
-
-.button {
-    display: inline-block;
-    background-color: #007bff; /* Button background color */
-    color: white; /* Button text color */
-    padding: 10px 20px; /* Padding inside the button */
-    text-align: center;
-    text-decoration: none; /* Removes underline from the link */
-    border-radius: 5px; /* Rounded corners for the button */
-    margin: 0 5px; /* Optional: Adds space between the buttons */
-}
-
-.inline_button {
-    display: inline-block;
-    background-color: #007bff; /* Button background color */
-    color: white; /* Button text color */
-    padding: 10px 20px; /* Padding inside the button */
-    text-align: center;
-    text-decoration: none; /* Removes underline from the link */
-    border-radius: 5px; /* Rounded corners for the button */
-    margin: 0 5px; /* Optional: Adds space between the buttons */
-}
-
-.inline_button {
-    display: inline-block;
-    background-color: #007bff;
-    color: white;
-    padding: 1px 10px;
-    margin: 1px;
-    text-align: center;
-    text-decoration: none;
-    border-radius: 5px;
-}
-
-.shallow-break {
-    height: 5px; /* Adjust this value to control the spacing */
-}
-
-.caption {
-    font-weight: 400;
-    font-style: italic;
-    margin-bottom: 0px;
-    color: black;
-}
-
-.logo-img {
-  margin-top: 0px;
-}
-
-.centered-container {
-    display: flex;
-    justify-content: center; /* Center horizontally */
-    align-items: center; /* Center vertically */
-    flex-wrap: wrap; 
-}
-
-.rounded-image-container {
-    background-color: white;
-    border-radius: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 10px; /* Adjust padding as needed */
-}
-
-.rounded-image-container img {
-    width: 100%; /* Make the image responsive */
-    display: block; /* Remove bottom space under the image */
-}
-
-/* Make the hosted-service nav link stand out as a call-to-action.
-   Targeted by href so it is independent of the link's text/position. */
+/* Right-hand "Hosted service" link: a call-to-action button, targeted by href. */
 .navbar-default .navbar-nav > li > a[href*="genodisc.er.kcl.ac.uk"] {
-    background-color: #2780e3;
-    color: #ffffff;
-    border-radius: 5px;
-    width: auto;
-    height: 40px;
-    margin: 10px 6px;
-    padding: 0 16px;
+  background: var(--accent);
+  color: #07120e;
+  font-weight: 600;
+  border-radius: var(--r);
+  height: 40px;
+  margin: 9px 6px;
+  padding: 0 16px;
 }
-
 .navbar-default .navbar-nav > li > a[href*="genodisc.er.kcl.ac.uk"]:hover,
 .navbar-default .navbar-nav > li > a[href*="genodisc.er.kcl.ac.uk"]:focus {
-    background-color: #1a5fb4;
-    color: #ffffff;
+  background: #6ddfb4;
+  color: #07120e;
 }
+
+/* ------------------------- Floating TOC (tocify) ------------------------ */
+.tocify {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+}
+.tocify .tocify-header { margin: 0; }
+.tocify .list-group-item {
+  background: transparent !important;
+  border: 0;
+  color: var(--text-dim);
+}
+.tocify .list-group-item:hover { color: var(--text); background: var(--panel-2) !important; }
+.tocify .list-group-item.active,
+.tocify .list-group-item.active:hover,
+.tocify .list-group-item.active:focus {
+  background: var(--accent) !important;
+  color: #07120e !important;
+  border-color: var(--accent) !important;
+}
+#TOC { color: var(--text-dim); }
+
+/* -------------------------------- Buttons ------------------------------- */
+.button, .inline_button {
+  display: inline-block;
+  background: var(--accent);
+  color: #07120e;
+  font-weight: 600;
+  padding: 10px 20px;
+  text-align: center;
+  text-decoration: none;
+  border-radius: var(--r);
+  margin: 0 5px;
+  transition: .15s;
+}
+.button:hover, .button:focus,
+.inline_button:hover, .inline_button:focus {
+  background: var(--accent-hover);
+  color: #07120e;
+  text-decoration: none;
+}
+.btn-primary {
+  background: var(--accent); border-color: var(--accent); color: #07120e; font-weight: 600;
+}
+.btn-primary:hover, .btn-primary:focus { background: var(--accent-hover); border-color: var(--accent-hover); color: #07120e; }
+
+.flex-container { display: flex; justify-content: space-around; align-items: center; }
+
+/* ----------------------------- Code blocks ------------------------------ */
+pre, code { border-radius: var(--r-sm); font-family: var(--font-mono); }
+pre {
+  padding: 12px 14px;
+  overflow-x: auto;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+pre code { background: transparent; border: 0; color: inherit; }
+p code, li code {
+  padding: 2px 5px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--accent);
+  font-size: 90%;
+}
+/* Keep pandoc "default" syntax tokens readable on the dark surface */
+pre .co { color: var(--text-mute); font-style: italic; }
+pre .st, pre .vs { color: #9fe7c5; }
+pre .dv, pre .bn, pre .fl { color: var(--accent-2); }
+pre .kw, pre .cf { color: var(--accent-3); }
+pre .fu, pre .at { color: var(--text); }
+
+/* -------------------------------- Tables -------------------------------- */
+.table, table { color: var(--text); }
+.table > thead > tr > th, table th {
+  border-bottom: 2px solid var(--border-2);
+  color: var(--text);
+}
+.table > tbody > tr > td, .table > tbody > tr > th, table td, table th {
+  border-top: 1px solid var(--border);
+}
+.table-striped > tbody > tr:nth-of-type(odd) { background: var(--panel); }
+.table-hover > tbody > tr:hover { background: var(--panel-2); }
+
+/* ------------------------------- Note box ------------------------------- */
+.note-box {
+  border: 1px solid var(--accent);
+  padding: 12px 14px;
+  margin: 20px 0;
+  background: var(--panel);
+  border-radius: var(--r-sm);
+}
+.note-box p { margin-bottom: 0; color: var(--text); }
+.note-box strong, .note-box b { color: var(--accent); }
+.note-box a { color: var(--accent-3); }
+.note-box a:hover { color: var(--accent); }
+
+/* ---------------------- Light/dark toggle (header.html) ----------------- */
+/* Reuses the slider widget markup; JS now flips <html data-theme> + localStorage. */
+.switch {
+  position: fixed;
+  top: 72px; right: 14px;
+  z-index: 1000;
+  display: inline-block;
+  width: 60px; height: 30px;
+}
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; cursor: pointer; inset: 0;
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  transition: .2s; border-radius: 34px;
+}
+.slider::before, .slider::after {
+  position: absolute; top: 50%; transform: translateY(-50%); font-size: 16px;
+}
+.slider::before { content: '🌜'; left: 6px; opacity: 0; }
+.slider::after  { content: '🌞'; right: 6px; opacity: 1; }
+.slider span {
+  position: absolute; height: 24px; width: 24px; left: 3px; top: 2px;
+  background: var(--accent); transition: .2s; border-radius: 50%;
+}
+input:checked + .slider::before { opacity: 1; }
+input:checked + .slider::after  { opacity: 0; }
+input:checked + .slider span { transform: translateX(29px); }
+
+/* ------------------------------- Search --------------------------------- */
+/* Injected by js/docs-search.js; indexes section headings across the pages. */
+.docs-search {
+  position: fixed;
+  top: 70px; right: 86px;
+  z-index: 1000;
+  width: 220px;
+}
+.docs-search input {
+  width: 100%;
+  padding: 6px 12px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border-2);
+  border-radius: 999px;
+  outline: none;
+}
+.docs-search input:focus { border-color: var(--accent); }
+.docs-search input::placeholder { color: var(--text-mute); }
+.docs-search-results {
+  position: absolute;
+  top: 38px; right: 0;
+  width: 320px; max-width: 80vw;
+  max-height: 60vh; overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow);
+  display: none;
+}
+.docs-search-results.open { display: block; }
+.docs-search-results a {
+  display: block;
+  padding: 9px 14px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  text-decoration: none;
+}
+.docs-search-results a:last-child { border-bottom: 0; }
+.docs-search-results a:hover, .docs-search-results a.active { background: var(--panel-2); color: var(--accent); }
+.docs-search-results .ds-page {
+  display: block; font-family: var(--font-mono); font-size: 10.5px;
+  text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute);
+}
+.docs-search-results .ds-empty { padding: 12px 14px; color: var(--text-mute); font-size: 13px; }
+
+@media (max-width: 991px) {
+  .docs-search { display: none; }  /* collapse search on mobile; nav search is desktop-first */
+}
+
+/* ------------------------- Misc / layout helpers ------------------------ */
+.shallow-break { height: 5px; }
+.caption { font-weight: 400; font-style: italic; margin-bottom: 0; color: var(--text-mute); }
+.logo-img { margin-top: 0; }
+
+.centered-container { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; }
+.rounded-image-container {
+  background: #ffffff;
+  border-radius: var(--r);
+  display: flex; justify-content: center; align-items: center;
+  padding: 10px;
+}
+.rounded-image-container img { width: 100%; display: block; }
+
+/* Landing "lead" paragraph */
+.docs-lead { font-size: 17px; color: var(--text-dim); max-width: 760px; }

@@ -1,0 +1,368 @@
+[
+{
+"page":"Home",
+"url":"index.html",
+"heading":"Run GenoDisc yourself",
+"id":"run-genodisc-yourself"
+},
+{
+"page":"Home",
+"url":"index.html",
+"heading":"The hosted platform",
+"id":"the-hosted-platform"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Overview",
+"id":"overview"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Installation",
+"id":"installation"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Step 1: Download the repository",
+"id":"step-1-download-the-repository"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Step 2: Install conda and the genodisc environment",
+"id":"step-2-install-conda-and-the-genodisc-environment"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Step 3: Prepare an HPC profile (optional)",
+"id":"step-3-prepare-an-hpc-profile-optional"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Pipeline configuration",
+"id":"pipeline-configuration"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Config file",
+"id":"config-file"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"GWAS list file",
+"id":"gwas-list"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Bivariate LDSC list file (optional)",
+"id":"gencor-list"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Within-primary-list rG (optional)",
+"id":"gencor-within"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Pathway enrichment (optional)",
+"id":"pathway"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"GWAS summary statistic format",
+"id":"gwas-format"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Running with test data",
+"id":"running-with-test-data"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Step 1: Download test data",
+"id":"step-1-download-test-data"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Step 2: Run the pipeline",
+"id":"step-2-run-the-pipeline"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Step 3: Check the output",
+"id":"step-3-check-the-output"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Running on an HPC",
+"id":"running-on-an-hpc"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Using a Snakemake profile",
+"id":"using-a-snakemake-profile"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Resource requirements",
+"id":"resource-requirements"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Requesting outputs",
+"id":"requesting-outputs"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"How Snakemake targets work",
+"id":"how-snakemake-targets-work"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Key output targets",
+"id":"key-output-targets"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Output",
+"id":"output"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Output directory structure",
+"id":"output-directory-structure"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Reading results into R",
+"id":"reading-results-into-r"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Structure of a block",
+"id":"structure-of-a-block"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Using the Shiny explorer",
+"id":"using-the-shiny-explorer"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Automated draft write-up",
+"id":"automated-draft-write-up"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Troubleshooting",
+"id":"troubleshooting"
+},
+{
+"page":"User Guide",
+"url":"pipeline_guide.html",
+"heading":"Common issues",
+"id":"common-issues"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Software and dependencies",
+"id":"software-and-dependencies"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Workflow overview",
+"id":"workflow-overview"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Part 1: Descriptive analyses",
+"id":"part-1-descriptive-analyses"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Summary statistic QC",
+"id":"summary-statistic-qc"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"LD score regression",
+"id":"ld-score-regression"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Bivariate LDSC (genetic correlation)",
+"id":"bivariate-ldsc-genetic-correlation"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"SBayesRC (SNP-based heritability & polygenicity)",
+"id":"sbayesrc-snp-based-heritability-polygenicity"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"SumHer (SNP-based heritability)",
+"id":"sumher-snp-based-heritability"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"LD clumping",
+"id":"ld-clumping"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"GCTA-COJO",
+"id":"gcta-cojo"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Manc-COJO",
+"id":"manc-cojo"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Part 2: Gene finding analyses",
+"id":"part-2-gene-finding-analyses"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Fine-mapping (SuSiE)",
+"id":"fine-mapping-susie"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Effector-gene prioritisation",
+"id":"effector-gene-prioritisation"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"MAGMA gene-level association",
+"id":"magma-gene-level-association"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Transcriptome-wide association (TWAS)",
+"id":"transcriptome-wide-association-twas"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Summary-data-based Mendelian randomisation (SMR)",
+"id":"summary-data-based-mendelian-randomisation-smr"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Proteome-wide association (PWAS)",
+"id":"proteome-wide-association-pwas"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Part 3: Drug finding analyses",
+"id":"part-3-drug-finding-analyses"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"MAGMA DrugTargetor enrichment",
+"id":"magma-drugtargetor-enrichment"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"TWAS-GSEA DrugTargetor enrichment",
+"id":"twas-gsea-drugtargetor-enrichment"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"ATC-class enrichment: drug-level GLS (recommended) vs. legacy Wilcoxon",
+"id":"atc-class-enrichment-drug-level-gls-recommended-vs.-legacy-wilcoxon"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Interpreting direction, and the per-gene evidence view",
+"id":"interpreting-direction-and-the-per-gene-evidence-view"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Pathway enrichment (MAGMA + TWAS-GSEA)",
+"id":"pathway-enrichment-magma-twas-gsea"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"TWAS-GSEA CMAP drug signatures",
+"id":"twas-gsea-cmap-drug-signatures"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Gene co-regulation scoring (GCSC)",
+"id":"gene-co-regulation-scoring-gcsc"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"MAGMA tissue enrichment",
+"id":"magma-tissue-enrichment"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"MAGMA gene-set × tissue interaction",
+"id":"magma-gene-set-tissue-interaction"
+},
+{
+"page":"Technical Details",
+"url":"pipeline_technical.html",
+"heading":"Results packaging",
+"id":"results-packaging"
+}
+]

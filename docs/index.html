@@ -46,39 +46,54 @@
 
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
-<link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
+<!-- Match the web app's typography (Montserrat / Inter Tight / JetBrains Mono). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+<!-- Theme: dark is the default; light is opt-in via <html data-theme="light">.
+     Same mechanism and localStorage key ('genodisc_theme') as the web app, so the
+     light/dark behaviour matches. Applied before first paint to avoid a flash. -->
 <script>
-function toggleNightMode() {
-    var stylesheet = document.getElementById('nightModeStylesheet');
-    if (stylesheet.disabled) {
-        stylesheet.disabled = false;
-    } else {
-        stylesheet.disabled = true;
-    }
-}
+  (function () {
+    try {
+      if (localStorage.getItem('genodisc_theme') === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch (e) { /* storage blocked - stay on default dark */ }
+  })();
 </script>
 
-<label class="switch">
-  <input type="checkbox" id="toggleNightMode" checked>
+<label class="switch" title="Toggle light / dark theme">
+  <input type="checkbox" id="themeToggle" checked>
   <span class="slider round"></span>
 </label>
 
 <script>
-document.getElementById('toggleNightMode').addEventListener('change', function() {
-    var stylesheet = document.getElementById('nightModeStylesheet');
-    if (this.checked) {
-        stylesheet.disabled = false;
-    } else {
-        stylesheet.disabled = true;
-    }
-});
+  document.addEventListener('DOMContentLoaded', function () {
+    var KEY = 'genodisc_theme';
+    var box = document.getElementById('themeToggle');
+    if (!box) return;
+    // checked == dark (the default). Reflect the current theme on load.
+    box.checked = document.documentElement.getAttribute('data-theme') !== 'light';
+    box.addEventListener('change', function () {
+      if (box.checked) {
+        document.documentElement.removeAttribute('data-theme');   // dark
+        try { localStorage.setItem(KEY, 'dark'); } catch (e) {}
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        try { localStorage.setItem(KEY, 'light'); } catch (e) {}
+      }
+    });
+  });
 </script>
+
+<!-- Lightweight client-side search over section headings across the docs pages. -->
+<script src="js/docs-search.js" defer></script>
 
 <!-- Cloudflare Web Analytics (cookieless, no personal data - no consent required).
      Same token as the hosted service (genodisc.er.kcl.ac.uk) so both surfaces
-     roll up into one dashboard. Replaces the previous Google Analytics setup
-     and its Osano cookie-consent banner. -->
+     roll up into one dashboard. -->
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "7709e512a3d5400a96a68c4893306f2c"}'></script>
 <!-- End Cloudflare Web Analytics -->
 
@@ -288,7 +303,7 @@ $(document).ready(function () {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html"><img class="logo-img" src="Images/logo/Horizontal_white.png" style="height: 42px;" /></a>
+      <a class="navbar-brand" href="index.html"><img class="brand-mark" src="Images/logo/genodisc_mark.png" alt="GenoDisc" /><span class="brand-word">GenoDisc</span></a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
@@ -338,49 +353,38 @@ $(document).ready(function () {
 </div>
 
 
-<style>
-h1.title {
-  display: none;
-}
-</style>
-<div style="text-align: center;">
-<p><img src="Images/logo/homepage.png" style="max-width: 1000px; width: 100%; height: auto; flex: 0 0 auto;"/></p>
-</div>
-<p><br/></p>
+<p class="docs-lead">
+GenoDisc is an open-source Snakemake pipeline for post-GWAS functional
+genomics. Starting from GWAS summary statistics, it runs a standardised
+battery of analyses — fine-mapping, gene-level and
+transcriptome/proteome-wide association, heritability, and drug-target
+enrichment — to prioritise the genes, mechanisms, and candidate drugs
+behind an association signal. It also powers the hosted GenoDisc
+platform at King’s College London; this site documents how to install,
+configure, and run the pipeline yourself.
+</p>
 <div class="note-box">
 <p>
 <strong>Just want results?</strong> Use the hosted GenoDisc platform →
 <a href="https://genodisc.er.kcl.ac.uk">genodisc.er.kcl.ac.uk</a>
 </p>
 </div>
-<p><br/></p>
-<div id="what-is-genodisc" class="section level1">
-<h1>What is GenoDisc?</h1>
-<p>GenoDisc is an open-source Snakemake pipeline for post-GWAS
-functional genomics. Starting from GWAS summary statistics, it runs a
-standardised battery of analyses — fine-mapping, gene-level and
-transcriptome/proteome-wide association, heritability, and drug-target
-enrichment — to help identify the genes, mechanisms, and candidate drugs
-behind an association signal. It also powers the hosted GenoDisc
-platform at King’s College London; this site documents how to install,
-configure, and run the pipeline yourself.</p>
-<p><br/></p>
+<div id="run-genodisc-yourself" class="section level2">
+<h2>Run GenoDisc yourself</h2>
+<p>Install, configure, and run the pipeline on your own machine or
+HPC.</p>
+<p><a href="pipeline_guide.html" class="button">User Guide</a>
+<a href="pipeline_technical.html" class="button">Technical
+Details</a></p>
 </div>
-<div id="run-genodisc-yourself" class="section level1">
-<h1>Run GenoDisc yourself</h1>
-<p>This documentation covers installing, configuring, and running the
-GenoDisc pipeline on your own machine or HPC.</p>
-<p><a href="pipeline_guide.html" class="button">Learn More</a></p>
-<p><br/></p>
-</div>
-<div id="the-hosted-service" class="section level1">
-<h1>The Hosted Service</h1>
-<p>Don’t want to install anything? Submit your GWAS via the hosted web
-service — the pipeline runs on our King’s College London servers and
-results appear in an interactive viewer, without any local software
+<div id="the-hosted-platform" class="section level2">
+<h2>The hosted platform</h2>
+<p>Don’t want to install anything? Submit your GWAS via the hosted
+platform — the pipeline runs on King’s College London servers and
+results appear in an interactive viewer, with no local software
 installation.</p>
-<p><a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to hosted
-service ↗</a></p>
+<p><a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to the
+platform ↗</a></p>
 <p><br/></p>
 <p>Please contact Oliver Pain (<a href="mailto:oliver.pain@kcl.ac.uk"
 class="email">oliver.pain@kcl.ac.uk</a>) for any questions or

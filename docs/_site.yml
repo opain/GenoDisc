@@ -1,7 +1,7 @@
 name: "GenoDisc Pipeline Documentation"
 output_dir: "."
 navbar:
-  title: "<img class=\"logo-img\" src=\"Images/logo/Horizontal_white.png\" style=\"height: 42px;\" />"
+  title: "<img class=\"brand-mark\" src=\"Images/logo/genodisc_mark.png\" alt=\"GenoDisc\" /><span class=\"brand-word\">GenoDisc</span>"
   left:
     - text: "Docs home"
       href: index.html

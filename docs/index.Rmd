@@ -1,52 +1,32 @@
 ---
 title: "GenoDisc Pipeline – Documentation"
-output: 
+output:
   html_document:
     theme: cosmo
-    css: 
+    css:
       styles/styles.css
     includes:
       in_header: header.html
       after_body: footer.html
 ---
 
-<style>
-h1.title {
-  display: none;
-}
-</style>
-
-<div style="text-align: center;">
-<img src="Images/logo/homepage.png" style="max-width: 1000px; width: 100%; height: auto; flex: 0 0 auto;"/>
-</div>
-
-<br/>
+<p class="docs-lead">GenoDisc is an open-source Snakemake pipeline for post-GWAS functional genomics. Starting from GWAS summary statistics, it runs a standardised battery of analyses — fine-mapping, gene-level and transcriptome/proteome-wide association, heritability, and drug-target enrichment — to prioritise the genes, mechanisms, and candidate drugs behind an association signal. It also powers the hosted GenoDisc platform at King’s College London; this site documents how to install, configure, and run the pipeline yourself.</p>
 
 <div class="note-box"><p><strong>Just want results?</strong> Use the hosted GenoDisc platform → <a href="https://genodisc.er.kcl.ac.uk">genodisc.er.kcl.ac.uk</a></p></div>
 
-<br/>
+## Run GenoDisc yourself
 
-# What is GenoDisc?
+Install, configure, and run the pipeline on your own machine or HPC.
 
-GenoDisc is an open-source Snakemake pipeline for post-GWAS functional genomics. Starting from GWAS summary statistics, it runs a standardised battery of analyses — fine-mapping, gene-level and transcriptome/proteome-wide association, heritability, and drug-target enrichment — to help identify the genes, mechanisms, and candidate drugs behind an association signal. It also powers the hosted GenoDisc platform at King’s College London; this site documents how to install, configure, and run the pipeline yourself.
+<a href="pipeline_guide.html" class="button">User Guide</a>
+<a href="pipeline_technical.html" class="button">Technical Details</a>
 
-<br/>
+## The hosted platform
 
-# Run GenoDisc yourself
+Don't want to install anything? Submit your GWAS via the hosted platform — the pipeline runs on King's College London servers and results appear in an interactive viewer, with no local software installation.
 
-This documentation covers installing, configuring, and running the GenoDisc pipeline on your own machine or HPC.
-
-<a href="pipeline_guide.html" class="button">Learn More</a>
-
-<br/>
-
-# The Hosted Service
-
-Don't want to install anything? Submit your GWAS via the hosted web service — the pipeline runs on our King's College London servers and results appear in an interactive viewer, without any local software installation.
-
-<a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to hosted service ↗</a>
+<a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to the platform ↗</a>
 
 <br/>
 
 Please contact Oliver Pain (oliver.pain@kcl.ac.uk) for any questions or comments.
-
