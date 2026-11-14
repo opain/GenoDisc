@@ -242,6 +242,8 @@ referencesServer <- function(id, gwas_data = NULL) {
         cite('MetaBrain eQTL data for SMR', 'https://www.metabrain.nl/cis-eqtls.html', pubmed('36823318'), 'Dataset', 'SMR'),
         cite('ROSMAP/Banner DLPFC PWAS SNP-weights and eQTL in SMR results', 'https://www.synapse.org/#!Synapse:syn23627957', pubmed('33510477'), 'Dataset', 'PWAS and SMR'),
         cite('DrugTargetor', 'https://drugtargetor.com/', pubmed('30517594'), 'Dataset', 'Drug repurposing'),
+        cite('CAMERA (VIF-OLS ATC enrichment)', 'https://doi.org/10.1093/nar/gks461', doi('10.1093/nar/gks461'), 'Software', 'ATC drug-class enrichment (VIF-OLS contrast)'),
+        cite('DRUGSETS (GLS ATC enrichment)', 'https://www.medrxiv.org/content/10.1101/2022.09.06.22279660v3', doi('10.1101/2022.09.06.22279660'), 'Software', 'ATC drug-class enrichment (GLS contrast)'),
         cite('PoPS (Polygenic Priority Score)', 'https://github.com/FinucaneLab/pops', pubmed('37443254'), 'Software', 'Gene prioritisation (Ensembl-ID MAGMA step feeding CALDERA)'),
         cite('CALDERA', 'https://github.com/kheilbron/caldera', doi('10.1371/journal.pgen.1012079'), 'Software', 'Effector-gene prioritisation from fine-mapped credible sets'),
         cite('BCFtools/csq', 'http://samtools.github.io/bcftools/', pubmed('28205675'), 'Software', 'Haplotype-aware variant consequence annotation (credible-set coding)'),
