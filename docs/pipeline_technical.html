@@ -13,7 +13,7 @@
 
 <title>GenoDisc Pipeline - Technical Details</title>
 
-<script src="site_libs/header-attrs-2.31/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.32/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -35,8 +35,8 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-6.4.2/css/all.min.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-6.4.2/css/v4-shims.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -374,6 +374,9 @@ div.tocify {
     <li>
       <a href="pipeline_technical.html">Technical Details</a>
     </li>
+    <li>
+      <a href="pipeline_guide.html#automated-draft-write-up">Draft write-up</a>
+    </li>
   </ul>
 </li>
       </ul>
@@ -455,19 +458,26 @@ href="https://doi.org/10.1038/s41588-024-01704-y">Zheng et
 al. 2024</a></td>
 </tr>
 <tr class="odd">
+<td align="left">LDAK (SumHer)</td>
+<td align="left">SNP-based heritability under the BLD-LDAK model</td>
+<td align="left"><a
+href="https://doi.org/10.1038/s41588-018-0279-5">Speed &amp; Balding
+2019</a></td>
+</tr>
+<tr class="even">
 <td align="left">PLINK 1.9</td>
 <td align="left">LD clumping and general variant-level operations</td>
 <td align="left"><a
 href="https://doi.org/10.1186/s13742-015-0047-8">Chang et
 al. 2015</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">GCTA-COJO</td>
 <td align="left">Conditional and joint association analysis</td>
 <td align="left"><a href="https://doi.org/10.1038/ng.2213">Yang et
 al. 2012</a></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">Manc-COJO (v1.1.0)</td>
 <td align="left">Conditional and joint association analysis (fast
 re-implementation of GCTA-COJO single-ancestry selection; the COJO
@@ -476,46 +486,77 @@ method used)</td>
 href="https://doi.org/10.1038/s41588-026-02799-1">Wang et
 al. 2026</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">SuSiE</td>
 <td align="left">Fine-mapping via Sum of Single Effects model</td>
 <td align="left"><a href="https://doi.org/10.1111/rssb.12388">Wang et
 al. 2020</a></td>
 </tr>
+<tr class="even">
+<td align="left">AlphaMissense</td>
+<td align="left">Missense pathogenicity prediction for credible-set
+variants</td>
+<td align="left"><a href="https://doi.org/10.1126/science.adg7492">Cheng
+et al. 2023</a></td>
+</tr>
 <tr class="odd">
+<td align="left">BCFtools/csq</td>
+<td align="left">Haplotype-aware variant consequence annotation for
+credible-set variants</td>
+<td align="left"><a
+href="https://doi.org/10.1093/bioinformatics/btx100">Danecek &amp;
+McCarthy 2017</a></td>
+</tr>
+<tr class="even">
+<td align="left">PoPS</td>
+<td align="left">Polygenic Priority Score for effector-gene
+prioritisation</td>
+<td align="left"><a
+href="https://doi.org/10.1038/s41588-023-01443-6">Weeks et
+al. 2023</a></td>
+</tr>
+<tr class="odd">
+<td align="left">CALDERA</td>
+<td align="left">Effector-gene identification from fine-mapped credible
+sets</td>
+<td align="left"><a
+href="https://doi.org/10.1371/journal.pgen.1012079">Schipper et
+al. 2026</a></td>
+</tr>
+<tr class="even">
 <td align="left">MAGMA</td>
 <td align="left">Gene-level and gene set association analysis</td>
 <td align="left"><a
 href="https://doi.org/10.1371/journal.pcbi.1004219">de Leeuw et
 al. 2015</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">FUSION</td>
 <td align="left">Transcriptome-wide association study</td>
 <td align="left"><a href="https://doi.org/10.1038/ng.3506">Gusev et
 al. 2016</a></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">SMR</td>
 <td align="left">Summary-data-based Mendelian randomisation</td>
 <td align="left"><a href="https://doi.org/10.1038/ng.3538">Zhu et
 al. 2016</a></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left">TWAS-GSEA</td>
 <td align="left">Gene set enrichment of TWAS results</td>
 <td align="left"><a
-href="https://doi.org/10.1101/2023.07.24.23293084">Pain et
-al. 2023</a></td>
-</tr>
-<tr class="odd">
-<td align="left">DrugTargetor</td>
-<td align="left">Drug-gene interaction database for enrichment</td>
-<td align="left"><a
-href="https://doi.org/10.1093/bioinformatics/bty742">Gaspar et
+href="https://doi.org/10.1016/j.biopsych.2019.04.034">Pain et
 al. 2019</a></td>
 </tr>
 <tr class="even">
+<td align="left">DrugTargetor</td>
+<td align="left">Drug-gene interaction database for enrichment</td>
+<td align="left"><a
+href="https://doi.org/10.1093/bioinformatics/bty982">Gaspar et
+al. 2019</a></td>
+</tr>
+<tr class="odd">
 <td align="left">liftOver</td>
 <td align="left">Genome build coordinate conversion</td>
 <td align="left"><a
@@ -528,27 +569,44 @@ Browser</a></td>
 </div>
 <div id="workflow-overview" class="section level1">
 <h1>Workflow overview</h1>
-<p>The pipeline is implemented as a Snakemake workflow composed of eight
-rule modules:</p>
-<ol style="list-style-type: decimal">
+<p>The pipeline is implemented as a Snakemake workflow. Its rules are
+organised into the following modules (in <code>rules/</code>):</p>
+<ul>
 <li><strong><code>dependencies.smk</code></strong> - Downloads and
-prepares reference data (1000 Genomes, gene annotations, LD scores, TWAS
-weights, drug-gene databases)</li>
+prepares reference data (1000 Genomes, gene annotations, LD scores,
+TWAS/PWAS weights, drug-gene databases, PoPS features, etc.)</li>
 <li><strong><code>sumstat_qc.smk</code></strong> - Cleans, harmonises,
-and quality-controls GWAS summary statistics</li>
-<li><strong><code>finemapping.smk</code></strong> - Performs
-fine-mapping of GWAS loci</li>
-<li><strong><code>magma.smk</code></strong> - Runs gene-level and gene
-set association analyses</li>
-<li><strong><code>twas_pwas.smk</code></strong> - Performs
-transcriptome- and proteome-wide association analyses</li>
-<li><strong><code>smr.smk</code></strong> - Runs summary-data-based
-Mendelian randomisation</li>
-<li><strong><code>gcsc.smk</code></strong> - Performs gene
-co-regulation-based drug scoring</li>
+and quality-controls GWAS summary statistics; also runs LDSC
+(heritability and genetic correlation), LD clumping, and COJO (GCTA-COJO
+and Manc-COJO)</li>
+<li><strong><code>sbayesrc.smk</code></strong> /
+<strong><code>sbayesrc_r.smk</code></strong> - SNP-based heritability
+and polygenicity via GCTB SBayesRC (binary and R-package engines)</li>
+<li><strong><code>sumher.smk</code></strong> - SNP-based heritability
+via LDAK SumHer</li>
+<li><strong><code>finemapping.smk</code></strong> - Fine-mapping of GWAS
+loci (SuSiE)</li>
+<li><strong><code>credset_coding.smk</code></strong> - Coding-variant
+annotation of fine-mapped credible sets (AlphaMissense +
+bcftools/csq)</li>
+<li><strong><code>magma.smk</code></strong> - Gene-level and gene-set
+association analyses, tissue enrichment, and MAGMA DrugTargetor
+enrichment</li>
+<li><strong><code>magma_interaction.smk</code></strong> - MAGMA gene-set
+x tissue interaction analysis</li>
+<li><strong><code>pops.smk</code></strong> /
+<strong><code>caldera.smk</code></strong> - Effector-gene prioritisation
+(Polygenic Priority Score and CALDERA)</li>
+<li><strong><code>twas_pwas.smk</code></strong> - Transcriptome- and
+proteome-wide association analyses (FUSION), plus TWAS-GSEA
+drug/pathway/CMAP enrichment</li>
+<li><strong><code>smr.smk</code></strong> - Summary-data-based Mendelian
+randomisation</li>
+<li><strong><code>gcsc.smk</code></strong> - Gene co-regulation-based
+drug scoring</li>
 <li><strong><code>report.smk</code></strong> - Packages all results into
-a single <code>.rds</code> object</li>
-</ol>
+the bundle consumed by the Shiny viewer</li>
+</ul>
 <p>Reference data and tool dependencies are downloaded automatically on
 the first pipeline run.</p>
 <hr />
@@ -757,6 +815,25 @@ variants, <span class="math inline">\(\pi\)</span>) from the package’s
 <code>{outdir}/results/{gwas}/sbayesrc_r/</code>.</p>
 <hr />
 </div>
+<div id="sumher-snp-based-heritability" class="section level2">
+<h2>SumHer (SNP-based heritability)</h2>
+<p><a href="https://dougspeed.com/sumher/">SumHer</a>, part of the <a
+href="https://dougspeed.com/ldak/">LDAK</a> software, provides a third
+SNP-heritability estimator alongside LDSC and SBayesRC (enabled with the
+<code>sumher</code> flag). It runs LDAK’s <code>--sum-hers</code> under
+the <strong>BLD-LDAK</strong> heritability model over a pre-computed
+HapMap3 tagging file, on the observed scale. SumHer assumes a different
+relationship between per-SNP heritability and allele frequency/LD than
+LDSC’s infinitesimal model, so its estimate is a useful complement
+rather than a replacement.</p>
+<p>The tagging file is chosen per-GWAS from the population column
+(EUR/EAS/AFR). Low-frequency/poorly-imputed variants are filtered using
+the <code>sumher_cutoff</code> and <code>sumher_max_missing</code>
+thresholds. Results are stored in
+<code>{outdir}/results/{gwas}/sumher/</code>
+(<code>{gwas}.sumher.clean.csv</code>).</p>
+<hr />
+</div>
 <div id="ld-clumping" class="section level2">
 <h2>LD clumping</h2>
 <p>LD clumping is performed using PLINK to identify independent
@@ -822,6 +899,42 @@ locus (configurable)</li>
 <code>{outdir}/results/{gwas}/finemap/</code>.</p>
 <hr />
 </div>
+<div id="effector-gene-prioritisation" class="section level2">
+<h2>Effector-gene prioritisation</h2>
+<p>Beyond locating credible-set variants, the pipeline offers three
+optional layers that help nominate the gene(s) most likely to mediate
+each signal.</p>
+<p><strong>Credible-set coding annotation
+(<code>credset_coding_annot</code>).</strong> Requires
+<code>finemap: T</code>. For every fine-mapped credible-set variant
+above a PIP threshold (<code>credset_coding_pip_thresh</code>, default
+0.1), the pipeline annotates protein-coding consequences using <a
+href="https://doi.org/10.1093/bioinformatics/btx100">BCFtools/csq</a>
+(haplotype-aware consequence calling against the Ensembl GRCh37
+transcript set) and missense pathogenicity using precomputed <a
+href="https://doi.org/10.1126/science.adg7492">AlphaMissense</a> GRCh37
+scores. This flags credible sets that implicate a gene directly through
+a coding change. Results are written alongside the fine-mapping output
+(<code>{gwas}.GW.credset_coding_summary.csv</code> and
+<code>{gwas}.GW.credset_coding.csv</code>).</p>
+<p><strong>PoPS (<code>pops</code>).</strong> Requires
+<code>magma_gene: T</code>. The <a
+href="https://doi.org/10.1038/s41588-023-01443-6">Polygenic Priority
+Score</a> prioritises genes by integrating genome-wide polygenic signal
+(from a gene-level MAGMA step run on Ensembl gene IDs) with a large
+panel of gene features, independent of a gene’s proximity to the lead
+variant. Results are stored in
+<code>{outdir}/results/{gwas}/pops/</code>.</p>
+<p><strong>CALDERA (<code>caldera</code>).</strong> Requires
+<code>pops: T</code> <strong>and</strong> <code>finemap: T</code>. <a
+href="https://doi.org/10.1371/journal.pgen.1012079">CALDERA</a> applies
+a pretrained model to each fine-mapped locus, combining credible-set
+membership and the PoPS prioritisation to identify the most probable
+effector gene per locus. Results are stored in
+<code>{outdir}/results/{gwas}/caldera/</code>
+(<code>{gwas}.GW.caldera.csv</code>).</p>
+<hr />
+</div>
 <div id="magma-gene-level-association" class="section level2">
 <h2>MAGMA gene-level association</h2>
 <p><a href="https://ctg.cncr.nl/software/magma">MAGMA</a> performs
@@ -846,11 +959,20 @@ predicted gene expression is associated with the GWAS phenotype. The
 pipeline supports multiple eQTL reference panels:</p>
 <ul>
 <li><strong>GTEx panels</strong>: Tissue-specific eQTL weights from the
-GTEx consortium (user-specified tissues)</li>
+GTEx consortium v8 (user-specified tissues)</li>
 <li><strong>PsychENCODE</strong>: Brain-specific eQTL weights from the
 PsychENCODE consortium</li>
 <li><strong>Non-GTEx panels</strong>: Additional eQTL panels (e.g. CMC
 brain RNA-seq)</li>
+<li><strong>Fetal-brain panel</strong>
+(<code>twas_panel_fetal_brain</code>): Gene-level fetal-brain expression
+weights (<a href="https://doi.org/10.6084/m9.figshare.11637036">Bray,
+O’Brien, Pain et al. 2020</a>)</li>
+<li><strong>HERV panel</strong> (<code>twas_panel_herv</code>): Human
+endogenous retrovirus (retrotranscriptome) weights from brain (<a
+href="https://doi.org/10.18742/22179655">Duarte, Pain et al. 2024</a>);
+HERV features are excluded from the gene-level downstream analyses and
+FDR-corrected separately</li>
 <li><strong>External panels</strong>: User-provided TWAS weight panels
 in FUSION format</li>
 </ul>
@@ -1133,6 +1255,26 @@ tissue: some are kept precisely because collinearity prevents that
 distinction.</p>
 <p>Results are stored in
 <code>{outdir}/results/{gwas}/magma/</code>.</p>
+<hr />
+</div>
+<div id="magma-gene-set-tissue-interaction" class="section level2">
+<h2>MAGMA gene-set × tissue interaction</h2>
+<p>When <code>magma_interaction.enabled: true</code>, the pipeline runs
+a post-hoc gene-set × tissue interaction analysis
+(<code>magma_gene_set_by_tissue_interaction</code> rule) that asks, for
+each gene set, whether its GWAS enrichment is driven by genes expressed
+in particular GTEx tissues rather than being uniform across tissues.
+Because MAGMA’s interaction model has a hard gene-set-size floor, only
+sets with at least <code>min_set_size</code> genes (default 100; a floor
+of 25 is enforced) are tested.</p>
+<p>Raw hits are filtered with a de Leeuw et al. 2018-style follow-up
+(top-quartile and outlier-removed re-tests, controlled by
+<code>followup_p_threshold</code>), and gene sets that interact in
+implausibly many tissues at once are flagged as bias-suspect
+(<code>bias_flag_p_threshold</code>,
+<code>bias_flag_min_tissues</code>). Results are written under
+<code>{outdir}/results/{gwas}/magma/interaction/</code> and BH-corrected
+at <code>fdr_threshold</code>.</p>
 <hr />
 </div>
 </div>

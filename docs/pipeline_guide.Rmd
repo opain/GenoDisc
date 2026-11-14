@@ -165,6 +165,24 @@ kable(df, format = 'markdown')
 
 </details>
 
+<details><summary>**View GWAS QC threshold parameters**</summary>
+
+These control the summary-statistic cleaning step (`sumstat_cleaner.R`). The defaults are sensible for most GWAS; adjust only if you understand the consequences.
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`info`', Description = 'Minimum imputation INFO score (variants below are removed; applied only if an INFO column is present)', Example = '`0.9`'),
+  list(Parameter = '`maf`', Description = 'Minimum minor allele frequency (variants below are removed; applied only if a frequency column is present)', Example = '`0.01`'),
+  list(Parameter = '`maf_diff`', Description = 'Maximum allowed absolute difference between the reported and reference-panel allele frequency', Example = '`0.2`'),
+  list(Parameter = '`removed_p_thresh`', Description = 'Only QC-removed variants with `P` below this threshold are recorded in the `.cleaned.removed.gz` sidecar (keeps the file small)', Example = '`1.0e-5`')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
 <details><summary>**View analysis toggle parameters**</summary>
 
 All analysis toggles accept `T` (run) or `F` (skip).
@@ -178,10 +196,16 @@ params <- list(
   list(Parameter = '`ldsc`', Description = 'LD score regression for heritability and intercept estimation', Part = 'Part 1'),
   list(Parameter = '`sbayesrc`', Description = 'GCTB SBayesRC: SNP-based heritability and polygenicity (number of non-zero-effect variants); EUR/EAS/AFR only', Part = 'Part 1'),
   list(Parameter = '`sbayesrc_r`', Description = 'SBayesRC via the R package: same SNP-h2 + polygenicity as `sbayesrc`, faster engine (params `sbayesrc_r_ldref/annot/threads/seed`); EUR/EAS/AFR only', Part = 'Part 1'),
+  list(Parameter = '`sumher`', Description = 'LDAK SumHer SNP-based heritability under the BLD-LDAK model (a third heritability estimator alongside `ldsc` and `sbayesrc`; params `sumher_ref/ldak/cutoff/max_missing/threads`); EUR/EAS/AFR only', Part = 'Part 1'),
   list(Parameter = '`gencor_within_gwas_list`', Description = 'Bivariate LDSC rG among every pair of EUR primaries in `gwas_list` (requires `ldsc: T`; self-pairs and non-EUR primaries skipped)', Part = 'Part 1'),
   list(Parameter = '`magma_gene`', Description = 'MAGMA gene-level association analysis', Part = 'Part 2'),
-  list(Parameter = '`twas_panel_fusion`', Description = 'TWAS using FUSION GTEx and non-GTEx weight panels', Part = 'Part 2'),
+  list(Parameter = '`credset_coding_annot`', Description = 'Coding-variant annotation of fine-mapped credible sets (AlphaMissense + BCFtools/csq; params `alphamissense_hg19/csq_gff3/csq_fasta/credset_coding_pip_thresh`). Requires `finemap: T`', Part = 'Part 2'),
+  list(Parameter = '`pops`', Description = 'Polygenic Priority Score for effector-gene prioritisation (params `pops_repo/features/gene_annot`). Requires `magma_gene: T`', Part = 'Part 2'),
+  list(Parameter = '`caldera`', Description = 'CALDERA effector-gene identification from fine-mapped credible sets (param `caldera_repo`). Requires `pops: T` and `finemap: T`', Part = 'Part 2'),
+  list(Parameter = '`twas_panel_fusion`', Description = 'TWAS using FUSION GTEx (v8) and non-GTEx weight panels', Part = 'Part 2'),
   list(Parameter = '`twas_panel_psychencode`', Description = 'TWAS using PsychENCODE panel', Part = 'Part 2'),
+  list(Parameter = '`twas_panel_fetal_brain`', Description = 'TWAS using the fetal-brain gene-level FUSION panel', Part = 'Part 2'),
+  list(Parameter = '`twas_panel_herv`', Description = 'TWAS using the HERV (human endogenous retrovirus) retrotranscriptome FUSION panel; HERV features are FDR-corrected separately and excluded from gene-level downstream analyses', Part = 'Part 2'),
   list(Parameter = '`twas_conditional`', Description = 'Conditional analysis of significant TWAS hits', Part = 'Part 2'),
   list(Parameter = '`smr_expression_panel_psychencode`', Description = 'SMR using PsychENCODE eQTL data', Part = 'Part 2'),
   list(Parameter = '`smr_expression_panel_metabrain_cortex`', Description = 'SMR using MetaBrain cortex eQTL data', Part = 'Part 2'),
@@ -201,6 +225,7 @@ params <- list(
   list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
   list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
   list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
+  list(Parameter = '`magma_interaction`', Description = 'MAGMA gene-set x tissue interaction analysis. This is a nested block, not a `T`/`F` toggle: set `magma_interaction.enabled: true` (see the MAGMA interaction parameters below)', Part = 'Part 3'),
   list(Parameter = '`magma_pathway`', Description = 'MAGMA gene-set enrichment against user-supplied `.gmt` pathway sets (requires `magma_gene: T` and `pathway_gmt_dir`)', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_pathway`', Description = 'Non-directional TWAS-GSEA against user-supplied `.gmt` pathway sets (requires a TWAS panel and `pathway_gmt_dir`)', Part = 'Part 3')
 )
@@ -223,6 +248,69 @@ params <- list(
   list(Parameter = '`sbayesrc_seed`', Description = 'MCMC random seed (for reproducible runs)', Example = '`1`'),
   list(Parameter = '`sbayesrc_chain_length`', Description = 'MCMC chain length', Example = '`3000`'),
   list(Parameter = '`sbayesrc_burn_in`', Description = 'MCMC burn-in iterations discarded', Example = '`1000`')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View SumHer parameters**</summary>
+
+Only consulted when `sumher: T`. References default to the copies staged in `resdir`.
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`sumher_ref`', Description = 'Base directory holding the per-population BLD-LDAK HapMap3 tagging files (`<ldakpop>/bld.ldak.hapmap.<ldakpop>.tagging`). `NA` = use the copy staged in `resdir` by `download_sumher_tagging`.', Example = '`NA`'),
+  list(Parameter = '`sumher_ldak`', Description = 'Path to the LDAK executable. `NA` = use the pinned binary staged in `resdir` by `download_ldak`.', Example = '`NA`'),
+  list(Parameter = '`sumher_cutoff`', Description = 'Minimum predictor-filtering threshold passed to LDAK', Example = '`0.01`'),
+  list(Parameter = '`sumher_max_missing`', Description = 'Maximum allowed missingness per predictor', Example = '`0.2`'),
+  list(Parameter = '`sumher_threads`', Description = 'Threads for the LDAK run', Example = '`1`')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View effector-gene prioritisation parameters**</summary>
+
+`credset_coding_annot` requires `finemap: T`; `pops` requires `magma_gene: T`; `caldera` requires `pops: T` and `finemap: T`. References default to the copies staged in `resdir`.
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`alphamissense_hg19`', Description = 'AlphaMissense GRCh37 precomputed scores. `NA` = use the copy staged in `resdir` by `download_alphamissense`.', Example = '`NA`'),
+  list(Parameter = '`csq_gff3`', Description = 'Ensembl GRCh37 GFF3 annotation for BCFtools/csq. `NA` = use the staged copy.', Example = '`NA`'),
+  list(Parameter = '`csq_fasta`', Description = 'Reference FASTA for BCFtools/csq. `NA` = use the staged copy.', Example = '`NA`'),
+  list(Parameter = '`credset_coding_pip_thresh`', Description = 'Minimum PIP for a credible-set variant to be coding-annotated', Example = '`0.1`'),
+  list(Parameter = '`pops_repo`', Description = 'PoPS code repository. `NA` = use the copy staged in `resdir` by `download_pops`.', Example = '`NA`'),
+  list(Parameter = '`pops_features`', Description = 'PoPS gene-feature matrix. `NA` = use the staged copy.', Example = '`NA`'),
+  list(Parameter = '`pops_gene_annot`', Description = 'PoPS gene annotation file. `NA` = use the staged copy.', Example = '`NA`'),
+  list(Parameter = '`caldera_repo`', Description = 'CALDERA code + pretrained model. `NA` = use the copy staged in `resdir` by `download_caldera`.', Example = '`NA`')
+)
+
+df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
+kable(df, format = 'markdown')
+```
+
+</details>
+
+<details><summary>**View MAGMA gene-set x tissue interaction parameters**</summary>
+
+`magma_interaction` is a nested mapping (not a `T`/`F` toggle). Set `enabled: true` to run it.
+
+```{r, eval=T, echo=F, results='asis'}
+params <- list(
+  list(Parameter = '`enabled`', Description = 'Run the gene-set x tissue interaction analysis', Example = '`true`'),
+  list(Parameter = '`min_set_size`', Description = 'Minimum genes per set to be tested (MAGMA interaction floor is 25)', Example = '`100`'),
+  list(Parameter = '`fdr_threshold`', Description = 'BH-FDR threshold for retained interactions', Example = '`0.05`'),
+  list(Parameter = '`n_cores`', Description = 'Parallel workers for the per-set MAGMA loop', Example = '`1`'),
+  list(Parameter = '`tmpdir`', Description = "Temp workspace root (`auto` -> /dev/shm if writable; point at node-local disk to avoid shared-FS I/O contention when `n_cores > 1`)", Example = '`auto`'),
+  list(Parameter = '`followup_p_threshold`', Description = 'Rows with `p_interaction` below this trigger the top-25% and outlier-removed follow-up tests', Example = '`1.0e-4`'),
+  list(Parameter = '`bias_flag_p_threshold`', Description = 'Per-tissue p-value used to flag bias-suspect sets', Example = '`1.0e-3`'),
+  list(Parameter = '`bias_flag_min_tissues`', Description = 'A set is flagged bias-suspect if at least this many tissues fall below `bias_flag_p_threshold`', Example = '`5`')
 )
 
 df <- do.call(rbind, lapply(params, as.data.frame, stringsAsFactors = FALSE))
@@ -492,6 +580,7 @@ Below are the main output files you can request, grouped by analysis. Replace `{
 | LDSC | `{outdir}/results/{gwas}/ldsc/{gwas}_ldsc_res.log` |
 | SBayesRC | `{outdir}/results/{gwas}/sbayesrc/{gwas}.GW.sbayesrc.clean.csv` |
 | SBayesRC (R package) | `{outdir}/results/{gwas}/sbayesrc_r/{gwas}.GW.sbayesrc_r.clean.csv` |
+| SumHer | `{outdir}/results/{gwas}/sumher/{gwas}.sumher.clean.csv` |
 
 </details>
 
@@ -560,16 +649,22 @@ The pipeline organises intermediate outputs by GWAS within the specified output 
       clump/               # LD clumping results
       manc_cojo/           # Manc-COJO results (the COJO method used)
       cojo/                # GCTA-COJO results (only when cojo: T)
-      finemap/             # SuSiE fine-mapping results
+      finemap/             # SuSiE fine-mapping results; also credible-set coding
+                           #   annotation (only when credset_coding_annot: T)
+      pops/                # PoPS effector-gene prioritisation (only when pops: T)
+      caldera/             # CALDERA effector-gene results (only when caldera: T)
       ldsc/                # LD score regression results
       sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
       sbayesrc_r/          # SBayesRC (R package) SNP-h2 + polygenicity (only when sbayesrc_r: T)
+      sumher/              # LDAK SumHer SNP-h2 (only when sumher: T)
       gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
       gencor_within/       # Bivariate LDSC among primaries in gwas_list;
                            #   only when gencor_within_gwas_list: T
       magma/               # MAGMA gene-level and enrichment results
         pathway/{gmt}/     # MAGMA pathway enrichment (one dir per user gmt);
                            #   only when magma_pathway: T
+        interaction/       # MAGMA gene-set x tissue interaction;
+                           #   only when magma_interaction.enabled: true
       twas/                # TWAS results (combined across panels)
         conditional/       # Conditional TWAS results
         cmap/              # TWAS-GSEA CMAP results

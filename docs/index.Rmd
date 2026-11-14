@@ -30,7 +30,7 @@ GenoDisc is a research programme based at King’s College London that focuses o
 
 # The Pipeline
 
-We have implemented a range of post-GWAS analyses into our GenoPred pipeline - An easy-to-use and robust software pipeline.
+We have implemented a range of post-GWAS analyses into the GenoDisc pipeline - An easy-to-use and robust software pipeline.
 
 <a href="pipeline_guide.html" class="button">Learn More</a>
 

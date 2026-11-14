@@ -35,15 +35,20 @@ tools <- list(
   list(Tool = 'LDSC', Purpose = 'LD score regression for heritability and genetic correlation', Reference = '[Bulik-Sullivan et al. 2015](https://doi.org/10.1038/ng.3211)'),
   list(Tool = 'GCTB (SBayesRC)', Purpose = 'SNP-based heritability and polygenicity (Bayesian, annotation-informed)', Reference = '[Zheng et al. 2024](https://doi.org/10.1038/s41588-024-01704-y)'),
   list(Tool = 'SBayesRC (R package)', Purpose = 'SNP-based heritability and polygenicity (SBayesRC R-package engine; faster alternative to GCTB)', Reference = '[Zheng et al. 2024](https://doi.org/10.1038/s41588-024-01704-y)'),
+  list(Tool = 'LDAK (SumHer)', Purpose = 'SNP-based heritability under the BLD-LDAK model', Reference = '[Speed &amp; Balding 2019](https://doi.org/10.1038/s41588-018-0279-5)'),
   list(Tool = 'PLINK 1.9', Purpose = 'LD clumping and general variant-level operations', Reference = '[Chang et al. 2015](https://doi.org/10.1186/s13742-015-0047-8)'),
   list(Tool = 'GCTA-COJO', Purpose = 'Conditional and joint association analysis', Reference = '[Yang et al. 2012](https://doi.org/10.1038/ng.2213)'),
   list(Tool = 'Manc-COJO (v1.1.0)', Purpose = 'Conditional and joint association analysis (fast re-implementation of GCTA-COJO single-ancestry selection; the COJO method used)', Reference = '[Wang et al. 2026](https://doi.org/10.1038/s41588-026-02799-1)'),
   list(Tool = 'SuSiE', Purpose = 'Fine-mapping via Sum of Single Effects model', Reference = '[Wang et al. 2020](https://doi.org/10.1111/rssb.12388)'),
+  list(Tool = 'AlphaMissense', Purpose = 'Missense pathogenicity prediction for credible-set variants', Reference = '[Cheng et al. 2023](https://doi.org/10.1126/science.adg7492)'),
+  list(Tool = 'BCFtools/csq', Purpose = 'Haplotype-aware variant consequence annotation for credible-set variants', Reference = '[Danecek &amp; McCarthy 2017](https://doi.org/10.1093/bioinformatics/btx100)'),
+  list(Tool = 'PoPS', Purpose = 'Polygenic Priority Score for effector-gene prioritisation', Reference = '[Weeks et al. 2023](https://doi.org/10.1038/s41588-023-01443-6)'),
+  list(Tool = 'CALDERA', Purpose = 'Effector-gene identification from fine-mapped credible sets', Reference = '[Schipper et al. 2026](https://doi.org/10.1371/journal.pgen.1012079)'),
   list(Tool = 'MAGMA', Purpose = 'Gene-level and gene set association analysis', Reference = '[de Leeuw et al. 2015](https://doi.org/10.1371/journal.pcbi.1004219)'),
   list(Tool = 'FUSION', Purpose = 'Transcriptome-wide association study', Reference = '[Gusev et al. 2016](https://doi.org/10.1038/ng.3506)'),
   list(Tool = 'SMR', Purpose = 'Summary-data-based Mendelian randomisation', Reference = '[Zhu et al. 2016](https://doi.org/10.1038/ng.3538)'),
-  list(Tool = 'TWAS-GSEA', Purpose = 'Gene set enrichment of TWAS results', Reference = '[Pain et al. 2023](https://doi.org/10.1101/2023.07.24.23293084)'),
-  list(Tool = 'DrugTargetor', Purpose = 'Drug-gene interaction database for enrichment', Reference = '[Gaspar et al. 2019](https://doi.org/10.1093/bioinformatics/bty742)'),
+  list(Tool = 'TWAS-GSEA', Purpose = 'Gene set enrichment of TWAS results', Reference = '[Pain et al. 2019](https://doi.org/10.1016/j.biopsych.2019.04.034)'),
+  list(Tool = 'DrugTargetor', Purpose = 'Drug-gene interaction database for enrichment', Reference = '[Gaspar et al. 2019](https://doi.org/10.1093/bioinformatics/bty982)'),
   list(Tool = 'liftOver', Purpose = 'Genome build coordinate conversion', Reference = '[UCSC Genome Browser](https://genome.ucsc.edu/cgi-bin/hgLiftOver)')
 )
 
@@ -55,16 +60,21 @@ kable(df, format = 'markdown')
 
 # Workflow overview
 
-The pipeline is implemented as a Snakemake workflow composed of eight rule modules:
+The pipeline is implemented as a Snakemake workflow. Its rules are organised into the following modules (in `rules/`):
 
-1. **`dependencies.smk`** - Downloads and prepares reference data (1000 Genomes, gene annotations, LD scores, TWAS weights, drug-gene databases)
-2. **`sumstat_qc.smk`** - Cleans, harmonises, and quality-controls GWAS summary statistics
-3. **`finemapping.smk`** - Performs fine-mapping of GWAS loci
-4. **`magma.smk`** - Runs gene-level and gene set association analyses
-5. **`twas_pwas.smk`** - Performs transcriptome- and proteome-wide association analyses
-6. **`smr.smk`** - Runs summary-data-based Mendelian randomisation
-7. **`gcsc.smk`** - Performs gene co-regulation-based drug scoring
-8. **`report.smk`** - Packages all results into a single `.rds` object
+- **`dependencies.smk`** - Downloads and prepares reference data (1000 Genomes, gene annotations, LD scores, TWAS/PWAS weights, drug-gene databases, PoPS features, etc.)
+- **`sumstat_qc.smk`** - Cleans, harmonises, and quality-controls GWAS summary statistics; also runs LDSC (heritability and genetic correlation), LD clumping, and COJO (GCTA-COJO and Manc-COJO)
+- **`sbayesrc.smk`** / **`sbayesrc_r.smk`** - SNP-based heritability and polygenicity via GCTB SBayesRC (binary and R-package engines)
+- **`sumher.smk`** - SNP-based heritability via LDAK SumHer
+- **`finemapping.smk`** - Fine-mapping of GWAS loci (SuSiE)
+- **`credset_coding.smk`** - Coding-variant annotation of fine-mapped credible sets (AlphaMissense + bcftools/csq)
+- **`magma.smk`** - Gene-level and gene-set association analyses, tissue enrichment, and MAGMA DrugTargetor enrichment
+- **`magma_interaction.smk`** - MAGMA gene-set x tissue interaction analysis
+- **`pops.smk`** / **`caldera.smk`** - Effector-gene prioritisation (Polygenic Priority Score and CALDERA)
+- **`twas_pwas.smk`** - Transcriptome- and proteome-wide association analyses (FUSION), plus TWAS-GSEA drug/pathway/CMAP enrichment
+- **`smr.smk`** - Summary-data-based Mendelian randomisation
+- **`gcsc.smk`** - Gene co-regulation-based drug scoring
+- **`report.smk`** - Packages all results into the bundle consumed by the Shiny viewer
 
 Reference data and tool dependencies are downloaded automatically on the first pipeline run.
 
@@ -159,6 +169,14 @@ The LD reference (UK Biobank HapMap3 eigen-decomposition) is chosen per-GWAS fro
 
 ***
 
+## SumHer (SNP-based heritability)
+
+[SumHer](https://dougspeed.com/sumher/), part of the [LDAK](https://dougspeed.com/ldak/) software, provides a third SNP-heritability estimator alongside LDSC and SBayesRC (enabled with the `sumher` flag). It runs LDAK's `--sum-hers` under the **BLD-LDAK** heritability model over a pre-computed HapMap3 tagging file, on the observed scale. SumHer assumes a different relationship between per-SNP heritability and allele frequency/LD than LDSC's infinitesimal model, so its estimate is a useful complement rather than a replacement.
+
+The tagging file is chosen per-GWAS from the population column (EUR/EAS/AFR). Low-frequency/poorly-imputed variants are filtered using the `sumher_cutoff` and `sumher_max_missing` thresholds. Results are stored in `{outdir}/results/{gwas}/sumher/` (`{gwas}.sumher.clean.csv`).
+
+***
+
 ## LD clumping
 
 LD clumping is performed using PLINK to identify independent genome-wide significant associations. The procedure uses:
@@ -203,6 +221,18 @@ Results are stored in `{outdir}/results/{gwas}/finemap/`.
 
 ***
 
+## Effector-gene prioritisation
+
+Beyond locating credible-set variants, the pipeline offers three optional layers that help nominate the gene(s) most likely to mediate each signal.
+
+**Credible-set coding annotation (`credset_coding_annot`).** Requires `finemap: T`. For every fine-mapped credible-set variant above a PIP threshold (`credset_coding_pip_thresh`, default 0.1), the pipeline annotates protein-coding consequences using [BCFtools/csq](https://doi.org/10.1093/bioinformatics/btx100) (haplotype-aware consequence calling against the Ensembl GRCh37 transcript set) and missense pathogenicity using precomputed [AlphaMissense](https://doi.org/10.1126/science.adg7492) GRCh37 scores. This flags credible sets that implicate a gene directly through a coding change. Results are written alongside the fine-mapping output (`{gwas}.GW.credset_coding_summary.csv` and `{gwas}.GW.credset_coding.csv`).
+
+**PoPS (`pops`).** Requires `magma_gene: T`. The [Polygenic Priority Score](https://doi.org/10.1038/s41588-023-01443-6) prioritises genes by integrating genome-wide polygenic signal (from a gene-level MAGMA step run on Ensembl gene IDs) with a large panel of gene features, independent of a gene's proximity to the lead variant. Results are stored in `{outdir}/results/{gwas}/pops/`.
+
+**CALDERA (`caldera`).** Requires `pops: T` **and** `finemap: T`. [CALDERA](https://doi.org/10.1371/journal.pgen.1012079) applies a pretrained model to each fine-mapped locus, combining credible-set membership and the PoPS prioritisation to identify the most probable effector gene per locus. Results are stored in `{outdir}/results/{gwas}/caldera/` (`{gwas}.GW.caldera.csv`).
+
+***
+
 ## MAGMA gene-level association
 
 [MAGMA](https://ctg.cncr.nl/software/magma) performs gene-level association analysis by aggregating SNP-level association statistics within gene boundaries. The pipeline:
@@ -219,9 +249,11 @@ Results are stored in `{outdir}/results/{gwas}/magma/`.
 
 [FUSION](http://gusevlab.org/projects/fusion/) performs transcriptome-wide association studies by testing whether genetically predicted gene expression is associated with the GWAS phenotype. The pipeline supports multiple eQTL reference panels:
 
-- **GTEx panels**: Tissue-specific eQTL weights from the GTEx consortium (user-specified tissues)
+- **GTEx panels**: Tissue-specific eQTL weights from the GTEx consortium v8 (user-specified tissues)
 - **PsychENCODE**: Brain-specific eQTL weights from the PsychENCODE consortium
 - **Non-GTEx panels**: Additional eQTL panels (e.g. CMC brain RNA-seq)
+- **Fetal-brain panel** (`twas_panel_fetal_brain`): Gene-level fetal-brain expression weights ([Bray, O'Brien, Pain et al. 2020](https://doi.org/10.6084/m9.figshare.11637036))
+- **HERV panel** (`twas_panel_herv`): Human endogenous retrovirus (retrotranscriptome) weights from brain ([Duarte, Pain et al. 2024](https://doi.org/10.18742/22179655)); HERV features are excluded from the gene-level downstream analyses and FDR-corrected separately
 - **External panels**: User-provided TWAS weight panels in FUSION format
 
 For each panel, the pipeline:
@@ -387,6 +419,14 @@ A tissue is **retained** if any of the following hold after conditioning:
 Tissues that fail all three criteria are dropped, because their marginal enrichment is adequately accounted for by tissues already retained. The final set is written to `magma_tissue_conditional.indep.txt`. A retained tissue should be interpreted as a plausible driver of the GWAS signal, but retention does not imply it acts independently of every other retained tissue: some are kept precisely because collinearity prevents that distinction.
 
 Results are stored in `{outdir}/results/{gwas}/magma/`.
+
+***
+
+## MAGMA gene-set × tissue interaction
+
+When `magma_interaction.enabled: true`, the pipeline runs a post-hoc gene-set × tissue interaction analysis (`magma_gene_set_by_tissue_interaction` rule) that asks, for each gene set, whether its GWAS enrichment is driven by genes expressed in particular GTEx tissues rather than being uniform across tissues. Because MAGMA's interaction model has a hard gene-set-size floor, only sets with at least `min_set_size` genes (default 100; a floor of 25 is enforced) are tested.
+
+Raw hits are filtered with a de Leeuw et al. 2018-style follow-up (top-quartile and outlier-removed re-tests, controlled by `followup_p_threshold`), and gene sets that interact in implausibly many tissues at once are flagged as bias-suspect (`bias_flag_p_threshold`, `bias_flag_min_tissues`). Results are written under `{outdir}/results/{gwas}/magma/interaction/` and BH-corrected at `fdr_threshold`.
 
 ***
 

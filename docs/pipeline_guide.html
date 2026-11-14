@@ -13,7 +13,7 @@
 
 <title>GenoDisc Pipeline - User Guide</title>
 
-<script src="site_libs/header-attrs-2.14/header-attrs.js"></script>
+<script src="site_libs/header-attrs-2.32/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <link href="site_libs/bootstrap-3.3.5/css/cosmo.min.css" rel="stylesheet" />
@@ -29,14 +29,14 @@
        h6 {font-size: 12px;}
        code {color: inherit; background-color: rgba(0, 0, 0, 0.04);}
        pre:not([class]) { background-color: white }</style>
-<script src="site_libs/jqueryui-1.11.4/jquery-ui.min.js"></script>
+<script src="site_libs/jqueryui-1.13.2/jquery-ui.min.js"></script>
 <link href="site_libs/tocify-1.9.1/jquery.tocify.css" rel="stylesheet" />
 <script src="site_libs/tocify-1.9.1/jquery.tocify.js"></script>
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/default.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
-<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
-<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/all.min.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet" />
 <link rel="shortcut icon" href="Images/logo/favicon.ico">
 
 <link rel="stylesheet" href="styles/night-mode.css" id="nightModeStylesheet">
@@ -184,11 +184,15 @@ $(document).ready(function () {
     href = "index.html";
   var menuAnchor = $('a[href="' + href + '"]');
 
-  // mark it active
-  menuAnchor.tab('show');
-
-  // if it's got a parent navbar menu mark it active as well
-  menuAnchor.closest('li.dropdown').addClass('active');
+  // mark the anchor link active (and if it's in a dropdown, also mark that active)
+  var dropdown = menuAnchor.closest('li.dropdown');
+  if (window.bootstrap) { // Bootstrap 4+
+    menuAnchor.addClass('active');
+    dropdown.find('> .dropdown-toggle').addClass('active');
+  } else { // Bootstrap 3
+    menuAnchor.parent().addClass('active');
+    dropdown.addClass('active');
+  }
 
   // Navbar adjustments
   var navHeight = $(".navbar").first().height() + 15;
@@ -217,8 +221,8 @@ $(document).ready(function () {
   border-radius: 4px;
 }
 
-.tabset-dropdown > .nav-tabs > li.active:before {
-  content: "";
+.tabset-dropdown > .nav-tabs > li.active:before, .tabset-dropdown > .nav-tabs.nav-tabs-open:before {
+  content: "\e259";
   font-family: 'Glyphicons Halflings';
   display: inline-block;
   padding: 10px;
@@ -226,16 +230,9 @@ $(document).ready(function () {
 }
 
 .tabset-dropdown > .nav-tabs.nav-tabs-open > li.active:before {
-  content: "&#xe258;";
-  border: none;
-}
-
-.tabset-dropdown > .nav-tabs.nav-tabs-open:before {
-  content: "";
+  content: "\e258";
   font-family: 'Glyphicons Halflings';
-  display: inline-block;
-  padding: 10px;
-  border-right: 1px solid #ddd;
+  border: none;
 }
 
 .tabset-dropdown > .nav-tabs > li.active {
@@ -596,15 +593,64 @@ and/or <code>twas_gsea_pathway: T</code>.</td>
 </details>
 <details>
 <summary>
+<strong>View GWAS QC threshold parameters</strong>
+</summary>
+<p>These control the summary-statistic cleaning step
+(<code>sumstat_cleaner.R</code>). The defaults are sensible for most
+GWAS; adjust only if you understand the consequences.</p>
+<table>
+<colgroup>
+<col width="12%" />
+<col width="82%" />
+<col width="5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>info</code></td>
+<td align="left">Minimum imputation INFO score (variants below are
+removed; applied only if an INFO column is present)</td>
+<td align="left"><code>0.9</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>maf</code></td>
+<td align="left">Minimum minor allele frequency (variants below are
+removed; applied only if a frequency column is present)</td>
+<td align="left"><code>0.01</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>maf_diff</code></td>
+<td align="left">Maximum allowed absolute difference between the
+reported and reference-panel allele frequency</td>
+<td align="left"><code>0.2</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>removed_p_thresh</code></td>
+<td align="left">Only QC-removed variants with <code>P</code> below this
+threshold are recorded in the <code>.cleaned.removed.gz</code> sidecar
+(keeps the file small)</td>
+<td align="left"><code>1.0e-5</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
 <strong>View analysis toggle parameters</strong>
 </summary>
 <p>All analysis toggles accept <code>T</code> (run) or <code>F</code>
 (skip).</p>
 <table>
 <colgroup>
-<col width="20%" />
-<col width="76%" />
-<col width="3%" />
+<col width="18%" />
+<col width="78%" />
+<col width="2%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -658,25 +704,69 @@ as <code>sbayesrc</code>, faster engine (params
 <td align="left">Part 1</td>
 </tr>
 <tr class="even">
+<td align="left"><code>sumher</code></td>
+<td align="left">LDAK SumHer SNP-based heritability under the BLD-LDAK
+model (a third heritability estimator alongside <code>ldsc</code> and
+<code>sbayesrc</code>; params
+<code>sumher_ref/ldak/cutoff/max_missing/threads</code>); EUR/EAS/AFR
+only</td>
+<td align="left">Part 1</td>
+</tr>
+<tr class="odd">
 <td align="left"><code>gencor_within_gwas_list</code></td>
 <td align="left">Bivariate LDSC rG among every pair of EUR primaries in
 <code>gwas_list</code> (requires <code>ldsc: T</code>; self-pairs and
 non-EUR primaries skipped)</td>
 <td align="left">Part 1</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><code>magma_gene</code></td>
 <td align="left">MAGMA gene-level association analysis</td>
 <td align="left">Part 2</td>
 </tr>
+<tr class="odd">
+<td align="left"><code>credset_coding_annot</code></td>
+<td align="left">Coding-variant annotation of fine-mapped credible sets
+(AlphaMissense + BCFtools/csq; params
+<code>alphamissense_hg19/csq_gff3/csq_fasta/credset_coding_pip_thresh</code>).
+Requires <code>finemap: T</code></td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>pops</code></td>
+<td align="left">Polygenic Priority Score for effector-gene
+prioritisation (params <code>pops_repo/features/gene_annot</code>).
+Requires <code>magma_gene: T</code></td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>caldera</code></td>
+<td align="left">CALDERA effector-gene identification from fine-mapped
+credible sets (param <code>caldera_repo</code>). Requires
+<code>pops: T</code> and <code>finemap: T</code></td>
+<td align="left">Part 2</td>
+</tr>
 <tr class="even">
 <td align="left"><code>twas_panel_fusion</code></td>
-<td align="left">TWAS using FUSION GTEx and non-GTEx weight panels</td>
+<td align="left">TWAS using FUSION GTEx (v8) and non-GTEx weight
+panels</td>
 <td align="left">Part 2</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>twas_panel_psychencode</code></td>
 <td align="left">TWAS using PsychENCODE panel</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="even">
+<td align="left"><code>twas_panel_fetal_brain</code></td>
+<td align="left">TWAS using the fetal-brain gene-level FUSION panel</td>
+<td align="left">Part 2</td>
+</tr>
+<tr class="odd">
+<td align="left"><code>twas_panel_herv</code></td>
+<td align="left">TWAS using the HERV (human endogenous retrovirus)
+retrotranscriptome FUSION panel; HERV features are FDR-corrected
+separately and excluded from gene-level downstream analyses</td>
 <td align="left">Part 2</td>
 </tr>
 <tr class="even">
@@ -786,13 +876,21 @@ GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient
 <td align="left">Part 3</td>
 </tr>
 <tr class="odd">
+<td align="left"><code>magma_interaction</code></td>
+<td align="left">MAGMA gene-set x tissue interaction analysis. This is a
+nested block, not a <code>T</code>/<code>F</code> toggle: set
+<code>magma_interaction.enabled: true</code> (see the MAGMA interaction
+parameters below)</td>
+<td align="left">Part 3</td>
+</tr>
+<tr class="even">
 <td align="left"><code>magma_pathway</code></td>
 <td align="left">MAGMA gene-set enrichment against user-supplied
 <code>.gmt</code> pathway sets (requires <code>magma_gene: T</code> and
 <code>pathway_gmt_dir</code>)</td>
 <td align="left">Part 3</td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><code>twas_gsea_pathway</code></td>
 <td align="left">Non-directional TWAS-GSEA against user-supplied
 <code>.gmt</code> pathway sets (requires a TWAS panel and
@@ -863,6 +961,206 @@ cores)</td>
 </details>
 <details>
 <summary>
+<strong>View SumHer parameters</strong>
+</summary>
+<p>Only consulted when <code>sumher: T</code>. References default to the
+copies staged in <code>resdir</code>.</p>
+<table>
+<colgroup>
+<col width="9%" />
+<col width="86%" />
+<col width="3%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>sumher_ref</code></td>
+<td align="left">Base directory holding the per-population BLD-LDAK
+HapMap3 tagging files
+(<code>&lt;ldakpop&gt;/bld.ldak.hapmap.&lt;ldakpop&gt;.tagging</code>).
+<code>NA</code> = use the copy staged in <code>resdir</code> by
+<code>download_sumher_tagging</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>sumher_ldak</code></td>
+<td align="left">Path to the LDAK executable. <code>NA</code> = use the
+pinned binary staged in <code>resdir</code> by
+<code>download_ldak</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>sumher_cutoff</code></td>
+<td align="left">Minimum predictor-filtering threshold passed to
+LDAK</td>
+<td align="left"><code>0.01</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>sumher_max_missing</code></td>
+<td align="left">Maximum allowed missingness per predictor</td>
+<td align="left"><code>0.2</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>sumher_threads</code></td>
+<td align="left">Threads for the LDAK run</td>
+<td align="left"><code>1</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>View effector-gene prioritisation parameters</strong>
+</summary>
+<p><code>credset_coding_annot</code> requires <code>finemap: T</code>;
+<code>pops</code> requires <code>magma_gene: T</code>;
+<code>caldera</code> requires <code>pops: T</code> and
+<code>finemap: T</code>. References default to the copies staged in
+<code>resdir</code>.</p>
+<table style="width:99%;">
+<colgroup>
+<col width="19%" />
+<col width="75%" />
+<col width="5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>alphamissense_hg19</code></td>
+<td align="left">AlphaMissense GRCh37 precomputed scores.
+<code>NA</code> = use the copy staged in <code>resdir</code> by
+<code>download_alphamissense</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>csq_gff3</code></td>
+<td align="left">Ensembl GRCh37 GFF3 annotation for BCFtools/csq.
+<code>NA</code> = use the staged copy.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>csq_fasta</code></td>
+<td align="left">Reference FASTA for BCFtools/csq. <code>NA</code> = use
+the staged copy.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>credset_coding_pip_thresh</code></td>
+<td align="left">Minimum PIP for a credible-set variant to be
+coding-annotated</td>
+<td align="left"><code>0.1</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>pops_repo</code></td>
+<td align="left">PoPS code repository. <code>NA</code> = use the copy
+staged in <code>resdir</code> by <code>download_pops</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>pops_features</code></td>
+<td align="left">PoPS gene-feature matrix. <code>NA</code> = use the
+staged copy.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>pops_gene_annot</code></td>
+<td align="left">PoPS gene annotation file. <code>NA</code> = use the
+staged copy.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>caldera_repo</code></td>
+<td align="left">CALDERA code + pretrained model. <code>NA</code> = use
+the copy staged in <code>resdir</code> by
+<code>download_caldera</code>.</td>
+<td align="left"><code>NA</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
+<strong>View MAGMA gene-set x tissue interaction parameters</strong>
+</summary>
+<p><code>magma_interaction</code> is a nested mapping (not a
+<code>T</code>/<code>F</code> toggle). Set <code>enabled: true</code> to
+run it.</p>
+<table>
+<colgroup>
+<col width="14%" />
+<col width="80%" />
+<col width="5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Parameter</th>
+<th align="left">Description</th>
+<th align="left">Example</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left"><code>enabled</code></td>
+<td align="left">Run the gene-set x tissue interaction analysis</td>
+<td align="left"><code>true</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>min_set_size</code></td>
+<td align="left">Minimum genes per set to be tested (MAGMA interaction
+floor is 25)</td>
+<td align="left"><code>100</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>fdr_threshold</code></td>
+<td align="left">BH-FDR threshold for retained interactions</td>
+<td align="left"><code>0.05</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>n_cores</code></td>
+<td align="left">Parallel workers for the per-set MAGMA loop</td>
+<td align="left"><code>1</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>tmpdir</code></td>
+<td align="left">Temp workspace root (<code>auto</code> -&gt; /dev/shm
+if writable; point at node-local disk to avoid shared-FS I/O contention
+when <code>n_cores &gt; 1</code>)</td>
+<td align="left"><code>auto</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>followup_p_threshold</code></td>
+<td align="left">Rows with <code>p_interaction</code> below this trigger
+the top-25% and outlier-removed follow-up tests</td>
+<td align="left"><code>1.0e-4</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><code>bias_flag_p_threshold</code></td>
+<td align="left">Per-tissue p-value used to flag bias-suspect sets</td>
+<td align="left"><code>1.0e-3</code></td>
+</tr>
+<tr class="even">
+<td align="left"><code>bias_flag_min_tissues</code></td>
+<td align="left">A set is flagged bias-suspect if at least this many
+tissues fall below <code>bias_flag_p_threshold</code></td>
+<td align="left"><code>5</code></td>
+</tr>
+</tbody>
+</table>
+</details>
+<details>
+<summary>
 <strong>View panel specification parameters</strong>
 </summary>
 <table>
@@ -926,9 +1224,9 @@ align="left"><code>["Brain_Frontal_Cortex_BA9", "Artery_Coronary"]</code></td>
 </summary>
 <table>
 <colgroup>
-<col width="12%" />
-<col width="33%" />
-<col width="53%" />
+<col width="19%" />
+<col width="54%" />
+<col width="25%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -1369,6 +1667,10 @@ Replace <code>{outdir}</code> with your output directory and
 <td>SBayesRC (R package)</td>
 <td><code>{outdir}/results/{gwas}/sbayesrc_r/{gwas}.GW.sbayesrc_r.clean.csv</code></td>
 </tr>
+<tr class="even">
+<td>SumHer</td>
+<td><code>{outdir}/results/{gwas}/sumher/{gwas}.sumher.clean.csv</code></td>
+</tr>
 </tbody>
 </table>
 </details>
@@ -1487,16 +1789,22 @@ portable bundle:</p>
       clump/               # LD clumping results
       manc_cojo/           # Manc-COJO results (the COJO method used)
       cojo/                # GCTA-COJO results (only when cojo: T)
-      finemap/             # SuSiE fine-mapping results
+      finemap/             # SuSiE fine-mapping results; also credible-set coding
+                           #   annotation (only when credset_coding_annot: T)
+      pops/                # PoPS effector-gene prioritisation (only when pops: T)
+      caldera/             # CALDERA effector-gene results (only when caldera: T)
       ldsc/                # LD score regression results
       sbayesrc/            # SBayesRC SNP-h2 + polygenicity (only when sbayesrc: T)
       sbayesrc_r/          # SBayesRC (R package) SNP-h2 + polygenicity (only when sbayesrc_r: T)
+      sumher/              # LDAK SumHer SNP-h2 (only when sumher: T)
       gencor/              # Bivariate LDSC vs gencor_gwas_list (reference panel)
       gencor_within/       # Bivariate LDSC among primaries in gwas_list;
                            #   only when gencor_within_gwas_list: T
       magma/               # MAGMA gene-level and enrichment results
         pathway/{gmt}/     # MAGMA pathway enrichment (one dir per user gmt);
                            #   only when magma_pathway: T
+        interaction/       # MAGMA gene-set x tissue interaction;
+                           #   only when magma_interaction.enabled: true
       twas/                # TWAS results (combined across panels)
         conditional/       # Conditional TWAS results
         cmap/              # TWAS-GSEA CMAP results
