@@ -866,28 +866,27 @@ sets</td>
 </tr>
 <tr class="even">
 <td align="left"><code>magma_drugtargetor_gls</code></td>
-<td align="left">Recommended ATC-class readout for MAGMA: drug-level GLS
+<td align="left">ATC-class readout for MAGMA: drug-level GLS
 (DRUGSETS-style; Bell et al. 2022), non-directional. Requires
 magma_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>twas_gsea_drugtargetor</code></td>
-<td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene sets
-(experimental)</td>
+<td align="left">TWAS-GSEA enrichment using DrugTargetor drug-gene
+sets</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="even">
 <td align="left"><code>twas_gsea_drugtargetor_nondirectional</code></td>
-<td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment
-(experimental)</td>
+<td align="left">Non-directional TWAS-GSEA DrugTargetor enrichment</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>drug_targetor_atc_gls</code></td>
-<td align="left">Recommended ATC-class readout for TWAS-GSEA: drug-level
-GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient
-+ 95% CI. Requires twas_gsea_drugtargetor</td>
+<td align="left">ATC-class readout for TWAS-GSEA: drug-level GLS
+(DRUGSETS-style; Bell et al. 2022), directional, reports coefficient +
+95% CI. Requires twas_gsea_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="even">
@@ -1963,16 +1962,16 @@ as follows:</p>
                                 # twas_gsea_drugtargetor: T
       twas_gsea_nondir          # non-directional; NULL unless
                                 # twas_gsea_drugtargetor_nondirectional: T
-    atc/                        # LEGACY per-drug Wilcoxon ATC aggregations
-      magma                     # (secondary cross-check), same gating flags as
+    atc/                        # Per-drug Wilcoxon ATC aggregations,
+      magma                     # same gating flags as
       gcsc                      # tx$drug.
       twas_gsea
       twas_gsea_nondir
-    atc_gls                     # NULL unless drug_targetor_atc_gls: T. RECOMMENDED
+    atc_gls                     # NULL unless drug_targetor_atc_gls: T.
                                 # TWAS-GSEA drug-level GLS (DRUGSETS-style):
                                 # coefficient + 95% CI per (panel x Level x class);
-                                # directional. Experimental.
-    atc_gls_magma               # NULL unless magma_drugtargetor_gls: T. RECOMMENDED
+                                # directional.
+    atc_gls_magma               # NULL unless magma_drugtargetor_gls: T.
                                 # MAGMA drug-level GLS (DRUGSETS-style): coefficient
                                 # per Level x class; non-directional, genome-wide.
     evidence                    # NULL unless twas_gsea_drugtargetor: T.

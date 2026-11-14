@@ -143,8 +143,8 @@ magma_gene: F
 magma_drugtargetor: F
 
 # Drug-level model-based ATC enrichment on the MAGMA per-drug results. Enables BOTH the
-# recommended VIF-OLS test (CAMERA-style; Wu & Smyth 2012) and the GLS test (DRUGSETS-style;
-# Bell et al. 2022) -- correlation-aware alternatives to the MAGMA Wilcoxon, kept for comparison.
+# VIF-OLS test (CAMERA-style; Wu & Smyth 2012) and the GLS test (DRUGSETS-style;
+# Bell et al. 2022) -- correlation-aware aggregations alongside the per-drug MAGMA Wilcoxon.
 # Requires magma_drugtargetor: T. See docs/atc_enrichment_estimator_validation.Rmd.
 magma_drugtargetor_gls: F
 
@@ -184,13 +184,13 @@ twas_gsea_drugtargetor: F
 # TWAS-GSEA gene set enrichment using DrugTargetor, non-directional (uses full .gmt; comparable to MAGMA)
 twas_gsea_drugtargetor_nondirectional: F
 
-# Drug-level model-based ATC-class drug enrichment for TWAS-GSEA. Enables BOTH the recommended
+# Drug-level model-based ATC-class drug enrichment for TWAS-GSEA. Enables BOTH the
 # VIF-OLS test (CAMERA-style; Wu & Smyth 2012) and the GLS test (DRUGSETS-style; Bell et al. 2022):
 # both regress the per-drug signed TWAS-GSEA T on ATC-class membership (+ gene-set-size covariates)
 # and account for drugs sharing target genes (VIF-OLS via a variance-inflated OLS contrast; GLS by
 # whitening the drug-drug correlation TWAS-GSEA dumps via --drug_corr_out). They ask the same
-# question as the legacy Wilcoxon (are in-class drugs' associations elevated vs other drugs?), which
-# is kept for comparison. Directional; report a coefficient (+ 95% CI). Requires
+# question as the per-drug Wilcoxon (are in-class drugs' associations elevated vs other drugs?).
+# Directional; report a coefficient (+ 95% CI). Requires
 # twas_gsea_drugtargetor. See docs/atc_enrichment_estimator_validation.Rmd.
 drug_targetor_atc_gls: F
 

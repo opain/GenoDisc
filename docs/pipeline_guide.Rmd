@@ -218,10 +218,10 @@ params <- list(
   list(Parameter = '`pwas_panel_banner`', Description = 'PWAS using Banner brain pQTL weights', Part = 'Part 2'),
   list(Parameter = '`smr_protein_panel_rosmap`', Description = 'SMR using ROSMAP pQTL data', Part = 'Part 2'),
   list(Parameter = '`magma_drugtargetor`', Description = 'MAGMA gene set enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
-  list(Parameter = '`magma_drugtargetor_gls`', Description = 'Recommended ATC-class readout for MAGMA: drug-level GLS (DRUGSETS-style; Bell et al. 2022), non-directional. Requires magma_drugtargetor', Part = 'Part 3'),
-  list(Parameter = '`twas_gsea_drugtargetor`', Description = 'TWAS-GSEA enrichment using DrugTargetor drug-gene sets (experimental)', Part = 'Part 3'),
-  list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment (experimental)', Part = 'Part 3'),
-  list(Parameter = '`drug_targetor_atc_gls`', Description = 'Recommended ATC-class readout for TWAS-GSEA: drug-level GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient + 95% CI. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
+  list(Parameter = '`magma_drugtargetor_gls`', Description = 'ATC-class readout for MAGMA: drug-level GLS (DRUGSETS-style; Bell et al. 2022), non-directional. Requires magma_drugtargetor', Part = 'Part 3'),
+  list(Parameter = '`twas_gsea_drugtargetor`', Description = 'TWAS-GSEA enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
+  list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment', Part = 'Part 3'),
+  list(Parameter = '`drug_targetor_atc_gls`', Description = 'ATC-class readout for TWAS-GSEA: drug-level GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient + 95% CI. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
   list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
   list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
@@ -790,16 +790,16 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
                                 # twas_gsea_drugtargetor: T
       twas_gsea_nondir          # non-directional; NULL unless
                                 # twas_gsea_drugtargetor_nondirectional: T
-    atc/                        # LEGACY per-drug Wilcoxon ATC aggregations
-      magma                     # (secondary cross-check), same gating flags as
+    atc/                        # Per-drug Wilcoxon ATC aggregations,
+      magma                     # same gating flags as
       gcsc                      # tx$drug.
       twas_gsea
       twas_gsea_nondir
-    atc_gls                     # NULL unless drug_targetor_atc_gls: T. RECOMMENDED
+    atc_gls                     # NULL unless drug_targetor_atc_gls: T.
                                 # TWAS-GSEA drug-level GLS (DRUGSETS-style):
                                 # coefficient + 95% CI per (panel x Level x class);
-                                # directional. Experimental.
-    atc_gls_magma               # NULL unless magma_drugtargetor_gls: T. RECOMMENDED
+                                # directional.
+    atc_gls_magma               # NULL unless magma_drugtargetor_gls: T.
                                 # MAGMA drug-level GLS (DRUGSETS-style): coefficient
                                 # per Level x class; non-directional, genome-wide.
     evidence                    # NULL unless twas_gsea_drugtargetor: T.

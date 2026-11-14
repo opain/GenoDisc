@@ -299,7 +299,7 @@ Results are stored in `{outdir}/results/{gwas}/pwas/`.
 
 ## MAGMA DrugTargetor enrichment
 
-MAGMA gene set enrichment analysis is performed using [DrugTargetor](https://drugtargetor.com/) drug-gene interaction sets. This tests whether genes targeted by specific drugs are enriched for GWAS associations. The analysis also evaluates enrichment at the ATC (Anatomical Therapeutic Chemical) classification level (see [ATC-class enrichment](#atc-class-enrichment-drug-level-gls-recommended-vs-legacy-wilcoxon) below — the recommended drug-level GLS plus a legacy Wilcoxon).
+MAGMA gene set enrichment analysis is performed using [DrugTargetor](https://drugtargetor.com/) drug-gene interaction sets. This tests whether genes targeted by specific drugs are enriched for GWAS associations. The analysis also evaluates enrichment at the ATC (Anatomical Therapeutic Chemical) classification level (see [ATC-class enrichment](#atc-class-enrichment-drug-level-gls-and-per-drug-wilcoxon) below — a drug-level GLS and a per-drug Wilcoxon).
 
 Results are stored in `{outdir}/results/{gwas}/magma/`.
 
@@ -307,7 +307,7 @@ Results are stored in `{outdir}/results/{gwas}/magma/`.
 
 ## TWAS-GSEA DrugTargetor enrichment
 
-**The TWAS-GSEA DrugTargetor analysis is experimental** (MAGMA DrugTargetor is the more robust drug-class readout). [TWAS-GSEA](https://github.com/opain/TWAS-GSEA) performs gene set enrichment analysis using TWAS results rather than SNP-level summary statistics. By leveraging gene expression prediction, TWAS-GSEA can detect drug-gene set enrichments that are not captured by traditional MAGMA-based approaches.
+[TWAS-GSEA](https://github.com/opain/TWAS-GSEA) performs gene set enrichment analysis using TWAS results rather than SNP-level summary statistics. By leveraging gene expression prediction, TWAS-GSEA can detect drug-gene set enrichments that are not captured by MAGMA-based approaches.
 
 Both directional and non-directional enrichment tests are available:
 
@@ -316,12 +316,12 @@ Both directional and non-directional enrichment tests are available:
 
 Results are aggregated across TWAS panels and stored alongside other enrichment results.
 
-### ATC-class enrichment: drug-level GLS (recommended) vs. legacy Wilcoxon
+### ATC-class enrichment: drug-level GLS and per-drug Wilcoxon
 
 ATC (Anatomical Therapeutic Chemical) drug *classes* are scored two ways, for both the MAGMA and
 TWAS-GSEA DrugTargetor analyses:
 
-- **Drug-level GLS (recommended; `drug_targetor_atc_gls`, `magma_drugtargetor_gls`)**: a DRUGSETS-style
+- **Drug-level GLS (`drug_targetor_atc_gls`, `magma_drugtargetor_gls`)**: a DRUGSETS-style
   test ([Bell et al. 2022](https://doi.org/10.1101/2022.09.06.22279660)) that asks whether the drugs in
   a class are more associated than other drugs, while validly accounting for drugs that share target
   genes. It regresses the per-drug statistic on an ATC-class indicator (plus gene-set-size covariates)
@@ -331,18 +331,16 @@ TWAS-GSEA DrugTargetor analyses:
       correlation reconstructed from the MAGMA gene–gene correlations in `.genes.raw` (the approach of
       Bell et al.). It is **non-directional** (magnitude) and **genome-wide** (a single result, not per
       eQTL panel).
-    - **TWAS-GSEA GLS** *(experimental)*: on the per-drug signed TWAS-GSEA `T`, with the exact drug–drug
+    - **TWAS-GSEA GLS**: on the per-drug signed TWAS-GSEA `T`, with the exact drug–drug
       correlation TWAS-GSEA computes internally (`cov2cor(Z_whᵀZ_wh)`, dumped from the same per-drug run
       via `--drug_corr_out`, no extra TWAS pass). It is **directional**, computed **per eQTL panel**, and
       reports a **coefficient with a 95% CI** (read the CI, not the sign, near the null).
-- **Legacy per-drug Wilcoxon (`twas_gsea_drugtargetor`, `magma_drugtargetor`)**: each drug is scored
+- **Per-drug Wilcoxon (`twas_gsea_drugtargetor`, `magma_drugtargetor`)**: each drug is scored
   individually, then a competitive Wilcoxon rank-sum is run on the per-drug statistics within each ATC
-  class. Because a class's drugs share target genes their statistics are correlated (often identical),
-  this two-stage test is anti-conservative; it is retained only as a secondary cross-check.
+  class.
 
 The drug-level GLS is computed at ATC levels L2 (1st–3rd chars), L3 (1st–4th) and L4 (1st–5th); the
-legacy Wilcoxon is L3 only. **The TWAS-GSEA DrugTargetor analysis is experimental**; MAGMA DrugTargetor
-is the more robust drug-class readout.
+per-drug Wilcoxon is L3 only.
 
 ### Interpreting direction, and the per-gene evidence view
 
