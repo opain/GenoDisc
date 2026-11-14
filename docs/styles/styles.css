@@ -282,12 +282,24 @@ p code, li code {
   color: var(--accent);
   font-size: 90%;
 }
-/* Keep pandoc "default" syntax tokens readable on the dark surface */
-pre .co { color: var(--text-mute); font-style: italic; }
-pre .st, pre .vs { color: #9fe7c5; }
-pre .dv, pre .bn, pre .fl { color: var(--accent-2); }
-pre .kw, pre .cf { color: var(--accent-3); }
-pre .fu, pre .at { color: var(--text); }
+/* Syntax highlighting (highlight.js adds .hljs-* tokens at runtime). The bundled
+   theme is light-oriented, so re-colour the tokens for readability in BOTH themes
+   via variables, and clear the bundled background so our pre surface shows. */
+:root {
+  --hl-kw:  #9eb6ff; --hl-str: #8fe0bd; --hl-com: #8591a6;
+  --hl-num: #f3c969; --hl-tit: #e8ecf2; --hl-var: #c9d1e1;
+}
+:root[data-theme="light"] {
+  --hl-kw:  #4f46e5; --hl-str: #0f766e; --hl-com: #6b7280;
+  --hl-num: #a16207; --hl-tit: #1b2029; --hl-var: #454c5a;
+}
+.hljs { background: transparent !important; color: var(--text); padding: 0 !important; }
+.hljs-keyword, .hljs-selector-tag, .hljs-built_in, .hljs-literal, .hljs-section, .hljs-link { color: var(--hl-kw) !important; }
+.hljs-string, .hljs-attr, .hljs-regexp, .hljs-meta-string, .hljs-template-string, .hljs-addition { color: var(--hl-str) !important; }
+.hljs-comment, .hljs-quote { color: var(--hl-com) !important; font-style: italic; }
+.hljs-number, .hljs-type, .hljs-bullet { color: var(--hl-num) !important; }
+.hljs-title, .hljs-name, .hljs-function .hljs-title { color: var(--hl-tit) !important; }
+.hljs-variable, .hljs-attribute, .hljs-symbol, .hljs-params, .hljs-meta { color: var(--hl-var) !important; }
 
 /* -------------------------------- Tables -------------------------------- */
 .table, table { color: var(--text); }
@@ -361,32 +373,34 @@ pre .fu, pre .at { color: var(--text); }
 }
 .docs-search input:focus { border-color: var(--accent); }
 .docs-search input::placeholder { color: var(--text-mute); }
+/* Explicit dark values (not tokens) so the dropdown is always legible - it hangs
+   below the dark navbar in both themes. */
 .docs-search-results {
   position: absolute;
   top: 47px; right: 0;
   width: 320px; max-width: 80vw;
   max-height: 60vh; overflow-y: auto;
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: #161b24;
+  border: 1px solid #2e3647;
   border-radius: var(--r-sm);
-  box-shadow: var(--shadow);
+  box-shadow: 0 14px 30px rgba(0,0,0,.55);
   display: none;
 }
 .docs-search-results.open { display: block; }
 .docs-search-results a {
   display: block;
   padding: 9px 14px;
-  color: var(--text);
-  border-bottom: 1px solid var(--border);
+  color: #e8ecf2;
+  border-bottom: 1px solid #242b3a;
   text-decoration: none;
 }
 .docs-search-results a:last-child { border-bottom: 0; }
-.docs-search-results a:hover, .docs-search-results a.active { background: var(--panel-2); color: var(--accent); }
+.docs-search-results a:hover, .docs-search-results a.active { background: #1c2330; color: #7df0c4; }
 .docs-search-results .ds-page {
   display: block; font-family: var(--font-mono); font-size: 10.5px;
-  text-transform: uppercase; letter-spacing: .04em; color: var(--text-mute);
+  text-transform: uppercase; letter-spacing: .04em; color: #93a4c4;
 }
-.docs-search-results .ds-empty { padding: 12px 14px; color: var(--text-mute); font-size: 13px; }
+.docs-search-results .ds-empty { padding: 12px 14px; color: #aab4c4; font-size: 13px; }
 
 @media (max-width: 767px) {
   /* In the collapsed mobile navbar the controls stack; let them sit left-aligned

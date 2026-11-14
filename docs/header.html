@@ -51,6 +51,7 @@
       // Sit just left of the "Web platform" CTA (search box, injected separately,
       // stays left of the toggle).
       var cta = ul.querySelector('a[href*="genodisc.er.kcl.ac.uk"]');
+      if (cta) { cta.target = '_blank'; cta.rel = 'noopener noreferrer'; }   // open the platform in a new tab
       ul.insertBefore(li, cta ? cta.parentNode : ul.firstChild);
     } else {
       document.body.appendChild(btn);

@@ -17,7 +17,7 @@ output:
 <div class="card">
 <h2>Web platform</h2>
 <p>Upload summary statistics in your browser. Analyses run on King's College London servers and results open in an interactive viewer. No installation needed.</p>
-<a href="https://genodisc.er.kcl.ac.uk" class="button">Open the web platform ↗</a>
+<a href="https://genodisc.er.kcl.ac.uk" class="button" target="_blank" rel="noopener noreferrer">Open the web platform ↗</a>
 </div>
 </div>
 <div class="col-sm-6">

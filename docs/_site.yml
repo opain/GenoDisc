@@ -3,16 +3,12 @@ output_dir: "."
 navbar:
   title: "<img class=\"brand-mark\" src=\"Images/logo/genodisc_mark.png\" alt=\"GenoDisc\" /><span class=\"brand-word\">GenoDisc</span>"
   left:
-    - text: "Docs home"
+    - text: "Home"
       href: index.html
-    - text: "Pipeline"
-      menu:
-        - text: "User Guide"
-          href: pipeline_guide.html
-        - text: "Technical Details"
-          href: pipeline_technical.html
-        - text: "Draft write-up"
-          href: pipeline_guide.html#automated-draft-write-up
+    - text: "User Guide"
+      href: pipeline_guide.html
+    - text: "Technical Details"
+      href: pipeline_technical.html
   right:
     - text: "Web platform ↗"
       href: https://genodisc.er.kcl.ac.uk/

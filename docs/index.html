@@ -87,6 +87,7 @@
       // Sit just left of the "Web platform" CTA (search box, injected separately,
       // stays left of the toggle).
       var cta = ul.querySelector('a[href*="genodisc.er.kcl.ac.uk"]');
+      if (cta) { cta.target = '_blank'; cta.rel = 'noopener noreferrer'; }   // open the platform in a new tab
       ul.insertBefore(li, cta ? cta.parentNode : ul.firstChild);
     } else {
       document.body.appendChild(btn);
@@ -324,25 +325,13 @@ $(document).ready(function () {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Docs home</a>
+  <a href="index.html">Home</a>
 </li>
-<li class="dropdown">
-  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-    Pipeline
-     
-    <span class="caret"></span>
-  </a>
-  <ul class="dropdown-menu" role="menu">
-    <li>
-      <a href="pipeline_guide.html">User Guide</a>
-    </li>
-    <li>
-      <a href="pipeline_technical.html">Technical Details</a>
-    </li>
-    <li>
-      <a href="pipeline_guide.html#automated-draft-write-up">Draft write-up</a>
-    </li>
-  </ul>
+<li>
+  <a href="pipeline_guide.html">User Guide</a>
+</li>
+<li>
+  <a href="pipeline_technical.html">Technical Details</a>
 </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -388,8 +377,8 @@ Upload summary statistics in your browser. Analyses run on King’s
 College London servers and results open in an interactive viewer. No
 installation needed.
 </p>
-<p><a href="https://genodisc.er.kcl.ac.uk" class="button">Open the web
-platform ↗</a></p>
+<p><a href="https://genodisc.er.kcl.ac.uk" class="button" target="_blank" rel="noopener noreferrer">Open
+the web platform ↗</a></p>
 </div>
 </div>
 <div class="col-sm-6">
