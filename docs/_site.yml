@@ -1,9 +1,9 @@
-name: "GenoDisc"
+name: "GenoDisc Pipeline Documentation"
 output_dir: "."
 navbar:
   title: "<img class=\"logo-img\" src=\"Images/logo/Horizontal_white.png\" style=\"height: 42px;\" />"
   left:
-    - text: "Home"
+    - text: "Docs home"
       href: index.html
     - text: "Pipeline"
       menu:

@@ -334,3 +334,21 @@ p code {
     width: 100%; /* Make the image responsive */
     display: block; /* Remove bottom space under the image */
 }
+
+/* Make the hosted-service nav link stand out as a call-to-action.
+   Targeted by href so it is independent of the link's text/position. */
+.navbar-default .navbar-nav > li > a[href*="genodisc.er.kcl.ac.uk"] {
+    background-color: #2780e3;
+    color: #ffffff;
+    border-radius: 5px;
+    width: auto;
+    height: 40px;
+    margin: 10px 6px;
+    padding: 0 16px;
+}
+
+.navbar-default .navbar-nav > li > a[href*="genodisc.er.kcl.ac.uk"]:hover,
+.navbar-default .navbar-nav > li > a[href*="genodisc.er.kcl.ac.uk"]:focus {
+    background-color: #1a5fb4;
+    color: #ffffff;
+}
