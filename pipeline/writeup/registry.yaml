@@ -128,7 +128,6 @@ software:
     version: "GenoDisc implementation"
     bibkey: [bell2022drugsets]
     used_by: [magma_drugtargetor_gls, drug_targetor_atc_gls]
-    notes: "DRUGSETS citation not in the curated in-app table — VERIFY before publication."
 
   - key: caldera
     name: CALDERA
