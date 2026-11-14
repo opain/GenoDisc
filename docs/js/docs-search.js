@@ -16,9 +16,14 @@
     };
   }
 
+  function navRight() {
+    return document.querySelector("#navbar .navbar-right") ||
+           document.querySelector(".navbar-nav.navbar-right");
+  }
+
   function build() {
-    var box = document.createElement("div");
-    box.className = "docs-search";
+    var box = document.createElement("li");       // sits inside the navbar's right <ul>
+    box.className = "nav-ctl docs-search";
     var input = document.createElement("input");
     input.type = "search";
     input.placeholder = "Search docs…";
@@ -27,7 +32,8 @@
     results.className = "docs-search-results";
     box.appendChild(input);
     box.appendChild(results);
-    document.body.appendChild(box);
+    var ul = navRight();
+    if (ul) { ul.insertBefore(box, ul.firstChild); } else { document.body.appendChild(box); }
     return { input: input, results: results, box: box };
   }
 

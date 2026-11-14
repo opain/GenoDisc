@@ -318,11 +318,17 @@ pre .fu, pre .at { color: var(--text); }
 /* Icon toggle matching the app: a minimal ghost button showing the TARGET theme
    (sun in dark mode -> switch to light; moon in light mode). JS flips
    <html data-theme> + localStorage['genodisc_theme']. */
+/* Both the toggle and the search box live inside the navbar's right <ul> as
+   <li class="nav-ctl"> items, injected by JS. They inherit the nav's pinned dark
+   tokens, so they stay dark in both themes - like the app. */
+.navbar-nav > li.nav-ctl {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  padding: 0 5px;
+}
 .theme-toggle {
-  position: fixed;
-  top: 69px; right: 14px;
-  z-index: 1000;
-  width: 36px; height: 36px;
+  width: 34px; height: 34px;
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--panel);
   color: var(--text-dim);
@@ -340,13 +346,10 @@ pre .fu, pre .at { color: var(--text); }
 /* ------------------------------- Search --------------------------------- */
 /* Injected by js/docs-search.js; indexes section headings across the pages. */
 .docs-search {
-  position: fixed;
-  top: 70px; right: 62px;
-  z-index: 1000;
-  width: 220px;
+  position: relative;
 }
 .docs-search input {
-  width: 100%;
+  width: 190px;
   padding: 6px 12px;
   font-family: var(--font-body);
   font-size: 13.5px;
@@ -360,7 +363,7 @@ pre .fu, pre .at { color: var(--text); }
 .docs-search input::placeholder { color: var(--text-mute); }
 .docs-search-results {
   position: absolute;
-  top: 38px; right: 0;
+  top: 47px; right: 0;
   width: 320px; max-width: 80vw;
   max-height: 60vh; overflow-y: auto;
   background: var(--panel);
@@ -385,8 +388,12 @@ pre .fu, pre .at { color: var(--text); }
 }
 .docs-search-results .ds-empty { padding: 12px 14px; color: var(--text-mute); font-size: 13px; }
 
-@media (max-width: 991px) {
-  .docs-search { display: none; }  /* collapse search on mobile; nav search is desktop-first */
+@media (max-width: 767px) {
+  /* In the collapsed mobile navbar the controls stack; let them sit left-aligned
+     and give the search input room without overflowing. */
+  .navbar-nav > li.nav-ctl { height: auto; padding: 6px 15px; }
+  .docs-search input { width: 100%; }
+  .docs-search-results { position: static; width: 100%; box-shadow: none; }
 }
 
 /* ------------------------- Misc / layout helpers ------------------------ */
