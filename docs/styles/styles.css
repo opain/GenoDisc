@@ -395,16 +395,25 @@ p code, li code {
   display: none;
 }
 .docs-search-results.open { display: block; }
+/* Every surface is forced dark with !important: the result rows are <a> elements,
+   which otherwise pick up a light link/hover background and hide the text. */
+.docs-search-results a,
+.docs-search-results .ds-empty {
+  background-color: #161b24 !important;
+  color: #e8ecf2 !important;
+}
 .docs-search-results a {
   display: block;
   padding: 9px 14px;
-  color: #e8ecf2 !important;
-  background: #161b24;
   border-bottom: 1px solid #242b3a;
   text-decoration: none;
 }
 .docs-search-results a:last-child { border-bottom: 0; }
-.docs-search-results a:hover, .docs-search-results a.active { background: #1c2330; color: #7df0c4 !important; }
+.docs-search-results a:hover, .docs-search-results a.active {
+  background-color: #1c2330 !important;
+  color: #7df0c4 !important;
+}
+.docs-search-results a:hover .ds-page, .docs-search-results a.active .ds-page { color: #7df0c4 !important; }
 .docs-search-results .ds-page {
   display: block; font-family: var(--font-mono); font-size: 10.5px;
   text-transform: uppercase; letter-spacing: .04em; color: #9fb2d6 !important;
