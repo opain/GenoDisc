@@ -299,7 +299,7 @@ Results are stored in `{outdir}/results/{gwas}/pwas/`.
 
 ## MAGMA DrugTargetor enrichment
 
-MAGMA gene set enrichment analysis is performed using [DrugTargetor](https://drugtargetor.com/) drug-gene interaction sets. This tests whether genes targeted by specific drugs are enriched for GWAS associations. The analysis also evaluates enrichment at the ATC (Anatomical Therapeutic Chemical) classification level (see [ATC-class enrichment](#atc-class-enrichment-drug-level-gls-and-per-drug-wilcoxon) below — a drug-level GLS and a per-drug Wilcoxon).
+MAGMA gene set enrichment analysis is performed using [DrugTargetor](https://drugtargetor.com/) drug-gene interaction sets. This tests whether genes targeted by specific drugs are enriched for GWAS associations. The analysis also evaluates enrichment at the ATC (Anatomical Therapeutic Chemical) classification level (see [ATC-class enrichment](#atc-class-enrichment-vif-ols-gls-and-wilcoxon) below — VIF-OLS, GLS, and Wilcoxon).
 
 Results are stored in `{outdir}/results/{gwas}/magma/`.
 
@@ -316,31 +316,36 @@ Both directional and non-directional enrichment tests are available:
 
 Results are aggregated across TWAS panels and stored alongside other enrichment results.
 
-### ATC-class enrichment: drug-level GLS and per-drug Wilcoxon
+### ATC-class enrichment: VIF-OLS, GLS, and Wilcoxon
 
-ATC (Anatomical Therapeutic Chemical) drug *classes* are scored two ways, for both the MAGMA and
-TWAS-GSEA DrugTargetor analyses:
+ATC (Anatomical Therapeutic Chemical) drug *classes* are scored with three tests — for both the MAGMA
+and TWAS-GSEA DrugTargetor analyses — that all ask the same question: are the drugs in a class more
+associated than other drugs? They start from the same per-drug statistics and differ only in how they
+aggregate them to the class level:
 
-- **Drug-level GLS (`drug_targetor_atc_gls`, `magma_drugtargetor_gls`)**: a DRUGSETS-style
-  test ([Bell et al. 2022](https://doi.org/10.1101/2022.09.06.22279660)) that asks whether the drugs in
-  a class are more associated than other drugs, while validly accounting for drugs that share target
-  genes. It regresses the per-drug statistic on an ATC-class indicator (plus gene-set-size covariates)
-  by generalised least squares, weighted by the drug–drug correlation of the per-drug statistics. It is
-  reported for two engines:
-    - **MAGMA GLS**: on the MAGMA per-drug competitive statistics (`BETA/SE`), with the drug–drug
-      correlation reconstructed from the MAGMA gene–gene correlations in `.genes.raw` (the approach of
-      Bell et al.). It is **non-directional** (magnitude) and **genome-wide** (a single result, not per
-      eQTL panel).
-    - **TWAS-GSEA GLS**: on the per-drug signed TWAS-GSEA `T`, with the exact drug–drug
-      correlation TWAS-GSEA computes internally (`cov2cor(Z_whᵀZ_wh)`, dumped from the same per-drug run
-      via `--drug_corr_out`, no extra TWAS pass). It is **directional**, computed **per eQTL panel**, and
-      reports a **coefficient with a 95% CI** (read the CI, not the sign, near the null).
-- **Per-drug Wilcoxon (`twas_gsea_drugtargetor`, `magma_drugtargetor`)**: each drug is scored
-  individually, then a competitive Wilcoxon rank-sum is run on the per-drug statistics within each ATC
-  class.
+- **VIF-OLS (`drug_targetor_atc_gls`, `magma_drugtargetor_gls`)**: a CAMERA-style test ([Wu & Smyth
+  2012](https://doi.org/10.1093/nar/gks461)) that regresses the per-drug statistic on an ATC-class
+  indicator (plus gene-set-size covariates) by ordinary least squares, with the standard error inflated
+  for drugs that share target genes.
+- **GLS (`drug_targetor_atc_gls`, `magma_drugtargetor_gls`)**: a DRUGSETS-style test ([Bell et al.
+  2022](https://doi.org/10.1101/2022.09.06.22279660)) that fits the same regression by generalised
+  least squares — weighting by the drug–drug correlation of the per-drug statistics instead of
+  inflating the standard error.
+- **Wilcoxon (`twas_gsea_drugtargetor`, `magma_drugtargetor`)**: each drug is scored individually, then
+  a competitive Wilcoxon rank-sum is run on the per-drug statistics within each ATC class.
 
-The drug-level GLS is computed at ATC levels L2 (1st–3rd chars), L3 (1st–4th) and L4 (1st–5th); the
-per-drug Wilcoxon is L3 only.
+VIF-OLS and GLS (both enabled by the `*_gls` flags) are each reported for two engines:
+
+- **MAGMA**: on the MAGMA per-drug competitive statistics (`BETA/SE`), with the drug–drug correlation
+  reconstructed from the MAGMA gene–gene correlations in `.genes.raw` (the approach of Bell et al.). It
+  is **non-directional** (magnitude) and **genome-wide** (a single result, not per eQTL panel).
+- **TWAS-GSEA**: on the per-drug signed TWAS-GSEA `T`, with the exact drug–drug correlation TWAS-GSEA
+  computes internally (`cov2cor(Z_whᵀZ_wh)`, dumped from the same per-drug run via `--drug_corr_out`,
+  no extra TWAS pass). It is **directional**, computed **per eQTL panel**, and reports a **coefficient
+  with a 95% CI** (read the CI, not the sign, near the null).
+
+VIF-OLS and GLS are computed at ATC levels L2 (1st–3rd chars), L3 (1st–4th) and L4 (1st–5th); the
+Wilcoxon is L3 only.
 
 ### Interpreting direction, and the per-gene evidence view
 

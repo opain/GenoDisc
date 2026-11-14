@@ -866,9 +866,9 @@ sets</td>
 </tr>
 <tr class="even">
 <td align="left"><code>magma_drugtargetor_gls</code></td>
-<td align="left">ATC-class readout for MAGMA: drug-level GLS
-(DRUGSETS-style; Bell et al. 2022), non-directional. Requires
-magma_drugtargetor</td>
+<td align="left">Model-based ATC-class readouts for MAGMA: VIF-OLS
+(CAMERA-style) and GLS (DRUGSETS-style; Bell et al. 2022),
+non-directional. Requires magma_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="odd">
@@ -884,9 +884,9 @@ sets</td>
 </tr>
 <tr class="odd">
 <td align="left"><code>drug_targetor_atc_gls</code></td>
-<td align="left">ATC-class readout for TWAS-GSEA: drug-level GLS
-(DRUGSETS-style; Bell et al. 2022), directional, reports coefficient +
-95% CI. Requires twas_gsea_drugtargetor</td>
+<td align="left">Model-based ATC-class readouts for TWAS-GSEA: VIF-OLS
+(CAMERA-style) and GLS (DRUGSETS-style; Bell et al. 2022), directional,
+report coefficient + 95% CI. Requires twas_gsea_drugtargetor</td>
 <td align="left">Part 3</td>
 </tr>
 <tr class="even">
@@ -1968,12 +1968,12 @@ as follows:</p>
       twas_gsea
       twas_gsea_nondir
     atc_gls                     # NULL unless drug_targetor_atc_gls: T.
-                                # TWAS-GSEA drug-level GLS (DRUGSETS-style):
+                                # TWAS-GSEA VIF-OLS (CAMERA-style) + GLS (DRUGSETS-style):
                                 # coefficient + 95% CI per (panel x Level x class);
                                 # directional.
     atc_gls_magma               # NULL unless magma_drugtargetor_gls: T.
-                                # MAGMA drug-level GLS (DRUGSETS-style): coefficient
-                                # per Level x class; non-directional, genome-wide.
+                                # MAGMA VIF-OLS (CAMERA-style) + GLS (DRUGSETS-style):
+                                # coefficient per Level x class; non-directional, genome-wide.
     evidence                    # NULL unless twas_gsea_drugtargetor: T.
                                 # Per-gene evidence for drug &amp; ATC drill-down:
                                 # $drug, $class (membership, TWAS Z, contribution,

@@ -218,10 +218,10 @@ params <- list(
   list(Parameter = '`pwas_panel_banner`', Description = 'PWAS using Banner brain pQTL weights', Part = 'Part 2'),
   list(Parameter = '`smr_protein_panel_rosmap`', Description = 'SMR using ROSMAP pQTL data', Part = 'Part 2'),
   list(Parameter = '`magma_drugtargetor`', Description = 'MAGMA gene set enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
-  list(Parameter = '`magma_drugtargetor_gls`', Description = 'ATC-class readout for MAGMA: drug-level GLS (DRUGSETS-style; Bell et al. 2022), non-directional. Requires magma_drugtargetor', Part = 'Part 3'),
+  list(Parameter = '`magma_drugtargetor_gls`', Description = 'Model-based ATC-class readouts for MAGMA: VIF-OLS (CAMERA-style) and GLS (DRUGSETS-style; Bell et al. 2022), non-directional. Requires magma_drugtargetor', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_drugtargetor`', Description = 'TWAS-GSEA enrichment using DrugTargetor drug-gene sets', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_drugtargetor_nondirectional`', Description = 'Non-directional TWAS-GSEA DrugTargetor enrichment', Part = 'Part 3'),
-  list(Parameter = '`drug_targetor_atc_gls`', Description = 'ATC-class readout for TWAS-GSEA: drug-level GLS (DRUGSETS-style; Bell et al. 2022), directional, reports coefficient + 95% CI. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
+  list(Parameter = '`drug_targetor_atc_gls`', Description = 'Model-based ATC-class readouts for TWAS-GSEA: VIF-OLS (CAMERA-style) and GLS (DRUGSETS-style; Bell et al. 2022), directional, report coefficient + 95% CI. Requires twas_gsea_drugtargetor', Part = 'Part 3'),
   list(Parameter = '`twas_gsea_cmap`', Description = 'TWAS-GSEA against CMAP level5 drug signatures', Part = 'Part 3'),
   list(Parameter = '`gcsc`', Description = 'Gene co-regulation-based drug scoring (GCSC)', Part = 'Part 3'),
   list(Parameter = '`tissue_magma`', Description = 'MAGMA tissue enrichment analysis', Part = 'Part 3'),
@@ -796,12 +796,12 @@ The per-GWAS blocks (accessed as `gd_read(gd, "<gwas>", "<block>")`) are organis
       twas_gsea
       twas_gsea_nondir
     atc_gls                     # NULL unless drug_targetor_atc_gls: T.
-                                # TWAS-GSEA drug-level GLS (DRUGSETS-style):
+                                # TWAS-GSEA VIF-OLS (CAMERA-style) + GLS (DRUGSETS-style):
                                 # coefficient + 95% CI per (panel x Level x class);
                                 # directional.
     atc_gls_magma               # NULL unless magma_drugtargetor_gls: T.
-                                # MAGMA drug-level GLS (DRUGSETS-style): coefficient
-                                # per Level x class; non-directional, genome-wide.
+                                # MAGMA VIF-OLS (CAMERA-style) + GLS (DRUGSETS-style):
+                                # coefficient per Level x class; non-directional, genome-wide.
     evidence                    # NULL unless twas_gsea_drugtargetor: T.
                                 # Per-gene evidence for drug & ATC drill-down:
                                 # $drug, $class (membership, TWAS Z, contribution,

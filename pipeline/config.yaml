@@ -144,7 +144,7 @@ magma_drugtargetor: F
 
 # Drug-level model-based ATC enrichment on the MAGMA per-drug results. Enables BOTH the
 # VIF-OLS test (CAMERA-style; Wu & Smyth 2012) and the GLS test (DRUGSETS-style;
-# Bell et al. 2022) -- correlation-aware aggregations alongside the per-drug MAGMA Wilcoxon.
+# Bell et al. 2022) -- correlation-aware aggregations alongside the MAGMA Wilcoxon (rank-sum).
 # Requires magma_drugtargetor: T. See docs/atc_enrichment_estimator_validation.Rmd.
 magma_drugtargetor_gls: F
 
@@ -189,7 +189,7 @@ twas_gsea_drugtargetor_nondirectional: F
 # both regress the per-drug signed TWAS-GSEA T on ATC-class membership (+ gene-set-size covariates)
 # and account for drugs sharing target genes (VIF-OLS via a variance-inflated OLS contrast; GLS by
 # whitening the drug-drug correlation TWAS-GSEA dumps via --drug_corr_out). They ask the same
-# question as the per-drug Wilcoxon (are in-class drugs' associations elevated vs other drugs?).
+# question as the Wilcoxon (rank-sum) (are in-class drugs' associations elevated vs other drugs?).
 # Directional; report a coefficient (+ 95% CI). Requires
 # twas_gsea_drugtargetor. See docs/atc_enrichment_estimator_validation.Rmd.
 drug_targetor_atc_gls: F

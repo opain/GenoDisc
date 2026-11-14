@@ -611,12 +611,13 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           "N Drugs" = "Number of drugs in the class (unique per drug; consistent across the VIF-OLS, GLS and Wilcoxon tests).",
           "95% CI" = "95% confidence interval for the drug-level coefficient (VIF-OLS and GLS; TWAS-GSEA only). If it spans 0 the class effect is not distinguishable from zero — read the CI, not the Direction, near the null.",
           "Estimate" = paste0(
-            "Enrichment effect size. The drug-level VIF-OLS test ",
-            "(CAMERA-style; Wu & Smyth 2012) is an OLS contrast of in-class vs other ",
-            "drugs with the standard error inflated for drugs sharing targets. The ",
-            "drug-level GLS (DRUGSETS-style; Bell et al. 2022) asks the same question ",
-            "by whitening the drug-drug correlation. The per-drug Wilcoxon is a ",
-            "rank-based alternative. TWAS-GSEA is directional and per eQTL panel (with a 95% CI ",
+            "Enrichment effect size. The three tests all ask whether a class's drugs ",
+            "are more associated than other drugs, from the same per-drug statistics. ",
+            "VIF-OLS (CAMERA-style; Wu & Smyth 2012) is an OLS contrast of in-class vs other ",
+            "drugs with the standard error inflated for drugs sharing targets; GLS ",
+            "(DRUGSETS-style; Bell et al. 2022) fits the same regression by whitening the ",
+            "drug-drug correlation; Wilcoxon (rank-sum) ranks the per-drug statistics. ",
+            "TWAS-GSEA is directional and per eQTL panel (with a 95% CI ",
             "for VIF-OLS / GLS); MAGMA is non-directional and genome-wide. Read the Direction (and, ",
             "for TWAS-GSEA, the CI) not the raw sign."),
           "Direction" = paste0(lg_dir,
@@ -745,8 +746,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         atc_gls_levels(gwas_data(), parent_selected_gwas()) else character(0)
       # Method-source choices: VIF-OLS (recommended), GLS (DRUGSETS), legacy Wilcoxon.
       atc_src_choices <- c(if (atc_vif_available) c("VIF-OLS (CAMERA-style)" = "vif"),
-                           if (atc_gls_available) c("GLS (DRUGSETS)" = "gls"),
-                           c("Per-drug Wilcoxon" = "legacy"))
+                           if (atc_gls_available) c("GLS (DRUGSETS-style)" = "gls"),
+                           c("Wilcoxon (rank-sum)" = "legacy"))
 
       # Build Drug sub-tabs
       drug_tabs <- list(
@@ -927,7 +928,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
       if (cf$magma_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
-          p("MAGMA ATC-class enrichment (non-directional, genome-wide). Choose the method with the 'ATC-class test' selector above: VIF-OLS (CAMERA-style), GLS (DRUGSETS-style), or the per-drug Wilcoxon. Select a row to see the drugs in that class below the table."), hr(), br(),
+          p("MAGMA ATC-class enrichment (non-directional, genome-wide). The 'ATC-class test' selector above chooses how a class is scored — VIF-OLS (CAMERA-style), GLS (DRUGSETS-style) or Wilcoxon (rank-sum); all three test whether the class's drugs are more associated than other drugs. Select a row to see the drugs in that class below the table."), hr(), br(),
           fluidRow(column(width=8, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br(),
           uiOutput(ns("tx_atc_magma_evidence"))
         )))
@@ -940,14 +941,14 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       }
       if (cf$twas_gsea_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA", br(),
-          p(HTML("TWAS-GSEA ATC-class enrichment (directional, per eQTL panel) at the ATC level chosen above. Choose the method with the 'ATC-class test' selector: VIF-OLS (CAMERA-style, with 95% CI), GLS (DRUGSETS-style, with 95% CI), or the per-drug Wilcoxon. Select a row to see the per-gene evidence behind that class below the table.")), hr(), br(),
+          p(HTML("TWAS-GSEA ATC-class enrichment (directional, per eQTL panel) at the ATC level chosen above. The 'ATC-class test' selector chooses how a class is scored — VIF-OLS (CAMERA-style, with 95% CI), GLS (DRUGSETS-style, with 95% CI) or Wilcoxon (rank-sum); all three test whether the class's drugs are more associated than other drugs. Select a row to see the per-gene evidence behind that class below the table.")), hr(), br(),
           fluidRow(column(width=8, DT::dataTableOutput(ns("tx_atc_twas_gsea_table")))), enr_legend("atc_twas_dir"), br(),
           uiOutput(ns("tx_atc_twas_gsea_evidence"))
         )))
       }
       if (cf$twas_gsea_drugtargetor_nondirectional) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="TWAS-GSEA (non-directional)", br(),
-          p(HTML("TWAS-GSEA ATC-class enrichment using the full DrugTargetor gene-set file (no direction of effect); a per-drug Wilcoxon at ATC level L3.")), hr(), br(),
+          p(HTML("TWAS-GSEA ATC-class enrichment using the full DrugTargetor gene-set file (no direction of effect); a Wilcoxon (rank-sum) at ATC level L3.")), hr(), br(),
           fluidRow(column(width=8, DT::dataTableOutput(ns("tx_atc_twas_gsea_nondir_table")))), enr_legend("atc_twas_nondir"), br()
         )))
       }
@@ -1174,13 +1175,14 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                                       selected = if ("L3" %in% atc_levels_avail) "L3" else atc_levels_avail[1])))
               ),
               tags$p(class = "gd-details-intro",
-                "Drug-level VIF-OLS (CAMERA-style, Wu & Smyth 2012) asks whether in-class ",
-                "drugs are more associated than other drugs, accounting for drugs sharing targets via a ",
-                "variance-inflated OLS contrast. GLS (DRUGSETS-style, Bell et al. 2022) asks the same ",
-                "question by whitening the drug-drug correlation. Both are reported two ways: MAGMA ",
-                "(non-directional, genome-wide) and ",
+                "All three tests ask the same question — are a class's drugs more associated than ",
+                "other drugs? — from the same per-drug statistics. VIF-OLS (CAMERA-style, Wu & Smyth ",
+                "2012) uses a variance-inflated OLS contrast; GLS (DRUGSETS-style, Bell et al. 2022) ",
+                "fits the same regression by whitening the drug-drug correlation; Wilcoxon (rank-sum) ",
+                "ranks the per-drug statistics within each class. VIF-OLS and GLS are reported two ways: ",
+                "MAGMA (non-directional, genome-wide) and ",
                 HTML("<b>TWAS-GSEA (directional, per eQTL panel)</b>. "),
-                "The per-drug Wilcoxon tests (MAGMA / GCSC / TWAS-GSEA) are available at L3 only.")
+                "The Wilcoxon tests (MAGMA / GCSC / TWAS-GSEA) are available at L3 only.")
             ),
             .gwas_view("atc_view_tabs",
               tagList(uiOutput(ns("atc_single_gwas_ui")), do.call(tabsetPanel, atc_tabs)),
@@ -2985,7 +2987,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         tags$p(class = "gd-details-intro",
           "Bars show each drug's per-drug enrichment statistic (T = Estimate/SE) within this ATC class ",
           "for the selected eQTL panel (red = matches, blue = opposes the trait signature). These per-drug ",
-          "results are the observations the drug-level GLS coefficient aggregates."))
+          "results are the observations the VIF-OLS / GLS coefficient aggregates."))
     })
 
     # Drug evidence (directional TWAS-GSEA tab; keyed by the selected row).
