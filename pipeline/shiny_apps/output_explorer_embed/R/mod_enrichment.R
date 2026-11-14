@@ -742,8 +742,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       atc_legacy_available <- isTRUE(drug_targetor_available) &&
         has_atc_legacy(gwas_data(), parent_selected_gwas())
       atc_controls_available <- atc_vif_available || atc_gls_available || atc_legacy_available
-      atc_levels_avail <- if (atc_vif_available || atc_gls_available)
-        atc_gls_levels(gwas_data(), parent_selected_gwas()) else character(0)
+      # The ATC level selector is rendered source-aware server-side (output$atc_level_ui).
       # Method-source choices: VIF-OLS (recommended), GLS (DRUGSETS), legacy Wilcoxon.
       atc_src_choices <- c(if (atc_vif_available) c("VIF-OLS (CAMERA-style)" = "vif"),
                            if (atc_gls_available) c("GLS (DRUGSETS-style)" = "gls"),
@@ -1160,19 +1159,16 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
               drug_compare_ui(NS(ns("drug_compare"))))
           ),
           tabPanel(title = "ATC", br(),
-            # Shared ATC control bar: the test (VIF-OLS recommended / GLS / legacy Wilcoxon)
-            # and the ATC level are chosen once and drive the Summary heatmap, the tables,
-            # and the per-class evidence. The level selector applies to the model-based tests
-            # (VIF-OLS / GLS); the legacy Wilcoxon (and MAGMA/GCSC) exist at L3 only, so it is hidden there.
+            # Shared ATC control bar: the test (VIF-OLS / GLS / Wilcoxon) and the ATC level are
+            # chosen once and drive the Summary heatmap, the tables, and the per-class evidence.
+            # The level selector is source-aware (atc_level_ui) - each test offers only the levels
+            # it has (GCSC and pre-L2/L4 bundles are L3 only).
             if (atc_controls_available) tags$div(class = "gd-details-body", style = "margin-bottom:8px;",
               fluidRow(
                 column(6, radioButtons(ns("atc_source"), "ATC-class test:",
                           choices = atc_src_choices,
                           selected = atc_src_choices[[1]], inline = TRUE)),
-                column(6, conditionalPanel(
-                          condition = sprintf("input['%s'] == 'vif' || input['%s'] == 'gls'", ns("atc_source"), ns("atc_source")),
-                          selectInput(ns("atc_level"), "ATC level:", choices = atc_levels_avail,
-                                      selected = if ("L3" %in% atc_levels_avail) "L3" else atc_levels_avail[1])))
+                column(6, uiOutput(ns("atc_level_ui")))
               ),
               tags$p(class = "gd-details-intro",
                 "All three tests ask the same question — are a class's drugs more associated than ",
@@ -1182,7 +1178,7 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                 "ranks the per-drug statistics within each class. VIF-OLS and GLS are reported two ways: ",
                 "MAGMA (non-directional, genome-wide) and ",
                 HTML("<b>TWAS-GSEA (directional, per eQTL panel)</b>. "),
-                "The Wilcoxon tests (MAGMA / GCSC / TWAS-GSEA) are available at L3 only.")
+                "GCSC is reported at ATC level L3 only.")
             ),
             .gwas_view("atc_view_tabs",
               tagList(uiOutput(ns("atc_single_gwas_ui")), do.call(tabsetPanel, atc_tabs)),
@@ -2244,13 +2240,30 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         keep <- intersect(c('Name','ATC Code','Level','N Drugs','Estimate','Direction','P','P.FDR'), names(tmp))
         return(tmp[, keep, drop = FALSE])
       }
+      lvl <- input$atc_level %||% "L3"
       tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc")$magma
       if (is.null(tmp)) return(NULL)
       tmp <- as.data.frame(tmp)
+      # MAGMA Wilcoxon carries a Level column (L2/L3/L4) post-change; filter to the selected
+      # level. Pre-change bundles have no Level -> L3 only.
+      if ("Level" %in% names(tmp)) tmp <- tmp[tmp$Level == lvl, , drop = FALSE]
+      else { if (!identical(lvl, "L3")) return(NULL); tmp$Level <- "L3" }
+      if (nrow(tmp) == 0) return(NULL)
       tmp$Name <- paste0(tmp$`ATC Code`, ': ', tmp$`ATC Description`)
-      tmp$Level <- "L3"
       keep <- intersect(c('Name','ATC Code','Level','N Drugs','P','P.FDR'), names(tmp))
       tmp[, keep, drop = FALSE]
+    })
+
+    # Source-aware ATC level selector: offers only the levels the chosen test actually has
+    # (VIF-OLS/GLS L2/L3/L4; Wilcoxon L2/L3/L4 on new bundles, L3 only on old ones / GCSC).
+    # Re-rendering on source change clamps the level to an available one, so switching tests
+    # never leaves a stale level that shows an empty table.
+    output$atc_level_ui <- renderUI({
+      req(gwas_data(), parent_selected_gwas())
+      src  <- input$atc_source %||% default_atc_source(gwas_data(), parent_selected_gwas())
+      lvls <- atc_levels_for_source(gwas_data(), parent_selected_gwas(), src)
+      selectInput(ns("atc_level"), "ATC level:", choices = lvls,
+                  selected = if ("L3" %in% lvls) "L3" else lvls[1])
     })
     output$tx_atc_magma_table<-DT::renderDataTable({
       drugs_ok <- !is.null(safe_access(gd_read(gwas_data(), selected_gwas(), "tx/drug"), "magma"))
@@ -2301,8 +2314,12 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         tmp <- gd_read(gwas_data(), selected_gwas(), blk)
         if (!is.null(tmp) && "Level" %in% names(tmp)) tmp <- tmp[tmp$Level == lvl, ]
       } else {
-        # Legacy per-drug Wilcoxon (directional slot under 'legacy'; nondir always Wilcoxon).
+        # Legacy competitive Wilcoxon (directional slot under 'legacy'; nondir always Wilcoxon).
+        # Post-change blocks carry a Level column -> filter to the selected level; pre-change
+        # blocks are L3 only, so show them only on an L3 view.
         tmp <- gd_read(gwas_data(), selected_gwas(), "tx/atc")[[slot]]
+        if (!is.null(tmp) && "Level" %in% names(tmp)) tmp <- tmp[tmp$Level == lvl, ]
+        else if (!is.null(tmp) && !identical(lvl, "L3")) tmp <- NULL
       }
       if (is.null(tmp) || nrow(tmp) == 0) return(NULL)
       tmp <- as.data.frame(tmp)

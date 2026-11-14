@@ -913,15 +913,20 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
 
     dat<-NULL
     for(i in weights){
-      f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea',suffix,'_',i,'_res_atc_res.csv')
-      if(!file.exists(f)) next
-      res<-fread(f)
-      res$Panel<-i
-      dat<-rbind(dat, res)
+      for(lv in c('l2','l3','l4')){
+        f<-paste0(outdir,'/results/',gwas,'/twas/drugtargetor/twas_gsea',suffix,'_',i,'_res_atc_',lv,'_res.csv')
+        if(!file.exists(f)) next
+        res<-fread(f)
+        if(nrow(res)==0) next
+        res$Panel<-i
+        res$Level<-toupper(lv)
+        dat<-rbind(dat, res, fill=TRUE)
+      }
     }
-    if(is.null(dat)) return(NULL)
+    if(is.null(dat) || nrow(dat)==0) return(NULL)
 
-    dat$P.FDR_all<-p.adjust(dat$P, method = 'fdr')
+    # FDR within each ATC level (pooled across panels), matching the VIF/GLS readers.
+    dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]
 
     # Backward-compat synthesis: older CSVs do not carry Direction and
     # Reversal_Z. Reconstruct from Estimate sign (the directional ATC Wilcoxon
@@ -946,8 +951,8 @@ read_twas_gsea_atc<-function(config, gwas, mode = 'directional'){
       }
     }
 
-    dat<-dat[,c('Panel','ATC','Name','N','Estimate','Class_Median','Non_Class_Median','P','P.FDR_all','Direction','Reversal_Z'),with=T]
-    names(dat)<-c('Panel','ATC Code','ATC Description','N Drugs','Estimate','Class Median T','Non-class Median T','P','P.FDR','Direction','Reversal_Z')
+    dat<-dat[,c('Panel','Level','ATC','Name','N','Estimate','Class_Median','Non_Class_Median','P','P.FDR','Direction','Reversal_Z'),with=T]
+    names(dat)<-c('Panel','Level','ATC Code','ATC Description','N Drugs','Estimate','Class Median T','Non-class Median T','P','P.FDR','Direction','Reversal_Z')
 
     dat<-dat[order(dat$P),]
 
@@ -1430,13 +1435,20 @@ read_magma_drug_atc<-function(config, gwas){
 
   if(read_param(config = config, param = 'magma_drugtargetor', return_obj = F) == "T"){
 
-    magma_drug_atc_path<-paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_atc_res.csv')
-    if(!file.exists(magma_drug_atc_path)) return(NULL)   # MAGMA is EUR-only
-    dat<-fread(magma_drug_atc_path)
-    dat$P.FDR<-p.adjust(dat$P, method = 'fdr')
+    for(lv in c('l2','l3','l4')){
+      p<-paste0(outdir,'/results/',gwas,'/magma/magma_drug_targetor_atc_',lv,'_res.csv')
+      if(!file.exists(p)) next
+      d<-fread(p)
+      if(nrow(d)==0) next
+      d$Level<-toupper(lv)
+      dat<-rbind(dat, d, fill=TRUE)
+    }
+    if(is.null(dat) || nrow(dat)==0) return(NULL)   # MAGMA is EUR-only
 
-    dat<-dat[,c("ATC","N","P","P.FDR","Name"), with=F]
-    names(dat)<-c("ATC Code","N Drugs","P","P.FDR","ATC Description")
+    dat[, `P.FDR` := p.adjust(P, method = 'fdr'), by = Level]   # FDR within each ATC level
+
+    dat<-dat[,c("ATC","Level","N","P","P.FDR","Name"), with=F]
+    names(dat)<-c("ATC Code","Level","N Drugs","P","P.FDR","ATC Description")
 
     dat<-dat[order(dat$P),]
 

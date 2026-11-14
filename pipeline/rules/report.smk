@@ -59,7 +59,7 @@ if config.get("twas_gsea_pathway", "F") == "T" and pathway_gmts:
     myoutput.append(expand("{outdir}/results/{gwas}/twas/pathway/twas_gsea_pathway_all.done", gwas=gwas_list_df['name'], outdir={outdir}))
 
 if config["magma_drugtargetor"] == "T":
-    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv", gwas=gwas_list_df['name'], outdir={outdir}))
+    myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_{level}_res.csv", gwas=gwas_list_df['name'], level=["l2","l3","l4"], outdir={outdir}))
 
 if config.get("magma_drugtargetor_gls", "F") == "T":
     myoutput.append(expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_gls_{level}_res.csv", gwas=gwas_list_df['name'], level=["l2","l3","l4"], outdir={outdir}))

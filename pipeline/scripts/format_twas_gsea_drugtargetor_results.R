@@ -102,114 +102,56 @@ names(atc)<-c('Code','Name')
 atc$Name<-tolower(atc$Name)
 
 # Canonical membership: each drug's own ATC codes (clean.csv 'ATC', dot-joined), exploded to every
-# class, unique per drug. The rank-sum below runs over UNIQUE drugs (no drug*code pseudo-replication).
-# Test for enrichment for each ATC L3 class, over UNIQUE drugs (canonical membership; threshold >= 5).
-drug_cls3 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 4)))
-cls3      <- sort(unique(unlist(drug_cls3))); cls3 <- cls3[nchar(cls3) == 4]
-# A gene-level panel with few testable drug sets (e.g. FETAL.BRAIN.RNASEQ on a
-# single chromosome) can leave no ATC class clearing the >=5-unique-drug
-# threshold below, so the loop appends nothing. Start from an empty typed frame
-# (not NULL) so the merge() with atc_labels and the downstream direction columns
-# operate on a valid 0-row table and emit a well-formed empty CSV, instead of
-# merge(NULL, ...) erroring with "'by' must specify a uniquely valid column".
-atc_enrich<-data.frame(ATC=character(), Estimate=numeric(), Class_Median=numeric(), Non_Class_Median=numeric(), P=numeric(), N=numeric())
-for(cat in cls3){
-  class_bin <- as.numeric(vapply(drug_cls3, function(x) cat %in% x, logical(1)))
-
-  if(sum(class_bin == 1) >= 5){
-
-    # Use wilcoxon test
-    if(opt$mode == 'directional'){
-      # Preserve historical Estimate sign convention (group1 = out-class, group2 = in-class).
-      wil_cox_res<-wilcox.test(rank(res$T) ~ class_bin, conf.int =T)
-    } else {
-      # Two-sample form so the alternative direction is unambiguous: x = in-class,
-      # y = out-of-class, so alternative='greater' tests in-class T > out-of-class T.
-      in_T <- rank(res$T)[class_bin == 1]
-      out_T <- rank(res$T)[class_bin == 0]
-      wil_cox_res<-wilcox.test(in_T, out_T, conf.int =T, alternative = 'greater')
+# class, unique per drug. The rank-sum runs over UNIQUE drugs (no drug*code pseudo-replication).
+# Test for enrichment at each ATC level (L2/L3/L4 = 1st 3/4/5 chars), threshold >= 5 drugs, writing
+# one file per level (mirrors format_twas_gsea_drugtargetor_vif_results.R). The packaging reader
+# stacks the per-level files and adds a Level column + per-level FDR.
+#
+# Direction (directional mode): Wilcoxon HL on rank(T) ~ class_bin takes out-class as x and in-class
+# as y, giving HL(out - in); so Estimate > 0 => in-class drugs have LOWER T = 'Opposes disease',
+# Estimate < 0 => 'Matches disease'; Reversal_Z = qnorm(1 - P/2) * sign(Estimate). Non-directional:
+# P is one-sided right-tail (in > out), Direction NA, Reversal_Z = qnorm(1 - P).
+level_width <- c(l2 = 3L, l3 = 4L, l4 = 5L)
+for (lv in names(level_width)) {
+  k <- level_width[[lv]]
+  drug_cls <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, k)))
+  cls      <- sort(unique(unlist(drug_cls))); cls <- cls[nchar(cls) == k]
+  # Empty-panel guard: a panel with few testable drug sets may clear no class; start from an empty
+  # typed frame so merge()/direction columns operate on a valid 0-row table and emit a well-formed CSV.
+  atc_enrich <- data.frame(ATC=character(), Estimate=numeric(), Class_Median=numeric(),
+                           Non_Class_Median=numeric(), P=numeric(), N=numeric())
+  for (cat in cls) {
+    class_bin <- as.numeric(vapply(drug_cls, function(x) cat %in% x, logical(1)))
+    if (sum(class_bin == 1) >= 5) {
+      if (opt$mode == 'directional') {
+        wil_cox_res <- wilcox.test(rank(res$T) ~ class_bin, conf.int = T)
+      } else {
+        in_T  <- rank(res$T)[class_bin == 1]
+        out_T <- rank(res$T)[class_bin == 0]
+        wil_cox_res <- wilcox.test(in_T, out_T, conf.int = T, alternative = 'greater')
+      }
+      atc_enrich <- rbind(atc_enrich, data.frame(ATC = cat,
+                                                 Estimate = as.numeric(wil_cox_res$estimate),
+                                                 Class_Median = median(res$Estimate[class_bin == 1]),
+                                                 Non_Class_Median = median(res$Estimate[class_bin == 0]),
+                                                 P = wil_cox_res$p.value,
+                                                 N = sum(class_bin)))
     }
-
-    atc_enrich<-rbind(atc_enrich, data.frame(ATC=cat,
-                                             Estimate=as.numeric(wil_cox_res$estimate),
-                                             Class_Median=median(res$Estimate[class_bin == 1]),
-                                             Non_Class_Median=median(res$Estimate[class_bin == 0]),
-                                             P=wil_cox_res$p.value,
-                                             N=sum(class_bin)))
   }
-}
 
-atc_labels<-atc[nchar(atc$Code) == 4,]
-atc_enrich<-merge(atc_enrich, atc_labels, by.x='ATC', by.y='Code')
-atc_enrich<-atc_enrich[order(atc_enrich$P),]
+  atc_labels <- atc[nchar(atc$Code) == k, ]
+  atc_enrich <- merge(atc_enrich, atc_labels, by.x = 'ATC', by.y = 'Code')
+  atc_enrich <- atc_enrich[order(atc_enrich$P), ]
 
-# Direction-of-effect columns at ATC level.
-# Directional: Wilcoxon HL is on rank(T) ~ class_bin via the formula form, so
-# R takes class_bin==0 (out-class) as x and class_bin==1 (in-class) as y, giving
-# HL(out - in). Therefore Estimate > 0 means in-class drugs have LOWER T = the
-# class is enriched for the opposes-disease direction. Estimate < 0 means the
-# class is enriched for the matches-disease direction.
-# Non-directional: P is one-sided right-tail (in > out), Direction is NA.
-if(opt$mode == 'directional'){
-  atc_enrich$Direction <- ifelse(atc_enrich$Estimate > 0, 'Opposes disease',
-                          ifelse(atc_enrich$Estimate < 0, 'Matches disease', NA_character_))
-  # Magnitude is the one-sided Z corresponding to the two-sided Wilcoxon P;
-  # sign tracks the Estimate (and therefore Direction). qnorm(1-P/2) is always
-  # >= 0 for P <= 1, so sign(Reversal_Z) always agrees with Direction.
-  atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P/2) * sign(atc_enrich$Estimate)
-} else {
-  atc_enrich$Direction  <- NA_character_
-  # Non-directional P is one-sided right-tail (in > out). qnorm(1-P) is the
-  # one-sided Z magnitude; always >= 0 for P <= 1.
-  atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P)
-}
-
-write.csv(atc_enrich, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res.csv'), row.names=F)
-
-# Test for enrichment for each level 4 ATC class, over UNIQUE drugs (canonical membership; threshold >= 5).
-drug_cls4 <- lapply(strsplit(res$ATC, '.', fixed = TRUE), function(x) unique(substr(x, 1, 5)))
-cls4      <- sort(unique(unlist(drug_cls4))); cls4 <- cls4[nchar(cls4) == 5]
-# Same empty-panel guard as atc_enrich above (see note there).
-atc_enrich_2<-data.frame(ATC=character(), Estimate=numeric(), Class_Median=numeric(), Non_Class_Median=numeric(), P=numeric(), N=numeric())
-for(cat in cls4){
-  class_bin <- as.numeric(vapply(drug_cls4, function(x) cat %in% x, logical(1)))
-
-  if(sum(class_bin == 1) >= 5){
-
-    # Use wilcoxon test
-    if(opt$mode == 'directional'){
-      # Preserve historical Estimate sign convention (group1 = out-class, group2 = in-class).
-      wil_cox_res<-wilcox.test(rank(res$T) ~ class_bin, conf.int =T)
-    } else {
-      # Two-sample form so the alternative direction is unambiguous: x = in-class,
-      # y = out-of-class, so alternative='greater' tests in-class T > out-of-class T.
-      in_T <- rank(res$T)[class_bin == 1]
-      out_T <- rank(res$T)[class_bin == 0]
-      wil_cox_res<-wilcox.test(in_T, out_T, conf.int =T, alternative = 'greater')
-    }
-
-    atc_enrich_2<-rbind(atc_enrich_2, data.frame(ATC=cat,
-                                             Estimate=as.numeric(wil_cox_res$estimate),
-                                             Class_Median=median(res$Estimate[class_bin == 1]),
-                                             Non_Class_Median=median(res$Estimate[class_bin == 0]),
-                                             P=wil_cox_res$p.value,
-                                             N=sum(class_bin)))
+  if (opt$mode == 'directional') {
+    atc_enrich$Direction  <- ifelse(atc_enrich$Estimate > 0, 'Opposes disease',
+                             ifelse(atc_enrich$Estimate < 0, 'Matches disease', NA_character_))
+    atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P/2) * sign(atc_enrich$Estimate)
+  } else {
+    atc_enrich$Direction  <- NA_character_
+    atc_enrich$Reversal_Z <- qnorm(1 - atc_enrich$P)
   }
+
+  write.csv(atc_enrich, paste0(outdir, '/results/', opt$twas, '/twas/drugtargetor/twas_gsea', suffix, '_', opt$panel, '_res_atc_', lv, '_res.csv'), row.names = F)
 }
-
-atc_labels<-atc[nchar(atc$Code) == 5,]
-atc_enrich_2<-merge(atc_enrich_2, atc_labels, by.x='ATC', by.y='Code')
-atc_enrich_2<-atc_enrich_2[order(atc_enrich_2$P),]
-
-# Direction-of-effect columns at level-4 ATC. Same convention as atc_enrich.
-if(opt$mode == 'directional'){
-  atc_enrich_2$Direction <- ifelse(atc_enrich_2$Estimate > 0, 'Opposes disease',
-                            ifelse(atc_enrich_2$Estimate < 0, 'Matches disease', NA_character_))
-  atc_enrich_2$Reversal_Z <- qnorm(1 - atc_enrich_2$P/2) * sign(atc_enrich_2$Estimate)
-} else {
-  atc_enrich_2$Direction  <- NA_character_
-  atc_enrich_2$Reversal_Z <- qnorm(1 - atc_enrich_2$P)
-}
-
-write.csv(atc_enrich_2, paste0(outdir,'/results/',opt$twas,'/twas/drugtargetor/twas_gsea',suffix,'_',opt$panel,'_res_atc_res_level4.csv'), row.names=F)
 

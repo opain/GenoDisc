@@ -1889,13 +1889,11 @@ atc_compare_server <- function(id, gwas_data, selected_gwas_multi,
     # ATC method (VIF/GLS/legacy) and level (L2/L3/L4) come from the single-GWAS central
     # control bar (mod_enrichment.R), passed in as reactives. comparison_long carries every
     # available method (tagged `atc_test`) and level (tagged `level`), so switching either just
-    # re-filters the pre-built table. Legacy Wilcoxon is L3-only, so it is exempt from level
-    # filtering (mirrors the single-GWAS by_level=FALSE handling and the central level control
-    # being hidden for legacy).
+    # re-filters the pre-built table. Every source now filters by level; the central selector is
+    # source-aware, so the chosen level is always one the source has (legacy Wilcoxon runs at
+    # L2/L3/L4 on new bundles; .gd_atc_long_from_block tags pre-change / GCSC rows as L3).
     atc_source_sel <- reactive(atc_source() %||% "vif")
-    atc_level_active <- reactive({
-      if (identical(atc_source_sel(), "legacy")) NA_character_ else (atc_level() %||% "L3")
-    })
+    atc_level_active <- reactive(atc_level() %||% "L3")
 
     # Server-side k sliders so max always tracks the current selection.
     output$magma_k_slider_ui <- renderUI({

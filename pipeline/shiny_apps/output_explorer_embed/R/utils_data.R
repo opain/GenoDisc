@@ -475,16 +475,18 @@ build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
   atc_vif   <- gd_read(gd, gwas, "tx/atc_vif")        # TWAS-GSEA VIF-OLS (directional, per panel)
   atc_vif_m <- gd_read(gd, gwas, "tx/atc_vif_magma")  # MAGMA VIF-OLS (non-directional, genome-wide)
 
-  # MAGMA (Wilcoxon) / GCSC ATC results exist only at L3; only overlay them on an L3 view.
-  show_drugset <- identical(level, "L3")
-
   # Standardise any ATC block to the summary columns (Name, Z, FDR_Sig, Nom_Sig, Method, Panel).
-  # by_level filters to the selected ATC level for blocks that carry a Level column (the GLS blocks);
+  # by_level filters to the selected ATC level: blocks with a Level column (VIF/GLS, and the
+  # MAGMA/TWAS-GSEA Wilcoxon post-L2/L4 change) are filtered to it; blocks without one (GCSC, or
+  # pre-change bundles) are L3-only, so they're shown only on an L3 view and dropped otherwise.
   # Z uses Reversal_Z when present (signed/magnitude), else -qnorm(P).
   std_atc <- function(g, method_label, panel_label = NULL, by_level = TRUE) {
     if (is.null(g) || nrow(g) == 0) return(NULL)
     g <- data.table::as.data.table(g)
-    if (by_level && "Level" %in% names(g)) g <- g[g$Level == level, ]
+    if (by_level) {
+      if ("Level" %in% names(g)) g <- g[g$Level == level, ]
+      else if (!identical(level, "L3")) return(NULL)
+    }
     if (nrow(g) == 0) return(NULL)
     g$Z <- if ("Reversal_Z" %in% names(g)) g$Reversal_Z else -qnorm(g$P)
     g$Z[!is.finite(g$Z)] <- NA_real_
@@ -525,11 +527,13 @@ build_atc_summary_data <- function(gd, gwas, level = "L3", atc_source = "gls") {
     mag <- std_atc(atc_gls_m, "MAGMA", panel_label = "MAGMA")
     out <- do.call(rbind, Filter(Negate(is.null), list(tw, mag)))
   } else {
-    # Legacy: the per-drug Wilcoxon tests (TWAS-GSEA per panel + MAGMA/GCSC, L3 only).
-    magma <- if (show_drugset) std_atc(safe_access(atc, "magma"), "MAGMA", panel_label = "MAGMA", by_level = FALSE) else NULL
-    gcsc  <- if (show_drugset) std_atc(safe_access(atc, "gcsc"),  "GCSC",  panel_label = "GCSC",  by_level = FALSE) else NULL
-    tw    <- pad_panels(std_atc(safe_access(atc, "twas_gsea"),        "TWAS-GSEA",                    by_level = FALSE))
-    twn   <- pad_panels(std_atc(safe_access(atc, "twas_gsea_nondir"), "TWAS-GSEA (non-directional)", by_level = FALSE))
+    # Legacy: the competitive Wilcoxon tests. MAGMA/TWAS-GSEA Wilcoxon carry a Level column
+    # (L2/L3/L4) so they filter to the selected level; GCSC (and pre-change bundles) are L3-only,
+    # so std_atc shows them only on an L3 view.
+    magma <- std_atc(safe_access(atc, "magma"), "MAGMA", panel_label = "MAGMA")
+    gcsc  <- std_atc(safe_access(atc, "gcsc"),  "GCSC",  panel_label = "GCSC")
+    tw    <- pad_panels(std_atc(safe_access(atc, "twas_gsea"),        "TWAS-GSEA"))
+    twn   <- pad_panels(std_atc(safe_access(atc, "twas_gsea_nondir"), "TWAS-GSEA (non-directional)"))
     out <- do.call(rbind, Filter(Negate(is.null), list(magma, gcsc, tw, twn)))
   }
   out
@@ -579,6 +583,32 @@ atc_gls_levels <- function(gd, gwas) {
     if (!is.null(g) && "Level" %in% names(g)) lv <- union(lv, unique(g$Level))
   }
   intersect(c("L2","L3","L4"), lv)
+}
+
+#' ATC levels available for a given test source (vif / gls / legacy). The level selector is
+#' source-aware so each test only offers the levels it actually has: VIF-OLS/GLS run at L2/L3/L4;
+#' the Wilcoxon (legacy) runs at L2/L3/L4 for bundles produced after the L2/L4 change, but older
+#' bundles (and GCSC) carry no Level and are L3 only.
+atc_levels_for_source <- function(gd, gwas, src) {
+  lv <- character(0)
+  blks <- switch(src,
+                 vif = c("tx/atc_vif", "tx/atc_vif_magma"),
+                 gls = c("tx/atc_gls", "tx/atc_gls_magma"),
+                 character(0))
+  for (blk in blks) {
+    g <- gd_read(gd, gwas, blk)
+    if (!is.null(g) && "Level" %in% names(g)) lv <- union(lv, unique(as.character(g$Level)))
+  }
+  if (identical(src, "legacy")) {
+    a <- gd_read(gd, gwas, "tx/atc")
+    for (slot in c("magma", "twas_gsea", "twas_gsea_nondir")) {
+      g <- safe_access(a, slot)
+      if (!is.null(g) && "Level" %in% names(g)) lv <- union(lv, unique(as.character(g$Level)))
+    }
+    if (length(lv) == 0) lv <- "L3"   # pre-change legacy-only bundle: L3 only
+  }
+  out <- intersect(c("L2", "L3", "L4"), lv)
+  if (length(out) == 0) "L3" else out
 }
 
 #' Per-gene evidence tables (membership x TWAS Z x provenance) for the drill-down.

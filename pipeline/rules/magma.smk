@@ -76,7 +76,8 @@ rule format_magma_results:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor.gsa.out",
     rules.download_atc.output
   output:
-    "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv"
+    expand("{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_{lv}_res.csv",
+           lv=["l2", "l3", "l4"], allow_missing=True)
   benchmark:
     "{outdir}/benchmarks/format_magma_results_{gwas}.tsv"
   conda:
@@ -216,7 +217,7 @@ rule magma_pathway_all:
 # Compare TWAS signiture compared to enriched drugs in MAGMA
 rule comp_magma_gsea_twas_results:
   input:
-    "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_res.csv",
+    "{outdir}/results/{gwas}/magma/magma_drug_targetor_atc_l3_res.csv",
     "{outdir}/results/{gwas}/twas/{gwas}_twas_GW_clean.txt.gz"
   output:
     "{outdir}/results/{gwas}/magma/magma_drug_targetor_twas_comp.csv"

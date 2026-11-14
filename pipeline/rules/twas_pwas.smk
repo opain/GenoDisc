@@ -321,7 +321,8 @@ rule format_twas_gsea_drugtargetor_results:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.done",
     rules.download_atc.output
   output:
-    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv"
+    expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_{lv}_res.csv",
+           lv=["l2", "l3", "l4"], allow_missing=True)
   benchmark:
     "{outdir}/benchmarks/format_twas_gsea_drugtargetor_results_{gwas}_{weight}.tsv"
   conda:
@@ -338,7 +339,7 @@ rule format_twas_gsea_drugtargetor_results:
 
 rule format_twas_gsea_drugtargetor_results_all_panel:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv", gwas=w.gwas, batch=range(1, 11), weight=weights_nosplice, outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_{lv}_res.csv", gwas=w.gwas, batch=range(1, 11), lv=["l2", "l3", "l4"], weight=weights_nosplice, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_results_all_panel.done")
 
@@ -388,7 +389,8 @@ rule format_twas_gsea_drugtargetor_nondirectional_results:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_nondir_{weight}.done",
     rules.download_atc.output
   output:
-    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_res.csv"
+    expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_{lv}_res.csv",
+           lv=["l2", "l3", "l4"], allow_missing=True)
   benchmark:
     "{outdir}/benchmarks/format_twas_gsea_drugtargetor_nondirectional_results_{gwas}_{weight}.tsv"
   conda:
@@ -406,7 +408,7 @@ rule format_twas_gsea_drugtargetor_nondirectional_results:
 
 rule format_twas_gsea_drugtargetor_nondirectional_results_all_panel:
     input:
-      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_res.csv", gwas=w.gwas, weight=weights_nosplice, outdir={outdir})
+      lambda w: expand("{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_nondir_{weight}_res_atc_{lv}_res.csv", gwas=w.gwas, lv=["l2", "l3", "l4"], weight=weights_nosplice, outdir={outdir})
     output:
       touch("{outdir}/results/{gwas}/checks/format_twas_gsea_drugtargetor_nondirectional_results_all_panel.done")
 
@@ -454,7 +456,7 @@ rule format_twas_gsea_drug_targetor_gls_results:
     weight="(?!nondir_)(?!atc_).+"
   input:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.drugcorr.rds",
-    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv",
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_l3_res.csv",
     rules.download_atc.output
   output:
     l2="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_gls_l2_{weight}_res.csv",
@@ -487,7 +489,7 @@ rule format_twas_gsea_drug_targetor_vif_results:
     weight="(?!nondir_)(?!atc_).+"
   input:
     "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_{weight}.drugcorr.rds",
-    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_res.csv",
+    "{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_{weight}_res_atc_l3_res.csv",
     rules.download_atc.output
   output:
     l2="{outdir}/results/{gwas}/twas/drugtargetor/twas_gsea_drugtargetor_vif_l2_{weight}_res.csv",
