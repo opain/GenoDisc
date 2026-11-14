@@ -64,21 +64,25 @@
   })();
 </script>
 
-<label class="switch" title="Toggle light / dark theme">
-  <input type="checkbox" id="themeToggle" checked>
-  <span class="slider round"></span>
-</label>
-
 <script>
+  // Icon theme toggle (sun in dark mode -> switch to light, moon in light mode),
+  // matching the web app. Created in JS and appended to <body> so it renders
+  // reliably regardless of this include living in <head>.
   document.addEventListener('DOMContentLoaded', function () {
     var KEY = 'genodisc_theme';
-    var box = document.getElementById('themeToggle');
-    if (!box) return;
-    // checked == dark (the default). Reflect the current theme on load.
-    box.checked = document.documentElement.getAttribute('data-theme') !== 'light';
-    box.addEventListener('change', function () {
-      if (box.checked) {
-        document.documentElement.removeAttribute('data-theme');   // dark
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'theme-toggle';
+    btn.title = 'Toggle light / dark theme';
+    btn.setAttribute('aria-label', 'Toggle light or dark theme');
+    btn.innerHTML =
+      '<svg class="ic-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>' +
+      '<svg class="ic-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>';
+    document.body.appendChild(btn);
+    btn.addEventListener('click', function () {
+      var light = document.documentElement.getAttribute('data-theme') === 'light';
+      if (light) {
+        document.documentElement.removeAttribute('data-theme');
         try { localStorage.setItem(KEY, 'dark'); } catch (e) {}
       } else {
         document.documentElement.setAttribute('data-theme', 'light');

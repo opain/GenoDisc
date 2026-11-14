@@ -231,6 +231,16 @@ hr { border-top: 1px solid var(--border); }
 }
 .btn-primary:hover, .btn-primary:focus { background: var(--accent-hover); border-color: var(--accent-hover); color: #07120e; }
 
+/* Light theme: the deep-teal accent needs white text (matches the app). The nav
+   CTA is excluded - the nav is pinned to the dark palette, so it keeps dark text. */
+:root[data-theme="light"] .button,
+:root[data-theme="light"] .inline_button,
+:root[data-theme="light"] .btn-primary { color: #ffffff; }
+:root[data-theme="light"] .button:hover,
+:root[data-theme="light"] .inline_button:hover,
+:root[data-theme="light"] .btn-primary:hover,
+:root[data-theme="light"] .btn-primary:focus { color: #ffffff; }
+
 .flex-container { display: flex; justify-content: space-around; align-items: center; }
 
 /* ----------------------------- Code blocks ------------------------------ */
@@ -283,39 +293,33 @@ pre .fu, pre .at { color: var(--text); }
 .note-box a:hover { color: var(--accent); }
 
 /* ---------------------- Light/dark toggle (header.html) ----------------- */
-/* Reuses the slider widget markup; JS now flips <html data-theme> + localStorage. */
-.switch {
+/* Icon toggle matching the app: a minimal ghost button showing the TARGET theme
+   (sun in dark mode -> switch to light; moon in light mode). JS flips
+   <html data-theme> + localStorage['genodisc_theme']. */
+.theme-toggle {
   position: fixed;
-  top: 72px; right: 14px;
+  top: 69px; right: 14px;
   z-index: 1000;
-  display: inline-block;
-  width: 60px; height: 30px;
-}
-.switch input { opacity: 0; width: 0; height: 0; }
-.slider {
-  position: absolute; cursor: pointer; inset: 0;
+  width: 36px; height: 36px;
+  display: inline-flex; align-items: center; justify-content: center;
   background: var(--panel);
+  color: var(--text-dim);
   border: 1px solid var(--border-2);
-  transition: .2s; border-radius: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: .15s;
 }
-.slider::before, .slider::after {
-  position: absolute; top: 50%; transform: translateY(-50%); font-size: 16px;
-}
-.slider::before { content: '🌜'; left: 6px; opacity: 0; }
-.slider::after  { content: '🌞'; right: 6px; opacity: 1; }
-.slider span {
-  position: absolute; height: 24px; width: 24px; left: 3px; top: 2px;
-  background: var(--accent); transition: .2s; border-radius: 50%;
-}
-input:checked + .slider::before { opacity: 1; }
-input:checked + .slider::after  { opacity: 0; }
-input:checked + .slider span { transform: translateX(29px); }
+.theme-toggle:hover { color: var(--text); border-color: var(--text-mute); }
+.theme-toggle svg { display: block; }
+.theme-toggle .ic-moon { display: none; }
+:root[data-theme="light"] .theme-toggle .ic-sun  { display: none; }
+:root[data-theme="light"] .theme-toggle .ic-moon { display: block; }
 
 /* ------------------------------- Search --------------------------------- */
 /* Injected by js/docs-search.js; indexes section headings across the pages. */
 .docs-search {
   position: fixed;
-  top: 70px; right: 86px;
+  top: 70px; right: 62px;
   z-index: 1000;
   width: 220px;
 }
