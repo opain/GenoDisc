@@ -250,25 +250,36 @@ results_caldera <- function(ctx, g, meta) {
   gstr("{analysis} tested {fmt_int(n)} sets, {fmt_int(nsig)} FDR-significant (top: {if (!is.null(lab)) lab[1] else 'NA'}, P.FDR = {fmt_p(top$P.FDR[1], ctx$opt)}).")
 }
 
+# A readable class label. ATC blocks store `ATC Code` + `ATC Description` separately
+# (no combined `Name`), so build one; fall back to `Name` if a block ever has it.
+.atc_label <- function(d) {
+  if ("Name" %in% names(d)) return(as.character(d[["Name"]]))
+  if (all(c("ATC Code", "ATC Description") %in% names(d)))
+    return(paste0(d[["ATC Code"]], ": ", d[["ATC Description"]]))
+  if ("ATC Code" %in% names(d)) return(as.character(d[["ATC Code"]]))
+  rep(NA_character_, nrow(d))
+}
+
 # Summarise one ATC test (its blocks may span engines/panels - e.g. VIF-OLS has a MAGMA
-# and a TWAS-GSEA block): count the distinct FDR-significant ATC classes and the single
-# most significant one. Returns NULL if the test did not run.
+# and a TWAS-GSEA block, each possibly L2/L3/L4): count the distinct FDR-significant ATC
+# classes and the single most significant one. Returns NULL if the test did not run.
 .atc_method_line <- function(ctx, blocks, label) {
   blocks <- Filter(function(d) !is.null(d) && nrow(d) > 0, blocks)
   if (length(blocks) == 0) return(NULL)
   a <- ALPHA(ctx)
   sig <- unique(unlist(lapply(blocks, function(d) {
-    if (!all(c("P.FDR", "Name") %in% names(d))) return(character(0))
-    as.character(d$Name[which(suppressWarnings(as.numeric(d[["P.FDR"]])) < a)])
+    if (!"P.FDR" %in% names(d)) return(character(0))
+    .atc_label(d)[which(suppressWarnings(as.numeric(d[["P.FDR"]])) < a)]
   })))
+  sig <- sig[!is.na(sig)]
   if (length(sig) == 0)
     return(gstr("{label} ATC-class enrichment found no FDR-significant classes."))
   tops <- Filter(function(t) !is.null(t) && nrow(t) > 0, lapply(blocks, function(d)
     if (all(c("P", "P.FDR") %in% names(d))) .top(d, "P", 1L) else NULL))
   best <- tops[[ which.min(vapply(tops, function(t) as.numeric(t$P[1]), numeric(1))) ]]
-  lab  <- .col(best, "Name")
+  lab  <- .atc_label(best)
   gstr("{label} ATC-class enrichment found {fmt_int(length(sig))} FDR-significant ATC ",
-       "class{if (length(sig) == 1L) '' else 'es'} (top: {if (!is.null(lab)) lab[1] else 'NA'}, ",
+       "class{if (length(sig) == 1L) '' else 'es'} (top: {if (length(lab)) lab[1] else 'NA'}, ",
        "P.FDR = {fmt_p(best$P.FDR[1], ctx$opt)}).")
 }
 
