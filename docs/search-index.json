@@ -1,17 +1,5 @@
 [
 {
-"page":"Home",
-"url":"index.html",
-"heading":"Run GenoDisc yourself",
-"id":"run-genodisc-yourself"
-},
-{
-"page":"Home",
-"url":"index.html",
-"heading":"The hosted platform",
-"id":"the-hosted-platform"
-},
-{
 "page":"User Guide",
 "url":"pipeline_guide.html",
 "heading":"Overview",

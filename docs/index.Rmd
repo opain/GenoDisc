@@ -10,22 +10,24 @@ output:
       after_body: footer.html
 ---
 
-<p class="docs-lead">GenoDisc is an open-source Snakemake pipeline for post-GWAS functional genomics. Starting from GWAS summary statistics, it runs a standardised battery of analyses — fine-mapping, gene-level and transcriptome/proteome-wide association, heritability, and drug-target enrichment — to prioritise the genes, mechanisms, and candidate drugs behind an association signal. It also powers the hosted GenoDisc platform at King’s College London; this site documents how to install, configure, and run the pipeline yourself.</p>
+<p class="docs-lead">GenoDisc is an open-source Snakemake pipeline for post-GWAS functional genomics. Starting from GWAS summary statistics, it runs a standardised battery of analyses — fine-mapping, gene-level and transcriptome/proteome-wide association, heritability, and drug-target enrichment — to prioritise the genes, mechanisms, and candidate drugs behind an association signal.</p>
 
-<div class="note-box"><p><strong>Just want results?</strong> Use the hosted GenoDisc platform → <a href="https://genodisc.er.kcl.ac.uk">genodisc.er.kcl.ac.uk</a></p></div>
-
-## Run GenoDisc yourself
-
-Install, configure, and run the pipeline on your own machine or HPC.
-
-<a href="pipeline_guide.html" class="button">User Guide</a>
-<a href="pipeline_technical.html" class="button">Technical Details</a>
-
-## The hosted platform
-
-Don't want to install anything? Submit your GWAS via the hosted platform — the pipeline runs on King's College London servers and results appear in an interactive viewer, with no local software installation.
-
-<a href="https://genodisc.er.kcl.ac.uk/" class="button">Go to the platform ↗</a>
+<div class="row card-row">
+<div class="col-sm-6">
+<div class="card">
+<h2>Web platform</h2>
+<p>Upload summary statistics in your browser. Analyses run on King's College London servers and results open in an interactive viewer. No installation needed.</p>
+<a href="https://genodisc.er.kcl.ac.uk" class="button">Open the web platform ↗</a>
+</div>
+</div>
+<div class="col-sm-6">
+<div class="card">
+<h2>Run the pipeline yourself</h2>
+<p>Install the open-source Snakemake pipeline on your own machine or HPC. Choose this if your data can't leave your environment, or you need custom references, configuration or batch runs.</p>
+<a href="pipeline_guide.html" class="button">Read the pipeline docs</a>
+</div>
+</div>
+</div>
 
 <br/>
 

@@ -243,6 +243,28 @@ hr { border-top: 1px solid var(--border); }
 
 .flex-container { display: flex; justify-content: space-around; align-items: center; }
 
+/* ------------------------------- Cards ---------------------------------- */
+/* Two equal-height routing cards on the landing page (Bootstrap grid + tokens).
+   Stacks on mobile via .col-sm-6. */
+.card-row { display: flex; flex-wrap: wrap; margin-top: 26px; margin-bottom: 8px; }
+.card-row > [class*="col-"] { display: flex; margin-bottom: 20px; }
+.card {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px 24px 26px;
+  box-shadow: var(--shadow-sm);
+}
+.card h2 { margin-top: 0; margin-bottom: 10px; }
+.card p { color: var(--text-dim); margin-bottom: 18px; }
+/* pandoc wraps the button <a> in its own <p>; pin that row to the card bottom
+   so the two cards' buttons align even when the copy differs in length. */
+.card > p:last-child { margin-top: auto; margin-bottom: 0; }
+.card .button { margin: 0; }
+
 /* ----------------------------- Code blocks ------------------------------ */
 pre, code { border-radius: var(--r-sm); font-family: var(--font-mono); }
 pre {

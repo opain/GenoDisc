@@ -14,7 +14,7 @@ navbar:
         - text: "Draft write-up"
           href: pipeline_guide.html#automated-draft-write-up
   right:
-    - text: "Hosted service ↗"
+    - text: "Web platform ↗"
       href: https://genodisc.er.kcl.ac.uk/
     - icon: fa-github fa-lg
       href: https://github.com/opain/GenoDisc
