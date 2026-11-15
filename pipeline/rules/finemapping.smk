@@ -43,7 +43,12 @@ rule finemap_all_chr:
 # Process SuSiE results
 #################
 
+def get_mem_mb_process_fine(wildcards, attempt):
+    return attempt * 16000   # 16 / 32 / 48 GB; the 4GB default OOM'd processing a 963-locus GWAS
+
 rule process_finemap:
+  resources:
+    mem_mb=get_mem_mb_process_fine
   input:
     "{outdir}/results/{gwas}/checks/finemap_all_chr.done",
     rules.download_biomart.output
