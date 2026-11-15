@@ -97,7 +97,7 @@ rule pops_run:
   conda:
     "../envs/pops.yaml"
   resources:
-    mem_mb=16000
+    mem_mb=64000
   params:
     munged=_pops_munged_dir, pops_py=_pops_py, control=_pops_control, gene_annot=_pops_gene_annot
   log:

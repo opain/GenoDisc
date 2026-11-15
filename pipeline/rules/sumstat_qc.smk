@@ -710,12 +710,21 @@ rule manhattan_plot:
 # LD-coloured scatter with recombination like fine-mapped loci.
 ###
 
+def get_mem_mb_locus(wildcards, input, attempt):
+    # Peak memory is driven by the NUMBER of loci (each clump lead loads a
+    # windowed per-SNP + LD block), not just the sumstats file size: a large
+    # GWAS with many suggestive loci OOM'd at the old 6 GB floor. Scale by both
+    # sumstats size and locus count, and attempt-scale so restart-times retries
+    # escalate. input.clump_csv is a declared input (present when the job is
+    # scheduled), same as input.sumstats.
+    size_mb = os.path.getsize(input.sumstats) / 1024**2
+    n_loci = max(0, sum(1 for _ in open(input.clump_csv)) - 1)  # minus header
+    base = 6000 + 12 * size_mb + 20 * n_loci
+    return int(attempt * max(12000, base))
+
 rule locus_plots:
   resources:
-    mem_mb=lambda wildcards, input: max(
-      6000,
-      int(3000 + (12 * os.path.getsize(input.sumstats) / 1024**2))
-    )
+    mem_mb=get_mem_mb_locus
   input:
     sumstats=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
     clump_csv=f"{outdir}/results/{{gwas}}/clump/{{gwas}}.GW.clump.clean.csv",

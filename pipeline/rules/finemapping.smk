@@ -4,10 +4,14 @@
 
 def get_mem_mb_fine(wildcards, attempt):
     return attempt * 20000
-    
+
+def get_runtime_fine(wildcards, attempt):
+    return attempt * 30   # 30 / 60 / 90 min across restart-times
+
 rule finemap:
   resources:
-    mem_mb=get_mem_mb_fine
+    mem_mb=get_mem_mb_fine,
+    runtime=get_runtime_fine
   input:
     "{outdir}/results/{gwas}/gwas_sumstat/{gwas}.cleaned.gz",
     "{outdir}/results/{gwas}/clump/{gwas}.GW.clump.clean.csv"

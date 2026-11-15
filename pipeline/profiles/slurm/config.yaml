@@ -67,7 +67,10 @@ set-resources:
   - cojo:runtime=216    # n=176, max=8604s
   - combine_twas_res:runtime=180    # checkpoint; n=38, max=31s
   - convert_pathway_gmt:runtime=60    # n=10, max=43s
-  - finemap:runtime=11    # n=220, max=422s
+  # finemap runtime is intentionally NOT set here: chr6/MHC loci far exceed the
+  # auto-derived 11 min (max=422s) on large GWAS and timed out, and a static
+  # value here would override the rule's attempt-scaling runtime
+  # (get_runtime_fine in rules/finemapping.smk: 30/60/90 min across retries).
   - format_eqtlgen_smr:runtime=60    # n=6, max=3s
   - format_magma_gene_results:runtime=60    # n=28, max=20s
   - format_magma_pathway_results:runtime=60    # n=28, max=8s
@@ -82,7 +85,7 @@ set-resources:
   # of reference GWAS and is set adaptively in the rule (ldsc_gencor_runtime in
   # rules/sumstat_qc.smk). A set-resources value here would override that.
   - ldsc_gencor_within:runtime=15    # whole-rule (loops over pairs); bounded by the 5-GWAS submission cap; max=78s
-  - locus_plots:runtime=60    # n=28, max=214s
+  - locus_plots:runtime=180    # n=28, max=214s; raised for large GWAS (963-locus CAD run on 60min benchmark set was too tight once memory was sized up)
   - magma_drug_targetor:runtime=60    # n=26, max=32s
   - magma_gene_level:runtime=441    # n=30, max=17625s
   - magma_pathway:runtime=60    # n=28, max=26s
