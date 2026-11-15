@@ -99,6 +99,58 @@ lp_pack_rows <- function(genes, window) {
   g
 }
 
+# ---- control availability ---------------------------------------------------
+
+# Rows of a bundle block for one locus (and L, when the block carries an L
+# column) — the same predicate `sub_locus()` applies inside lp_build_locus_data.
+# Returns NULL (not an empty frame) when nothing matches or the block is absent.
+.lp_rows_for_locus <- function(df, locus, Lval) {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  d <- as.data.frame(df)
+  if (!"locus" %in% names(d)) return(NULL)
+  keep <- as.character(d$locus) == as.character(locus)
+  if ("L" %in% names(d)) keep <- keep & (suppressWarnings(as.integer(d$L)) == Lval)
+  d <- d[keep, , drop = FALSE]
+  if (nrow(d) == 0) NULL else d
+}
+
+#' Which locus-plot controls are applicable for one selected lead locus + L.
+#' Drives per-locus show/hide of the fine-mapping (L / PIP / panel B), CALDERA,
+#' coding, nearest and coloc controls so only analyses that actually ran for this
+#' locus are offered. "Available" = the analysis ran for this locus (not that it
+#' produced a qualifying hit). Returns a named logical list.
+lp_locus_avail <- function(gd, gwas, locus, L, flags = NULL) {
+  out <- list(fm = FALSE, caldera = FALSE, coding = FALSE,
+              nearest = FALSE, coloc = FALSE, l10 = FALSE)
+  if (is.null(locus) || !nzchar(as.character(locus))) return(out)
+  Lval <- suppressWarnings(as.integer(gsub("[^0-9]", "", as.character(L))))
+  if (length(Lval) == 0 || is.na(Lval)) Lval <- 1L
+  rd <- function(block) tryCatch(gd_read(gd, gwas, block), error = function(e) NULL)
+  flg <- function(k) is.null(flags) || isTRUE(flags[[k]])
+
+  # Fine-mapping present for this locus: credible-set members and/or a
+  # full-locus PIP baseline (same test as lp_build_locus_data's has_finemap).
+  cc <- rd("credset_coding")
+  members <- .lp_rows_for_locus(cc$variants, locus, Lval)
+  sa <- rd("snp_assoc")
+  su <- if (!is.null(sa)) sa$susie else NULL
+  lpip <- if (!is.null(su)) su[[if (Lval == 1) "locus_pip_L1" else "locus_pip_L10"]] else NULL
+  baseline <- .lp_rows_for_locus(lpip, locus, Lval)   # locus-only (no L column)
+  out$fm <- !is.null(members) || !is.null(baseline)
+
+  # CALDERA ran for this locus (keyed on SuSiE credible sets — GW-sig only).
+  # The "Nearest gene" badge is sourced from the same CALDERA block.
+  if (flg("caldera")) out$caldera <- !is.null(.lp_rows_for_locus(rd("caldera"), locus, Lval))
+  out$nearest <- out$caldera
+  # Credible-set coding annotation ran for this locus.
+  if (flg("credset_coding_annot")) out$coding <- !is.null(members)
+  # Molecular colocalisation runs genome-wide, so offer E/S/P wherever it ran.
+  out$coloc <- isTRUE(flags[["expression"]]) || isTRUE(flags[["protein"]]) || is.null(flags)
+  # Whether the bundle carries L10 fine-mapping (drives the L10 radio choice).
+  out$l10 <- !is.null(su) && (!is.null(su$L10) || !is.null(su$locus_pip_L10))
+  out
+}
+
 # ---- data assembly ----------------------------------------------------------
 
 #' Assemble everything a locus plot needs for one lead locus + L.
@@ -269,6 +321,20 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
     a <- a[is.finite(a$neglogP), , drop = FALSE]
     if (nrow(a) > 0) assoc <- a[, c("SNP","CHR","BP","neglogP")]
   }
+  # Clump windowed association (every GWAS variant in the window, with P) for
+  # non-fine-mapped (e.g. suggestive) loci - a dense scatter like the baseline,
+  # before falling back to the thinned manhattan_data on older bundles.
+  if (is.null(assoc) && !is.null(sa) && !is.null(sa$ld_to_lead)) {
+    cl <- as.data.frame(sa$ld_to_lead)
+    if (all(c("CHR", "BP", "P") %in% names(cl))) {
+      cl <- cl[as.character(cl$locus) == as.character(locus), , drop = FALSE]
+      if (nrow(cl) > 0) {
+        cl$neglogP <- -log10(suppressWarnings(as.numeric(cl$P)))
+        cl <- cl[is.finite(cl$neglogP), , drop = FALSE]
+        if (nrow(cl) > 0) assoc <- cl[, c("SNP", "CHR", "BP", "neglogP")]
+      }
+    }
+  }
   if (is.null(assoc)) {
     gq <- rd("gwas_qc")
     md <- if (!is.null(gq)) gq$manhattan_data else NULL
@@ -301,6 +367,11 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   recomb <- NULL
   if (!is.null(rcb) && nrow(rcb) > 0) {
     r <- as.data.frame(rcb); r <- r[as.character(r$locus) == as.character(locus), c("BP","rate")]
+    if (nrow(r) >= 2) recomb <- r[order(r$BP), ]
+  }
+  # Clump-lead recomb track for non-fine-mapped (suggestive) loci.
+  if (is.null(recomb) && !is.null(sa) && !is.null(sa$clump_recomb) && nrow(sa$clump_recomb) > 0) {
+    r <- as.data.frame(sa$clump_recomb); r <- r[as.character(r$locus) == as.character(locus), c("BP","rate")]
     if (nrow(r) >= 2) recomb <- r[order(r$BP), ]
   }
 

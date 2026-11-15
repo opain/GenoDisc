@@ -318,21 +318,30 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       lead_choices <- c()
       if (isTRUE(cf$cojo))  lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
       if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
+      default_method <- if (length(lead_choices) > 0) unname(lead_choices[1]) else character(0)
+      # Build the threshold choices for the default method at render time so the
+      # suggestive option is present immediately (the observeEvent below only
+      # updates it on a later method switch, and can lose the init-time race).
+      pv_choices <- c("Genome-wide significance (p < 5e-8)" = 5e-8)
+      if (identical(default_method, "ld_clumping"))
+        pv_choices <- c(pv_choices, "Suggestive significance (p < 1e-5)" = 1e-5)
       fluidPage(
         sidebarPanel(
           radioButtons(ns("clumping_type"), "Select method:",
                        choices = lead_choices,
-                       selected = if (length(lead_choices) > 0) unname(lead_choices[1]) else character(0)),
+                       selected = default_method),
           radioButtons(ns("pvalue_threshold"), "Select P-value Threshold:",
-                       choices = c("Genome-wide significance (p < 5e-8)" = 5e-8),
+                       choices = pv_choices,
                        selected = 5e-8),
-          uiOutput(ns("lead_pc_ui")),
           width = 3
         ),
         mainPanel(
           uiOutput(ns("cojo_status_message")),
           uiOutput(ns("lead_status_message")),
           dataTableOutput(ns("snp_assoc_lead_table")),
+          # Nearest-gene protein-coding toggle sits with the table it affects,
+          # kept apart from the locus-plot controls further down.
+          uiOutput(ns("lead_pc_ui")),
           uiOutput(ns("lead_legend")),
           tags$hr(),
           tags$h4("Locus plot"),
@@ -1064,10 +1073,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # synced per locus by updateNumericInput, below.
     output$lp_controls_ui <- renderUI({
       if (!isTRUE(lp_dashboard_supported())) return(NULL)
+      # Offer L10 only when the bundle actually carries L10 fine-mapping.
+      su0 <- tryCatch(gd_read(gwas_data(), .pick_gwas("lead_gwas"), "snp_assoc")$susie,
+                      error = function(e) NULL)
+      has_l10 <- !is.null(su0) && (!is.null(su0$L10) || !is.null(su0$locus_pip_L10))
       tagList(
         fluidRow(
           column(3, radioButtons(ns("lp_l"), "L parameter:",
-                                 choices = c("L1" = "L1", "L10" = "L10"),
+                                 choices = if (isTRUE(has_l10)) c("L1" = "L1", "L10" = "L10") else c("L1" = "L1"),
                                  selected = isolate(input$lp_l) %||% "L1", inline = TRUE)),
           column(3, radioButtons(ns("lp_pip_type"), "PIP shown:",
                                  choices = c("Marginal" = "marginal", "Per-cs (alpha)" = "alpha"),
@@ -1098,6 +1111,34 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                         numericInput(ns("lp_dl_h"), "Height (in):", value = 8, min = 2, max = 60, step = 0.5))),
             downloadButton(ns("lp_download"), "Download plot", class = "btn btn-default btn-sm")))
       )
+    })
+
+    # Which locus-plot analyses ran for the selected lead — gates the controls so
+    # only applicable options are offered (suggestive leads lack fine-mapping /
+    # CALDERA / coding; any locus hides options for analyses not in the config).
+    lp_avail <- reactive({
+      g <- .pick_gwas("lead_gwas"); req(gwas_data(), g)
+      loc <- lp_selected_locus(); req(loc)
+      lp_locus_avail(gwas_data(), g, loc, input$lp_l %||% "L1", config_flags())
+    })
+
+    # Apply availability to the (once-rendered) controls on each lead selection:
+    # toggle the fine-mapping L/PIP radios, and prune the HC-mark and panel
+    # choices. isolate() preserves the user's current ticks among still-available
+    # options without making this observer depend on them (no feedback loop).
+    observeEvent(lp_avail(), {
+      av <- lp_avail()
+      shinyjs::toggle(id = ns("lp_l"),        condition = isTRUE(av$fm))
+      shinyjs::toggle(id = ns("lp_pip_type"), condition = isTRUE(av$fm))
+      marks <- c("CALDERA ≥ 0.5" = "caldera", "Coding (alpha ≥ 0.5)" = "coding",
+                 "Nearest gene" = "nearest", "Colocalised (E/S/P)" = "coloc")[
+                   c(isTRUE(av$caldera), isTRUE(av$coding), isTRUE(av$nearest), isTRUE(av$coloc))]
+      updateCheckboxGroupInput(session, "lp_hc", choices = marks,
+        selected = intersect(isolate(input$lp_hc), unname(marks)), inline = TRUE)
+      panels <- c("Association (Manhattan)" = "A", "Fine-mapping" = "B", "Genes" = "C")[
+                   c(TRUE, isTRUE(av$fm), TRUE)]
+      updateCheckboxGroupInput(session, "lp_panels", choices = panels,
+        selected = intersect(isolate(input$lp_panels), unname(panels)), inline = TRUE)
     })
 
     # Natural window (no override) for defaulting / resetting the BP-limit inputs.

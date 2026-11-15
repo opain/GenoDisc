@@ -129,10 +129,14 @@ for(gwas_i in gwas_list$name){
       }
     }
 
-    # r^2-to-lead per clump lead (written by plot_locus_zoom.R), so the viewer's
-    # interactive locus plot is LD-coloured even without fine-mapping.
+    # Full windowed per-SNP association (SNP/CHR/BP/P + r^2-to-lead) and the
+    # recombination track per clump lead (written by plot_locus_zoom.R), so the
+    # viewer's interactive locus plot is dense, LD-coloured and recomb-tracked
+    # even without fine-mapping (e.g. at suggestive loci).
     clump_ld2l <- paste0(outdir, '/results/', gwas_i, '/clump/', gwas_i, '.GW.clump.ld_to_lead.csv')
     if (file.exists(clump_ld2l)) snp_assoc$ld_to_lead <- fread(clump_ld2l)
+    clump_recomb <- paste0(outdir, '/results/', gwas_i, '/clump/', gwas_i, '.GW.clump.recomb.csv')
+    if (file.exists(clump_recomb)) snp_assoc$clump_recomb <- fread(clump_recomb)
   } else {
     snp_assoc$clump<-NULL
   }

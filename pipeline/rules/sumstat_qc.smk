@@ -702,7 +702,12 @@ rule manhattan_plot:
       --config_file {params.config_file} > {log} 2>&1"
 
 ###
-# Per-locus zoom plots
+# Per-locus locus-plot data (for the viewer's interactive locus plot). Named
+# `locus_plots` for historical reasons - it no longer renders static locuszoom
+# PNGs (the Shiny app draws locus plots from packaged data); it computes, for
+# every clump lead (P < 1e-5), the full windowed per-SNP association (P +
+# r^2-to-lead) and a recombination track, so suggestive loci get a dense,
+# LD-coloured scatter with recombination like fine-mapped loci.
 ###
 
 rule locus_plots:
