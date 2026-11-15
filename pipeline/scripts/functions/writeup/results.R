@@ -260,27 +260,50 @@ results_caldera <- function(ctx, g, meta) {
   rep(NA_character_, nrow(d))
 }
 
+# ATC level of each row: the `Level` column when present (L2/L3/L4), else L3
+# (GCSC and pre-per-level bundles have no `Level` column and are L3-only).
+.atc_levels_of <- function(d) {
+  if ("Level" %in% names(d)) return(toupper(as.character(d[["Level"]])))
+  rep("L3", nrow(d))
+}
+
 # Summarise one ATC test (its blocks may span engines/panels - e.g. VIF-OLS has a MAGMA
-# and a TWAS-GSEA block, each possibly L2/L3/L4): count the distinct FDR-significant ATC
-# classes and the single most significant one. Returns NULL if the test did not run.
+# and a TWAS-GSEA block, each possibly L2/L3/L4). FDR is corrected WITHIN each ATC level,
+# so report the distinct FDR-significant class count per level separately rather than
+# pooled across levels; within a level the distinct classes are unioned across engines.
+# Also name the single most significant class overall (with its level). NULL if not run.
 .atc_method_line <- function(ctx, blocks, label) {
   blocks <- Filter(function(d) !is.null(d) && nrow(d) > 0, blocks)
   if (length(blocks) == 0) return(NULL)
   a <- ALPHA(ctx)
-  sig <- unique(unlist(lapply(blocks, function(d) {
-    if (!"P.FDR" %in% names(d)) return(character(0))
-    .atc_label(d)[which(suppressWarnings(as.numeric(d[["P.FDR"]])) < a)]
-  })))
-  sig <- sig[!is.na(sig)]
-  if (length(sig) == 0)
+  # (level, label) for every FDR-significant row, across all blocks
+  hits <- do.call(rbind, lapply(blocks, function(d) {
+    if (!"P.FDR" %in% names(d)) return(NULL)
+    keep <- which(suppressWarnings(as.numeric(d[["P.FDR"]])) < a)
+    if (!length(keep)) return(NULL)
+    data.frame(level = .atc_levels_of(d)[keep], lab = .atc_label(d)[keep],
+               stringsAsFactors = FALSE)
+  }))
+  if (is.null(hits) || nrow(hits) == 0)
     return(gstr("{label} ATC-class enrichment found no FDR-significant classes."))
+  hits <- hits[!is.na(hits$lab), , drop = FALSE]
+  # levels the test actually covers, in order (so a 0-count tested level still shows)
+  levels_tested <- intersect(c("L2", "L3", "L4"),
+                             unique(unlist(lapply(blocks, .atc_levels_of))))
+  per <- vapply(levels_tested, function(L)
+    length(unique(hits$lab[hits$level == L])), integer(1))
+  # most significant class overall, with the ATC level it was found at
   tops <- Filter(function(t) !is.null(t) && nrow(t) > 0, lapply(blocks, function(d)
     if (all(c("P", "P.FDR") %in% names(d))) .top(d, "P", 1L) else NULL))
   best <- tops[[ which.min(vapply(tops, function(t) as.numeric(t$P[1]), numeric(1))) ]]
-  lab  <- .atc_label(best)
-  gstr("{label} ATC-class enrichment found {fmt_int(length(sig))} FDR-significant ATC ",
-       "class{if (length(sig) == 1L) '' else 'es'} (top: {if (length(lab)) lab[1] else 'NA'}, ",
-       "P.FDR = {fmt_p(best$P.FDR[1], ctx$opt)}).")
+  lab  <- .atc_label(best); blev <- .atc_levels_of(best)[1]
+  counts <- if (length(levels_tested) == 1L)
+    gstr("{fmt_int(per[[1]])} FDR-significant ATC class{if (per[[1]] == 1L) '' else 'es'} (at {levels_tested})")
+  else
+    gstr("FDR-significant classes by ATC level - ",
+         "{paste(sprintf('%s: %s', levels_tested, vapply(per, fmt_int, character(1))), collapse = ', ')}")
+  gstr("{label} ATC-class enrichment found {counts} (top: {if (length(lab)) lab[1] else 'NA'} ",
+       "at {blev}, P.FDR = {fmt_p(best$P.FDR[1], ctx$opt)}).")
 }
 
 # Present the three ATC tests (Wilcoxon, VIF-OLS, GLS) in parallel - one sentence each,
