@@ -864,3 +864,21 @@ ggplot(qq_dt[p_rank <= 5000], aes(x = expected, y = observed)) +
   theme_bw()
 ```
 
+***
+
+# V3
+
+Just use SCZ and CAD for the paper.
+
+## CAD
+
+I have downloaded the latest CAD GWAS (GCST90132314), but I think it needs to modification before uploading as it contains results from three meta-analyses.
+
+```{r}
+library(data.table)
+ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/CAD/GCST90132314.h.tsv.gz')
+```
+
+
+
+
