@@ -132,8 +132,7 @@ lp_locus_avail <- function(gd, gwas, locus, L, flags = NULL) {
   # full-locus PIP baseline (same test as lp_build_locus_data's has_finemap).
   cc <- rd("credset_coding")
   members <- .lp_rows_for_locus(cc$variants, locus, Lval)
-  sa <- rd("snp_assoc")
-  su <- if (!is.null(sa)) sa$susie else NULL
+  su <- gd_snp_susie(gd, gwas)
   lpip <- if (!is.null(su)) su[[if (Lval == 1) "locus_pip_L1" else "locus_pip_L10"]] else NULL
   baseline <- .lp_rows_for_locus(lpip, locus, Lval)   # locus-only (no L column)
   out$fm <- !is.null(members) || !is.null(baseline)
@@ -177,9 +176,11 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
 
   cc <- rd("credset_coding")
   members <- sub_locus(cc$variants)
-  sa <- rd("snp_assoc")
-  lp <- if (!is.null(sa) && !is.null(sa$susie))
-    sa$susie[[if (Lval == 1) "locus_pip_L1" else "locus_pip_L10"]] else NULL
+  sa <- rd("snp_assoc")                 # core: clump / cojo / clump_recomb
+  su <- gd_snp_susie(gd, gwas)          # split-out susie block (fallback to sa$susie on old bundles)
+  s2l <- gd_snp_ld_to_lead(gd, gwas)    # split-out clump ld_to_lead block
+  lp <- if (!is.null(su))
+    su[[if (Lval == 1) "locus_pip_L1" else "locus_pip_L10"]] else NULL
   baseline <- NULL
   if (!is.null(lp) && nrow(lp) > 0) {
     b <- as.data.frame(lp); b <- b[as.character(b$locus) == as.character(locus), , drop = FALSE]
@@ -233,7 +234,7 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
 
   # Per-CS summary: lead, size, purity (cs_avg_r2), coding share.
   cs_summary <- NULL
-  st <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie[[if (Lval == 1) "L1" else "L10"]] else NULL
+  st <- if (!is.null(su)) su[[if (Lval == 1) "L1" else "L10"]] else NULL
   if (!is.null(st) && nrow(st) > 0) {
     st <- as.data.frame(st); st <- st[as.character(st$SNP) == as.character(locus), , drop = FALSE]
     if (nrow(st) > 0) cs_summary <- data.frame(
@@ -319,19 +320,19 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   if (!is.null(baseline) && "P" %in% names(baseline)) {
     a <- baseline; a$neglogP <- -log10(suppressWarnings(as.numeric(a$P)))
     a <- a[is.finite(a$neglogP), , drop = FALSE]
-    if (nrow(a) > 0) assoc <- a[, c("SNP","CHR","BP","neglogP")]
+    if (nrow(a) > 0) assoc <- a[, intersect(c("SNP","CHR","BP","neglogP"), names(a))]
   }
   # Clump windowed association (every GWAS variant in the window, with P) for
   # non-fine-mapped (e.g. suggestive) loci - a dense scatter like the baseline,
   # before falling back to the thinned manhattan_data on older bundles.
-  if (is.null(assoc) && !is.null(sa) && !is.null(sa$ld_to_lead)) {
-    cl <- as.data.frame(sa$ld_to_lead)
+  if (is.null(assoc) && !is.null(s2l) && nrow(s2l) > 0) {
+    cl <- as.data.frame(s2l)
     if (all(c("CHR", "BP", "P") %in% names(cl))) {
       cl <- cl[as.character(cl$locus) == as.character(locus), , drop = FALSE]
       if (nrow(cl) > 0) {
         cl$neglogP <- -log10(suppressWarnings(as.numeric(cl$P)))
         cl <- cl[is.finite(cl$neglogP), , drop = FALSE]
-        if (nrow(cl) > 0) assoc <- cl[, c("SNP", "CHR", "BP", "neglogP")]
+        if (nrow(cl) > 0) assoc <- cl[, intersect(c("SNP", "CHR", "BP", "neglogP"), names(cl))]
       }
     }
   }
@@ -348,22 +349,29 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   # LD r^2-to-lead: prefer the fine-mapping map (fine-mapped loci), else the
   # clump-level map (written for every plotted clump lead, so the association
   # panel is LD-coloured even on clumping-only jobs).
-  r2map <- NULL
-  for (ld2 in list(if (!is.null(sa)) sa$susie$ld_to_lead else NULL,
-                   if (!is.null(sa)) sa$ld_to_lead else NULL)) {
+  r2map <- NULL; r2_key <- "SNP"
+  for (ld2 in list(if (!is.null(su)) su$ld_to_lead else NULL, s2l)) {
     if (!is.null(ld2) && nrow(ld2) > 0) {
       l2 <- as.data.frame(ld2); l2 <- l2[as.character(l2$locus) == as.character(locus), , drop = FALSE]
       if (nrow(l2) > 0) {
-        r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$SNP)); break
+        # Key r^2 by position (CHR:BP) when the table carries BP - the slimmed
+        # clump ld_to_lead drops rsID; the susie map and older bundles keep SNP.
+        if ("BP" %in% names(l2)) {
+          r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$BP)); r2_key <- "BP"
+        } else {
+          r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$SNP)); r2_key <- "SNP"
+        }
+        break
       }
     }
   }
   lead_bp <- NA_real_
-  if (!is.null(assoc) && as.character(locus) %in% assoc$SNP) lead_bp <- assoc$BP[assoc$SNP == as.character(locus)][1]
+  if (!is.null(assoc) && "SNP" %in% names(assoc) && as.character(locus) %in% assoc$SNP)
+    lead_bp <- assoc$BP[assoc$SNP == as.character(locus)][1]
   if (is.na(lead_bp) && !is.null(st) && nrow(st) > 0) lead_bp <- suppressWarnings(as.numeric(st$BP[1]))
   if (is.na(lead_bp) && !has_finemap) lead_bp <- mean(window) * 1e6   # clumping-only: lead sits at window centre
   # Recombination-rate track for the locus (BP, rate), when packaged.
-  rcb <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie$recomb else NULL
+  rcb <- if (!is.null(su)) su$recomb else NULL
   recomb <- NULL
   if (!is.null(rcb) && nrow(rcb) > 0) {
     r <- as.data.frame(rcb); r <- r[as.character(r$locus) == as.character(locus), c("BP","rate")]
@@ -387,7 +395,7 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   list(members = members, baseline = baseline, cs_summary = cs_summary,
        genes = genes, window = window, chr = chr, cs_palette = cs_palette,
        all_points = all_points, pip_type = pip_type,
-       assoc = assoc, r2map = r2map, lead_bp = lead_bp, recomb = recomb,
+       assoc = assoc, r2map = r2map, r2_key = r2_key, lead_bp = lead_bp, recomb = recomb,
        has_baseline = !is.null(baseline), has_bodies = has_bodies, has_finemap = has_finemap,
        has_assoc = !is.null(assoc), has_ld = !is.null(r2map), locus = locus, L = Lval)
 }
@@ -416,7 +424,11 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
   if (is.null(a) || nrow(a) == 0) return(NULL)
   a$BP_Mb <- a$BP / 1e6
   a$neglogP <- if ("neglogP" %in% names(a)) suppressWarnings(as.numeric(a$neglogP)) else -log10(suppressWarnings(as.numeric(a$P)))
-  r2 <- if (!is.null(ld$r2map)) unname(ld$r2map[as.character(a$SNP)]) else rep(NA_real_, nrow(a))
+  # Join r^2 by whichever key the r2map was built on (BP for the slimmed clump
+  # map, SNP for the susie map / older bundles).
+  key_col <- if (identical(ld$r2_key, "BP")) "BP" else "SNP"
+  r2 <- if (!is.null(ld$r2map) && key_col %in% names(a))
+    unname(ld$r2map[as.character(a[[key_col]])]) else rep(NA_real_, nrow(a))
   pal <- .lp_ld_palette()
   bins <- cut(r2, breaks = c(-Inf, 0.2, 0.4, 0.6, 0.8, Inf),
               labels = names(pal), right = FALSE)
@@ -438,7 +450,7 @@ build_locus_assoc_panel <- function(ld, font_size = 14, point_size = 1.3,
   if (!is.null(rc) && nrow(rc) >= 2) p <- p + ggplot2::geom_line(
     data = rc, ggplot2::aes(x = BP / 1e6, y = rate * sf),
     colour = "#2B7BBA", linewidth = 0.8, alpha = 0.85)
-  lead_row <- a[a$SNP == as.character(ld$locus), , drop = FALSE]
+  lead_row <- if ("SNP" %in% names(a)) a[a$SNP == as.character(ld$locus), , drop = FALSE] else a[0, , drop = FALSE]
   if (nrow(lead_row) == 0 && !is.na(ld$lead_bp)) lead_row <- a[which.min(abs(a$BP - ld$lead_bp)), , drop = FALSE]
   if (nrow(lead_row) > 0) p <- p + ggplot2::geom_point(
     data = lead_row, ggplot2::aes(x = BP_Mb, y = neglogP),

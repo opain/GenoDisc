@@ -849,14 +849,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     snp_assoc_finemap_data <- reactive({
       req(gwas_data(), input$l_param)
       g <- .pick_gwas("finemap_gwas"); req(g)
-      snp_assoc <- gd_read(gwas_data(), g, "snp_assoc")
+      susie <- gd_snp_susie(gwas_data(), g)
       snp_assoc_finemap <- NULL
       if (input$l_param == "L1") {
-        snp_assoc_finemap <- snp_assoc$susie$L1
+        snp_assoc_finemap <- susie$L1
       }
 
       if (input$l_param == "L10") {
-        snp_assoc_finemap <- snp_assoc$susie$L10
+        snp_assoc_finemap <- susie$L10
       }
 
       req(snp_assoc_finemap)
@@ -968,8 +968,8 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     lp_loci <- reactive({
       req(gwas_data())
       g <- .pick_gwas("lead_gwas"); req(g)
-      sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
-      st <- if (!is.null(sa) && !is.null(sa$susie)) sa$susie[[input$lp_l %||% "L1"]] else NULL
+      su <- gd_snp_susie(gwas_data(), g)
+      st <- if (!is.null(su)) su[[input$lp_l %||% "L1"]] else NULL
       if (is.null(st) || nrow(st) == 0) return(character(0))
       sort(unique(as.character(st$SNP[!is.na(st$SNP)])))
     })
@@ -980,18 +980,18 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     lp_dashboard_supported <- reactive({
       g <- .pick_gwas("lead_gwas"); req(gwas_data(), g)
       sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
-      if (is.null(sa)) return(FALSE)
+      su <- gd_snp_susie(gwas_data(), g)
+      if (is.null(sa) && is.null(su)) return(FALSE)
       isTRUE(sa$locus_plot_v2) ||
-        (!is.null(sa$susie) && (!is.null(sa$susie$locus_pip_L1) ||
-                                !is.null(sa$susie$locus_pip_L10) ||
-                                !is.null(sa$susie$ld_to_lead)))
+        (!is.null(su) && (!is.null(su$locus_pip_L1) ||
+                          !is.null(su$locus_pip_L10) ||
+                          !is.null(su$ld_to_lead)))
     })
     # Does ANY fine-mapping (SuSiE credible set) exist in this bundle? Governs the
     # "no credible set at this L" note (not whether the dashboard shows at all).
     lp_fm_any <- reactive({
       g <- .pick_gwas("lead_gwas"); req(gwas_data(), g)
-      sa <- tryCatch(gd_read(gwas_data(), g, "snp_assoc"), error = function(e) NULL)
-      su <- if (!is.null(sa)) sa$susie else NULL
+      su <- gd_snp_susie(gwas_data(), g)
       if (is.null(su)) return(FALSE)
       length(c(su$L1$SNP, su$L10$SNP)) > 0
     })
@@ -1074,8 +1074,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     output$lp_controls_ui <- renderUI({
       if (!isTRUE(lp_dashboard_supported())) return(NULL)
       # Offer L10 only when the bundle actually carries L10 fine-mapping.
-      su0 <- tryCatch(gd_read(gwas_data(), .pick_gwas("lead_gwas"), "snp_assoc")$susie,
-                      error = function(e) NULL)
+      su0 <- gd_snp_susie(gwas_data(), .pick_gwas("lead_gwas"))
       has_l10 <- !is.null(su0) && (!is.null(su0$L10) || !is.null(su0$locus_pip_L10))
       tagList(
         fluidRow(

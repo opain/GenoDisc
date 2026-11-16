@@ -23,6 +23,8 @@
 .gd_block_ids <- c(
   "gwas_qc",
   "snp_assoc",
+  "snp_assoc_ld_to_lead",
+  "snp_assoc_susie",
   "mol_assoc/exp/fusion",
   "mol_assoc/exp/smr",
   "mol_assoc/protein/fusion",
@@ -222,6 +224,22 @@ gd_read <- function(gd, gwas, block) {
   }
 
   value
+}
+
+# The heavy per-SNP locus-plot structures (ld_to_lead, susie) were split out of
+# the snp_assoc block into their own sibling blocks so the SNP-Associations tab
+# loads only the small core. These helpers read the sibling block, falling back
+# to the field on the monolithic snp_assoc block for older (pre-split) bundles,
+# so both bundle formats work transparently.
+gd_snp_ld_to_lead <- function(gd, gwas) {
+  v <- gd_read(gd, gwas, "snp_assoc_ld_to_lead")
+  if (is.null(v)) v <- gd_read(gd, gwas, "snp_assoc")$ld_to_lead
+  v
+}
+gd_snp_susie <- function(gd, gwas) {
+  v <- gd_read(gd, gwas, "snp_assoc_susie")
+  if (is.null(v)) v <- gd_read(gd, gwas, "snp_assoc")$susie
+  v
 }
 
 # Read a GWAS QC statistic (lambda_gc, max_chi2, n_sig_snp) from a gwas_qc block.

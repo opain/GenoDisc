@@ -134,7 +134,14 @@ for(gwas_i in gwas_list$name){
     # viewer's interactive locus plot is dense, LD-coloured and recomb-tracked
     # even without fine-mapping (e.g. at suggestive loci).
     clump_ld2l <- paste0(outdir, '/results/', gwas_i, '/clump/', gwas_i, '.GW.clump.ld_to_lead.csv')
-    if (file.exists(clump_ld2l)) snp_assoc$ld_to_lead <- fread(clump_ld2l)
+    if (file.exists(clump_ld2l)) {
+      snp_assoc$ld_to_lead <- fread(clump_ld2l)
+      # Slim the dense per-SNP scatter: the rsID column dominates this table's size
+      # and the viewer joins r^2 onto the association points by CHR:BP (BP is kept),
+      # not by rsID. Round r^2 (plotted only as 5 LD bins) to help compression.
+      if ('SNP' %in% names(snp_assoc$ld_to_lead)) snp_assoc$ld_to_lead[, SNP := NULL]
+      if ('r2'  %in% names(snp_assoc$ld_to_lead)) snp_assoc$ld_to_lead[, r2 := round(r2, 3)]
+    }
     clump_recomb <- paste0(outdir, '/results/', gwas_i, '/clump/', gwas_i, '.GW.clump.recomb.csv')
     if (file.exists(clump_recomb)) snp_assoc$clump_recomb <- fread(clump_recomb)
   } else {
@@ -402,8 +409,17 @@ for(gwas_i in gwas_list$name){
   # Package results
   ################
 
+  # Split the two heavy per-SNP locus-plot structures out of snp_assoc into their
+  # own sibling blocks, so the viewer loads only the small core (clump/cojo/...)
+  # when the SNP-Associations tab opens, and pulls ld_to_lead / susie lazily only
+  # when a locus plot is actually drawn. NULL siblings are skipped by the save loop.
+  snp_assoc_ld_to_lead <- snp_assoc$ld_to_lead; snp_assoc$ld_to_lead <- NULL
+  snp_assoc_susie      <- snp_assoc$susie;      snp_assoc$susie      <- NULL
+
   output[[gwas_i]]<-list( gwas_qc=gwas_qc,
                           snp_assoc=snp_assoc,
+                          snp_assoc_ld_to_lead=snp_assoc_ld_to_lead,
+                          snp_assoc_susie=snp_assoc_susie,
                           mol_assoc=mol_assoc,
                           tx=tx,
                           tissue=tissue,
@@ -493,7 +509,10 @@ for (gwas_i in gwas_list$name) {
 
     block_file <- file.path(pkg_dir, 'gwas', gwas_i, paste0(bid, '.rds'))
     dir.create(dirname(block_file), recursive = TRUE, showWarnings = FALSE)
-    saveRDS(value, file = block_file)
+    # xz compression: ~2-3x smaller than the default gzip on these per-SNP tables
+    # (readRDS auto-detects, so the reader needs no change). The dominant snp_assoc
+    # blocks shrink the bundle from ~75MB to ~18MB on a large GWAS.
+    saveRDS(value, file = block_file, compress = 'xz')
 
     per[[bid]] <- list(
       bytes = as.integer(file.info(block_file)$size),
@@ -507,8 +526,8 @@ for (gwas_i in gwas_list$name) {
 # stay as .rds because the character vector is what the Shiny app / report
 # already consume, and the gwas_list is a data.frame that doesn't round-trip
 # through JSON cleanly.
-saveRDS(config,    file = file.path(pkg_dir, 'configuration', 'config.rds'))
-saveRDS(gwas_list, file = file.path(pkg_dir, 'configuration', 'gwas_list.rds'))
+saveRDS(config,    file = file.path(pkg_dir, 'configuration', 'config.rds'),    compress = 'xz')
+saveRDS(gwas_list, file = file.path(pkg_dir, 'configuration', 'gwas_list.rds'), compress = 'xz')
 
 # Copy VERSION and reader.R into the bundle so a downloaded bundle is
 # self-contained.

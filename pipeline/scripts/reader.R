@@ -23,6 +23,8 @@
 .gd_block_ids <- c(
   "gwas_qc",
   "snp_assoc",
+  "snp_assoc_ld_to_lead",
+  "snp_assoc_susie",
   "mol_assoc/exp/fusion",
   "mol_assoc/exp/smr",
   "mol_assoc/protein/fusion",
