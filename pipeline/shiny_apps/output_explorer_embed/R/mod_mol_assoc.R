@@ -85,11 +85,17 @@ mol_theme_fn <- function(name) {
 #' @param left_pad_pt Left `plot.margin` in pt from
 #'   `plot_dim_mol()[["left_pad_pt"]]` — absorbs rotated x-tick overflow of
 #'   the leftmost facet so long panel names don't run off the screen.
+#' @param drug_links Optional data frame adding a leading "Drug targets" facet
+#'   (the drug-gene evidence drill-down). Columns `ID` (gene), `drug` (→ a Panel
+#'   column), `link_class` ("pharmacological" | "expression-signature") and
+#'   `direction` ("up" | "down" | NA). Drawn with fixed-aesthetic markers only, so
+#'   the Z / CALDERA scales are untouched. `NULL` (default) leaves the Molecular
+#'   Associations output unchanged.
 build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
                                     font_size = 14, point_size = 4,
                                     theme_fn = ggplot2::theme_bw, title = "",
                                     panel_h_pt = NULL, left_pad_pt = 0,
-                                    caldera_hc_thresh = 0.5) {
+                                    caldera_hc_thresh = 0.5, drug_links = NULL) {
   if (is.null(all_func_res) || nrow(all_func_res) == 0) return(NULL)
 
   # Fill missing Panel × Method × ID combos so every facet is present even
@@ -103,7 +109,10 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   # analyses are off, so default it so the select + join below are uniform.
   if (!"Prio" %in% names(dt)) dt[, Prio := NA_real_]
   slots   <- unique(dt[, .(Panel, Method, Type)])
-  all_ids <- unique(dt$ID[dt$ID != 'Placeholder'])
+  # Union in any drug-target genes so every target gene gets a row even if it
+  # has no molecular-association data (blank cells + a strip marker).
+  all_ids <- unique(c(dt$ID[dt$ID != 'Placeholder'],
+                      if (!is.null(drug_links) && nrow(drug_links) > 0) as.character(drug_links$ID)))
   if (length(all_ids) == 0) return(NULL)
   grid_dt <- slots[, .(ID = all_ids), by = .(Panel, Method, Type)]
   vals    <- dt[ID != 'Placeholder', .(Panel, Method, ID, Z, Sig, Coloc, Prio)]
@@ -112,7 +121,27 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   all_func_res_all[is.na(Coloc), Coloc := 0]
 
   all_func_res_all$Group <- make_group_labels(all_func_res_all$Method, all_func_res_all$Type)
+
+  # Optional drug-target link strip: a leading "Drug targets" facet with one
+  # Panel column per selected drug and a marker where the gene is a target of
+  # that drug. Built as ordinary rows (Group set directly, so make_group_labels
+  # above never sees them) and drawn later with fixed-aesthetic geoms.
+  drug_group <- "Drug targets"
+  has_drug_strip <- !is.null(drug_links) && nrow(drug_links) > 0
+  if (has_drug_strip) {
+    dl <- data.table::as.data.table(drug_links)[, .(
+      ID = as.character(ID), Panel = as.character(drug),
+      link_class = as.character(link_class), direction = as.character(direction))]
+    strip_grid <- data.table::CJ(ID = all_ids, Panel = unique(dl$Panel), unique = TRUE)
+    strip <- dl[strip_grid, on = c("ID", "Panel")]          # link info only where the gene is a target
+    strip[, `:=`(Method = "Drug\nTargets", Type = "", Z = NA_real_,
+                 Sig = 0, Coloc = 0, Prio = NA_real_, Group = drug_group)]
+    all_func_res_all <- data.table::rbindlist(list(all_func_res_all, strip),
+                                              use.names = TRUE, fill = TRUE)
+  }
+
   groups <- get_group_order()
+  if (has_drug_strip) groups <- c(drug_group, groups)
   groups <- groups[groups %in% all_func_res_all$Group]
   all_func_res_all$Group <- factor(all_func_res_all$Group, levels = groups)
 
@@ -170,7 +199,7 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     # (same solid-square-behind treatment as colocalised genes).
     ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
     ggplot2::geom_point(data = all_func_res_all[(grepl('^SuSiE', all_func_res_all$Method) | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
-    ggplot2::geom_point(data = all_func_res_all[!grepl('^SuSiE', all_func_res_all$Method) & all_func_res_all$Method != 'Nearest\nGene' & !grepl('^CALDERA', all_func_res_all$Method), ], ggplot2::aes(colour = Z), size = point_size) +
+    ggplot2::geom_point(data = all_func_res_all[!grepl('^SuSiE', all_func_res_all$Method) & all_func_res_all$Method != 'Nearest\nGene' & !grepl('^CALDERA', all_func_res_all$Method) & all_func_res_all$Group != drug_group, ], ggplot2::aes(colour = Z), size = point_size) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
     # CALDERA facet: a PURPLE circle shaded by the gene's maximum CALDERA
     # probability, drawn ON TOP of the black top-gene circle / HC square so those
@@ -183,6 +212,25 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     ggplot2::theme(text = ggplot2::element_text(size = font_size),
                    plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
                                                  l = left_pad_pt, unit = "pt"))
+
+  # Drug-target strip markers (fixed aesthetics — no mapped scale). Colour encodes
+  # the link class (dark = pharmacological response; grey = drug-induced expression
+  # signature); shape encodes direction (circle = none; ▼ shape 25 = down; ▲ shape
+  # 24 = up — inhibition/down-regulation vs activation/up-regulation per the class).
+  if (has_drug_strip) {
+    sdat <- all_func_res_all[all_func_res_all$Group == drug_group & !is.na(all_func_res_all$link_class), ]
+    sub  <- function(cls, dir) if (identical(dir, 'none'))
+      sdat[sdat$link_class == cls & !(sdat$direction %in% c('up', 'down')), ]
+      else sdat[sdat$link_class == cls & sdat$direction %in% dir, ]
+    DK <- '#1A1A1A'; GY <- '#9E9E9E'
+    heatmap <- heatmap +
+      ggplot2::geom_point(data = sub('pharmacological',     'none'), ggplot2::aes(x = Panel, y = ID), shape = 16, colour = DK, size = point_size) +
+      ggplot2::geom_point(data = sub('pharmacological',     'down'), ggplot2::aes(x = Panel, y = ID), shape = 25, colour = DK, fill = DK, size = point_size) +
+      ggplot2::geom_point(data = sub('pharmacological',     'up'),   ggplot2::aes(x = Panel, y = ID), shape = 24, colour = DK, fill = DK, size = point_size) +
+      ggplot2::geom_point(data = sub('expression-signature', 'none'), ggplot2::aes(x = Panel, y = ID), shape = 16, colour = GY, size = point_size) +
+      ggplot2::geom_point(data = sub('expression-signature', 'down'), ggplot2::aes(x = Panel, y = ID), shape = 25, colour = GY, fill = GY, size = point_size) +
+      ggplot2::geom_point(data = sub('expression-signature', 'up'),   ggplot2::aes(x = Panel, y = ID), shape = 24, colour = GY, fill = GY, size = point_size)
+  }
 
   if (locus_mode) {
     # `space = "free_y"` gives each locus row a height proportional to its

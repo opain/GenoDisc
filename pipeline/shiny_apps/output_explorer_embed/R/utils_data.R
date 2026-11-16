@@ -618,17 +618,6 @@ get_evidence_block <- function(gd, gwas) gd_read(gd, gwas, "tx/evidence")
 #' Is the MAGMA per-gene evidence block present in this bundle?
 has_magma_evidence <- function(gd, gwas) !is.null(gd_read(gd, gwas, "tx/evidence_magma"))
 
-#' Member-gene MAGMA evidence for one drug (by drug_name): the drug's target genes
-#' with their MAGMA gene-level association (ZSTAT/P) + provenance, ordered by ZSTAT.
-get_magma_evidence_rows <- function(gd, gwas, drug_name) {
-  d <- safe_access(gd_read(gd, gwas, "tx/evidence_magma"), "drug")
-  if (is.null(d) || nrow(d) == 0) return(NULL)
-  d <- as.data.frame(d)                       # base subset: avoid data.table arg/column scoping
-  if (!is.null(drug_name)) d <- d[toupper(d$drug_name) == toupper(drug_name), , drop = FALSE]
-  if (nrow(d) == 0) return(NULL)
-  d[order(-d$MAGMA.Z), , drop = FALSE]
-}
-
 #' Member-gene evidence for one ATC class (code, level, panel) or one drug (name,
 #' panel), ordered by |contribution|. `what` is "class" or "drug".
 get_evidence_rows <- function(gd, gwas, what = c("class","drug"),
