@@ -1322,9 +1322,27 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
 
     output$lp_legends <- renderUI({
       d <- lp_data(); if (is.null(d)) return(NULL)
+      # No per-SNP fine-mapping baseline for this locus. Two distinct reasons:
+      # (a) this lead has no SuSiE credible set (its fit returned none / errored),
+      #     even though the bundle carries fine-mapping for other loci; or
+      # (b) the bundle predates per-SNP fine-mapping entirely (old bundle).
+      # Distinguish via whether the bundle carries ANY locus_pip data, so we don't
+      # tell the user to "re-run" when a re-run wouldn't add a baseline here.
+      baseline_note <- NULL
+      if (!isTRUE(d$has_baseline)) {
+        su <- gd_snp_susie(gwas_data(), .pick_gwas("lead_gwas"))
+        bundle_has_pip <- !is.null(su) &&
+          ((!is.null(su$locus_pip_L1)  && nrow(su$locus_pip_L1)  > 0) ||
+           (!is.null(su$locus_pip_L10) && nrow(su$locus_pip_L10) > 0))
+        baseline_note <- div(class = "gd-legend", em(if (bundle_has_pip)
+          paste("No fine-mapping result for this lead: SuSiE did not return a credible set for this locus,",
+                "so the top panel shows the clumping LD-to-lead scatter rather than a per-SNP fine-mapping",
+                "baseline. A lead's causal variant can still be fine-mapped under an adjacent lead's credible set.")
+        else
+          "Full-locus baseline unavailable for this bundle - re-run with the current pipeline to add per-SNP fine-mapping data."))
+      }
       tagList(
-        if (!isTRUE(d$has_baseline)) div(class = "gd-legend",
-          em("Full-locus baseline unavailable for this bundle - showing credible-set members only (re-run with the current pipeline to add every SNP).")),
+        baseline_note,
         gd_legend(list(
           "Association (top panel)" = "Each SNP's -log10(P); colour = LD r² to the lead (blue low → red high); purple diamond = lead; red line p < 5e-8, blue dashed p < 1e-5; light-blue line (right axis) = recombination rate (cM/Mb). Shaded bands = credible-set spans.",
           "Fine-mapping (middle panel)" = "Per-SNP posterior (PIP); points coloured by credible set; circle = non-coding, triangle = protein-altering variant. Per-set text gives SNP count, purity and coding share.",
