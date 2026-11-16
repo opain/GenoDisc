@@ -350,13 +350,19 @@ lp_build_locus_data <- function(gd, gwas, locus, L,
   # clump-level map (written for every plotted clump lead, so the association
   # panel is LD-coloured even on clumping-only jobs).
   r2map <- NULL; r2_key <- "SNP"
+  # The r2map key must also exist on the association points: the slimmed clump
+  # ld_to_lead is keyed by BP (no rsID), the susie map by rsID (no BP). When the
+  # association points came from the slimmed clump table (no rsID - e.g. a clump
+  # lead with no credible set), a SNP-keyed susie map would silently all-miss and
+  # grey out every point, so skip it and fall through to the BP-keyed clump map.
+  assoc_has_snp <- !is.null(assoc) && "SNP" %in% names(assoc)
   for (ld2 in list(if (!is.null(su)) su$ld_to_lead else NULL, s2l)) {
     if (!is.null(ld2) && nrow(ld2) > 0) {
       l2 <- as.data.frame(ld2); l2 <- l2[as.character(l2$locus) == as.character(locus), , drop = FALSE]
       if (nrow(l2) > 0) {
-        # Key r^2 by position (CHR:BP) when the table carries BP - the slimmed
-        # clump ld_to_lead drops rsID; the susie map and older bundles keep SNP.
-        if ("BP" %in% names(l2)) {
+        has_bp <- "BP" %in% names(l2)
+        if (!has_bp && !assoc_has_snp) next   # SNP-keyed map can't join SNP-less points
+        if (has_bp) {
           r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$BP)); r2_key <- "BP"
         } else {
           r2map <- setNames(suppressWarnings(as.numeric(l2$r2)), as.character(l2$SNP)); r2_key <- "SNP"
