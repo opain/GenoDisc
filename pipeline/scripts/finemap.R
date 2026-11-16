@@ -102,6 +102,20 @@ for(loc in 1:nrow(lead)){
   ld[lower.tri(ld)] <- t(ld)[lower.tri(ld)]
   ld<-ld[match(ss_subset$SNP, rownames(ld)),match(ss_subset$SNP, colnames(ld))]
 
+  # Drop variants whose reference-LD row/col is NA (plink leaves NA for e.g.
+  # variants monomorphic in the reference panel). susie_rss() errors outright on
+  # any NA in the LD (XtX) matrix - previously this silently skipped the whole
+  # lead's fine-mapping. Drop the offending variants from both the LD matrix and
+  # the Z vector so they stay aligned; NA is symmetric, so dropping bad rows and
+  # their columns clears every NA.
+  bad_ld <- apply(ld, 1, function(r) any(is.na(r)))
+  if(any(bad_ld)){
+    cat("Lead", lead$SNP[loc], ": dropping", sum(bad_ld),
+        "of", length(bad_ld), "variant(s) with NA reference LD before SuSiE.\n")
+    ld<-ld[!bad_ld, !bad_ld, drop = FALSE]
+    ss_subset<-ss_subset[!bad_ld, ]
+  }
+
   # Persist r^2 to the lead variant (reuses the LD matrix already in memory) for
   # the locus-plot association panel. locus = lead SNP; one row per locus SNP.
   if(lead$SNP[loc] %in% rownames(ld)){
@@ -112,18 +126,20 @@ for(loc in 1:nrow(lead)){
   }
 
   skip_to_next<-F
-  tryCatch(fitted_rss <- susie_rss(ss_subset$Z, ld, L = 10), error = function(e){skip_to_next <<- TRUE})
-  
+  tryCatch(fitted_rss <- susie_rss(ss_subset$Z, ld, L = 10),
+           error = function(e){skip_to_next <<- TRUE; cat("Lead", lead$SNP[loc], ": susie_rss L=10 failed -", conditionMessage(e), "\n")})
+
   print(skip_to_next)
-  
+
   if(skip_to_next == F){
     saveRDS(fitted_rss, file = paste0(outdir,'/results/',opt$gwas,'/finemap/',opt$gwas,'.chr',opt$chr,'.',lead$SNP[loc],'.rds'))
   }
-  
+
   # Run finemapping with L=1 (single causal variant), thereby being robust to LD misspecification.
   skip_to_next<-F
-  tryCatch(fitted_rss_L1 <- susie_rss(ss_subset$Z, ld, L = 1), error = function(e){skip_to_next <<- TRUE})
-  
+  tryCatch(fitted_rss_L1 <- susie_rss(ss_subset$Z, ld, L = 1),
+           error = function(e){skip_to_next <<- TRUE; cat("Lead", lead$SNP[loc], ": susie_rss L=1 failed -", conditionMessage(e), "\n")})
+
   print(skip_to_next)
 
   if(skip_to_next == F){
