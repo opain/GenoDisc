@@ -423,6 +423,116 @@ enrichmentUI <- function(id) {
   )
 }
 
+# ---- Drug-gene evidence figure: shared UI (used by the Drug and ATC MAGMA tabs) ----
+
+# Legend for the drug-gene figure (verbatim Mol Assoc items + the drug strip).
+DG_LEGEND_ITEMS <- list(
+  "Drug targets strip" = "The leading facet: one column per drug, with a marker where the gene is a target of that drug, classified by its Drug Targetor activity. Dark = a pharmacological/mechanistic link (the gene responds to or is modulated by the drug); grey = a drug-induced expression-change signature (the drug alters the gene's expression). Shape shows direction: circle = none/mixed; down triangle = inhibition (dark) or down-regulation (grey); up triangle = activation (dark) or up-regulation (grey). Note: the Drug Targetor database does not resolve the DSigDB evidence category, so links are labelled by activity type, not by source.",
+  "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
+  "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+  "Black outline" = "The association is FDR-significant in that panel and method.",
+  "Black square" = "FDR-significant AND supported by colocalisation.",
+  "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
+  "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A solid black circle behind it marks the top-ranked gene in the credible set; a solid black square behind it marks genes whose probability exceeds the high-confidence threshold (set under Figure options) — the same convention as FDR-significant / colocalised genes."
+)
+
+# Figure-options + plot-options controls, prefixed so the Drug (`dg`) and ATC
+# (`adg`) tabs each carry an independent set of persistent inputs.
+.dg_controls_ui <- function(ns, pfx) {
+  id <- function(s) ns(paste0(pfx, s))
+  tagList(
+    tags$details(class = "gd-details",
+      tags$summary("Figure options"),
+      tags$div(class = "gd-details-body",
+        tags$p(class = "gd-details-intro",
+          "Choose which molecular-association panels appear beside the drug-target strip. ",
+          "Genes linked only by a drug-induced expression-change signature are hidden by default."),
+        fluidRow(
+          column(4,
+            uiOutput(id("_methods_ui")),
+            uiOutput(id("_expr_panels_ui")),
+            uiOutput(id("_protein_panels_ui"))
+          ),
+          column(4,
+            checkboxInput(id("_show_pert"),
+              "Include genes linked only by a drug-induced expression-change signature",
+              value = FALSE),
+            numericInput(id("_caldera_hc_thresh"),
+              "CALDERA high-confidence threshold:", value = 0.5, min = 0, max = 1, step = 0.05)
+          )
+        )
+      )
+    ),
+    tags$details(class = "gd-details",
+      tags$summary("Plot options"),
+      tags$div(class = "gd-details-body",
+        tags$p(class = "gd-details-intro",
+          "Customise how the figure looks (title, theme, font size, point size) ",
+          "and download it as a PNG, PDF, or SVG, or the evidence table as CSV."),
+        fluidRow(
+          column(4,
+            textInput(id("_plot_title"), "Plot title (optional):", value = ""),
+            selectInput(id("_plot_theme"), "Theme:",
+                        choices = c("Black & white" = "bw", "Minimal" = "minimal",
+                                    "Classic" = "classic", "Light" = "light"),
+                        selected = "bw")
+          ),
+          column(4,
+            sliderInput(id("_plot_font_size"), "Font size (pt):", min = 10, max = 20, value = 14, step = 1),
+            sliderInput(id("_plot_point_size"), "Point size:", min = 2, max = 8, value = 4, step = 1)
+          ),
+          column(4,
+            selectInput(id("_dl_format"), "Download format:",
+                        choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"), selected = "png"),
+            selectInput(id("_dl_units"), "Units:", choices = .dl_units_choices, selected = "in"),
+            numericInput(id("_dl_width"), "Width:", value = 12, min = 0.1, max = 20000, step = 0.5),
+            numericInput(id("_dl_height"), "Height:", value = 8, min = 0.1, max = 20000, step = 0.5),
+            conditionalPanel(
+              condition = sprintf("input['%s'] == 'png'", id("_dl_format")),
+              numericInput(id("_dl_dpi"), "Resolution (DPI, PNG only):", value = 300, min = 72, max = 600, step = 25)
+            ),
+            downloadButton(id("_download_plot"), "Download plot"),
+            downloadButton(id("_download_csv"), "Download table (CSV)")
+          )
+        )
+      )
+    )
+  )
+}
+
+# Assemble the evidence tagList (notes + plot + legend + provenance table) shared
+# by both tabs; `heading`/`intro` and the `pfx`-prefixed plot/table output ids vary.
+.dg_evidence_taglist <- function(ns, pfx, fd, dim, heading, intro) {
+  if (is.null(fd) || isTRUE(fd$empty) || is.null(fd$mol) || !nrow(fd$mol)) {
+    note <- if (!is.null(fd) && length(fd$notes)) tags$ul(lapply(fd$notes, function(x) tags$li(x)))
+    return(tagList(hr(),
+      tags$p(tags$em("No target genes to show for the current selection and filters.")), note))
+  }
+  too_large <- dim[["height"]] >= 10000
+  notes_ui <- NULL
+  if (length(fd$notes) || !is.null(fd$trunc_note)) {
+    items <- c(fd$notes, if (!is.null(fd$trunc_note)) fd$trunc_note)
+    lst <- tags$ul(lapply(items, function(x) tags$li(x)))
+    # Collapse into a <details> when there are many (e.g. the ATC view with up to
+    # 10 drugs) so the per-drug coverage notes don't dominate the page.
+    notes_ui <- if (length(items) > 4)
+      tags$details(class = "gd-details",
+        tags$summary(sprintf("Coverage & hidden-link notes (%d)", length(items))),
+        tags$div(class = "gd-details-body", lst))
+    else tags$div(class = "gd-details-intro", lst)
+  }
+  tagList(hr(),
+    tags$p(tags$b(heading)),
+    tags$p(class = "gd-details-intro", intro),
+    notes_ui,
+    if (too_large)
+      HTML("<div style='color: red;'>Figure is too large. Reduce the number of panels.</div>")
+    else
+      plotOutput(ns(paste0(pfx, "_plot")), height = dim[["height"]], width = dim[["width"]]),
+    gd_legend(DG_LEGEND_ITEMS, heading = "How to read this plot"),
+    br(), tags$div(style = "max-width:1000px;", DT::dataTableOutput(ns(paste0(pfx, "_evidence_table")))))
+}
+
 enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                               selected_gwas_multi = NULL,
                               comparison_mode = NULL,
@@ -827,69 +937,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
         drug_tabs <- c(drug_tabs, list(tabPanel(title="MAGMA", br(),
           p("This tab shows MAGMA drug enrichment results. Select up to six drug rows to see, for each selected drug, how its target genes link to the gene-level molecular evidence across GenoDisc (MAGMA, SuSiE, FUSION, SMR, nearest gene, CALDERA, ...)."), hr(), br(),
           fluidRow(column(width=9, dataTableOutput(ns("tx_drug_magma_table")))), enr_legend("drug_magma"), br(),
-          # Figure controls are persistent (built inside this per-bundle renderUI),
-          # so changing the drug selection doesn't reset the user's choices.
-          tags$details(class = "gd-details",
-            tags$summary("Figure options"),
-            tags$div(class = "gd-details-body",
-              tags$p(class = "gd-details-intro",
-                "Choose which molecular-association panels appear beside the drug-target strip. ",
-                "Genes linked only by a drug-induced expression-change signature are hidden by default."),
-              fluidRow(
-                column(4,
-                  uiOutput(ns("dg_methods_ui")),
-                  uiOutput(ns("dg_expr_panels_ui")),
-                  uiOutput(ns("dg_protein_panels_ui"))
-                ),
-                column(4,
-                  checkboxInput(ns("dg_show_pert"),
-                    "Include genes linked only by a drug-induced expression-change signature",
-                    value = FALSE),
-                  numericInput(ns("dg_caldera_hc_thresh"),
-                    "CALDERA high-confidence threshold:", value = 0.5, min = 0, max = 1, step = 0.05)
-                )
-              )
-            )
-          ),
-          tags$details(class = "gd-details",
-            tags$summary("Plot options"),
-            tags$div(class = "gd-details-body",
-              tags$p(class = "gd-details-intro",
-                "Customise how the figure looks (title, theme, font size, point size) ",
-                "and download it as a PNG, PDF, or SVG, or the evidence table as CSV."),
-              fluidRow(
-                column(4,
-                  textInput(ns("dg_plot_title"), "Plot title (optional):", value = ""),
-                  selectInput(ns("dg_plot_theme"), "Theme:",
-                              choices = c("Black & white" = "bw", "Minimal" = "minimal",
-                                          "Classic" = "classic", "Light" = "light"),
-                              selected = "bw")
-                ),
-                column(4,
-                  sliderInput(ns("dg_plot_font_size"), "Font size (pt):",
-                              min = 10, max = 20, value = 14, step = 1),
-                  sliderInput(ns("dg_plot_point_size"), "Point size:",
-                              min = 2, max = 8, value = 4, step = 1)
-                ),
-                column(4,
-                  selectInput(ns("dg_dl_format"), "Download format:",
-                              choices = c("PNG" = "png", "PDF" = "pdf", "SVG" = "svg"),
-                              selected = "png"),
-                  selectInput(ns("dg_dl_units"), "Units:",
-                              choices = .dl_units_choices, selected = "in"),
-                  numericInput(ns("dg_dl_width"), "Width:", value = 12, min = 0.1, max = 20000, step = 0.5),
-                  numericInput(ns("dg_dl_height"), "Height:", value = 8, min = 0.1, max = 20000, step = 0.5),
-                  conditionalPanel(
-                    condition = sprintf("input['%s'] == 'png'", ns("dg_dl_format")),
-                    numericInput(ns("dg_dl_dpi"), "Resolution (DPI, PNG only):",
-                                 value = 300, min = 72, max = 600, step = 25)
-                  ),
-                  downloadButton(ns("dg_download_plot"), "Download plot"),
-                  downloadButton(ns("dg_download_csv"), "Download table (CSV)")
-                )
-              )
-            )
-          ),
+          # Controls are persistent (built inside this per-bundle renderUI), so
+          # changing the drug selection doesn't reset the user's choices.
+          .dg_controls_ui(ns, "dg"),
           br(),
           uiOutput(ns("tx_drug_magma_evidence"))
         )))
@@ -991,8 +1041,10 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       )
       if (cf$magma_drugtargetor) {
         atc_tabs <- c(atc_tabs, list(tabPanel(title="MAGMA", br(),
-          p("MAGMA ATC-class enrichment (non-directional, genome-wide). The 'ATC-class test' selector above chooses how a class is scored — VIF-OLS (CAMERA-style), GLS (DRUGSETS-style) or Wilcoxon (rank-sum); all three test whether the class's drugs are more associated than other drugs. Select a row to see the drugs in that class below the table."), hr(), br(),
+          p("MAGMA ATC-class enrichment (non-directional, genome-wide). The 'ATC-class test' selector above chooses how a class is scored — VIF-OLS (CAMERA-style), GLS (DRUGSETS-style) or Wilcoxon (rank-sum); all three test whether the class's drugs are more associated than other drugs. Select a class row to see how the target genes of its most-significant drugs link to the gene-level molecular evidence across GenoDisc."), hr(), br(),
           fluidRow(column(width=8, dataTableOutput(ns("tx_atc_magma_table")))), enr_legend("atc_pval"), br(),
+          .dg_controls_ui(ns, "adg"),
+          br(),
           uiOutput(ns("tx_atc_magma_evidence"))
         )))
       }
@@ -3060,6 +3112,173 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       d
     }
 
+    ATC_MAGMA_TOP_DRUGS <- 10L   # ATC-class figure shows this many top drugs
+
+    # Classified target-gene rows for a set of drugs + per-drug target counts.
+    .dg_links_for_drugs <- function(gd, gwas, drug_names) {
+      if (!length(drug_names) || !isTRUE(has_magma_evidence(gd, gwas))) return(NULL)
+      ev   <- gd_read(gd, gwas, "tx/evidence_magma")
+      drug <- safe_access(ev, "drug"); if (is.null(drug) || !nrow(drug)) return(NULL)
+      drug <- as.data.frame(drug)
+      d <- .dg_classify(drug[toupper(drug$drug_name) %in% toupper(drug_names), ])
+      if (is.null(d)) return(NULL)
+      s <- safe_access(ev, "drug_summary")
+      ntar <- stats::setNames(rep(NA_integer_, length(drug_names)), toupper(drug_names))
+      if (!is.null(s) && nrow(s)) {
+        s <- as.data.frame(s); m <- match(toupper(drug_names), toupper(s$drug_name))
+        ntar <- stats::setNames(s$n_target[m], toupper(drug_names))
+      }
+      list(links = d, n_target = ntar)
+    }
+
+    # Apply the perturbation toggle + truncation; assemble figure data + notes.
+    .dg_assemble_fig <- function(la, drug_names, show_pert, mol, methods, expr_panels, protein_panels) {
+      if (is.null(la) || is.null(la$links) || !nrow(la$links)) return(NULL)
+      links  <- la$links
+      hidden <- links[links$link_class == "expression-signature", , drop = FALSE]
+      shown  <- if (show_pert) links else links[links$link_class == "pharmacological", , drop = FALSE]
+      notes  <- character(0)
+      # Per-drug block-cap note (packaging keeps the top-50 MAGMA-scored targets).
+      for (nm in drug_names) {
+        bc <- length(unique(links$ID[toupper(links$drug) == toupper(nm)]))
+        n  <- la$n_target[[toupper(nm)]]; if (is.null(n) || is.na(n)) n <- bc
+        if (bc < n) notes <- c(notes, sprintf(
+          "Showing the %d highest-MAGMA target genes of %d for %s; the MAGMA drug-set P-value uses all %d.",
+          bc, n, nm, n))
+      }
+      # Hidden-links note per drug (required when the toggle is off).
+      if (!show_pert) {
+        for (nm in drug_names) {
+          k <- length(unique(hidden$ID[toupper(hidden$drug) == toupper(nm)]))
+          n <- la$n_target[[toupper(nm)]]
+          if (is.null(n) || is.na(n)) n <- length(unique(links$ID[toupper(links$drug) == toupper(nm)]))
+          if (k > 0) notes <- c(notes, sprintf(
+            "%d of %d target genes for %s are linked only by a drug-induced expression-change signature and are hidden; the MAGMA drug-set P-value includes them.",
+            k, n, nm))
+        }
+      }
+      if (!nrow(shown)) return(list(links = NULL, notes = notes, empty = TRUE))
+      # Large figure truncation: keep the top N union genes by best (min) MAGMA P.
+      genes <- unique(shown$ID); trunc_note <- NULL
+      if (length(genes) > DRUG_MAGMA_MAX_GENES) {
+        best <- stats::aggregate(MAGMA.P ~ ID, data = shown, FUN = function(x) min(x, na.rm = TRUE))
+        keep <- best$ID[order(best$MAGMA.P)][seq_len(DRUG_MAGMA_MAX_GENES)]
+        trunc_note <- sprintf(
+          "Showing the top %d of %d target genes by MAGMA P across the drug(s) in view.",
+          DRUG_MAGMA_MAX_GENES, length(genes))
+        shown <- shown[shown$ID %in% keep, , drop = FALSE]; genes <- keep
+      }
+      mol_r <- mol[mol$ID %in% genes, , drop = FALSE]
+      if (is.null(methods)) methods <- setdiff(unique(mol$Method), c("SuSiE (L=10)", "CALDERA (L=10)"))
+      mol_r <- mol_r[mol_r$Method %in% methods, , drop = FALSE]
+      if (!is.null(expr_panels)) mol_r <- mol_r[!((mol_r$Type %in% c("Expr.", "Splice")) & !(mol_r$Panel %in% expr_panels)), , drop = FALSE]
+      if (!is.null(protein_panels)) mol_r <- mol_r[!(mol_r$Type == "Protein" & !(mol_r$Panel %in% protein_panels)), , drop = FALSE]
+      list(mol = mol_r,
+           links = unique(shown[, c("ID", "drug", "link_class", "direction")]),
+           prov = shown, notes = notes, trunc_note = trunc_note,
+           drugs = drug_names, show_pert = show_pert)
+    }
+
+    # Long-format provenance data.frame (one row per drug x gene). MAGMA.Z is
+    # omitted (one-sided ZSTAT = qnorm(1 - P); its sign is not a direction).
+    .dg_prov_df <- function(prov) {
+      if (is.null(prov) || !nrow(prov)) return(NULL)
+      p <- prov
+      data.frame(
+        Drug = p$drug, Gene = p$ID,
+        `Link class` = ifelse(p$link_class == "expression-signature", "Expression signature", "Pharmacological"),
+        Activity = p$activity, Source = p$source, P = p$MAGMA.P,
+        check.names = FALSE, stringsAsFactors = FALSE)[order(p$drug, p$MAGMA.P), ]
+    }
+
+    # Figure dimensions (floors the panel row at 240pt so the stacked Z-score +
+    # CALDERA colourbars aren't clipped on short figures).
+    .dg_dim <- function(fd, font_size) {
+      if (is.null(fd) || isTRUE(fd$over_cap) || is.null(fd$mol) || !nrow(fd$mol))
+        return(list(height = 100, width = 100, panel_h_pt = 0, left_pad_pt = 0))
+      d <- data.frame(ID = fd$mol$ID, Panel = as.character(fd$mol$Panel),
+                      Group = make_group_labels(fd$mol$Method, fd$mol$Type), stringsAsFactors = FALSE)
+      strip <- data.frame(ID = fd$links$ID, Panel = as.character(fd$links$drug),
+                          Group = "Drug targets", stringsAsFactors = FALSE)
+      calc_plot_dims(rbind(strip, d), y_col = "ID", x_col = "Panel", facet_col = "Group",
+                     facet_order = c("Drug targets", get_group_order()),
+                     font_size = font_size %||% 14, min_height = 360, min_panel_h_pt = 240)
+    }
+
+    .dg_gtable <- function(fd, dim, font_size, point_size, theme_name, title, caldera_thresh) {
+      build_mol_assoc_gtable(
+        all_func_res = fd$mol, locus_mode = FALSE, locus_map = NULL,
+        font_size = font_size %||% 14, point_size = point_size %||% 4,
+        theme_fn = mol_theme_fn(theme_name), title = title %||% "",
+        panel_h_pt = dim[["panel_h_pt"]], left_pad_pt = dim[["left_pad_pt"]],
+        caldera_hc_thresh = caldera_thresh %||% 0.5, drug_links = fd$links)
+    }
+
+    # Register the three method/panel selectors for a prefix (choices baked in at
+    # creation to avoid the updateSelectInput binding race).
+    .dg_register_selectors <- function(pfx) {
+      output[[paste0(pfx, "_methods_ui")]] <- renderUI({
+        m <- dg_mol_all(); req(m); methods <- unique(m$Method)
+        default <- methods[!methods %in% c("SuSiE (L=10)", "CALDERA (L=10)")]
+        selectInput(ns(paste0(pfx, "_methods")), "Include molecular-association methods:",
+                    choices = methods, selected = default, multiple = TRUE)
+      })
+      output[[paste0(pfx, "_expr_panels_ui")]] <- renderUI({
+        m <- dg_mol_all(); req(m); ep <- unique(m$Panel[m$Type %in% c("Expr.", "Splice")])
+        if (!length(ep)) return(NULL)
+        selectInput(ns(paste0(pfx, "_expr_panels")), "Include expression / splicing panels:",
+                    choices = ep, selected = ep, multiple = TRUE)
+      })
+      output[[paste0(pfx, "_protein_panels_ui")]] <- renderUI({
+        m <- dg_mol_all(); req(m); pp <- unique(m$Panel[m$Type == "Protein"])
+        if (!length(pp)) return(NULL)
+        selectInput(ns(paste0(pfx, "_protein_panels")), "Include protein panels:",
+                    choices = pp, selected = pp, multiple = TRUE)
+      })
+    }
+
+    # Register the plot/CSV downloads + width/height sync for a prefix.
+    .dg_register_downloads <- function(pfx, fig_fn, prov_fn, dim_fn, gtable_fn) {
+      iid <- function(s) paste0(pfx, s)
+      observeEvent(dim_fn(), {
+        dims <- dim_fn()
+        if (!is.list(dims) || is.null(dims$width) || is.null(dims$height)) return()
+        if (!(dims$width > 100 && dims$height < 10000)) return()
+        u <- input[[iid("_dl_units")]] %||% "in"; dpi <- input[[iid("_dl_dpi")]] %||% 300
+        w <- .convert_dim(dims$width / 72, "in", u, dpi = dpi)
+        h <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
+        rd <- if (identical(u, "px")) 0 else 1
+        if (is.finite(w)) updateNumericInput(session, iid("_dl_width"),  value = round(w, rd))
+        if (is.finite(h)) updateNumericInput(session, iid("_dl_height"), value = round(h, rd))
+      })
+      prev <- reactiveVal("in")
+      dl_units_auto_convert(input, session, units_id = iid("_dl_units"),
+                            width_id = iid("_dl_width"), height_id = iid("_dl_height"),
+                            prev_val = prev, dpi_id = iid("_dl_dpi"), default_dpi = 300)
+      output[[iid("_download_plot")]] <- downloadHandler(
+        filename = function() sprintf("drug_gene_evidence_%s.%s",
+                                      format(Sys.time(), "%Y%m%d_%H%M%S"), input[[iid("_dl_format")]] %||% "png"),
+        content = function(file) {
+          fd <- fig_fn()
+          if (is.null(fd) || is.null(fd$mol) || !nrow(fd$mol)) {
+            grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
+            grid::grid.text("No data to plot."); grDevices::dev.off(); return(invisible())
+          }
+          gt <- gtable_fn(fd, dim_fn())
+          open_plot_device(file, fmt = input[[iid("_dl_format")]] %||% "png",
+                           w = input[[iid("_dl_width")]] %||% 12, h = input[[iid("_dl_height")]] %||% 8,
+                           units = input[[iid("_dl_units")]] %||% "in", dpi = input[[iid("_dl_dpi")]] %||% 300)
+          if (!is.null(gt)) grid::grid.draw(gt)
+          grDevices::dev.off()
+        })
+      output[[iid("_download_csv")]] <- downloadHandler(
+        filename = function() sprintf("drug_gene_evidence_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S")),
+        content = function(file) {
+          d <- prov_fn(); if (is.null(d)) d <- data.frame(Message = "No data to export.")
+          utils::write.csv(d, file, row.names = FALSE)
+        })
+    }
+
     # ATC-class evidence (directional TWAS-GSEA tab; keyed by the selected row).
     atc_evidence_sel <- reactive({
       sel <- input$tx_atc_twas_gsea_table_rows_selected
@@ -3140,158 +3359,26 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       list(names = nm, n = length(nm), over_cap = length(nm) > DRUG_MAGMA_MAX_DRUGS)
     })
 
-    # Classified target-gene rows for all selected drugs (both link classes) +
-    # per-drug total target counts (from drug_summary).
-    dg_links_all <- reactive({
-      sel <- dg_selected()
-      if (sel$over_cap || !length(sel$names)) return(NULL)
-      if (!isTRUE(has_magma_evidence(gwas_data(), selected_gwas()))) return(NULL)
-      ev   <- gd_read(gwas_data(), selected_gwas(), "tx/evidence_magma")
-      drug <- safe_access(ev, "drug"); if (is.null(drug) || !nrow(drug)) return(NULL)
-      drug <- as.data.frame(drug)
-      d <- .dg_classify(drug[toupper(drug$drug_name) %in% toupper(sel$names), ])
-      if (is.null(d)) return(NULL)
-      s <- safe_access(ev, "drug_summary")
-      ntar <- stats::setNames(rep(NA_integer_, length(sel$names)), toupper(sel$names))
-      if (!is.null(s) && nrow(s)) {
-        s <- as.data.frame(s); m <- match(toupper(sel$names), toupper(s$drug_name))
-        ntar <- stats::setNames(s$n_target[m], toupper(sel$names))
-      }
-      list(links = d, n_target = ntar)
-    })
-
-    # Apply the perturbation toggle + truncation; assemble the figure data,
-    # the hidden-links / truncation notes, and the restricted mol-assoc frame.
+    # Figure data for the selected drugs (shared helpers do the work).
     dg_fig_data <- reactive({
       sel <- dg_selected()
       if (sel$over_cap) return(list(over_cap = TRUE, n = sel$n))
-      la <- dg_links_all(); if (is.null(la) || is.null(la$links) || !nrow(la$links)) return(NULL)
-      links <- la$links
-      show_pert <- isTRUE(input$dg_show_pert)
-      hidden <- links[links$link_class == "expression-signature", , drop = FALSE]
-      shown  <- if (show_pert) links else links[links$link_class == "pharmacological", , drop = FALSE]
-
-      notes <- character(0)
-
-      # Per-drug block-cap note: packaging keeps only the top-50 MAGMA-scored
-      # target genes, so for large drugs the figure shows fewer genes than the
-      # full target set (which still drives the drug-set P). Never silent.
-      for (nm in sel$names) {
-        bc <- length(unique(links$ID[toupper(links$drug) == toupper(nm)]))
-        n  <- la$n_target[[toupper(nm)]]; if (is.na(n)) n <- bc
-        if (bc < n) notes <- c(notes, sprintf(
-          "Showing the %d highest-MAGMA target genes of %d for %s; the MAGMA drug-set P-value uses all %d.",
-          bc, n, nm, n))
-      }
-
-      # Hidden-links note per drug (required when the toggle is off).
-      if (!show_pert) {
-        for (nm in sel$names) {
-          k <- length(unique(hidden$ID[toupper(hidden$drug) == toupper(nm)]))
-          n <- la$n_target[[toupper(nm)]]
-          if (is.na(n)) n <- length(unique(links$ID[toupper(links$drug) == toupper(nm)]))
-          if (k > 0) notes <- c(notes, sprintf(
-            "%d of %d target genes for %s are linked only by a drug-induced expression-change signature and are hidden; the MAGMA drug-set P-value includes them.",
-            k, n, nm))
-        }
-      }
-      if (!nrow(shown)) return(list(links = NULL, notes = notes, empty = TRUE))
-
-      # Large-drug truncation: keep the top N union genes by best (min) MAGMA P.
-      genes <- unique(shown$ID); trunc_note <- NULL
-      if (length(genes) > DRUG_MAGMA_MAX_GENES) {
-        best <- stats::aggregate(MAGMA.P ~ ID, data = shown, FUN = function(x) min(x, na.rm = TRUE))
-        keep <- best$ID[order(best$MAGMA.P)][seq_len(DRUG_MAGMA_MAX_GENES)]
-        trunc_note <- sprintf(
-          "Showing the top %d of %d target genes by MAGMA P across the selected drug(s).",
-          DRUG_MAGMA_MAX_GENES, length(genes))
-        shown <- shown[shown$ID %in% keep, , drop = FALSE]; genes <- keep
-      }
-
-      # Restricted molecular-association frame + method / panel filters.
       mol <- dg_mol_all(); req(mol)
-      mol_r <- mol[mol$ID %in% genes, , drop = FALSE]
-      meth <- input$dg_methods
-      if (is.null(meth)) meth <- setdiff(unique(mol$Method), c("SuSiE (L=10)", "CALDERA (L=10)"))
-      mol_r <- mol_r[mol_r$Method %in% meth, , drop = FALSE]
-      ep <- input$dg_expr_panels; pp <- input$dg_protein_panels
-      if (!is.null(ep)) mol_r <- mol_r[!((mol_r$Type %in% c("Expr.", "Splice")) & !(mol_r$Panel %in% ep)), , drop = FALSE]
-      if (!is.null(pp)) mol_r <- mol_r[!(mol_r$Type == "Protein" & !(mol_r$Panel %in% pp)), , drop = FALSE]
+      la <- .dg_links_for_drugs(gwas_data(), selected_gwas(), sel$names)
+      .dg_assemble_fig(la, sel$names, isTRUE(input$dg_show_pert), mol,
+                       input$dg_methods, input$dg_expr_panels, input$dg_protein_panels)
+    })
+    .dg_register_selectors("dg")
 
-      list(mol = mol_r,
-           links = unique(shown[, c("ID", "drug", "link_class", "direction")]),
-           prov = shown, notes = notes, trunc_note = trunc_note,
-           drugs = sel$names, show_pert = show_pert)
-    })
-
-    # Method / panel selector choices (baked in at creation; mirrors Mol Assoc).
-    output$dg_methods_ui <- renderUI({
-      m <- dg_mol_all(); req(m); methods <- unique(m$Method)
-      default <- methods[!methods %in% c("SuSiE (L=10)", "CALDERA (L=10)")]
-      selectInput(ns("dg_methods"), "Include molecular-association methods:",
-                  choices = methods, selected = default, multiple = TRUE)
-    })
-    output$dg_expr_panels_ui <- renderUI({
-      m <- dg_mol_all(); req(m); ep <- unique(m$Panel[m$Type %in% c("Expr.", "Splice")])
-      if (!length(ep)) return(NULL)
-      selectInput(ns("dg_expr_panels"), "Include expression / splicing panels:",
-                  choices = ep, selected = ep, multiple = TRUE)
-    })
-    output$dg_protein_panels_ui <- renderUI({
-      m <- dg_mol_all(); req(m); pp <- unique(m$Panel[m$Type == "Protein"])
-      if (!length(pp)) return(NULL)
-      selectInput(ns("dg_protein_panels"), "Include protein panels:",
-                  choices = pp, selected = pp, multiple = TRUE)
-    })
-
-    # Figure dimensions: count the Drug-targets strip facet + the mol facets.
-    dg_plot_dim <- reactive({
-      fd <- dg_fig_data()
-      if (is.null(fd) || isTRUE(fd$over_cap) || is.null(fd$mol) || !nrow(fd$mol))
-        return(list(height = 100, width = 100, panel_h_pt = 0, left_pad_pt = 0))
-      d <- data.frame(ID = fd$mol$ID, Panel = as.character(fd$mol$Panel),
-                      Group = make_group_labels(fd$mol$Method, fd$mol$Type),
-                      stringsAsFactors = FALSE)
-      strip <- data.frame(ID = fd$links$ID, Panel = as.character(fd$links$drug),
-                          Group = "Drug targets", stringsAsFactors = FALSE)
-      calc_plot_dims(rbind(strip, d), y_col = "ID", x_col = "Panel", facet_col = "Group",
-                     facet_order = c("Drug targets", get_group_order()),
-                     font_size = input$dg_plot_font_size %||% 14,
-                     min_height = 200, min_panel_h_pt = 120)
-    })
-
-    dg_build_gtable <- function(fd, dim) {
-      build_mol_assoc_gtable(
-        all_func_res = fd$mol, locus_mode = FALSE, locus_map = NULL,
-        font_size = input$dg_plot_font_size %||% 14,
-        point_size = input$dg_plot_point_size %||% 4,
-        theme_fn = mol_theme_fn(input$dg_plot_theme),
-        title = input$dg_plot_title %||% "",
-        panel_h_pt = dim[["panel_h_pt"]], left_pad_pt = dim[["left_pad_pt"]],
-        caldera_hc_thresh = input$dg_caldera_hc_thresh %||% 0.5,
-        drug_links = fd$links)
-    }
+    dg_plot_dim  <- reactive(.dg_dim(dg_fig_data(), input$dg_plot_font_size))
+    dg_gtable_fn <- function(fd, dim) .dg_gtable(fd, dim, input$dg_plot_font_size,
+      input$dg_plot_point_size, input$dg_plot_theme, input$dg_plot_title, input$dg_caldera_hc_thresh)
+    dg_prov_table <- reactive(.dg_prov_df(dg_fig_data()$prov))
 
     output$dg_plot <- renderPlot({
       fd <- dg_fig_data(); req(fd, fd$mol)
       if (dg_plot_dim()[["height"]] >= 10000) return(NULL)
-      gt <- dg_build_gtable(fd, dg_plot_dim())
-      if (!is.null(gt)) grid::grid.draw(gt)
-    })
-
-    # Long-format provenance table (one row per drug x gene).
-    dg_prov_table <- reactive({
-      fd <- dg_fig_data(); if (is.null(fd) || is.null(fd$prov) || !nrow(fd$prov)) return(NULL)
-      p <- fd$prov
-      # MAGMA.Z is omitted: it is the one-sided ZSTAT (= qnorm(1 - P)), so its sign
-      # only reflects P <> 0.5, not a direction of effect (MAGMA's gene test is
-      # non-directional). P is unambiguous and the heatmap already shows magnitude.
-      data.frame(
-        Drug = p$drug, Gene = p$ID,
-        `Link class` = ifelse(p$link_class == "expression-signature",
-                              "Expression signature", "Pharmacological"),
-        Activity = p$activity, Source = p$source, P = p$MAGMA.P,
-        check.names = FALSE, stringsAsFactors = FALSE)[order(p$drug, p$MAGMA.P), ]
+      gt <- dg_gtable_fn(fd, dg_plot_dim()); if (!is.null(gt)) grid::grid.draw(gt)
     })
     output$dg_evidence_table <- DT::renderDataTable({
       d <- dg_prov_table(); if (is.null(d)) return(NULL); .tx_gsea_datatable(d)
@@ -3306,115 +3393,70 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
           DRUG_MAGMA_MAX_DRUGS, sel$n)))))
       if (!length(sel$names))
         return(tags$p(tags$em("Select one or more drug rows above (up to 6) to see how their target genes link to the gene-level evidence.")))
-      fd <- dg_fig_data()
-      if (is.null(fd) || isTRUE(fd$empty) || is.null(fd$mol) || !nrow(fd$mol)) {
-        note <- if (!is.null(fd) && length(fd$notes))
-          tags$ul(lapply(fd$notes, function(x) tags$li(x)))
-        return(tagList(hr(),
-          tags$p(tags$em("No target genes to show for the current selection and filters.")),
-          note))
-      }
-      dim <- dg_plot_dim()
-      too_large <- dim[["height"]] >= 10000
-      legend_items <- list(
-        "Drug targets strip" = "The leading facet: one column per selected drug, with a marker where the gene is a target of that drug, classified by its Drug Targetor activity. Dark = a pharmacological/mechanistic link (the gene responds to or is modulated by the drug); grey = a drug-induced expression-change signature (the drug alters the gene's expression). Shape shows direction: circle = none/mixed; down triangle = inhibition (dark) or down-regulation (grey); up triangle = activation (dark) or up-regulation (grey). Note: the Drug Targetor database does not resolve the DSigDB evidence category, so links are labelled by activity type, not by source.",
-        "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
-        "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
-        "Black outline" = "The association is FDR-significant in that panel and method.",
-        "Black square" = "FDR-significant AND supported by colocalisation.",
-        "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
-        "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A solid black circle behind it marks the top-ranked gene in the credible set; a solid black square behind it marks genes whose probability exceeds the high-confidence threshold (set under Figure options) — the same convention as FDR-significant / colocalised genes."
-      )
-      notes_ui <- NULL
-      if (length(fd$notes) || !is.null(fd$trunc_note)) {
-        items <- c(fd$notes, if (!is.null(fd$trunc_note)) fd$trunc_note)
-        notes_ui <- tags$div(class = "gd-details-intro",
-          tags$ul(lapply(items, function(x) tags$li(x))))
-      }
-      tagList(hr(),
-        tags$p(tags$b(sprintf("Target-gene evidence for %s", paste(fd$drugs, collapse = ", ")))),
-        tags$p(class = "gd-details-intro",
-          "The drug-target strip on the left links each gene to the selected drug(s); the remaining facets show that gene's molecular associations across GenoDisc (information only — the panels are not summarised into a score)."),
-        notes_ui,
-        if (too_large)
-          HTML("<div style='color: red;'>Figure is too large. Reduce the number of selected drugs or panels.</div>")
-        else
-          plotOutput(ns("dg_plot"), height = dim[["height"]], width = dim[["width"]]),
-        gd_legend(legend_items, heading = "How to read this plot"),
-        br(), tags$div(style = "max-width:1000px;", DT::dataTableOutput(ns("dg_evidence_table"))))
+      .dg_evidence_taglist(ns, "dg", dg_fig_data(), dg_plot_dim(),
+        heading = sprintf("Target-gene evidence for %s", paste(sel$names, collapse = ", ")),
+        intro = "The drug-target strip on the left links each gene to the selected drug(s); the remaining facets show that gene's molecular associations across GenoDisc (information only — the panels are not summarised into a score).")
     })
 
-    # Keep download width/height in sync with the on-screen figure.
-    observeEvent(dg_plot_dim(), {
-      dims <- dg_plot_dim()
-      if (!is.list(dims) || is.null(dims$width) || is.null(dims$height)) return()
-      if (!(dims$width > 100 && dims$height < 10000)) return()
-      u   <- input$dg_dl_units %||% "in"; dpi <- input$dg_dl_dpi %||% 300
-      w <- .convert_dim(dims$width / 72, "in", u, dpi = dpi)
-      h <- .convert_dim(dims$height / 72, "in", u, dpi = dpi)
-      rd <- if (identical(u, "px")) 0 else 1
-      if (is.finite(w)) updateNumericInput(session, "dg_dl_width",  value = round(w, rd))
-      if (is.finite(h)) updateNumericInput(session, "dg_dl_height", value = round(h, rd))
-    })
-    dg_dl_units_prev <- reactiveVal("in")
-    dl_units_auto_convert(input, session, units_id = "dg_dl_units",
-                          width_id = "dg_dl_width", height_id = "dg_dl_height",
-                          prev_val = dg_dl_units_prev, dpi_id = "dg_dl_dpi", default_dpi = 300)
+    .dg_register_downloads("dg", dg_fig_data, dg_prov_table, dg_plot_dim, dg_gtable_fn)
 
-    output$dg_download_plot <- downloadHandler(
-      filename = function() sprintf("drug_gene_evidence_%s.%s",
-                                    format(Sys.time(), "%Y%m%d_%H%M%S"), input$dg_dl_format %||% "png"),
-      content = function(file) {
-        fd <- dg_fig_data()
-        if (is.null(fd) || is.null(fd$mol) || !nrow(fd$mol)) {
-          grDevices::png(file, width = 4, height = 1, units = "in", res = 96)
-          grid::grid.text("No data to plot."); grDevices::dev.off(); return(invisible())
-        }
-        gt <- dg_build_gtable(fd, dg_plot_dim())
-        open_plot_device(file, fmt = input$dg_dl_format %||% "png",
-                         w = input$dg_dl_width %||% 12, h = input$dg_dl_height %||% 8,
-                         units = input$dg_dl_units %||% "in", dpi = input$dg_dl_dpi %||% 300)
-        if (!is.null(gt)) grid::grid.draw(gt)
-        grDevices::dev.off()
-      }
-    )
-    output$dg_download_csv <- downloadHandler(
-      filename = function() sprintf("drug_gene_evidence_%s.csv", format(Sys.time(), "%Y%m%d_%H%M%S")),
-      content = function(file) {
-        d <- dg_prov_table()
-        if (is.null(d)) d <- data.frame(Message = "No data to export.")
-        utils::write.csv(d, file, row.names = FALSE)
-      }
-    )
+    # ---- ATC MAGMA class -> drug-gene evidence figure for its top drugs ----
+    # Selecting one ATC class shows the same figure for the ATC_MAGMA_TOP_DRUGS
+    # most-significant drugs (by MAGMA drug-set P) in that class.
+    .dg_register_selectors("adg")
 
-    # MAGMA ATC class -> the drugs in that class (per-drug MAGMA enrichment) drill-down.
-    atc_magma_evidence_sel <- reactive({
+    adg_drugs <- reactive({
       sel <- input$tx_atc_magma_table_rows_selected
       if (is.null(sel) || !length(sel)) return(NULL)
-      df <- atc_magma_tbl(); if (is.null(df) || sel > nrow(df)) return(NULL)
-      row <- df[sel, ]
+      df <- atc_magma_tbl(); if (is.null(df) || sel[1] > nrow(df)) return(NULL)
+      row <- df[sel[1], ]
       lvl <- if ("Level" %in% names(row)) row$Level else "L3"
-      list(drugs = get_atc_class_drugs(gwas_data(), selected_gwas(), code = row$`ATC Code`,
-                                       level = lvl, panel = NULL, engine = "magma"),
-           name = row$Name, level = lvl, code = row$`ATC Code`)
+      d <- get_atc_class_drugs(gwas_data(), selected_gwas(), code = row$`ATC Code`,
+                               level = lvl, panel = NULL, engine = "magma")
+      if (is.null(d) || !nrow(d)) return(NULL)
+      d <- as.data.frame(d)
+      if ("P" %in% names(d)) d <- d[order(d$P), ]
+      drugs <- unique(d$Name)
+      list(names = head(drugs, ATC_MAGMA_TOP_DRUGS), class = row$Name,
+           level = lvl, n_class = length(drugs))
     })
-    output$tx_atc_magma_evidence_plot <- renderPlot({ r <- atc_magma_evidence_sel(); if (is.null(r)) return(NULL); .atc_drug_plot(r$drugs) })
-    output$tx_atc_magma_evidence_dt   <- DT::renderDataTable({ r <- atc_magma_evidence_sel(); if (is.null(r)) return(NULL); .atc_drug_dt(r$drugs) })
+
+    adg_fig_data <- reactive({
+      dd <- adg_drugs(); if (is.null(dd) || !length(dd$names)) return(NULL)
+      mol <- dg_mol_all(); req(mol)
+      la <- .dg_links_for_drugs(gwas_data(), selected_gwas(), dd$names)
+      .dg_assemble_fig(la, dd$names, isTRUE(input$adg_show_pert), mol,
+                       input$adg_methods, input$adg_expr_panels, input$adg_protein_panels)
+    })
+    adg_plot_dim  <- reactive(.dg_dim(adg_fig_data(), input$adg_plot_font_size))
+    adg_gtable_fn <- function(fd, dim) .dg_gtable(fd, dim, input$adg_plot_font_size,
+      input$adg_plot_point_size, input$adg_plot_theme, input$adg_plot_title, input$adg_caldera_hc_thresh)
+    adg_prov_table <- reactive(.dg_prov_df(adg_fig_data()$prov))
+
+    output$adg_plot <- renderPlot({
+      fd <- adg_fig_data(); req(fd, fd$mol)
+      if (adg_plot_dim()[["height"]] >= 10000) return(NULL)
+      gt <- adg_gtable_fn(fd, adg_plot_dim()); if (!is.null(gt)) grid::grid.draw(gt)
+    })
+    output$adg_evidence_table <- DT::renderDataTable({
+      d <- adg_prov_table(); if (is.null(d)) return(NULL); .tx_gsea_datatable(d)
+    })
+
     output$tx_atc_magma_evidence <- renderUI({
-      r <- atc_magma_evidence_sel()
-      if (is.null(r)) return(tags$p(tags$em("Select an ATC class row above to see the drugs in it.")))
-      n <- if (is.null(r$drugs)) 0 else nrow(r$drugs)
-      note <- if (identical(r$level, "L4")) " (matched at their ATC level-3 parent)" else ""
-      tagList(hr(),
-        tags$p(tags$b(sprintf("ATC class %s (%s, MAGMA):", r$name, r$level)),
-               sprintf(" %d drug%s in this class%s — the drug-level observations the ATC test aggregates.",
-                       n, if (n == 1) "" else "s", note)),
-        tags$div(style = "max-width:760px;", plotOutput(ns("tx_atc_magma_evidence_plot"), height = "360px")),
-        br(), tags$div(style = "max-width:900px;", DT::dataTableOutput(ns("tx_atc_magma_evidence_dt"))),
-        tags$p(class = "gd-details-intro",
-          "Bars show each drug's per-drug MAGMA enrichment statistic (T = BETA/SE) within this ATC class ",
-          "(non-directional, genome-wide)."))
+      if (!isTRUE(has_magma_evidence(gwas_data(), selected_gwas())))
+        return(tags$p(tags$em("Per-drug target-gene evidence is not available in this bundle.")))
+      dd <- adg_drugs()
+      if (is.null(dd) || !length(dd$names))
+        return(tags$p(tags$em("Select an ATC class row above to see its most-significant drugs' target-gene evidence.")))
+      shown_n <- length(dd$names)
+      topnote <- if (dd$n_class > shown_n)
+        sprintf(" (top %d of %d drugs by MAGMA P)", shown_n, dd$n_class)
+      else sprintf(" (%d drug%s)", shown_n, if (shown_n == 1) "" else "s")
+      .dg_evidence_taglist(ns, "adg", adg_fig_data(), adg_plot_dim(),
+        heading = sprintf("Target-gene evidence — %s%s", dd$class, topnote),
+        intro = "The strip links each gene to the most-significant drugs in this ATC class; the remaining facets show that gene's molecular associations across GenoDisc (information only — the panels are not summarised into a score).")
     })
+    .dg_register_downloads("adg", adg_fig_data, adg_prov_table, adg_plot_dim, adg_gtable_fn)
 
   })
 }
