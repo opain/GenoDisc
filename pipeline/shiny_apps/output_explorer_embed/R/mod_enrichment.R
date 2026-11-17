@@ -429,10 +429,11 @@ enrichmentUI <- function(id) {
 DG_LEGEND_ITEMS <- list(
   "Drug targets strip" = "The leading facet: one column per drug, with a marker where the gene is a target of that drug, classified by its Drug Targetor activity. Dark = a pharmacological/mechanistic link (the gene responds to or is modulated by the drug); grey = a drug-induced expression-change signature (the drug alters the gene's expression). Shape shows direction: circle = none/mixed; down triangle = inhibition (dark) or down-regulation (grey); up triangle = activation (dark) or up-regulation (grey). Note: the Drug Targetor database does not resolve the DSigDB evidence category, so links are labelled by activity type, not by source.",
   "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
-  "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+  "TWAS/PWAS Z-score (blue→red)" = "Directional association Z for TWAS / PWAS / SMR: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+  "MAGMA Z score (white→green)" = "MAGMA's gene-based test is non-directional, so it has its own magnitude scale: white ≈ no association, green = stronger. The sign of MAGMA's Z is not a direction of effect.",
   "Black outline" = "The association is FDR-significant in that panel and method.",
   "Black square" = "FDR-significant AND supported by colocalisation.",
-  "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
+  "Black dot" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
   "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A solid black circle behind it marks the top-ranked gene in the credible set; a solid black square behind it marks genes whose probability exceeds the high-confidence threshold (set under Figure options) — the same convention as FDR-significant / colocalised genes."
 )
 
@@ -3202,7 +3203,8 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
                           Group = "Drug targets", stringsAsFactors = FALSE)
       calc_plot_dims(rbind(strip, d), y_col = "ID", x_col = "Panel", facet_col = "Group",
                      facet_order = c("Drug targets", get_group_order()),
-                     font_size = font_size %||% 14, min_height = 360, min_panel_h_pt = 240)
+                     font_size = font_size %||% 14, min_height = 200, min_panel_h_pt = 120,
+                     legend = "top")
     }
 
     .dg_gtable <- function(fd, dim, font_size, point_size, theme_name, title, caldera_thresh) {

@@ -180,10 +180,29 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   group_siz$Prop  <- group_siz$Size / sum(group_siz$Size)
   group_siz$Width <- 4 * group_siz$Prop
 
-  x <- c(-max(abs(all_func_res_all$Z), na.rm = TRUE), 0, max(abs(all_func_res_all$Z), na.rm = TRUE))
-  x <- (x - min(x)) / (max(x) - min(x))
-
   all_func_res_all <- data.table::data.table(all_func_res_all)
+
+  # Three independent colour legends, horizontal across the top:
+  #  * TWAS / PWAS / SMR are directional (signed Z) -> blue→white→red.
+  #  * MAGMA is non-directional (unsigned magnitude) -> its OWN white→green scale
+  #    (a second `colour` scale via ggnewscale, since base ggplot allows only one).
+  #  * CALDERA prioritiser -> purple `fill`.
+  # SuSiE fine-mapping / Nearest gene become a solid BLACK presence marker.
+  signed_rows <- all_func_res_all[!grepl('^SuSiE', Method) & Method != 'Nearest\nGene' &
+                                  !grepl('^CALDERA', Method) & Method != 'MAGMA' & Group != drug_group, ]
+  magma_rows  <- all_func_res_all[Method == 'MAGMA', ]
+  mz <- suppressWarnings(max(abs(signed_rows$Z), na.rm = TRUE)); if (!is.finite(mz) || mz == 0) mz <- 1
+  mm <- suppressWarnings(max(magma_rows$Z,       na.rm = TRUE)); if (!is.finite(mm) || mm == 0) mm <- 1
+  x  <- c(0, 0.5, 1)   # white sits at Z = 0 on the symmetric blue→red ramp
+
+  cbar <- function(ord) ggplot2::guide_colourbar(order = ord, direction = "horizontal",
+                                                 title.position = "top", barwidth = grid::unit(90, "pt"))
+  # Only add a colour/fill scale when rows that use it survive the filter, so a
+  # deselected method doesn't leave an empty legend (and new_scale_colour is only
+  # inserted when there is a prior colour scale to close off).
+  has_signed  <- nrow(signed_rows) > 0
+  has_magma   <- nrow(magma_rows) > 0
+  has_caldera <- any(grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio))
 
   heatmap <- ggplot2::ggplot(data = all_func_res_all, ggplot2::aes(x = Panel, y = ID)) +
     theme_fn() +
@@ -198,16 +217,31 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
     # ...and behind CALDERA genes whose probability exceeds the HC threshold
     # (same solid-square-behind treatment as colocalised genes).
     ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio) & all_func_res_all$Prio > caldera_hc_thresh, ], ggplot2::aes(x = Panel, y = ID), colour = 'black', shape = 15, size = point_size + 2) +
-    ggplot2::geom_point(data = all_func_res_all[(grepl('^SuSiE', all_func_res_all$Method) | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = '#00FF00', size = point_size + 1) +
-    ggplot2::geom_point(data = all_func_res_all[!grepl('^SuSiE', all_func_res_all$Method) & all_func_res_all$Method != 'Nearest\nGene' & !grepl('^CALDERA', all_func_res_all$Method) & all_func_res_all$Group != drug_group, ], ggplot2::aes(colour = Z), size = point_size) +
-    ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "Z-score", limits = c(-max(abs(all_func_res_all$Z), na.rm = TRUE), max(abs(all_func_res_all$Z), na.rm = TRUE)), values = x) +
-    # CALDERA facet: a PURPLE circle shaded by the gene's maximum CALDERA
-    # probability, drawn ON TOP of the black top-gene circle / HC square so those
-    # read as a ring / square behind it (mirrors FDR-sig + coloc TWAS/PWAS).
+    # SuSiE fine-mapping / Nearest gene: a solid BLACK presence marker.
+    ggplot2::geom_point(data = all_func_res_all[(grepl('^SuSiE', all_func_res_all$Method) | all_func_res_all$Method == 'Nearest\nGene') & !is.na(all_func_res_all$Z), ], ggplot2::aes(x = Panel, y = ID), colour = 'black', size = point_size + 1)
+
+  # TWAS / PWAS / SMR: directional Z, blue→white→red.
+  if (has_signed) heatmap <- heatmap +
+    ggplot2::geom_point(data = signed_rows, ggplot2::aes(colour = Z), size = point_size) +
+    ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"), na.value = NA, name = "TWAS/PWAS Z-score", limits = c(-mz, mz), values = x, guide = cbar(1))
+  # MAGMA: non-directional magnitude, white→green on its own colour scale.
+  if (has_magma) {
+    if (has_signed) heatmap <- heatmap + ggnewscale::new_scale_colour()
+    heatmap <- heatmap +
+      ggplot2::geom_point(data = magma_rows, ggplot2::aes(colour = Z), size = point_size) +
+      ggplot2::scale_colour_gradientn(colours = c("#FFFFFF", "#00CC66"), na.value = NA, name = "MAGMA Z score", limits = c(0, mm), guide = cbar(2))
+  }
+  # CALDERA facet: a PURPLE circle shaded by the gene's maximum CALDERA probability,
+  # drawn ON TOP of the black top-gene circle / HC square so those read as a ring /
+  # square behind it (mirrors FDR-sig + coloc TWAS/PWAS).
+  if (has_caldera) heatmap <- heatmap +
     ggplot2::geom_point(data = all_func_res_all[grepl('^CALDERA', all_func_res_all$Method) & !is.na(all_func_res_all$Prio), ], ggplot2::aes(x = Panel, y = ID, fill = Prio), shape = 21, colour = 'grey35', stroke = 0.3, size = point_size) +
-    ggplot2::scale_fill_gradient(low = '#efe6f7', high = '#5b2d91', limits = c(0, 1), na.value = 'grey90', name = "CALDERA\nprobability") +
+    ggplot2::scale_fill_gradient(low = '#efe6f7', high = '#5b2d91', limits = c(0, 1), breaks = c(0, 0.5, 1), na.value = 'grey90', name = "CALDERA probability", guide = cbar(3))
+
+  heatmap <- heatmap +
     ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
-                   plot.title = ggplot2::element_text(hjust = 0.5)) +
+                   plot.title = ggplot2::element_text(hjust = 0.5),
+                   legend.position = "top", legend.box = "horizontal", legend.title = ggplot2::element_text(size = font_size - 3)) +
     ggplot2::labs(x = '', y = '', title = if (nzchar(title)) title else NULL) +
     ggplot2::theme(text = ggplot2::element_text(size = font_size),
                    plot.margin = ggplot2::margin(t = 5.5, r = 5.5, b = 5.5,
@@ -260,7 +294,9 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
       gt$widths[panel_l] <- group_siz$Width[i] * gt$widths[panel_l]
     }
   }
-  reserve_legend_space(gt, panel_h_pt)
+  # Legends are horizontal across the top, so no right-hand reservation is needed
+  # (reserve_legend_space handled the old vertical right-side colourbars).
+  gt
 }
 
 #' Single-GWAS Summary body for the Molecular Associations tab.
@@ -984,7 +1020,7 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       dims <- calc_plot_dims(all_func_res, y_col = "ID", x_col = "Panel", facet_col = "Group",
                              facet_order = get_group_order(),
                              font_size = input$plot_font_size %||% 14,
-                             min_height = 200, min_panel_h_pt = 120)
+                             min_height = 200, min_panel_h_pt = 120, legend = "top")
 
       # Locus mode adds a right-hand Locus strip plus panel spacing between
       # locus bands (4pt gaps).
@@ -1032,10 +1068,11 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (plot_dim_mol()[['height']] < 10000 && nrow(filtered) > 0 && has_real_genes) {
         legend_items <- list(
           "Rows / columns" = "Each row is a gene; each column is an expression or protein reference panel, grouped by method (shown in the facet headers).",
-          "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+          "TWAS/PWAS Z-score (blue→red)" = "Directional association Z for TWAS / PWAS / SMR: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white is approximately no association.",
+          "MAGMA Z score (white→green)" = "MAGMA's gene-based test is non-directional, so it has its own magnitude scale: white ≈ no association, green = stronger. The sign of MAGMA's Z is not a direction of effect.",
           "Black outline" = "The association is FDR-significant in that panel and method.",
           "Black square" = "FDR-significant AND supported by colocalisation.",
-          "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
+          "Black dot" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
           "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is a purple circle shaded by its maximum CALDERA causal probability. A solid black circle behind it marks the top-ranked gene in the credible set; a solid black square behind it marks genes whose probability exceeds the high-confidence threshold (set under Filter data) — the same convention as FDR-significant / colocalised genes. L=1 and L=10 CALDERA (and SuSiE) are separate columns, added/removed via 'Include results from these methods' (L=1 by default). See the Effector genes sub-tab for the full per-locus figures."
         )
         if (identical(input$mol_layout, "locus")) {

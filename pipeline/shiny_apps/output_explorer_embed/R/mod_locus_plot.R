@@ -684,16 +684,21 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
   dat$Group <- factor(dat$Group, levels = intersect(get_group_order(), unique(dat$Group)))
   dat <- data.table::data.table(dat)
 
-  # Encoding mirrors build_mol_assoc_gtable() for consistency: black circle
-  # behind FDR-significant; black square behind colocalised (+ FDR-sig) and
-  # CALDERA HC; green = SuSiE/Nearest presence; Z gradient for assoc methods;
-  # purple fill = CALDERA probability. Gives native Z + CALDERA legends.
-  # Only add a scale/legend when rows that use it actually survive the filter.
+  # Encoding mirrors build_mol_assoc_gtable() for consistency: black circle behind
+  # FDR-significant; black square behind colocalised (+ FDR-sig) and CALDERA HC;
+  # BLACK = SuSiE/Nearest presence; TWAS/PWAS/SMR on a blue→red directional scale;
+  # MAGMA on its OWN white→green magnitude scale (via ggnewscale); purple fill =
+  # CALDERA probability. Three horizontal colourbars across the top. Only add a
+  # scale/legend when rows that use it survive the filter.
+  signed_mask <- !grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method) & dat$Method != "MAGMA"
+  has_signed  <- any(signed_mask)
+  has_magma   <- any(dat$Method == "MAGMA")
   has_caldera <- "Prio" %in% names(dat) && any(grepl("^CALDERA", dat$Method))
-  has_assoc <- any(!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method))
-  zmax <- suppressWarnings(max(abs(dat$Z[!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method)]), na.rm = TRUE))
-  if (!is.finite(zmax) || zmax == 0) zmax <- 1
-  xv <- c(-zmax, 0, zmax); xv <- (xv - min(xv)) / (max(xv) - min(xv))
+  zmax <- suppressWarnings(max(abs(dat$Z[signed_mask]), na.rm = TRUE)); if (!is.finite(zmax) || zmax == 0) zmax <- 1
+  mmax <- suppressWarnings(max(dat$Z[dat$Method == "MAGMA"], na.rm = TRUE)); if (!is.finite(mmax) || mmax == 0) mmax <- 1
+  xv <- c(0, 0.5, 1)
+  cbar <- function(ord) ggplot2::guide_colourbar(order = ord, direction = "horizontal",
+                                                 title.position = "top", barwidth = grid::unit(90, "pt"))
   ps <- 3
   p <- ggplot2::ggplot(dat, ggplot2::aes(x = ID, y = Panel)) + theme_fn(base_size = font_size) +
     ggplot2::geom_blank() +
@@ -704,17 +709,23 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
     colour = "black", shape = 15, size = ps + 2)
   p <- p +
     ggplot2::geom_point(data = dat[(grepl("^SuSiE", Method) | Method == "Nearest\nGene") & !is.na(Z)],
-                        colour = "#00FF00", size = ps + 1)
-  if (has_assoc) p <- p +
-    ggplot2::geom_point(data = dat[!grepl("^SuSiE", Method) & Method != "Nearest\nGene" & !grepl("^CALDERA", Method)],
-                        ggplot2::aes(colour = Z), size = ps) +
+                        colour = "black", size = ps + 1)
+  if (has_signed) p <- p +
+    ggplot2::geom_point(data = dat[signed_mask], ggplot2::aes(colour = Z), size = ps) +
     ggplot2::scale_colour_gradientn(colours = c("#0066FF", "#0099FF", "#FFFFFF", "#FF6666", "#FF0000"),
-                                    na.value = NA, name = "Z-score", limits = c(-zmax, zmax), values = xv)
+                                    na.value = NA, name = "TWAS/PWAS Z-score", limits = c(-zmax, zmax), values = xv, guide = cbar(1))
+  if (has_magma) {
+    if (has_signed) p <- p + ggnewscale::new_scale_colour()
+    p <- p +
+      ggplot2::geom_point(data = dat[Method == "MAGMA"], ggplot2::aes(colour = Z), size = ps) +
+      ggplot2::scale_colour_gradientn(colours = c("#FFFFFF", "#00CC66"), na.value = NA,
+                                      name = "MAGMA Z score", limits = c(0, mmax), guide = cbar(2))
+  }
   if (has_caldera) p <- p +
     ggplot2::geom_point(data = dat[grepl("^CALDERA", Method) & !is.na(Prio)],
                         ggplot2::aes(fill = Prio), shape = 21, colour = "grey35", stroke = 0.3, size = ps) +
-    ggplot2::scale_fill_gradient(low = "#efe6f7", high = "#5b2d91", limits = c(0, 1),
-                                 na.value = "grey90", name = "CALDERA\nprobability")
+    ggplot2::scale_fill_gradient(low = "#efe6f7", high = "#5b2d91", limits = c(0, 1), breaks = c(0, 0.5, 1),
+                                 na.value = "grey90", name = "CALDERA probability", guide = cbar(3))
   p +
     ggplot2::facet_grid(rows = ggplot2::vars(Group), scales = "free_y", space = "free_y", switch = "y") +
     ggplot2::scale_y_discrete(position = "right") +   # panel/tissue labels on the right
@@ -724,7 +735,9 @@ build_locus_assoc_grid <- function(gd, gwas, cf, ld, methods = NULL, panels = NU
                    strip.text.y.left = ggplot2::element_text(angle = 0, size = font_size * 0.7),
                    panel.grid.major = ggplot2::element_line(colour = "grey92"),
                    panel.grid.minor = ggplot2::element_blank(),
-                   panel.spacing = ggplot2::unit(2, "pt"))
+                   panel.spacing = ggplot2::unit(2, "pt"),
+                   legend.position = "top", legend.box = "horizontal",
+                   legend.title = ggplot2::element_text(size = font_size - 3))
 }
 
 # Facet-row + gene counts (for dynamic plot height/width), tissue-aware filter.
@@ -737,10 +750,11 @@ lp_grid_dims <- function(gd, gwas, cf, ld, methods = NULL, panels = NULL) {
                                      as.character(dat$Panel) %in% panels, , drop = FALSE]
   if (nrow(dat) == 0) return(list(nrows = 0L, ngenes = 0L, nlegends = 0L))
   has_caldera <- "Prio" %in% names(dat) && any(grepl("^CALDERA", dat$Method))
-  has_assoc <- any(!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method))
+  has_signed  <- any(!grepl("^SuSiE", dat$Method) & dat$Method != "Nearest\nGene" & !grepl("^CALDERA", dat$Method) & dat$Method != "MAGMA")
+  has_magma   <- any(dat$Method == "MAGMA")
   list(nrows = length(unique(paste(dat$Group, dat$Panel))),
        ngenes = length(unique(as.character(dat$ID))),
-       nlegends = as.integer(has_caldera) + as.integer(has_assoc))
+       nlegends = as.integer(has_caldera) + as.integer(has_signed) + as.integer(has_magma))
 }
 
 # ---- Assembly ---------------------------------------------------------------

@@ -69,7 +69,8 @@ facet_target_width_pt <- function(group_label, panel_names, font_size = 14) {
 #'   `plot.margin(l = ...)` needed to absorb tick-label overflow.
 calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Method",
                            facet_order = NULL, font_size = 14, min_height = 0,
-                           min_panel_h_pt = 0) {
+                           min_panel_h_pt = 0, legend = c("right", "top")) {
+  legend <- match.arg(legend)
   # Non-data.frame input can arrive when an upstream
   # *_summary_data_filtered() returns NULL after a bundle swap (e.g.
   # loading a bundle with no enrichment data after one that had some) —
@@ -96,6 +97,9 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
   # without squeezing the panel.
   plot_height <- (max(nchar(df[[x_col]]), na.rm = TRUE) * 3 * fs_ratio) +
                  panel_h_pt + 100 + 30
+  # Horizontal colourbar legends sit above the plot, so reserve a legend-row
+  # band (title + bar + tick labels, which may wrap to two rows on narrow plots).
+  if (identical(legend, "top")) plot_height <- plot_height + 110 * fs_ratio
   plot_height <- max(plot_height, min_height)
 
   # Facet order (left→right)
@@ -126,8 +130,14 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
     }
   }
 
-  # Right-side allowance for Z-score legend + panel spacing + margins.
-  plot_width <- y_label_width + total_facet_width + 150 + left_pad_pt
+  # Right-side allowance: 150pt for a vertical right-hand legend, or just a small
+  # margin when the legend is on top.
+  right_margin <- if (identical(legend, "top")) 40 else 150
+  plot_width <- y_label_width + total_facet_width + right_margin + left_pad_pt
+  # The three horizontal colourbars (TWAS/PWAS, MAGMA, CALDERA) sit in a row
+  # above the plot, so the plot must be at least wide enough to hold them or the
+  # rightmost legend clips. Floor the width at the legend-row width.
+  if (identical(legend, "top")) plot_width <- max(plot_width, 620 * fs_ratio)
 
   list(height = plot_height, width = plot_width, left_pad_pt = left_pad_pt,
        panel_h_pt = panel_h_pt)

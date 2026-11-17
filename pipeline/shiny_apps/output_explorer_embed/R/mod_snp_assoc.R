@@ -1284,11 +1284,12 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                error = function(e) list(nrows = 6L, ngenes = 10L, nlegends = 2L))
     })
     # Size adapts to genes (width) + methods/panels (height), like the mol-assoc plot.
-    # Height floors on the legend stack (each colourbar ~150px) so legends never crowd.
+    # The colourbars are horizontal across the top, so they add one legend-row band
+    # to the height (not a per-legend stack) and set a minimum width so they fit.
     output$lp_grid_ui <- renderUI({
       dm <- lpg_dims()
-      w <- max(560, 240 + 26 * dm$ngenes)   # + legends/label margin
-      h <- max(220, 90 + 24 * dm$nrows, 60 + 150 * (dm$nlegends %||% 0))
+      w <- max(640, 240 + 26 * dm$ngenes)   # min width holds the horizontal legend row
+      h <- max(220, 90 + 24 * dm$nrows) + (if ((dm$nlegends %||% 0) > 0) 120 else 0)
       tags$div(style = "overflow-x: auto;",
         plotOutput(ns("lp_grid"), width = paste0(w, "px"), height = paste0(h, "px")))
     })
@@ -1302,10 +1303,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       if (length(lp_grid_opts()$methods) == 0) return(NULL)
       gd_legend(list(
         "Rows / columns" = "Each column is a gene (in genomic-position order); each row is a reference panel, grouped by method in the facet headers.",
-        "Colour" = "Association Z-score: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white ≈ no association.",
+        "TWAS/PWAS Z-score (blue→red)" = "Directional association Z for TWAS / PWAS / SMR: blue = the molecular feature is lower with the trait-increasing allele, red = higher, white ≈ no association.",
+        "MAGMA Z score (white→green)" = "MAGMA's gene-based test is non-directional, so it has its own magnitude scale: white ≈ no association, green = stronger. The sign of MAGMA's Z is not a direction of effect.",
         "Black circle" = "The association is FDR-significant in that panel and method.",
         "Black square" = "FDR-significant AND supported by colocalisation.",
-        "Green" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
+        "Black dot" = "Gene highlighted by SuSiE fine-mapping or as the nearest gene to a lead variant.",
         "CALDERA (purple)" = "Effector-gene prioritiser, not an association test (no Z-score): each gene is shaded by its maximum CALDERA causal probability; a black square behind it marks genes above the high-confidence threshold."
       ), heading = "How to read this plot")
     })
