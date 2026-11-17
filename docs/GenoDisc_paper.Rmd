@@ -877,8 +877,84 @@ I have downloaded the latest CAD GWAS (GCST90132314), but I think it needs to mo
 ```{r}
 library(data.table)
 ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/CAD/GCST90132314.h.tsv.gz')
+ss<-ss[ss$effect_allele_frequency > 0.01 & ss$effect_allele_frequency < 0.99,]
+ss<-ss[, c('chromosome','base_pair_location','effect_allele','other_allele','beta','standard_error','effect_allele_frequency','p_value','effective_cases'), with = F]
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/CAD/GCST90132314.h.small.tsv.gz', quote = F, sep = ' ', na= 'NA')
 ```
 
+## SCZ
 
+There is a newer SCZ GWAS (Bigdeli). It is in BCF format so needs reformatting for GenoDisc.
+
+```{bash}
+module add bcftools
+bcftools view -O z -o /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.vcf.gz /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.bcf
+```
+
+```{r}
+library(data.table)
+
+#' Read a GWAS-VCF (MRC IEU OpenGWAS format) into a standard sumstats data.table
+#'
+#' @param file    Path to .vcf or .vcf.gz (fread needs R.utils for .gz)
+#' @param sample  Sample (trait) column to extract: name or index. Default = first.
+#' @return data.table with CHR, BP, SNP, A1 (effect allele = ALT), A2 (REF),
+#'         BETA, SE, P, LP, FREQ, N, plus any other FORMAT fields present
+#'         (e.g. EZ, SI, NC, NE, ID).
+read_gwas_vcf <- function(file, sample = 1) {
+
+  dt <- fread(file, skip = "#CHROM", sep = "\t", header = TRUE, quote = "",
+              colClasses = list(character = c("#CHROM", "ID", "REF", "ALT", "FORMAT")),
+              na.strings = ".")
+
+  setnames(dt, c("#CHROM", "POS", "ID", "REF", "ALT"), c("CHR", "BP", "SNP", "A2", "A1"))
+
+  fixed   <- c("CHR", "BP", "SNP", "A2", "A1", "QUAL", "FILTER", "INFO", "FORMAT")
+  samples <- setdiff(names(dt), fixed)
+  if (is.numeric(sample)) sample <- samples[sample]
+  if (length(sample) != 1 || !sample %in% samples)
+    stop("Sample not found. Available: ", paste(samples, collapse = ", "))
+
+  dt[, .row := .I]
+
+  # FORMAT can differ between rows (e.g. some rows lack SS), so split per FORMAT string
+  fmt_parsed <- rbindlist(lapply(unique(dt$FORMAT), function(f) {
+    keys <- strsplit(f, ":", fixed = TRUE)[[1]]
+    sub  <- dt[FORMAT == f, c(".row", sample), with = FALSE]
+    sub[, (keys) := tstrsplit(get(sample), ":", fixed = TRUE, fill = NA_character_)]
+    sub[, (sample) := NULL]
+  }), use.names = TRUE, fill = TRUE)
+
+  out <- dt[, .(.row, CHR, BP, SNP, A1, A2)][fmt_parsed, on = ".row"]
+  setorder(out, .row)
+  out[, .row := NULL]
+
+  # Missing values are "." in VCF; convert numeric fields
+  num_fields <- intersect(c("ES", "SE", "LP", "AF", "SS", "EZ", "SI", "NC", "NE"), names(out))
+  for (j in num_fields) set(out, j = j, value = suppressWarnings(as.numeric(replace(out[[j]], out[[j]] == ".", NA))))
+
+  # Rename to conventional sumstats names
+  old <- c("ES", "AF", "SS", "ID")
+  new <- c("BETA", "FREQ", "N", "STUDY_ID")
+  setnames(out, old[old %in% names(out)], new[old %in% names(out)])
+
+  # LP = -log10(P). 10^-LP underflows to 0 for LP > ~323; LP is kept for that reason.
+  if ("LP" %in% names(out)) out[, P := 10^(-LP)]
+
+  if (any(grepl(",", out$A1, fixed = TRUE)))
+    warning(sum(grepl(",", out$A1, fixed = TRUE)), " multi-allelic rows (comma in ALT) left unsplit")
+
+  front <- intersect(c("CHR", "BP", "SNP", "A1", "A2", "BETA", "SE", "P", "LP", "FREQ", "N"), names(out))
+  setcolorder(out, front)
+  out[]
+}
+
+# Example
+# ss <- read_gwas_vcf("ieu-a-2.vcf.gz")
+# fwrite(ss, "ieu-a-2.sumstats.gz", sep = "\t", na = "NA")
+
+ss <- read_gwas_vcf("/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.vcf.gz")
+
+```
 
 
