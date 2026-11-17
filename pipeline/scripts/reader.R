@@ -33,6 +33,7 @@
   "mol_assoc/pops",
   "mol_assoc/nearest",
   "mol_assoc/finemap",
+  "mol_assoc/gene_positions",
   "credset_coding",
   "caldera",
   "tx/drug",

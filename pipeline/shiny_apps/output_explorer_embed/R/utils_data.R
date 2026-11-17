@@ -306,8 +306,14 @@ load_gene_positions <- local({
 #'
 #' @param ids Character vector of feature ids (gene symbols / Ensembl ids)
 #' @param gd,gwas,cf As for build_gene_position_map() (fallback source)
+#' @param harvest_map Optional precomputed per-symbol position map
+#'   (data.frame ID/CHR/BP, e.g. the bundle's "mol_assoc/gene_positions" block).
+#'   When supplied it replaces the on-the-fly build_gene_position_map() harvest,
+#'   so the reference-preferred resolution is identical but avoids re-reading and
+#'   aggregating the method blocks on every call. NULL falls back to the live
+#'   harvest (older bundles that predate the precomputed block).
 #' @return data.frame(ID, CHR, BP) for the resolved subset of `ids`
-resolve_feature_positions <- function(ids, gd, gwas, cf) {
+resolve_feature_positions <- function(ids, gd, gwas, cf, harvest_map = NULL) {
   ids <- unique(as.character(ids))
   ids <- ids[!is.na(ids) & ids != "" & ids != "Placeholder"]
   # data.frame() can't recycle length-1 NA_real_ against a length-0 ids
@@ -332,9 +338,10 @@ resolve_feature_positions <- function(ids, gd, gwas, cf) {
     fill_from(ref$by_ensembl, is.na(out$BP) & grepl("^ENSG", out$ID))
   }
 
-  # Fallback for ids the reference does not cover.
+  # Fallback for ids the reference does not cover: the precomputed bundle map if
+  # present, otherwise harvest positions from the method blocks on the fly.
   if (any(is.na(out$BP))) {
-    harvest <- build_gene_position_map(gd, gwas, cf)
+    harvest <- if (!is.null(harvest_map)) harvest_map else build_gene_position_map(gd, gwas, cf)
     if (!is.null(harvest) && nrow(harvest) > 0) fill_from(harvest, is.na(out$BP))
   }
 

@@ -45,6 +45,50 @@ config <- vapply(names(merged_config), function(k) {
 gwas_list<-read_param(config = opt$config, param = 'gwas_list', return_obj = T)
 outdir <- read_param(config = opt$config, param = 'outdir', return_obj = F)
 
+# Harvest a per-symbol genomic position map from the in-memory molecular
+# method tables (MAGMA gene bounds, FUSION P0/P1, SMR BP), mirroring the Shiny
+# app's build_gene_position_map() so the viewer can skip that harvest at render
+# time (the "by locus" ordering was re-aggregating these blocks on every
+# re-plot). Returns data.frame(ID, CHR, BP), one row per symbol (CHR = first,
+# BP = median), or an empty frame when no position-bearing method ran. The app
+# still prefers its canonical reference and only uses this as the harvest source,
+# so locus assignment is unchanged — just precomputed.
+harvest_gene_positions <- function(mol_assoc) {
+  pos <- NULL
+  add_pos <- function(id, chr, bp) {
+    ok <- !is.na(id) & !is.na(chr) & !is.na(bp)
+    if (!any(ok)) return(invisible(NULL))
+    pos <<- rbind(pos, data.frame(ID = as.character(id)[ok],
+                                  CHR = suppressWarnings(as.numeric(chr))[ok],
+                                  BP  = suppressWarnings(as.numeric(bp))[ok],
+                                  stringsAsFactors = FALSE))
+  }
+  get_res <- function(o) {
+    if (is.null(o)) return(NULL)
+    r <- o[["res"]]; if (is.null(r)) r <- o[["results"]]
+    r
+  }
+  m <- mol_assoc$magma
+  if (!is.null(m) && all(c("ID", "CHR", "START", "STOP") %in% names(m)))
+    add_pos(m$ID, m$CHR, (as.numeric(m$START) + as.numeric(m$STOP)) / 2)
+  for (o in list(mol_assoc$exp$fusion, mol_assoc$protein$fusion)) {
+    r <- get_res(o)
+    if (!is.null(r) && all(c("Gene Symbol", "CHR", "P0", "P1") %in% names(r)))
+      add_pos(r$`Gene Symbol`, r$CHR, (as.numeric(r$P0) + as.numeric(r$P1)) / 2)
+  }
+  for (o in list(mol_assoc$exp$smr, mol_assoc$protein$smr)) {
+    r <- get_res(o)
+    if (!is.null(r) && all(c("Gene Symbol", "CHR", "BP") %in% names(r)))
+      add_pos(r$`Gene Symbol`, r$CHR, r$BP)
+  }
+  if (is.null(pos) || nrow(pos) == 0)
+    return(data.frame(ID = character(0), CHR = numeric(0), BP = numeric(0)))
+  pos <- pos[!is.na(pos$CHR) & !is.na(pos$BP), ]
+  agg <- aggregate(BP ~ ID, data = pos, FUN = median)
+  chr <- aggregate(CHR ~ ID, data = pos, FUN = function(x) x[1])
+  merge(chr, agg, by = "ID")
+}
+
 output<-list()
 for(gwas_i in gwas_list$name){
 
@@ -305,6 +349,12 @@ for(gwas_i in gwas_list$name){
   } else {
     mol_assoc$finemap<-NULL
   }
+
+  ######
+  # Gene positions (precomputed locus map for the viewer's "by locus" layout)
+  ######
+
+  mol_assoc$gene_positions<-harvest_gene_positions(mol_assoc)
 
   #################
   # Drug repruposing

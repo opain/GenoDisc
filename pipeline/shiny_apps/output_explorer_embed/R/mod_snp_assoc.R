@@ -318,7 +318,11 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       lead_choices <- c()
       if (isTRUE(cf$cojo))  lead_choices <- c(lead_choices, "COJO" = "cojo_analysis")
       if (isTRUE(cf$clump)) lead_choices <- c(lead_choices, "LD-based clumping" = "ld_clumping")
-      default_method <- if (length(lead_choices) > 0) unname(lead_choices[1]) else character(0)
+      # Prefer LD-based clumping as the default when it was run (the locus plot
+      # below is only available for clumping); otherwise fall back to the first.
+      default_method <- if (isTRUE(cf$clump)) "ld_clumping"
+                        else if (length(lead_choices) > 0) unname(lead_choices[1])
+                        else character(0)
       # Build the threshold choices for the default method at render time so the
       # suggestive option is present immediately (the observeEvent below only
       # updates it on a later method switch, and can lose the init-time race).
@@ -338,14 +342,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         mainPanel(
           uiOutput(ns("cojo_status_message")),
           uiOutput(ns("lead_status_message")),
+          uiOutput(ns("cojo_locus_hint")),
           dataTableOutput(ns("snp_assoc_lead_table")),
           # Nearest-gene protein-coding toggle sits with the table it affects,
           # kept apart from the locus-plot controls further down.
           uiOutput(ns("lead_pc_ui")),
           uiOutput(ns("lead_legend")),
           tags$hr(),
-          tags$h4("Locus plot"),
-          uiOutput(ns("lp_section")),   # dynamic dashboard, or static PNG on older bundles
+          uiOutput(ns("lp_section")),   # header + dynamic dashboard (LD clumping only), or static PNG on older bundles
           width = 9
         )
       )
@@ -745,6 +749,20 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
       }
     })
 
+    # Under COJO the table rows aren't selectable (no locus plot); point users to
+    # the LD-based clumping table, where selecting a row opens a locus plot. Only
+    # shown when clumping was actually run.
+    output$cojo_locus_hint <- renderUI({
+      req(input$clumping_type, config_flags())
+      if (!identical(input$clumping_type, "cojo_analysis")) return(NULL)
+      if (!isTRUE(config_flags()$clump)) return(NULL)
+      div(style = paste0("background-color:#eef3fb; border:1px solid #cfe0f3; ",
+                         "border-radius:8px; padding:10px 14px; color:#2c3e50; margin-bottom:12px;"),
+          icon("circle-info"),
+          HTML(paste0(" Interactive locus plots are available under <strong>LD-based clumping</strong>: ",
+                      "choose that method (<em>Select method</em>, left) and click a lead-variant row to open one.")))
+    })
+
     # Distinct from the COJO reference-too-small banner above: this fires when the
     # analysis ran fine but simply found no variants passing the threshold (the
     # common underpowered-GWAS case). Suppressed when the COJO failure banner shows.
@@ -836,8 +854,13 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         "}"
       )
 
+      # Row selection drives the locus plot, which is only meaningful under LD
+      # clumping; disable selection entirely for COJO (a hint above points users
+      # to the clumping table instead).
+      sel <- if (identical(input$clumping_type, "ld_clumping"))
+        list(mode = 'single', target = 'row') else 'none'
       datatable(d, rownames = F, width = 7,
-        selection = list(mode = 'single', target = 'row'),
+        selection = sel,
         options = list(
           rowCallback = JS(js),
           columnDefs = c(
@@ -1029,8 +1052,14 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     # The locus-plot area: the interactive dashboard on supported bundles, or the
     # static locuszoom PNGs (old behaviour) on bundles that predate it.
     output$lp_section <- renderUI({
+      # The locus plot is only meaningful for LD-based clumping; hide the whole
+      # section (header included) under COJO. Gated here, not in the baked
+      # lead_single_body, so it reacts to method switches.
+      if (!identical(input$clumping_type, "ld_clumping")) return(NULL)
+      header <- tags$h4("Locus plot")
       if (isTRUE(lp_dashboard_supported())) {
         tagList(
+          header,
           uiOutput(ns("lp_status")),
           uiOutput(ns("lp_controls_ui")),
           tags$div(style = "max-width: 1100px;",
@@ -1044,7 +1073,7 @@ snpAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
           tags$div(style = "height: 350px;")   # space so the figure can scroll to the bottom
         )
       } else {
-        uiOutput(ns("lp_static_ui"))
+        tagList(header, uiOutput(ns("lp_static_ui")))
       }
     })
 

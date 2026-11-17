@@ -143,6 +143,32 @@ calc_plot_dims <- function(df, y_col = "ID", x_col = "Panel", facet_col = "Metho
        panel_h_pt = panel_h_pt)
 }
 
+#' Maximum gene rows that keep a molecular-association heatmap under the size cap
+#'
+#' Inverts the height formula in calc_plot_dims(): fixed overhead (x-label band,
+#' padding, top colourbar legend) plus one 20pt panel row per gene (and the single
+#' shared Placeholder row), with a worst-case 4pt per-row locus gap in locus mode.
+#' Returns the number of REAL genes (Placeholder excluded) to show: the smaller of
+#' a hard gene cap (`max_genes`, default 100, to keep the heatmap legible) and the
+#' count whose plot height lands just under `cap`, so the heatmap is auto-restricted
+#' to its top genes rather than refusing to draw. Always >= 1.
+#'
+#' @param df Filtered summary data frame (needs the x-axis `Panel` column).
+#' @param font_size Point size the plot will use.
+#' @param locus_mode TRUE when the by-locus layout (adds inter-locus gaps) is on.
+#' @param cap Height ceiling in pt (default 9800, just under the 10000 no-draw cap).
+#' @param max_genes Hard upper bound on genes shown (default 100).
+.mol_max_genes <- function(df, font_size = 14, locus_mode = FALSE, cap = 9800,
+                           max_genes = 100L) {
+  fs_ratio <- (font_size %||% 14) / 14
+  xlab_n <- suppressWarnings(max(nchar(as.character(df$Panel)), na.rm = TRUE))
+  if (!is.finite(xlab_n)) xlab_n <- 10
+  overhead <- xlab_n * 3 * fs_ratio + 130 + 110 * fs_ratio
+  per_row  <- 20 * fs_ratio + if (isTRUE(locus_mode)) 4 else 0
+  max_rows <- floor((cap - overhead) / per_row)
+  min(max(max_rows - 1L, 1L), max_genes)   # -1 for the single Placeholder row
+}
+
 #' Reserve legend space by pinning the panel row height and letting the
 #' legend column stretch below it.
 #'

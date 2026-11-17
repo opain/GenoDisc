@@ -3200,9 +3200,9 @@ enrichmentServer <- function(id, gwas_data, selected_gwas, config_flags,
       d <- data.frame(ID = fd$mol$ID, Panel = as.character(fd$mol$Panel),
                       Group = make_group_labels(fd$mol$Method, fd$mol$Type), stringsAsFactors = FALSE)
       strip <- data.frame(ID = fd$links$ID, Panel = as.character(fd$links$drug),
-                          Group = "Drug targets", stringsAsFactors = FALSE)
+                          Group = "Drug\ntargets", stringsAsFactors = FALSE)
       calc_plot_dims(rbind(strip, d), y_col = "ID", x_col = "Panel", facet_col = "Group",
-                     facet_order = c("Drug targets", get_group_order()),
+                     facet_order = c("Drug\ntargets", get_group_order()),
                      font_size = font_size %||% 14, min_height = 200, min_panel_h_pt = 120,
                      legend = "top")
     }

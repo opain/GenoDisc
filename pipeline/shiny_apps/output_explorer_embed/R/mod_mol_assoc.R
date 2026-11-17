@@ -126,7 +126,7 @@ build_mol_assoc_gtable <- function(all_func_res, locus_mode, locus_map,
   # Panel column per selected drug and a marker where the gene is a target of
   # that drug. Built as ordinary rows (Group set directly, so make_group_labels
   # above never sees them) and drawn later with fixed-aesthetic geoms.
-  drug_group <- "Drug targets"
+  drug_group <- "Drug\ntargets"   # two lines so the facet strip label isn't cramped
   has_drug_strip <- !is.null(drug_links) && nrow(drug_links) > 0
   if (has_drug_strip) {
     dl <- data.table::as.data.table(drug_links)[, .(
@@ -916,16 +916,29 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
                            nearest_pc = isTRUE(input$mol_nearest_pc))
     })
 
-    # Gene -> locus lookup for the per-locus layout. Positions are resolved
-    # through the canonical reference (with a per-method harvest fallback) and
-    # scoped to the DISPLAYED genes only, so loci are tight clusters of the
-    # shown features rather than genome-wide bands.
+    # Positions for every gene that can appear, resolved ONCE per GWAS (this
+    # reactive depends on the unfiltered summary data, not the filter inputs, so
+    # it doesn't recompute when methods / HC / font change). Prefers the bundle's
+    # precomputed "mol_assoc/gene_positions" harvest map so the reference+harvest
+    # merge never re-reads the method blocks on the re-plot hot path; falls back
+    # to the live harvest on older bundles that predate the block.
+    mol_positions_all <- reactive({
+      req(gwas_data(), config_flags(), mol_assoc_summary_data()); g <- .pick_mol_gwas(); req(g)
+      ids <- unique(as.character(mol_assoc_summary_data()$ID))
+      hm <- tryCatch(gd_read(gwas_data(), g, "mol_assoc/gene_positions"),
+                     error = function(e) NULL)
+      resolve_feature_positions(ids, gwas_data(), g, config_flags(), harvest_map = hm)
+    })
+
+    # Gene -> locus lookup for the per-locus layout, scoped to the DISPLAYED genes
+    # only (so loci are tight clusters of the shown features). Just a subset of
+    # the cached positions + assign_loci on each filter change — cheap.
     mol_locus_map <- reactive({
-      req(gwas_data(), config_flags(), mol_assoc_summary_data_filtered()); g <- .pick_mol_gwas(); req(g)
+      req(mol_assoc_summary_data_filtered())
       ids <- unique(as.character(mol_assoc_summary_data_filtered()$ID))
       ids <- ids[ids != "Placeholder"]
-      pos <- resolve_feature_positions(ids, gwas_data(), g, config_flags())
-      assign_loci(pos)
+      pos <- mol_positions_all()
+      assign_loci(pos[pos$ID %in% ids, , drop = FALSE])
     })
 
     ########
@@ -997,6 +1010,32 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
         } else {
           all_func_res <- data.frame(matrix(nrow = 0, ncol = 5))
         }
+      }
+
+      # When more high-confidence genes remain than can fit under the plot-size
+      # cap, auto-restrict to the top X by strength of evidence (rather than the
+      # old "plot too large" no-plot). X is the gene count whose plot height
+      # lands just under the cap; the note rendered in message_too_large_mol
+      # tells the user it was restricted and how to narrow further.
+      real <- all_func_res$ID != 'Placeholder' & !is.na(all_func_res$ID)
+      genes <- unique(all_func_res$ID[real])
+      max_genes <- .mol_max_genes(all_func_res,
+                                  font_size = input$plot_font_size %||% 14,
+                                  locus_mode = identical(input$mol_layout, "locus"))
+      if (length(genes) > max_genes) {
+        d <- data.table::as.data.table(all_func_res[real, , drop = FALSE])
+        has_prio <- "Prio" %in% names(d)
+        scores <- d[, .(
+          coloc = as.integer(any(Sig %in% TRUE & Coloc %in% TRUE)),
+          sig   = as.integer(any(Sig %in% TRUE)),
+          absZ  = max(c(0, abs(suppressWarnings(as.numeric(Z)))), na.rm = TRUE),
+          prio  = if (has_prio) max(c(0, suppressWarnings(as.numeric(Prio))), na.rm = TRUE) else 0
+        ), by = ID]
+        data.table::setorder(scores, -coloc, -sig, -absZ, -prio)
+        keep <- scores$ID[seq_len(max_genes)]
+        all_func_res <- all_func_res[all_func_res$ID %in% c(keep, 'Placeholder'), ]
+        attr(all_func_res, "mol_restricted") <- list(shown = length(keep),
+                                                      total = length(genes))
       }
 
       return(all_func_res)
@@ -1090,12 +1129,18 @@ molAssocServer <- function(id, gwas_data, selected_gwas, config_flags,
     })
 
     output$message_too_large_mol <- renderUI({
-      if (plot_dim_mol()[['height']] > 10000) {
-        HTML(sprintf(
-          "<div style='color: red;'>%s</div>",
-          "Plot is too large. Restrict to high-confidence genes or specify a list of genes."
-        ))
-      }
+      r <- attr(mol_assoc_summary_data_filtered(), "mol_restricted")
+      if (is.null(r)) return(NULL)
+      HTML(sprintf(
+        paste0("<div style='color:#8a6d00; background:#fff8e1; border:1px solid #ffe082; ",
+               "padding:8px 12px; border-radius:4px; margin:10px 0;'>",
+               "Showing the top <b>%d</b> of %d genes by strength of evidence ",
+               "(colocalised &amp; significant first, then significant, then association ",
+               "strength). Narrow the selection criteria — restrict to high-confidence genes, ",
+               "raise the CALDERA threshold, or enter a specific gene list — to explore the rest.",
+               "</div>"),
+        r$shown, r$total
+      ))
     })
 
     output$message_no_positions_mol <- renderUI({
