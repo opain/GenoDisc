@@ -131,7 +131,7 @@ software:
 
   - key: caldera
     name: CALDERA
-    version: "static binary (sha-pinned in rules/dependencies.smk)"
+    version: "git commit 81a8a03"
     bibkey: [heilbron2024caldera]
     used_by: [caldera]
     notes: "Effector-gene model from fine-mapped credible sets (Schipper, Ulirsch, Posthuma, Ripke & Heilbron 2026, PLOS Genetics; scripts/run_caldera.R)."

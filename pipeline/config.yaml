@@ -47,11 +47,13 @@ cojo: F
 
 # Perform COJO analysis with Manc-COJO (flag: manc_cojo; see rules/sumstat_qc.smk).
 # Reproduces GCTA-COJO's single-ancestry stepwise selection but is much faster. It
-# runs ALONGSIDE GCTA-COJO (independent of `cojo`; set both T to compare) - GCTA-COJO
-# remains the default and is the method consumed by the results package / viewer.
+# runs ALONGSIDE GCTA-COJO (independent of `cojo`; set both T to compare) - Manc-COJO
+# is the COJO method the website requests and, when enabled, is the one packaged into
+# the results bundle / viewer (snp_assoc$cojo, scripts/package_results.R); GCTA-COJO
+# (`cojo`) is retained for internal comparison.
 # Uses the same per-GWAS 1KG+HGDP reference as GCTA-COJO (EUR/population column) and
 # a staged binary (download_manc_cojo). Results are written to
-# {outdir}/results/{gwas}/manc_cojo/ and are not yet packaged (comparison pending).
+# {outdir}/results/{gwas}/manc_cojo/ and are packaged when manc_cojo is enabled.
 manc_cojo: F
 
 # Perform SNP finemapping analysis

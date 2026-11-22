@@ -1541,8 +1541,10 @@ rule magma_ensgid_annot:
 ####
 # CALDERA (Heilbron et al. 2024, MIT) ships its pretrained model + gene locations
 # + coding-SNP list in the repo - no retraining. Clone pinned to a commit for
-# reproducibility (update deliberately).
+# reproducibility (update deliberately). This SHA is what the write-up generator
+# records as the CALDERA version (writeup/registry.yaml).
 CALDERA_REPO_URL = "https://github.com/kheilbron/caldera.git"
+CALDERA_COMMIT = "81a8a0308741ae986660f711bbf6a7abbd3bca19"
 
 rule download_caldera:
   output:
@@ -1553,12 +1555,13 @@ rule download_caldera:
   conda:
     "../envs/main.yaml"
   params:
-    repo=CALDERA_REPO_URL, sw=f"{resdir}/software"
+    repo=CALDERA_REPO_URL, commit=CALDERA_COMMIT, sw=f"{resdir}/software"
   log:
     f"{resdir}/logs/download_caldera.log"
   shell:
     "(set -eo pipefail; mkdir -p {params.sw}; "
-    "rm -rf {params.sw}/caldera; git clone --depth 1 {params.repo} {params.sw}/caldera) > {log} 2>&1"
+    "rm -rf {params.sw}/caldera; git clone {params.repo} {params.sw}/caldera; "
+    "git -C {params.sw}/caldera checkout -q {params.commit}) > {log} 2>&1"
 
 ####
 # Format ROSMAP SMR data

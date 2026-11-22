@@ -83,8 +83,9 @@ process_ldsc_log<-function(config, gwas){
 
   if(read_param(config = config, param = 'ldsc', return_obj = F) == "T"){
 
-    # LDSC h2 is EUR-only (EUR LD scores); for a non-EUR GWAS its report.smk
-    # target is skipped, so the log is absent - return NULL rather than erroring.
+    # LDSC h2 runs per-population (EUR uses eur_w_ld_chr; non-EUR uses Pan-UKB
+    # UKBB.{POP} LD scores). If the log is absent (e.g. the target was skipped for
+    # an unsupported population), return NULL rather than erroring.
     ldsc_log_path<-paste0(outdir,'/results/',gwas,'/ldsc/',gwas,'_ldsc_res.log')
     if(!file.exists(ldsc_log_path)) return(NULL)
 
