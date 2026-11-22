@@ -877,14 +877,20 @@ I have downloaded the latest CAD GWAS (GCST90132314), but I think it needs to mo
 ```{r}
 library(data.table)
 ss<-fread('/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/CAD/GCST90132314.h.tsv.gz')
+
+ss$N<-4/((1/ss$effective_cases)+(1/(ss$n-ss$effective_cases)))
+
 ss<-ss[ss$effect_allele_frequency > 0.01 & ss$effect_allele_frequency < 0.99,]
-ss<-ss[, c('chromosome','base_pair_location','effect_allele','other_allele','beta','standard_error','effect_allele_frequency','p_value','effective_cases'), with = F]
+
+ss<-ss[, c('chromosome','base_pair_location','effect_allele','other_allele','beta','standard_error','effect_allele_frequency','p_value','N'), with = F]
 fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/CAD/GCST90132314.h.small.tsv.gz', quote = F, sep = ' ', na= 'NA')
 ```
 
 ## SCZ
 
 There is a newer SCZ GWAS (Bigdeli). It is in BCF format so needs reformatting for GenoDisc.
+
+### EUR
 
 ```{bash}
 module add bcftools
@@ -955,6 +961,215 @@ read_gwas_vcf <- function(file, sample = 1) {
 
 ss <- read_gwas_vcf("/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.vcf.gz")
 
+setnames(ss, c("NS", "NC", "NE", "I2", "CQ", "ED"),
+             c("N", "N_CAS", "NEFF", "HET_I2", "HET_LP", "DIRECTION"))
+
+num <- c("N", "HET_I2", "HET_LP")
+ss[, (num) := lapply(.SD, function(x) as.numeric(fifelse(x == ".", NA_character_, x))), .SDcols = num]
+
+ss[, `:=`(N_CON = N - N_CAS, HET_P = 10^-HET_LP)]
+
+ss<-ss[,c('CHR','BP','SNP','A1','A2','BETA','SE','P','FREQ','N'), with = F]
+ss<-ss[ss$FREQ > 0.01 & ss$FREQ < 0.99,]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.small.tsv.gz', quote = F, sep = ' ', na= 'NA')
+
+```
+
+***
+
+### EAS
+
+```{bash}
+module add bcftools
+bcftools view -O z -o /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EAS_autosomes.vcf.gz /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EAS_autosome.bcf
+```
+
+```{r}
+library(data.table)
+
+#' Read a GWAS-VCF (MRC IEU OpenGWAS format) into a standard sumstats data.table
+#'
+#' @param file    Path to .vcf or .vcf.gz (fread needs R.utils for .gz)
+#' @param sample  Sample (trait) column to extract: name or index. Default = first.
+#' @return data.table with CHR, BP, SNP, A1 (effect allele = ALT), A2 (REF),
+#'         BETA, SE, P, LP, FREQ, N, plus any other FORMAT fields present
+#'         (e.g. EZ, SI, NC, NE, ID).
+read_gwas_vcf <- function(file, sample = 1) {
+
+  dt <- fread(file, skip = "#CHROM", sep = "\t", header = TRUE, quote = "",
+              colClasses = list(character = c("#CHROM", "ID", "REF", "ALT", "FORMAT")),
+              na.strings = ".")
+
+  setnames(dt, c("#CHROM", "POS", "ID", "REF", "ALT"), c("CHR", "BP", "SNP", "A2", "A1"))
+
+  fixed   <- c("CHR", "BP", "SNP", "A2", "A1", "QUAL", "FILTER", "INFO", "FORMAT")
+  samples <- setdiff(names(dt), fixed)
+  if (is.numeric(sample)) sample <- samples[sample]
+  if (length(sample) != 1 || !sample %in% samples)
+    stop("Sample not found. Available: ", paste(samples, collapse = ", "))
+
+  dt[, .row := .I]
+
+  # FORMAT can differ between rows (e.g. some rows lack SS), so split per FORMAT string
+  fmt_parsed <- rbindlist(lapply(unique(dt$FORMAT), function(f) {
+    keys <- strsplit(f, ":", fixed = TRUE)[[1]]
+    sub  <- dt[FORMAT == f, c(".row", sample), with = FALSE]
+    sub[, (keys) := tstrsplit(get(sample), ":", fixed = TRUE, fill = NA_character_)]
+    sub[, (sample) := NULL]
+  }), use.names = TRUE, fill = TRUE)
+
+  out <- dt[, .(.row, CHR, BP, SNP, A1, A2)][fmt_parsed, on = ".row"]
+  setorder(out, .row)
+  out[, .row := NULL]
+
+  # Missing values are "." in VCF; convert numeric fields
+  num_fields <- intersect(c("ES", "SE", "LP", "AF", "SS", "EZ", "SI", "NC", "NE"), names(out))
+  for (j in num_fields) set(out, j = j, value = suppressWarnings(as.numeric(replace(out[[j]], out[[j]] == ".", NA))))
+
+  # Rename to conventional sumstats names
+  old <- c("ES", "AF", "SS", "ID")
+  new <- c("BETA", "FREQ", "N", "STUDY_ID")
+  setnames(out, old[old %in% names(out)], new[old %in% names(out)])
+
+  # LP = -log10(P). 10^-LP underflows to 0 for LP > ~323; LP is kept for that reason.
+  if ("LP" %in% names(out)) out[, P := 10^(-LP)]
+
+  if (any(grepl(",", out$A1, fixed = TRUE)))
+    warning(sum(grepl(",", out$A1, fixed = TRUE)), " multi-allelic rows (comma in ALT) left unsplit")
+
+  front <- intersect(c("CHR", "BP", "SNP", "A1", "A2", "BETA", "SE", "P", "LP", "FREQ", "N"), names(out))
+  setcolorder(out, front)
+  out[]
+}
+
+# Example
+# ss <- read_gwas_vcf("ieu-a-2.vcf.gz")
+# fwrite(ss, "ieu-a-2.sumstats.gz", sep = "\t", na = "NA")
+
+ss <- read_gwas_vcf("/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EAS_autosomes.vcf.gz")
+
+setnames(ss, c("NS", "NC", "NE", "I2", "CQ", "ED"),
+             c("N", "N_CAS", "NEFF", "HET_I2", "HET_LP", "DIRECTION"))
+
+num <- c("N", "HET_I2", "HET_LP")
+ss[, (num) := lapply(.SD, function(x) as.numeric(fifelse(x == ".", NA_character_, x))), .SDcols = num]
+
+ss[, `:=`(N_CON = N - N_CAS, HET_P = 10^-HET_LP)]
+
+ss<-ss[,c('CHR','BP','SNP','A1','A2','BETA','SE','P','FREQ','N'), with = F]
+ss<-ss[ss$FREQ > 0.01 & ss$FREQ < 0.99,]
+
+fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EAS_autosomes.small.tsv.gz', quote = F, sep = ' ', na= 'NA')
+
+```
+
+***
+
+# Run in GenoDisc
+
+```{bash}
+mkdir -p /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz
+mkdir -p /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/input
+
+# Copy the GWAS in 
+cp /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.small.tsv.gz /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/input/
+cp /users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/CAD/GCST90132314.h.small.tsv.gz /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/input/
+
+# Use gencor_gwas_list from previous job selecting full set of secondary GWAS
+cp /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_20261117_145654/gencor_gwas_list.txt /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/
+
+```
+
+```{r}
+
+dir.create('/scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz', recursive = T)
+
+library(data.table)
+
+####
+# Create gwas_list
+####
+
+gwas_list_cad <- fread('~/neurohackpain/GenoDisc/jobs/k1806347_20261117_195226/gwas_list.txt')
+gwas_list_scz <- fread('~/neurohackpain/GenoDisc/jobs/k1806347_20261117_145654/gwas_list.txt')
+gwas_list_combined <- rbind(gwas_list_cad, gwas_list_scz)
+gwas_list_combined$label <- paste0('"', gwas_list_combined$label, '"')
+
+gwas_list_combined$path <- gsub('.*input/','/scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/input/', gwas_list_combined$path)
+
+write.table(gwas_list_combined, '/scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/gwas_list.txt', row.names = F)
+
+####
+# Create config file
+####
+
+config <- c(
+  "caldera: T",
+  "clump: T",
+  "config_file: /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/config.yaml",
+  "credset_coding_annot: T",
+  "credset_coding_pip_thresh: 0.1",
+  "finemap: T",
+  "gencor_gwas_list: /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/gencor_gwas_list.txt",
+  "gencor_within_gwas_list: T",
+  "gtex_weights:",
+  "- Whole_Blood",
+  "gwas_list: /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/gwas_list.txt",
+  "info: 0.9",
+  "ldsc: T",
+  "maf: 0.01",
+  "maf_diff: 0.2",
+  "magma_drugtargetor: T",
+  "magma_drugtargetor_gls: T",
+  "magma_gene: T",
+  "magma_pathway: T",
+  "manc_cojo: T",
+  "non_gtex_weights:",
+  "- NTR.BLOOD.RNAARR",
+  "- YFS.BLOOD.RNAARR",
+  "outdir: /scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_20261117_195226",
+  "pathway_gmt_dir: /scratch/prj/neurohackpain/GenoDisc/pipeline_resources/data/msigdb",
+  "pipeline_version: v1.7.0",
+  "pops: T",
+  "resdir: /scratch/prj/neurohackpain/GenoDisc/resources/v-dense",
+  "sbayesrc_r: T",
+  "smr_expression_panel_eqtlgen: T",
+  "sumher: T",
+  "tissue_magma: T",
+  "twas_panel_fusion: T",
+  "pwas_panel_banner: T",
+  "pwas_panel_rosmap: T",
+  "sbayesrc_r: T",
+  "smr_expression_panel_metabrain_cortex: T",
+  "smr_expression_panel_psychencode: T",
+  "smr_protein_panel_rosmap: T",
+  "twas_panel_psychencode: T"
+)
+
+write.table(config, '/scratch/prj/neurohackpain/GenoDisc/jobs/k1806347_cad_scz/config.yaml', row.names = F)
+
+```
+
+***
+
+## Run pipeline for all GWAS
+
+```{bash, eval = F}
+
+BASE=/scratch/prj/neurohackpain/GenoDisc
+JOBID=k1806347_cad_scz     # website pattern: <username>_<YYYYmmdd_HHMMSS>
+JOBDIR=$BASE/jobs/$JOBID
+VERSION=v1.7.0                            # resolves repo/versions/v1.7.0 ; omit or "dev" -> repo/current
+PARTITIONS=neurohack_cpu,cpu                  # KCL users can broaden to: neurohack_cpu,cpu
+TS=$(date +%Y%m%d_%H%M%S)
+
+export GENODISC_PARTITIONS="$PARTITIONS"   # propagated to every per-rule job Snakemake submits
+sbatch --partition="$PARTITIONS" --requeue --cpus-per-task=1 --time=24:00:00 --mem=4G \
+  --chdir="$JOBDIR" --job-name="GenoDisc-$JOBID" \
+  --output="$JOBDIR/${TS}_%j.log" \
+  "$BASE/bin/run_genodisc.sh" "$JOBDIR" "$VERSION"
+  
 ```
 
 
