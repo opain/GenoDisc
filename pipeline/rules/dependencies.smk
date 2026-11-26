@@ -190,10 +190,11 @@ chromosomes = config.get("chromosomes", list(range(1, 23)))
 # treated as up-to-date and the reinstall silently skipped.)
 # NOTE: bump to the new GenoUtils SHA after pushing the removed-variant / raw-Manhattan
 # change (forks/GenoUtils) so install_genoutils installs the cleaner that writes
-# <gwas>.cleaned.removed.gz and <gwas>.cleaned.manhattan_raw.rds. The sumstat_prep_i
-# outputs added in rules/sumstat_qc.smk require this cleaner; do not apply that rule
-# change until this SHA is bumped, or dev runs will fail on missing outputs.
-GENOUTILS_SHA = "d734c605cf8e60125b735e553577d56242898abe"  # was 73a18fbf25ad1ca35d5a6e510283e5bf2f2b1294
+# <gwas>.cleaned.removed.gz, <gwas>.cleaned.retained.gz and <gwas>.cleaned.manhattan_raw.rds.
+# The sumstat_prep_i outputs added in rules/sumstat_qc.smk require this cleaner; do not apply
+# that rule change until this SHA is bumped (and the commit pushed), or dev runs will fail on
+# missing outputs.
+GENOUTILS_SHA = "a93660a9713ead0e2b062d97356647a0c4b8bc31"  # was 95224be385ef19190361e43420056a0c14569195
 LME4QTL_SHA = "0c173ea8d8386b205f62ad642698519a861650b4"
 
 ########

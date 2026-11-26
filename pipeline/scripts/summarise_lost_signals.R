@@ -1,15 +1,20 @@
 #!/usr/bin/Rscript
 # Summarise genome-wide significant variants removed during GWAS sumstat QC ("lost signals").
 #
-# Reads the per-variant removed-variant file written by the GenoUtils cleaner
-# (<gwas>.cleaned.removed.gz: original user-build SNP, CHR, BP, P, reason) and the cleaned
-# sumstats (<gwas>.cleaned.gz), and produces <gwas>.lost_signals.rds containing:
+# Reads the two per-variant sidecars written by the GenoUtils cleaner, both in the original
+# user/input build: the removed-variant file (<gwas>.cleaned.removed.gz: SNP, CHR, BP, P, reason) and
+# the retained-variant file (<gwas>.cleaned.retained.gz: SNP, CHR, BP, P). It produces
+# <gwas>.lost_signals.rds containing:
 #   - counts of removed GW-significant (P < 5e-8) variants by reason,
 #   - approximate loci (greedy 1 Mb windows around each lead/lowest-P removed variant),
-#   - for each locus, whether any variant was RETAINED in the cleaned data within the window
-#     (and whether a retained variant there is itself GW-significant), flagging loci whose
-#     entire GW-significant signal was removed.
-# No LD reference is used; loci are purely positional. This script is additive and reads only.
+#   - for each locus, whether any variant was RETAINED within the window (and whether a retained
+#     variant there is itself GW-significant), flagging loci whose entire GW-significant signal was
+#     removed.
+# Positions are compared on a single build: the cleaned sumstats (<gwas>.cleaned.gz) are remapped to
+# GRCh37 by the cleaner, so we use the retained sidecar (user build) to match the removed sidecar's
+# build -- otherwise a non-GRCh37 input mislabels nearby retained signals as lost. For bundles made
+# before the retained sidecar existed we fall back to cleaned.gz (GRCh37) and flag build_reconciled
+# = FALSE. No LD reference is used; loci are purely positional. This script is additive and reads only.
 
 suppressMessages(library("optparse"))
 
@@ -30,6 +35,7 @@ options(pipeline_dir = opt$pipeline_dir)
 
 suppressMessages(library(data.table))
 source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'utils_functions.R'))
+source(file.path(opt$pipeline_dir, 'scripts', 'functions', 'lost_signals_functions.R'))
 
 outdir <- read_param(config = opt$config_file, param = 'outdir', return_obj = F)
 removed_p_thresh <- suppressWarnings(as.numeric(read_param(config = opt$config_file, param = 'removed_p_thresh', return_obj = F)))
@@ -41,6 +47,7 @@ HALF_WIN  <- WINDOW_BP / 2
 
 ss_dir   <- file.path(outdir, 'results', opt$gwas, 'gwas_sumstat')
 rem_path <- file.path(ss_dir, paste0(opt$gwas, '.cleaned.removed.gz'))
+ret_path <- file.path(ss_dir, paste0(opt$gwas, '.cleaned.retained.gz'))
 cln_path <- file.path(ss_dir, paste0(opt$gwas, '.cleaned.gz'))
 out_path <- file.path(ss_dir, paste0(opt$gwas, '.lost_signals.rds'))
 
@@ -61,49 +68,25 @@ counts_by_reason <- if (nrow(removed_sig) > 0) {
 }
 
 # Group removed GW-significant variants into approximate loci and compare to retained variants.
-loci <- data.table(CHR = character(0), lead_SNP = character(0), lead_BP = numeric(0),
-                   lead_P = numeric(0), reason = character(0), n_removed = integer(0),
-                   n_retained_in_window = integer(0), n_retained_sig_in_window = integer(0),
-                   lost_signal = logical(0))
+# build_reconciled: TRUE when removed and retained were compared on a common (user) build via the
+# retained sidecar; FALSE when we fell back to cleaned.gz (GRCh37) for a pre-sidecar bundle; NA when
+# the check did not run (no coordinates / no removed GW-sig variants).
+loci <- compute_lost_signal_loci(NULL, NULL)   # empty default
+build_reconciled <- NA
 
 if (has_coords && nrow(removed_sig) > 0) {
-  # Retained (cleaned) variant positions, for the "is anything still here?" check.
-  cln_cols <- names(fread(cln_path, nrows = 0))
-  cleaned <- fread(cln_path, select = intersect(c('CHR','BP','SNP','P'), cln_cols))
-  cleaned[, CHR := as.character(CHR)]
-
-  rs <- copy(removed_sig)
-  rs[, CHR := as.character(CHR)]
-  rs[, BP := as.numeric(BP)]
-  rs <- rs[order(P)]            # lowest-P first => lead of its locus
-  rs[, assigned := FALSE]
-
-  loci_list <- list()
-  for (i in seq_len(nrow(rs))) {
-    if (rs$assigned[i]) next
-    lead <- rs[i]
-    in_win <- rs$CHR == lead$CHR & abs(rs$BP - lead$BP) <= HALF_WIN & !rs$assigned
-    rs[in_win, assigned := TRUE]
-
-    cl_win <- cleaned[CHR == lead$CHR & abs(BP - lead$BP) <= HALF_WIN]
-    n_ret      <- nrow(cl_win)
-    n_ret_sig  <- if ('P' %in% names(cl_win)) sum(!is.na(cl_win$P) & cl_win$P < GW_THRESH) else 0L
-
-    loci_list[[length(loci_list) + 1]] <- data.table(
-      CHR = lead$CHR,
-      lead_SNP = if ('SNP' %in% names(lead)) as.character(lead$SNP) else NA_character_,
-      lead_BP = lead$BP,
-      lead_P = lead$P,
-      reason = lead$reason,
-      n_removed = sum(in_win),
-      n_retained_in_window = n_ret,
-      n_retained_sig_in_window = n_ret_sig,
-      # Lost signal = no retained variant in the window reaches GW significance, i.e. the
-      # GW-significant signal at this locus is not represented in the cleaned data.
-      lost_signal = (n_ret_sig == 0))
+  # Retained variants in the SAME build as the removed file. cleaned.gz has BP remapped to GRCh37, so
+  # prefer the user-build retained sidecar; fall back to cleaned.gz for bundles made before it existed.
+  if (file.exists(ret_path)) {
+    ret_cols <- names(fread(ret_path, nrows = 0))
+    retained <- fread(ret_path, select = intersect(c('CHR','BP','SNP','P'), ret_cols))
+    build_reconciled <- TRUE
+  } else {
+    cln_cols <- names(fread(cln_path, nrows = 0))
+    retained <- fread(cln_path, select = intersect(c('CHR','BP','SNP','P'), cln_cols))
+    build_reconciled <- FALSE
   }
-  loci <- rbindlist(loci_list)
-  loci <- loci[order(lead_P)]
+  loci <- compute_lost_signal_loci(removed_sig, retained, GW_THRESH, HALF_WIN)
 }
 
 lost_signals <- list(
@@ -112,6 +95,7 @@ lost_signals <- list(
   removed_p_thresh     = removed_p_thresh,
   window_bp            = WINDOW_BP,
   has_coords           = has_coords,
+  build_reconciled     = build_reconciled,
   n_removed_sig        = nrow(removed_sig),
   counts_by_reason     = counts_by_reason,
   loci                 = loci,

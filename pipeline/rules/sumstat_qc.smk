@@ -63,10 +63,12 @@ rule sumstat_prep_i:
     # kept for FUSION TWAS, whose weight panels can be denser than HapMap3.
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.munged.mergealleles.sumstats.gz",
     # Attrition reporting (additive; cleaned outputs above are unchanged):
-    # per-variant file of QC-removed variants with P < removed_p_thresh (original
-    # user-build SNP/CHR/BP/P + reason), and raw-input (pre-reference) thinned
-    # Manhattan data with a removed flag/reason for plotting lost signals.
+    # per-variant files of QC-removed and QC-retained variants with P < removed_p_thresh, both in the
+    # original user-build SNP/CHR/BP/P (removed also carries +reason). The retained file matches the
+    # removed file's build so the lost-signal check can compare them on one build (cleaned.gz is on
+    # GRCh37). Plus raw-input (pre-reference) thinned Manhattan data with a removed flag/reason.
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.removed.gz",
+    f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.retained.gz",
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.manhattan_raw.rds"
   benchmark:
     f"{outdir}/benchmarks/sumstat_prep_i_{{gwas}}.tsv"
@@ -135,8 +137,10 @@ rule sumstat_prep:
 rule lost_signals:
   input:
     removed=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.removed.gz",
+    retained=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.retained.gz",
     cleaned=f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.cleaned.gz",
-    script=f"{workflow.basedir}/scripts/summarise_lost_signals.R"
+    script=f"{workflow.basedir}/scripts/summarise_lost_signals.R",
+    functions=f"{workflow.basedir}/scripts/functions/lost_signals_functions.R"
   output:
     f"{outdir}/results/{{gwas}}/gwas_sumstat/{{gwas}}.lost_signals.rds"
   benchmark:
