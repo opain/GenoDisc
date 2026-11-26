@@ -86,13 +86,21 @@ results_gencor <- function(ctx, g, meta) {
 results_clump <- function(ctx, g, meta) {
   d <- pluck(g, "snp_assoc", "clump"); if (is.null(d)) return(NULL)
   n <- nrow(d); opt <- ctx$opt
-  if (n == 0) return(gstr("No independent genome-wide significant loci were identified {.tref('clump', 'snp_assoc', 'SNP associations tab')}."))
+  # Clumping runs at the suggestive index threshold (clump$p1 = 1e-5), so `n` is the
+  # suggestive count; report the genome-wide significant subset (P < gw_sig_p) separately.
+  sugg_p <- param(ctx, "clump", "p1"); gw_p <- param(ctx, "gw_sig_p")
+  if (n == 0) return(gstr("No independent loci were identified at the suggestive threshold (P < {fmt_p(sugg_p, opt)}) {.tref('clump', 'snp_assoc', 'SNP associations tab')}."))
+  n_gw <- sum(suppressWarnings(as.numeric(d$P)) < gw_p, na.rm = TRUE)
   top <- .top(d, "P", 1L)
   gene <- .col(top, c("NearestGene")); snp <- .col(top, c("SNP", "rsid"))
   lead <- if (!is.null(snp)) snp[1] else if (!is.null(gene)) gene[1] else "the lead variant"
+  gw_clause <- if (n_gw > 0)
+    gstr(", of which {fmt_int(n_gw)} reached genome-wide significance (P < {fmt_p(gw_p, opt)})")
+  else
+    gstr("; none reached genome-wide significance (P < {fmt_p(gw_p, opt)})")
   gstr(
-    "Clumping identified {fmt_int(n)} independent genome-wide significant ",
-    "{pluralise('locus', n, 'loci')}. The most significant was {lead}",
+    "Clumping identified {fmt_int(n)} independent {pluralise('locus', n, 'loci')} at the ",
+    "suggestive threshold (P < {fmt_p(sugg_p, opt)}){gw_clause}. The most significant was {lead}",
     "{if (!is.null(gene)) paste0(' (nearest gene ', gene[1], ')') else ''} ",
     "(P = {fmt_p(top$P[1], opt)}) {.tref('clump', 'snp_assoc', 'SNP associations tab')}."
   )}

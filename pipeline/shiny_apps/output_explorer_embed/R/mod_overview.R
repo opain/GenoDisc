@@ -24,7 +24,8 @@ overviewUI <- function(id) {
       p(
         style = "color: var(--gd-text-mute);",
         "Counts of high-confidence entities under the FDR threshold above. ",
-        "Molecular counts require both FDR-significance and colocalisation (FUSION) or HEIDI support (SMR)."
+        "Molecular counts require both FDR-significance and colocalisation (FUSION) or HEIDI support (SMR). ",
+        "The loci columns instead use GWAS P-value thresholds, not FDR: genome-wide significant (P < 5×10⁻⁸) and suggestive (P < 1×10⁻⁵)."
       ),
       DT::DTOutput(ns("yield_tbl"))
     ),
@@ -35,7 +36,8 @@ overviewUI <- function(id) {
       "h² (SE)" = "LDSC observed-scale SNP heritability with its standard error. Blank when LDSC was not run.",
       "N sig SNPs" = "Count of SNPs passing p < 5×10⁻⁸ in the cleaned sumstats.",
       "N SNPs post-QC" = "Number of SNPs remaining after quality-control filtering in the sumstat cleaner.",
-      "Loci" = "Number of independent clumped loci.",
+      "GW Loci" = "Independent genome-wide significant clumped loci (P < 5×10⁻⁸).",
+      "Suggestive Loci" = "Independent suggestive clumped loci (P < 1×10⁻⁵); the full clumping yield (includes the GW-significant loci).",
       "Sig TWAS" = "TWAS-FUSION genes that are FDR-significant AND colocalised (COLOC-supported), unique across panels.",
       "Sig PWAS" = "PWAS-FUSION genes that are FDR-significant AND colocalised (COLOC-supported), unique across panels.",
       "Sig SMR-eQTL" = "SMR-expression genes that are FDR-significant AND pass HEIDI (p_HEIDI > 0.05), unique across panels.",
@@ -101,8 +103,9 @@ overviewServer <- function(id, gwas_data, selected_gwas_multi,
       d <- d[match(ord, gwas)]
       fmt <- function(v) ifelse(is.na(v), "—", formatC(v, format = "d", big.mark = ","))
       out <- data.frame(
-        GWAS            = d$gwas,
-        Loci            = fmt(d$n_loci),
+        GWAS              = d$gwas,
+        `GW Loci`         = fmt(d$n_loci_gw),
+        `Suggestive Loci` = fmt(d$n_loci_sugg),
         `Sig TWAS`      = fmt(d$n_twas_hc),
         `Sig PWAS`      = fmt(d$n_pwas_hc),
         `Sig SMR-eQTL`  = fmt(d$n_smr_expr_hc),

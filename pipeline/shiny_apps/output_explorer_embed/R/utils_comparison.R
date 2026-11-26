@@ -526,9 +526,13 @@ build_overview_yield <- function(long, gd, gwas_vec,
   }
 
   rows <- lapply(gwas_vec, function(g) {
-    # Loci: use clumping as the canonical locus count.
+    # Loci: clumping runs at --clump-p1 1e-5, so the clump table is the suggestive
+    # yield. Split into genome-wide significant (P < 5e-8) vs the full suggestive
+    # count (P < 1e-5) so the "significant entities" table does not conflate them.
     clump <- safe_access(gd_read(gd, g, "snp_assoc"), "clump")
-    n_loci <- if (!is.null(clump)) nrow(clump) else NA_integer_
+    clump_p <- if (!is.null(clump)) suppressWarnings(as.numeric(clump$P)) else numeric(0)
+    n_loci_gw   <- if (!is.null(clump)) sum(clump_p < 5e-8, na.rm = TRUE) else NA_integer_
+    n_loci_sugg <- if (!is.null(clump)) nrow(clump)                      else NA_integer_
 
     # TWAS-FUSION HC genes: TWAS.P.FDR < threshold AND COLOC_logical.
     twas <- safe_access(gd_read(gd, g, "mol_assoc/exp/fusion"), "res")
@@ -581,7 +585,8 @@ build_overview_yield <- function(long, gd, gwas_vec,
 
     data.table::data.table(
       gwas          = g,
-      n_loci        = suppressWarnings(as.integer(n_loci)),
+      n_loci_gw     = suppressWarnings(as.integer(n_loci_gw)),
+      n_loci_sugg   = suppressWarnings(as.integer(n_loci_sugg)),
       n_twas_hc     = suppressWarnings(as.integer(n_twas_hc)),
       n_pwas_hc     = suppressWarnings(as.integer(n_pwas_hc)),
       n_smr_expr_hc = suppressWarnings(as.integer(n_smr_expr_hc)),

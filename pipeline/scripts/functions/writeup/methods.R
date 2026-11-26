@@ -129,7 +129,7 @@ methods_clump <- function(ctx, g, meta) {
   ref  <- writeup_tool(ctx, "ref_1kg_hgdp")
   p1 <- param(ctx, "clump", "p1"); r2 <- param(ctx, "clump", "r2"); kb <- param(ctx, "clump", "kb")
   gstr(
-    "Independent genome-wide significant loci were identified by LD-based clumping ",
+    "Independent loci were identified by LD-based clumping ",
     "in {tool} using the {ref}, matched to the GWAS population ",
     "(index-variant P < {fmt_p(p1, ctx$opt)}, r2 < {fmt_num(r2, ctx$opt)}, ",
     "{fmt_int(kb)} kb window). The nearest gene to each index variant was annotated."
