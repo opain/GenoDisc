@@ -969,7 +969,7 @@ ss[, (num) := lapply(.SD, function(x) as.numeric(fifelse(x == ".", NA_character_
 
 ss[, `:=`(N_CON = N - N_CAS, HET_P = 10^-HET_LP)]
 
-ss<-ss[,c('CHR','BP','SNP','A1','A2','BETA','SE','P','FREQ','N'), with = F]
+ss<-ss[,c('CHR','BP','SNP','A1','A2','BETA','SE','P','FREQ','NEFF'), with = F]
 ss<-ss[ss$FREQ > 0.01 & ss$FREQ < 0.99,]
 
 fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EUR_autosomes.small.tsv.gz', quote = F, sep = ' ', na= 'NA')
@@ -1049,15 +1049,15 @@ read_gwas_vcf <- function(file, sample = 1) {
 
 ss <- read_gwas_vcf("/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EAS_autosomes.vcf.gz")
 
-setnames(ss, c("NS", "NC", "NE", "I2", "CQ", "ED"),
-             c("N", "N_CAS", "NEFF", "HET_I2", "HET_LP", "DIRECTION"))
+setnames(ss, c("NS", "NC", "NE"),
+             c("N", "N_CAS", "NEFF"))
 
-num <- c("N", "HET_I2", "HET_LP")
+num <- c("N")
 ss[, (num) := lapply(.SD, function(x) as.numeric(fifelse(x == ".", NA_character_, x))), .SDcols = num]
 
-ss[, `:=`(N_CON = N - N_CAS, HET_P = 10^-HET_LP)]
+ss[, `:=`(N_CON = N - N_CAS)]
 
-ss<-ss[,c('CHR','BP','SNP','A1','A2','BETA','SE','P','FREQ','N'), with = F]
+ss<-ss[,c('CHR','BP','SNP','A1','A2','BETA','SE','P','FREQ','NEFF'), with = F]
 ss<-ss[ss$FREQ > 0.01 & ss$FREQ < 0.99,]
 
 fwrite(ss, '/users/k1806347/oliverpainfel/Data/GWAS_sumstats/GenoDisc_paper/SCZ/SCZ_EAS_autosomes.small.tsv.gz', quote = F, sep = ' ', na= 'NA')
